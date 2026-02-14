@@ -1,0 +1,123 @@
+version: "2"
+linters:
+  default: all
+  disable:
+    - err113 # noisy
+    - errchkjson # noisy
+    - exhaustruct # noisy
+    - forbidigo # unnecessary
+    - funcorder # noisy
+    - funlen # noisy
+    - cyclop # noisy
+    - maintidx # noisy
+    - gochecknoglobals # lipgloss styles are globals
+    - gochecknoinits # init is appropriate for reading env vars at startup
+    - gocognit # noisy
+    - gosmopolitan # time.Local is correct for CLI tools
+    - gocyclo # noisy
+    - godot # noisy
+    - gomoddirectives # unnecessary
+    - inamedparam # noisy
+    - ireturn # noisy
+    - lll # noisy
+    - makezero # noisy
+    - nlreturn # noisy
+    - noinlineerr # unnecessary
+    - paralleltest # noisy
+    - perfsprint # noisy
+    - prealloc # noisy
+    # tagalign: enabled with custom order (see settings)
+    - testpackage # internal tests are fine for a library
+    - varnamelen # noisy
+    - wrapcheck # noisy
+    - wsl # noisy
+    - wsl_v5 # noisy
+
+  settings:
+    tagalign:
+      order:
+        - name
+        - help
+        - desc
+        - short
+        - aliases
+        - complete
+        - arg
+        - optional
+        - hidden
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: github.com/davecgh/go-spew/spew
+              desc: debug packages should only be imported during development
+    errcheck:
+      check-type-assertions: true
+    exhaustive:
+      check:
+        - switch
+        - map
+    gocritic:
+      settings:
+        captLocal:
+          paramsOnly: false
+        underef:
+          skipRecvDeref: false
+    govet:
+      disable:
+        - fieldalignment
+      enable-all: true
+      settings:
+        shadow:
+          strict: false
+    mnd:
+      ignored-functions:
+        - os.Chmod
+        - os.Mkdir
+        - os.MkdirAll
+        - os.OpenFile
+        - os.WriteFile
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+      allow-no-explanation:
+        - funlen
+        - gocognit
+        - lll
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - bodyclose
+          - dupl
+          - funlen
+          - gochecknoglobals
+          - goconst
+          - gosec
+          - lll
+          - noctx
+          - wrapcheck
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples/
+issues:
+  max-same-issues: 50
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples/
