@@ -21,6 +21,7 @@ func (c *Context) Logger() *Logger {
 		mu: c.logger.mu,
 
 		exitFunc:        c.logger.exitFunc,
+		fieldStyleLevel: c.logger.fieldStyleLevel,
 		fieldTimeFormat: c.logger.fieldTimeFormat,
 		fields:          c.fields,
 		handler:         c.logger.handler,

@@ -432,7 +432,8 @@ logger := clog.New(os.Stderr)
 logger.SetLevel(clog.DebugLevel)
 logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
-logger.SetFieldTimeFormat(time.Kitchen) // format for .Time() fields (default: time.RFC3339)
+logger.SetFieldTimeFormat(time.Kitchen)      // format for .Time() fields (default: time.RFC3339)
+logger.SetFieldStyleLevel(clog.TraceLevel)   // min level for field value styling (default: InfoLevel)
 logger.SetHandler(myHandler)
 ```
 

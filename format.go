@@ -11,13 +11,14 @@ import (
 
 // formatFieldsOpts configures field formatting behaviour.
 type formatFieldsOpts struct {
-	noColor    bool
-	level      Level
-	styles     *Styles
-	quoteMode  QuoteMode
-	quoteOpen  rune // 0 means default ('"' via strconv.Quote)
-	quoteClose rune // 0 means same as quoteOpen (or default)
-	timeFormat string
+	fieldStyleLevel Level
+	level           Level
+	noColor         bool
+	quoteClose      rune // 0 means same as quoteOpen (or default)
+	quoteMode       QuoteMode
+	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
+	styles          *Styles
+	timeFormat      string
 }
 
 // valueKind classifies a formatted value for type-based styling.
@@ -132,7 +133,7 @@ func formatValue(
 // styledFieldValue applies styling to a formatted field value.
 // Returns the styled string, or the plain valStr if no styling applies.
 func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsOpts) string {
-	if opts.noColor || opts.level < InfoLevel {
+	if opts.noColor || opts.level < opts.fieldStyleLevel {
 		return valStr
 	}
 

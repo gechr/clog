@@ -165,6 +165,7 @@ type Logger struct {
 	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
 	fieldTimeFormat string
 	fields          []Field
+	fieldStyleLevel Level
 	handler         Handler
 	labels          LevelMap
 	level           Level
@@ -191,6 +192,7 @@ func New(out io.Writer) *Logger {
 
 		exitFunc:        os.Exit,
 		fieldTimeFormat: time.RFC3339,
+		fieldStyleLevel: InfoLevel,
 		labels:          DefaultLabels(),
 		level:           InfoLevel,
 		levelAlign:      AlignRight,
@@ -249,6 +251,16 @@ func (l *Logger) SetTimeLocation(loc *time.Location) {
 	defer l.mu.Unlock()
 
 	l.timeLocation = loc
+}
+
+// SetFieldStyleLevel sets the minimum log level at which field values are
+// styled (coloured). Events below this level render fields as plain text.
+// Defaults to [InfoLevel].
+func (l *Logger) SetFieldStyleLevel(level Level) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.fieldStyleLevel = level
 }
 
 // SetFieldTimeFormat sets the format string used for [time.Time] field values
@@ -542,13 +554,14 @@ func (l *Logger) log(e *Event, msg string) {
 			}
 		case PartFields:
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
-				noColor:    noColor,
-				level:      e.level,
-				styles:     l.styles,
-				quoteMode:  l.quoteMode,
-				quoteOpen:  l.quoteOpen,
-				quoteClose: l.quoteClose,
-				timeFormat: l.fieldTimeFormat,
+				fieldStyleLevel: l.fieldStyleLevel,
+				level:           e.level,
+				noColor:         noColor,
+				quoteClose:      l.quoteClose,
+				quoteMode:       l.quoteMode,
+				quoteOpen:       l.quoteOpen,
+				styles:          l.styles,
+				timeFormat:      l.fieldTimeFormat,
 			}), " ")
 		}
 
@@ -767,6 +780,7 @@ func SetParts(order ...Part)                 { Default.SetParts(order...) }
 func SetPrefixes(prefixes LevelMap)          { Default.SetPrefixes(prefixes) }
 func SetReportTimestamp(report bool)         { Default.SetReportTimestamp(report) }
 func SetStyles(styles *Styles)               { Default.SetStyles(styles) }
+func SetFieldStyleLevel(level Level)         { Default.SetFieldStyleLevel(level) }
 func SetFieldTimeFormat(format string)       { Default.SetFieldTimeFormat(format) }
 func SetTimeFormat(format string)            { Default.SetTimeFormat(format) }
 func SetTimeLocation(loc *time.Location)     { Default.SetTimeLocation(loc) }

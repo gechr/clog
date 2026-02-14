@@ -282,7 +282,8 @@ func runSpinner(
 	quoteMode := Default.quoteMode
 	quoteOpen := Default.quoteOpen
 	quoteClose := Default.quoteClose
-	fieldTimeFmt := Default.fieldTimeFormat
+	fieldTimeFormat := Default.fieldTimeFormat
+	fieldStyleLevel := Default.fieldStyleLevel
 	Default.mu.Unlock()
 
 	// Don't animate if colours are disabled (CI, piped output, etc.).
@@ -313,7 +314,7 @@ func runSpinner(
 						quoteMode:  quoteMode,
 						quoteOpen:  quoteOpen,
 						quoteClose: quoteClose,
-						timeFormat: fieldTimeFmt,
+						timeFormat: fieldTimeFormat,
 					}), " ",
 				)
 			}
@@ -380,12 +381,13 @@ func runSpinner(
 					part = *title.Load()
 				case PartFields:
 					part = strings.TrimLeft(formatFields(*fields.Load(), formatFieldsOpts{
-						styles:     styles,
-						level:      InfoLevel,
-						quoteMode:  quoteMode,
-						quoteOpen:  quoteOpen,
-						quoteClose: quoteClose,
-						timeFormat: fieldTimeFmt,
+						fieldStyleLevel: fieldStyleLevel,
+						styles:          styles,
+						level:           InfoLevel,
+						quoteMode:       quoteMode,
+						quoteOpen:       quoteOpen,
+						quoteClose:      quoteClose,
+						timeFormat:      fieldTimeFormat,
 					}), " ")
 				}
 

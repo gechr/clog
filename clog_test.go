@@ -1427,6 +1427,38 @@ func TestPackageLevelSetQuoteMode(t *testing.T) {
 	assert.Equal(t, QuoteAlways, Default.quoteMode)
 }
 
+func TestSetFieldStyleLevel(t *testing.T) {
+	l := New(io.Discard)
+
+	assert.Equal(t, InfoLevel, l.fieldStyleLevel)
+
+	l.SetFieldStyleLevel(TraceLevel)
+	assert.Equal(t, TraceLevel, l.fieldStyleLevel)
+}
+
+func TestPackageLevelSetFieldStyleLevel(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+	SetFieldStyleLevel(DebugLevel)
+
+	Default.mu.Lock()
+	got := Default.fieldStyleLevel
+	Default.mu.Unlock()
+
+	assert.Equal(t, DebugLevel, got)
+}
+
+func TestSubLoggerInheritsFieldStyleLevel(t *testing.T) {
+	l := New(io.Discard)
+	l.SetFieldStyleLevel(TraceLevel)
+
+	sub := l.With().Str("k", "v").Logger()
+
+	assert.Equal(t, TraceLevel, sub.fieldStyleLevel)
+}
+
 func TestSetFieldTimeFormat(t *testing.T) {
 	l := New(io.Discard)
 
