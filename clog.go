@@ -162,10 +162,11 @@ type Logger struct {
 	mu *sync.Mutex
 
 	colorMode       ColorMode
+	envLogLevel     string    // env var name registered by SetLevelFromEnv
 	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
+	fieldStyleLevel Level
 	fieldTimeFormat string
 	fields          []Field
-	fieldStyleLevel Level
 	handler         Handler
 	labels          LevelMap
 	level           Level
@@ -680,16 +681,31 @@ func ConfigureVerbose(verbose bool) {
 	if verbose {
 		Default.SetLevel(DebugLevel)
 		Default.SetReportTimestamp(true)
-	} else if os.Getenv(DefaultEnvLogLevel) == "" {
-		Default.SetLevel(InfoLevel)
-		Default.SetReportTimestamp(false)
+
+		return
 	}
+
+	Default.mu.Lock()
+	envVar := Default.envLogLevel
+	Default.mu.Unlock()
+
+	// Respect the env var if set (either CLOG_LEVEL or a custom one via SetLevelFromEnv).
+	if os.Getenv(DefaultEnvLogLevel) != "" || (envVar != "" && os.Getenv(envVar) != "") {
+		return
+	}
+
+	Default.SetLevel(InfoLevel)
+	Default.SetReportTimestamp(false)
 }
 
 // SetLevelFromEnv reads the named environment variable and sets the level
 // on the [Default] logger. Recognised values: trace, debug, info, dry, warn,
 // warning, error, fatal.
 func SetLevelFromEnv(envVar string) {
+	Default.mu.Lock()
+	Default.envLogLevel = envVar
+	Default.mu.Unlock()
+
 	level := os.Getenv(envVar)
 	if level == "" {
 		return
