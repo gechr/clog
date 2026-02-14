@@ -125,6 +125,16 @@ func (e *Event) Dur(key string, val time.Duration) *Event {
 	return e
 }
 
+// Time adds a [time.Time] field.
+func (e *Event) Time(key string, val time.Time) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
 // Err adds an error field with key "error". No-op if err is nil.
 func (e *Event) Err(err error) *Event {
 	if e == nil || err == nil {

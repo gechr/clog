@@ -75,6 +75,12 @@ func (fb *fieldBuilder[T]) Dur(key string, val time.Duration) *T {
 	return fb.self
 }
 
+// Time adds a [time.Time] field.
+func (fb *fieldBuilder[T]) Time(key string, val time.Time) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
 // Any adds a field with an arbitrary value.
 func (fb *fieldBuilder[T]) Any(key string, val any) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})

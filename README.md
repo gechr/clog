@@ -82,6 +82,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Bool`      | `Bool(key string, val bool)`                 | Boolean field                         |
 | `Bools`     | `Bools(key string, vals []bool)`             | Boolean slice field                   |
 | `Dur`       | `Dur(key string, val time.Duration)`         | Duration field                        |
+| `Time`      | `Time(key string, val time.Time)`            | Time field                            |
 | `Err`       | `Err(err error)`                             | Error field (key `"error"`, nil-safe) |
 | `Any`       | `Any(key string, val any)`                   | Arbitrary value                       |
 | `Anys`      | `Anys(key string, vals []any)`               | Arbitrary value slice                 |
@@ -431,6 +432,7 @@ logger := clog.New(os.Stderr)
 logger.SetLevel(clog.DebugLevel)
 logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
+logger.SetFieldTimeFormat(time.Kitchen) // format for .Time() fields (default: time.RFC3339)
 logger.SetHandler(myHandler)
 ```
 
@@ -503,7 +505,7 @@ styles.Levels[clog.ErrorLevel] = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("9")))  // bright red
 
 // Customise field key appearance
-styles.Key = new(lipgloss.NewStyle().
+styles.KeyDefault = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("12"))) // bright blue
 
 clog.SetStyles(styles)
@@ -521,22 +523,22 @@ Values are styled with a three-tier priority system:
 styles := clog.DefaultStyles()
 
 // 1. Key styles: all values of the "status" field are green
-styles.KeyStyles["status"] = new(lipgloss.NewStyle().
+styles.Keys["status"] = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("2")))
 
 // 2. Value styles: exact string matches (sensible defaults included)
 //    "true" → green, "false" → red, "<nil>" / "" → grey
-styles.ValueStyles["PASS"] = new(lipgloss.NewStyle().
+styles.Values["PASS"] = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("2")))  // green
-styles.ValueStyles["FAIL"] = new(lipgloss.NewStyle().
+styles.Values["FAIL"] = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("1")))  // red
 
 // 3. Type styles: string values → white, numeric values → magenta, errors → red by default
-styles.String = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
-styles.Number = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))
-styles.Error  = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
-styles.String = nil  // set to nil to disable
-styles.Number = nil  // set to nil to disable
+styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
+styles.FieldNumber = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))
+styles.FieldError  = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
+styles.FieldString = nil  // set to nil to disable
+styles.FieldNumber = nil  // set to nil to disable
 
 clog.SetStyles(styles)
 ```
@@ -545,17 +547,19 @@ clog.SetStyles(styles)
 
 | Field           | Type                         | Description                                   |
 | --------------- | ---------------------------- | --------------------------------------------- |
+| `FieldDuration` | `*lipgloss.Style`            | Duration value style (nil to disable)         |
+| `FieldError`    | `*lipgloss.Style`            | Error value style (nil to disable)            |
+| `FieldNumber`   | `*lipgloss.Style`            | Numeric value style (nil to disable)          |
+| `FieldString`   | `*lipgloss.Style`            | String value style (nil to disable)           |
+| `FieldTime`     | `*lipgloss.Style`            | Time value style (nil to disable)             |
+| `KeyDefault`    | `*lipgloss.Style`            | Field key style (nil to disable)              |
+| `Keys`          | `map[string]*lipgloss.Style` | Field key name → value style                  |
 | `Levels`        | `map[Level]*lipgloss.Style`  | Per-level label style (nil to disable)        |
 | `Messages`      | `map[Level]*lipgloss.Style`  | Per-level message style (nil to disable)      |
-| `Key`           | `*lipgloss.Style`            | Field key style (nil to disable)              |
 | `Separator`     | `*lipgloss.Style`            | Style for the separator between key and value |
 | `SeparatorText` | `string`                     | Key/value separator (default `"="`)           |
 | `Timestamp`     | `*lipgloss.Style`            | Timestamp style (nil to disable)              |
-| `String`        | `*lipgloss.Style`            | String value style (nil to disable)           |
-| `Number`        | `*lipgloss.Style`            | Numeric value style (nil to disable)          |
-| `Error`         | `*lipgloss.Style`            | Error value style (nil to disable)            |
-| `KeyStyles`     | `map[string]*lipgloss.Style` | Field key name → value style                  |
-| `ValueStyles`   | `map[string]*lipgloss.Style` | Formatted value string → style                |
+| `Values`        | `map[string]*lipgloss.Style` | Formatted value string → style                |
 
 Value styles only apply at `Info` level and above (not `Trace` or `Debug`).
 

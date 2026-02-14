@@ -5,6 +5,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -16,6 +17,7 @@ type formatFieldsOpts struct {
 	quoteMode  QuoteMode
 	quoteOpen  rune // 0 means default ('"' via strconv.Quote)
 	quoteClose rune // 0 means same as quoteOpen (or default)
+	timeFormat string
 }
 
 // valueKind classifies a formatted value for type-based styling.
@@ -24,10 +26,12 @@ type valueKind int
 const (
 	kindDefault valueKind = iota
 	kindBool
+	kindDuration
 	kindError
 	kindNumber
 	kindSlice
 	kindString
+	kindTime
 )
 
 // formatFields formats fields for display.
@@ -47,8 +51,8 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			sep = opts.styles.SeparatorText
 		}
 
-		if !opts.noColor && opts.styles.Key != nil {
-			buf.WriteString(opts.styles.Key.Render(f.Key))
+		if !opts.noColor && opts.styles.KeyDefault != nil {
+			buf.WriteString(opts.styles.KeyDefault.Render(f.Key))
 		} else {
 			buf.WriteString(f.Key)
 		}
@@ -59,9 +63,15 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			buf.WriteString(sep)
 		}
 
-		valStr, kind := formatValue(f.Value, opts.quoteMode, opts.quoteOpen, opts.quoteClose)
+		valStr, kind := formatValue(
+			f.Value,
+			opts.quoteMode,
+			opts.quoteOpen,
+			opts.quoteClose,
+			opts.timeFormat,
+		)
 		if opts.quoteMode != QuoteNever &&
-			(kind == kindDefault || kind == kindString || kind == kindError) &&
+			(kind == kindDefault || kind == kindString || kind == kindError || kind == kindTime) &&
 			(opts.quoteMode == QuoteAlways || needsQuoting(valStr)) {
 			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose)
 		}
@@ -75,7 +85,12 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 // formatValue converts a field value to its string representation.
 // The returned valueKind indicates the type category for styling and quoting.
-func formatValue(v any, quoteMode QuoteMode, quoteOpen, quoteClose rune) (string, valueKind) {
+func formatValue(
+	v any,
+	quoteMode QuoteMode,
+	quoteOpen, quoteClose rune,
+	timeFormat string,
+) (string, valueKind) {
 	switch val := v.(type) {
 	case error:
 		return val.Error(), kindError
@@ -89,6 +104,14 @@ func formatValue(v any, quoteMode QuoteMode, quoteOpen, quoteClose rune) (string
 		return strconv.FormatFloat(val, 'f', -1, 64), kindNumber
 	case bool:
 		return strconv.FormatBool(val), kindBool
+	case time.Duration:
+		return val.String(), kindDuration
+	case time.Time:
+		if timeFormat == "" {
+			timeFormat = time.DateTime
+		}
+
+		return val.Format(timeFormat), kindTime
 	case []string:
 		return formatStringSlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
@@ -115,7 +138,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 
 	// KeyStyles takes priority over per-element styling for slices.
 	if kind == kindSlice {
-		if style := opts.styles.KeyStyles[f.Key]; style != nil {
+		if style := opts.styles.Keys[f.Key]; style != nil {
 			return style.Render(valStr)
 		}
 
@@ -133,28 +156,36 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 // Priority: key style → value style → type style. Returns "" if no style applies.
 func styleValue(valStr, key string, kind valueKind, styles *Styles) string {
 	// Per-key styling takes priority.
-	if style := styles.KeyStyles[key]; style != nil {
+	if style := styles.Keys[key]; style != nil {
 		return style.Render(valStr)
 	}
 
 	// Per-value styling (exact match on formatted string).
-	if style := styles.ValueStyles[valStr]; style != nil {
+	if style := styles.Values[valStr]; style != nil {
 		return style.Render(valStr)
 	}
 
 	// Type-based styling.
 	switch kind {
 	case kindString:
-		if styles.String != nil {
-			return styles.String.Render(valStr)
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(valStr)
 		}
 	case kindNumber:
-		if styles.Number != nil {
-			return styles.Number.Render(valStr)
+		if styles.FieldNumber != nil {
+			return styles.FieldNumber.Render(valStr)
 		}
 	case kindError:
-		if styles.Error != nil {
-			return styles.Error.Render(valStr)
+		if styles.FieldError != nil {
+			return styles.FieldError.Render(valStr)
+		}
+	case kindDuration:
+		if styles.FieldDuration != nil {
+			return styles.FieldDuration.Render(valStr)
+		}
+	case kindTime:
+		if styles.FieldTime != nil {
+			return styles.FieldTime.Render(valStr)
 		}
 	case kindBool, kindSlice, kindDefault:
 		// No type-based style for these.
@@ -179,7 +210,7 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 	case []any:
 		return formatAnySlice(vals, styles, quoteMode, quoteOpen, quoteClose)
 	default:
-		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose)
+		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "")
 		return s
 	}
 }
@@ -187,22 +218,30 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 // styleAnyElement applies the appropriate style to a single element in a []any slice.
 func styleAnyElement(s string, kind valueKind, styles *Styles) string {
 	// Per-value styling (exact match on formatted string).
-	if style := styles.ValueStyles[s]; style != nil {
+	if style := styles.Values[s]; style != nil {
 		return style.Render(s)
 	}
 
 	switch kind { //nolint:exhaustive // slices don't appear as individual elements
 	case kindString:
-		if styles.String != nil {
-			return styles.String.Render(s)
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(s)
 		}
 	case kindNumber:
-		if styles.Number != nil {
-			return styles.Number.Render(s)
+		if styles.FieldNumber != nil {
+			return styles.FieldNumber.Render(s)
 		}
 	case kindError:
-		if styles.Error != nil {
-			return styles.Error.Render(s)
+		if styles.FieldError != nil {
+			return styles.FieldError.Render(s)
+		}
+	case kindDuration:
+		if styles.FieldDuration != nil {
+			return styles.FieldDuration.Render(s)
+		}
+	case kindTime:
+		if styles.FieldTime != nil {
+			return styles.FieldTime.Render(s)
 		}
 	case kindBool, kindDefault:
 		// No type-based style for these.
@@ -262,14 +301,14 @@ func formatStringSlice(
 		}
 
 		if styles != nil {
-			if style := styles.ValueStyles[v]; style != nil {
+			if style := styles.Values[v]; style != nil {
 				buf.WriteString(style.Render(display))
 
 				continue
 			}
 
-			if styles.String != nil {
-				buf.WriteString(styles.String.Render(display))
+			if styles.FieldString != nil {
+				buf.WriteString(styles.FieldString.Render(display))
 
 				continue
 			}
@@ -296,8 +335,8 @@ func formatIntSlice(vals []int, styles *Styles) string {
 		}
 
 		s := strconv.Itoa(v)
-		if styles != nil && styles.Number != nil {
-			buf.WriteString(styles.Number.Render(s))
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
 		} else {
 			buf.WriteString(s)
 		}
@@ -321,8 +360,8 @@ func formatUint64Slice(vals []uint64, styles *Styles) string {
 		}
 
 		s := strconv.FormatUint(v, 10)
-		if styles != nil && styles.Number != nil {
-			buf.WriteString(styles.Number.Render(s))
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
 		} else {
 			buf.WriteString(s)
 		}
@@ -346,8 +385,8 @@ func formatFloat64Slice(vals []float64, styles *Styles) string {
 		}
 
 		s := strconv.FormatFloat(v, 'f', -1, 64)
-		if styles != nil && styles.Number != nil {
-			buf.WriteString(styles.Number.Render(s))
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
 		} else {
 			buf.WriteString(s)
 		}
@@ -372,7 +411,7 @@ func formatBoolSlice(vals []bool, styles *Styles) string {
 
 		s := strconv.FormatBool(v)
 		if styles != nil {
-			if style := styles.ValueStyles[s]; style != nil {
+			if style := styles.Values[s]; style != nil {
 				buf.WriteString(style.Render(s))
 
 				continue

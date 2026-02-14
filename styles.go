@@ -5,22 +5,31 @@ import "github.com/charmbracelet/lipgloss"
 // Styles holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Styles struct {
+	FieldDuration *lipgloss.Style // Nil = no styling.
+	FieldError    *lipgloss.Style // Nil = no styling.
+	FieldNumber   *lipgloss.Style // Nil = no styling.
+	FieldString   *lipgloss.Style // Nil = no styling.
+	FieldTime     *lipgloss.Style // Nil = no styling.
+	KeyDefault    *lipgloss.Style
+	Keys          map[string]*lipgloss.Style // Field key name → value style (e.g. "path" → blue).
 	Levels        map[Level]*lipgloss.Style
 	Messages      map[Level]*lipgloss.Style
-	Key           *lipgloss.Style
 	Separator     *lipgloss.Style
 	SeparatorText string // Separator between key and value (default "=").
 	Timestamp     *lipgloss.Style
-	String        *lipgloss.Style            // Nil = no styling.
-	Number        *lipgloss.Style            // Nil = no styling.
-	Error         *lipgloss.Style            // Nil = no styling.
-	KeyStyles     map[string]*lipgloss.Style // Field key name → value style (e.g. "path" → blue).
-	ValueStyles   map[string]*lipgloss.Style // Formatted value → style (e.g. "true" → green).
+	Values        map[string]*lipgloss.Style // Formatted value → style (e.g. "true" → green).
 }
 
 // DefaultStyles returns the default colour styles.
 func DefaultStyles() *Styles {
 	return &Styles{
+		FieldDuration: new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),  // magenta
+		FieldError:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),  // red
+		FieldNumber:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),  // magenta
+		FieldString:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("15"))), // white
+		FieldTime:     new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),  // magenta
+		KeyDefault:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),  // blue
+		Keys:          make(map[string]*lipgloss.Style),
 		Levels: map[Level]*lipgloss.Style{
 			TraceLevel: new(lipgloss.NewStyle().
 				Bold(true).
@@ -52,19 +61,11 @@ func DefaultStyles() *Styles {
 				Foreground(lipgloss.Color("1"))),
 			// red
 		},
-
+		Messages:      DefaultMessageStyles(),
 		Separator:     new(lipgloss.NewStyle().Faint(true)),
 		SeparatorText: "=",
-
-		Error:     new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
-		Messages:  DefaultMessageStyles(),
-		Number:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),  // magenta
-		String:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("15"))), // white
-		Key:       new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),  // blue
-		Timestamp: new(lipgloss.NewStyle().Faint(true)),
-
-		KeyStyles:   make(map[string]*lipgloss.Style),
-		ValueStyles: DefaultValueStyles(),
+		Timestamp:     new(lipgloss.NewStyle().Faint(true)),
+		Values:        DefaultValueStyles(),
 	}
 }
 

@@ -153,7 +153,13 @@ func TestFormatValue(t *testing.T) {
 			name:     "duration",
 			value:    time.Second,
 			wantStr:  "1s",
-			wantKind: kindDefault,
+			wantKind: kindDuration,
+		},
+		{
+			name:     "time",
+			value:    time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC),
+			wantStr:  "2025-06-15 10:30:00", // empty timeFormat falls back to time.DateTime
+			wantKind: kindTime,
 		},
 		{
 			name:     "error",
@@ -165,11 +171,28 @@ func TestFormatValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, kind := formatValue(tt.value, QuoteAuto, 0, 0)
+			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "")
 			assert.Equal(t, tt.wantStr, got)
 			assert.Equal(t, tt.wantKind, kind)
 		})
 	}
+}
+
+func TestFormatValueTimeCustomFormat(t *testing.T) {
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339)
+	assert.Equal(t, "2025-06-15T10:30:00Z", got)
+	assert.Equal(t, kindTime, kind)
+}
+
+func TestFormatValueTimeEmptyFormat(t *testing.T) {
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+
+	// Empty timeFormat should fall back to time.DateTime.
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, "")
+	assert.Equal(t, "2025-06-15 10:30:00", got)
+	assert.Equal(t, kindTime, kind)
 }
 
 func TestNeedsQuoting(t *testing.T) {
@@ -366,14 +389,18 @@ func TestFormatFieldsWithColors(t *testing.T) {
 		Value: "v",
 	}}, opts)
 
-	want := " " + styles.Key.Render("k") + styles.Separator.Render(styles.SeparatorText) + "v"
+	want := " " + styles.KeyDefault.Render(
+		"k",
+	) + styles.Separator.Render(
+		styles.SeparatorText,
+	) + "v"
 	assert.Equal(t, want, got)
 }
 
 func TestFormatFieldsWithKeyStyles(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	styles.KeyStyles["path"] = new(keyStyle)
+	styles.Keys["path"] = new(keyStyle)
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -386,7 +413,7 @@ func TestFormatFieldsWithKeyStyles(t *testing.T) {
 		Value: "/tmp/test",
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"path",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -409,11 +436,11 @@ func TestFormatFieldsWithValueStyles(t *testing.T) {
 		Value: true,
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"ok",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
-	) + styles.ValueStyles["true"].Render(
+	) + styles.Values["true"].Render(
 		"true",
 	)
 	assert.Equal(t, want, got)
@@ -422,7 +449,7 @@ func TestFormatFieldsWithValueStyles(t *testing.T) {
 func TestFormatFieldsKeyStyleTakesPriority(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
-	styles.KeyStyles["ok"] = new(keyStyle)
+	styles.Keys["ok"] = new(keyStyle)
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -436,7 +463,7 @@ func TestFormatFieldsKeyStyleTakesPriority(t *testing.T) {
 	}}, opts)
 
 	// Key style wins over value style for "true".
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"ok",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -459,11 +486,11 @@ func TestFormatFieldsNumberStyle(t *testing.T) {
 		Value: 42,
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"count",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
-	) + styles.Number.Render(
+	) + styles.FieldNumber.Render(
 		"42",
 	)
 	assert.Equal(t, want, got)
@@ -471,7 +498,7 @@ func TestFormatFieldsNumberStyle(t *testing.T) {
 
 func TestFormatFieldsNumberStyleNil(t *testing.T) {
 	styles := DefaultStyles()
-	styles.Number = nil
+	styles.FieldNumber = nil
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -484,25 +511,29 @@ func TestFormatFieldsNumberStyleNil(t *testing.T) {
 		Value: 42,
 	}}, opts)
 
-	want := " " + styles.Key.Render("count") + styles.Separator.Render(styles.SeparatorText) + "42"
+	want := " " + styles.KeyDefault.Render(
+		"count",
+	) + styles.Separator.Render(
+		styles.SeparatorText,
+	) + "42"
 	assert.Equal(t, want, got)
 }
 
 func TestStyleValuePriority(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	styles.KeyStyles["count"] = new(keyStyle)
+	styles.Keys["count"] = new(keyStyle)
 
 	// Key style should win over number style.
 	assert.Equal(t, keyStyle.Render("42"), styleValue("42", "count", kindNumber, styles))
 
 	// Without key style, number style should apply.
-	assert.Equal(t, styles.Number.Render("42"), styleValue("42", "other", kindNumber, styles))
+	assert.Equal(t, styles.FieldNumber.Render("42"), styleValue("42", "other", kindNumber, styles))
 
 	// Value style should apply for matching values.
 	assert.Equal(
 		t,
-		styles.ValueStyles["true"].Render("true"),
+		styles.Values["true"].Render("true"),
 		styleValue("true", "field", kindBool, styles),
 	)
 
@@ -526,8 +557,8 @@ func TestFormatFieldsIntSliceStyled(t *testing.T) {
 		Value: []int{1, 2},
 	}}, opts)
 
-	n := styles.Number.Render
-	want := " " + styles.Key.Render(
+	n := styles.FieldNumber.Render
+	want := " " + styles.KeyDefault.Render(
 		"ids",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -552,8 +583,8 @@ func TestFormatFieldsUint64SliceStyled(t *testing.T) {
 		Value: []uint64{10, 20},
 	}}, opts)
 
-	n := styles.Number.Render
-	want := " " + styles.Key.Render(
+	n := styles.FieldNumber.Render
+	want := " " + styles.KeyDefault.Render(
 		"ids",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -578,8 +609,8 @@ func TestFormatFieldsFloat64SliceStyled(t *testing.T) {
 		Value: []float64{1.5, 2.5},
 	}}, opts)
 
-	n := styles.Number.Render
-	want := " " + styles.Key.Render(
+	n := styles.FieldNumber.Render
+	want := " " + styles.KeyDefault.Render(
 		"vals",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -604,11 +635,11 @@ func TestFormatFieldsStringSliceStyled(t *testing.T) {
 		Value: []string{"true", "other"},
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"vals",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
-	) + "[" + styles.ValueStyles["true"].Render(
+	) + "[" + styles.Values["true"].Render(
 		"true",
 	) + ", other]"
 	assert.Equal(t, want, got)
@@ -617,7 +648,7 @@ func TestFormatFieldsStringSliceStyled(t *testing.T) {
 func TestFormatFieldsSliceKeyStylePriority(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	styles.KeyStyles["ids"] = new(keyStyle)
+	styles.Keys["ids"] = new(keyStyle)
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -631,7 +662,7 @@ func TestFormatFieldsSliceKeyStylePriority(t *testing.T) {
 	}}, opts)
 
 	// KeyStyles should style the whole slice value, not per-element.
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"ids",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -643,7 +674,7 @@ func TestFormatFieldsSliceKeyStylePriority(t *testing.T) {
 
 func TestFormatFieldsNumberStyleNilSlice(t *testing.T) {
 	styles := DefaultStyles()
-	styles.Number = nil
+	styles.FieldNumber = nil
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -656,7 +687,7 @@ func TestFormatFieldsNumberStyleNilSlice(t *testing.T) {
 		Value: []int{1, 2},
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"ids",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -666,7 +697,7 @@ func TestFormatFieldsNumberStyleNilSlice(t *testing.T) {
 
 func TestFormatFieldsStylesSkippedBelowInfo(t *testing.T) {
 	styles := DefaultStyles()
-	styles.KeyStyles["path"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
+	styles.Keys["path"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
 
 	// At DebugLevel (< InfoLevel), value styles should not be applied.
 	opts := formatFieldsOpts{
@@ -680,7 +711,7 @@ func TestFormatFieldsStylesSkippedBelowInfo(t *testing.T) {
 		Value: "/tmp/test",
 	}}, opts)
 
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"path",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -692,8 +723,8 @@ func TestStyledSliceBool(t *testing.T) {
 	styles := DefaultStyles()
 	got := styledSlice([]bool{true, false}, styles, QuoteAuto, 0, 0)
 
-	trueStyled := styles.ValueStyles["true"].Render("true")
-	falseStyled := styles.ValueStyles["false"].Render("false")
+	trueStyled := styles.Values["true"].Render("true")
+	falseStyled := styles.Values["false"].Render("false")
 	want := "[" + trueStyled + ", " + falseStyled + "]"
 
 	assert.Equal(t, want, got)
@@ -701,7 +732,7 @@ func TestStyledSliceBool(t *testing.T) {
 
 func TestStyledSliceFloat64(t *testing.T) {
 	styles := DefaultStyles()
-	styles.Number = nil // disable number styling so output is plain
+	styles.FieldNumber = nil // disable number styling so output is plain
 	got := styledSlice([]float64{1.5, 2.5}, styles, QuoteAuto, 0, 0)
 
 	assert.Equal(t, "[1.5, 2.5]", got)
@@ -720,9 +751,9 @@ func TestFormatFieldsAnySliceStyled(t *testing.T) {
 		Value: []any{"hello", 42, true},
 	}}, opts)
 
-	n := styles.Number.Render
-	trueStyled := styles.ValueStyles["true"].Render("true")
-	want := " " + styles.Key.Render(
+	n := styles.FieldNumber.Render
+	trueStyled := styles.Values["true"].Render("true")
+	want := " " + styles.KeyDefault.Render(
 		"mixed",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -735,7 +766,7 @@ func TestFormatFieldsAnySliceStyled(t *testing.T) {
 func TestFormatFieldsAnySliceKeyStylePriority(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
-	styles.KeyStyles["mixed"] = new(keyStyle)
+	styles.Keys["mixed"] = new(keyStyle)
 
 	opts := formatFieldsOpts{
 		noColor: false,
@@ -749,7 +780,7 @@ func TestFormatFieldsAnySliceKeyStylePriority(t *testing.T) {
 	}}, opts)
 
 	// KeyStyles should style the whole slice value, not per-element.
-	want := " " + styles.Key.Render(
+	want := " " + styles.KeyDefault.Render(
 		"mixed",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
@@ -763,8 +794,8 @@ func TestStyledSliceAny(t *testing.T) {
 	styles := DefaultStyles()
 	got := styledSlice([]any{true, 42, "text"}, styles, QuoteAuto, 0, 0)
 
-	trueStyled := styles.ValueStyles["true"].Render("true")
-	numStyled := styles.Number.Render("42")
+	trueStyled := styles.Values["true"].Render("true")
+	numStyled := styles.FieldNumber.Render("42")
 	want := "[" + trueStyled + ", " + numStyled + ", text]"
 
 	assert.Equal(t, want, got)
@@ -829,7 +860,7 @@ func TestStyledSliceDefault(t *testing.T) {
 func TestFormatBoolSliceNoMatchingValueStyle(t *testing.T) {
 	styles := DefaultStyles()
 	// Remove all value styles so the bool values have no matching style.
-	styles.ValueStyles = map[string]*lipgloss.Style{}
+	styles.Values = map[string]*lipgloss.Style{}
 
 	got := formatBoolSlice([]bool{true, false}, styles)
 

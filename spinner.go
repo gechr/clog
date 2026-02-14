@@ -282,6 +282,7 @@ func runSpinner(
 	quoteMode := Default.quoteMode
 	quoteOpen := Default.quoteOpen
 	quoteClose := Default.quoteClose
+	fieldTimeFmt := Default.fieldTimeFormat
 	Default.mu.Unlock()
 
 	// Don't animate if colours are disabled (CI, piped output, etc.).
@@ -312,6 +313,7 @@ func runSpinner(
 						quoteMode:  quoteMode,
 						quoteOpen:  quoteOpen,
 						quoteClose: quoteClose,
+						timeFormat: fieldTimeFmt,
 					}), " ",
 				)
 			}
@@ -383,6 +385,7 @@ func runSpinner(
 						quoteMode:  quoteMode,
 						quoteOpen:  quoteOpen,
 						quoteClose: quoteClose,
+						timeFormat: fieldTimeFmt,
 					}), " ")
 				}
 

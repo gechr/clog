@@ -1426,3 +1426,57 @@ func TestPackageLevelSetQuoteMode(t *testing.T) {
 
 	assert.Equal(t, QuoteAlways, Default.quoteMode)
 }
+
+func TestSetFieldTimeFormat(t *testing.T) {
+	l := New(io.Discard)
+
+	assert.Equal(t, time.RFC3339, l.fieldTimeFormat)
+
+	l.SetFieldTimeFormat(time.DateTime)
+	assert.Equal(t, time.DateTime, l.fieldTimeFormat)
+}
+
+func TestPackageLevelSetFieldTimeFormat(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+	SetFieldTimeFormat(time.RFC3339)
+
+	Default.mu.Lock()
+	got := Default.fieldTimeFormat
+	Default.mu.Unlock()
+
+	assert.Equal(t, time.RFC3339, got)
+}
+
+func TestLogFormattedOutputWithTimeField(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	l.Info().Time("created", ts).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test created=2025-06-15T10:30:00Z\n", buf.String())
+}
+
+func TestLogFormattedOutputWithTimeFieldCustomFormat(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.SetFieldTimeFormat(time.DateOnly)
+
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	l.Info().Time("created", ts).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test created=2025-06-15\n", buf.String())
+}
+
+func TestSubLoggerInheritsFieldTimeFormat(t *testing.T) {
+	l := New(io.Discard)
+	l.SetFieldTimeFormat(time.Kitchen)
+
+	sub := l.With().Str("k", "v").Logger()
+
+	assert.Equal(t, time.Kitchen, sub.fieldTimeFormat)
+}

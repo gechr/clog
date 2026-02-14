@@ -163,6 +163,7 @@ type Logger struct {
 
 	colorMode       ColorMode
 	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
+	fieldTimeFormat string
 	fields          []Field
 	handler         Handler
 	labels          LevelMap
@@ -188,16 +189,17 @@ func New(out io.Writer) *Logger {
 	return &Logger{
 		mu: &sync.Mutex{},
 
-		exitFunc:     os.Exit,
-		labels:       DefaultLabels(),
-		level:        InfoLevel,
-		levelAlign:   AlignRight,
-		out:          out,
-		parts:        DefaultParts(),
-		prefixes:     DefaultPrefixes(),
-		styles:       DefaultStyles(),
-		timeFormat:   "15:04:05.000",
-		timeLocation: time.Local,
+		exitFunc:        os.Exit,
+		fieldTimeFormat: time.RFC3339,
+		labels:          DefaultLabels(),
+		level:           InfoLevel,
+		levelAlign:      AlignRight,
+		out:             out,
+		parts:           DefaultParts(),
+		prefixes:        DefaultPrefixes(),
+		styles:          DefaultStyles(),
+		timeFormat:      "15:04:05.000",
+		timeLocation:    time.Local,
 	}
 }
 
@@ -247,6 +249,15 @@ func (l *Logger) SetTimeLocation(loc *time.Location) {
 	defer l.mu.Unlock()
 
 	l.timeLocation = loc
+}
+
+// SetFieldTimeFormat sets the format string used for [time.Time] field values
+// added via [Event.Time] and [Context.Time]. Defaults to [time.RFC3339].
+func (l *Logger) SetFieldTimeFormat(format string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.fieldTimeFormat = format
 }
 
 // SetHandler sets a custom log handler. When set, the handler receives all
@@ -537,6 +548,7 @@ func (l *Logger) log(e *Event, msg string) {
 				quoteMode:  l.quoteMode,
 				quoteOpen:  l.quoteOpen,
 				quoteClose: l.quoteClose,
+				timeFormat: l.fieldTimeFormat,
 			}), " ")
 		}
 
@@ -755,6 +767,7 @@ func SetParts(order ...Part)                 { Default.SetParts(order...) }
 func SetPrefixes(prefixes LevelMap)          { Default.SetPrefixes(prefixes) }
 func SetReportTimestamp(report bool)         { Default.SetReportTimestamp(report) }
 func SetStyles(styles *Styles)               { Default.SetStyles(styles) }
+func SetFieldTimeFormat(format string)       { Default.SetFieldTimeFormat(format) }
 func SetTimeFormat(format string)            { Default.SetTimeFormat(format) }
 func SetTimeLocation(loc *time.Location)     { Default.SetTimeLocation(loc) }
 

@@ -143,6 +143,16 @@ func TestEventDur(t *testing.T) {
 	assert.Equal(t, time.Second, e.fields[0].Value)
 }
 
+func TestEventTime(t *testing.T) {
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	e := New(io.Discard).Info()
+	e.Time("created", ts)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "created", e.fields[0].Key)
+	assert.Equal(t, ts, e.fields[0].Value)
+}
+
 func TestEventAny(t *testing.T) {
 	e := New(io.Discard).Info()
 	e.Any("data", 123)
@@ -378,6 +388,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Bool("k", true))
 	assert.Nil(t, e.Bools("k", []bool{true}))
 	assert.Nil(t, e.Dur("k", time.Second))
+	assert.Nil(t, e.Time("k", time.Now()))
 	assert.Nil(t, e.Err(errors.New("x")))
 	assert.Nil(t, e.Any("k", "v"))
 	assert.Nil(t, e.Anys("k", []any{"v"}))

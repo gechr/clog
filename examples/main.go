@@ -87,6 +87,7 @@ func main() {
 		Float64("latency_ms", 12.345).
 		Uint64("request_id", 9876543210).
 		Dur("timeout", 30*time.Second).
+		Time("started", time.Now().Add(-30*time.Second)).
 		Msg("Request handled")
 
 	clog.Error().
