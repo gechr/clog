@@ -17,4 +17,5 @@ Type "go run ./examples"
 Show
 Sleep 100ms
 Enter
-Sleep 15s
+Wait /^\$$/
+Sleep 3s
