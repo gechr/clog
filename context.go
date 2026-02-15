@@ -82,23 +82,23 @@ func (c *Context) Path(key, path string) *Context {
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
-func (c *Context) Line(key, path string, lineNumber int) *Context {
-	if lineNumber < 1 {
-		lineNumber = 1
+func (c *Context) Line(key, path string, line int) *Context {
+	if line < 1 {
+		line = 1
 	}
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, lineNumber, 0, c.logger.colorMode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, 0, c.logger.colorMode)},
 	)
 	return c
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
-func (c *Context) Column(key, path string, lineNumber, column int) *Context {
-	if lineNumber < 1 {
-		lineNumber = 1
+func (c *Context) Column(key, path string, line, column int) *Context {
+	if line < 1 {
+		line = 1
 	}
 
 	if column < 1 {
@@ -107,7 +107,7 @@ func (c *Context) Column(key, path string, lineNumber, column int) *Context {
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, lineNumber, column, c.logger.colorMode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, column, c.logger.colorMode)},
 	)
 	return c
 }

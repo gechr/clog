@@ -46,7 +46,7 @@ ERR ❌ Connection failed error=connection refused
 | `Dry`   | `DRY` | 🚧     | Dry-run indicators                                   |
 | `Warn`  | `WRN` | ⚠️     | Warnings that don't prevent operation                |
 | `Error` | `ERR` | ❌     | Errors that need attention                           |
-| `Fatal` | `FTL` | ‼️     | Fatal errors — calls `os.Exit(1)` after logging      |
+| `Fatal` | `FTL` | ‼️     | Fatal errors - calls `os.Exit(1)` after logging      |
 
 ### Setting the Level
 
@@ -88,7 +88,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Anys`      | `Anys(key string, vals []any)`               | Arbitrary value slice                 |
 | `Dict`      | `Dict(key string, dict *Event)`              | Nested fields with dot-notation keys  |
 | `Path`      | `Path(key, path string)`                     | Clickable file/directory hyperlink    |
-| `Line`      | `Line(key, path string, lineNumber int)`     | Clickable file:line hyperlink         |
+| `Line`      | `Line(key, path string, line int)`           | Clickable file:line hyperlink         |
 | `Column`    | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink  |
 | `Link`      | `Link(key, url, text string)`                | Clickable URL hyperlink               |
 | `Stringer`  | `Stringer(key string, val fmt.Stringer)`     | Calls `String()` (nil-safe)           |
@@ -120,7 +120,7 @@ clog.Info().
 // INF ℹ️ User name=alice age=0 admin=false
 ```
 
-**OmitZero** is a superset of OmitEmpty — it additionally omits `0`, `false`, `0.0`, zero durations, and any other typed zero value.
+**OmitZero** is a superset of OmitEmpty - it additionally omits `0`, `false`, `0.0`, zero durations, and any other typed zero value.
 
 ```go
 clog.SetOmitZero(true)
@@ -144,9 +144,9 @@ By default, field values containing spaces or special characters are wrapped in 
 
 | Mode          | Description                                                                   |
 | ------------- | ----------------------------------------------------------------------------- |
-| `QuoteAuto`   | Quote only when needed — spaces, unprintable chars, embedded quotes (default) |
+| `QuoteAuto`   | Quote only when needed - spaces, unprintable chars, embedded quotes (default) |
 | `QuoteAlways` | Always quote string, error, and default-kind values                           |
-| `QuoteNever`  | Never quote (same as the deprecated `SetOmitQuotes(true)`)                    |
+| `QuoteNever`  | Never quote                                                                   |
 
 ```go
 // Default: only quote when needed
@@ -370,15 +370,15 @@ Format resolution order:
 
 | Context        | Fallback chain                                  |
 | -------------- | ----------------------------------------------- |
-| Directory      | `DirFormat` → `PathFormat` → `file://{path}`    |
-| File (no line) | `FileFormat` → `PathFormat` → `file://{path}`   |
-| File + line    | `LineFormat` → `file://{path}`                  |
+| Directory      | `DirFormat`    → `PathFormat` → `file://{path}` |
+| File (no line) | `FileFormat`   → `PathFormat` → `file://{path}` |
+| File + line    | `LineFormat`   → `file://{path}`                |
 | File + column  | `ColumnFormat` → `LineFormat` → `file://{path}` |
 
 These can also be set via environment variables:
 
 ```sh
-export CLOG_HYPERLINK_PATH_FORMAT="vscode://{path}"     # generic fallback
+export CLOG_HYPERLINK_PATH_FORMAT="vscode://{path}"      # generic fallback
 export CLOG_HYPERLINK_FILE_FORMAT="vscode://file{path}"  # files only
 export CLOG_HYPERLINK_DIR_FORMAT="finder://{path}"       # directories only
 export CLOG_HYPERLINK_LINE_FORMAT="vscode://{path}:{line}"
@@ -397,7 +397,7 @@ type Handler interface {
 }
 ```
 
-The `Entry` struct provides `Level`, `Time`, `Message`, `Prefix`, and `Fields`. The logger handles level filtering, field accumulation, timestamps, and locking — the handler only formats and writes.
+The `Entry` struct provides `Level`, `Time`, `Message`, `Prefix`, and `Fields`. The logger handles level filtering, field accumulation, timestamps, and locking - the handler only formats and writes.
 
 ```go
 // Using HandlerFunc adapter
@@ -432,8 +432,8 @@ logger := clog.New(os.Stderr)
 logger.SetLevel(clog.DebugLevel)
 logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
-logger.SetFieldTimeFormat(time.Kitchen)      // format for .Time() fields (default: time.RFC3339)
-logger.SetFieldStyleLevel(clog.TraceLevel)   // min level for field value styling (default: InfoLevel)
+logger.SetFieldTimeFormat(time.Kitchen)    // format for .Time() fields (default: time.RFC3339)
+logger.SetFieldStyleLevel(clog.TraceLevel) // min level for field value styling (default: "info")
 logger.SetHandler(myHandler)
 ```
 
@@ -453,9 +453,9 @@ clog.SetHyperlinksEnabled(false) // disable all hyperlink rendering
 `CLOG_LEVEL` and `CLOG_SEPARATOR` are checked automatically at init.
 
 ```sh
-CLOG_LEVEL=debug ./myapp    # enables debug logging + timestamps
-CLOG_LEVEL=warn ./myapp     # suppresses info messages
-CLOG_SEPARATOR=": " ./myapp # use ": " instead of "=" between keys and values
+CLOG_LEVEL=debug ./some-app  # enables debug logging + timestamps
+CLOG_LEVEL=warn ./some-app   # suppresses info messages
+CLOG_SEPARATOR=: ./some-app  # use ":" instead of "=" between keys and values
 ```
 
 ## `NO_COLOR`
@@ -501,13 +501,14 @@ Customise the visual appearance using [lipgloss](https://github.com/charmbracele
 styles := clog.DefaultStyles()
 
 // Customise level colours
-styles.Levels[clog.ErrorLevel] = new(lipgloss.NewStyle().
-    Bold(true).
-    Foreground(lipgloss.Color("9")))  // bright red
+styles.Levels[clog.ErrorLevel] = new(
+  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")), // bright red
+)
 
 // Customise field key appearance
-styles.KeyDefault = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("12"))) // bright blue
+styles.KeyDefault = new(
+  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")), // bright blue
+)
 
 clog.SetStyles(styles)
 ```
@@ -516,9 +517,9 @@ clog.SetStyles(styles)
 
 Values are styled with a three-tier priority system:
 
-1. **Key styles** — style all values of a specific field key
-1. **Value styles** — style values matching an exact string
-1. **Type styles** — style values by their Go type
+1. **Key styles** - style all values of a specific field key
+1. **Value styles** - style values matching an exact string
+1. **Type styles** - style values by their Go type
 
 ```go
 styles := clog.DefaultStyles()
@@ -527,12 +528,16 @@ styles := clog.DefaultStyles()
 styles.Keys["status"] = new(lipgloss.NewStyle().
     Foreground(lipgloss.Color("2")))
 
-// 2. Value styles: exact string matches (sensible defaults included)
-//    "true" → green, "false" → red, "<nil>" / "" → grey
-styles.Values["PASS"] = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("2")))  // green
-styles.Values["FAIL"] = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("1")))  // red
+// 2. Value styles: exact string matches
+styles.Values["PASS"] = new(
+  lipgloss.NewStyle().
+  Foreground(lipgloss.Color("2")),
+) // green
+
+styles.Values["FAIL"] = new(
+  lipgloss.NewStyle().
+    Foreground(lipgloss.Color("1")),
+) // red
 
 // 3. Type styles: string values → white, numeric values → magenta, errors → red by default
 styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
@@ -570,11 +575,16 @@ Style the log message text differently for each level:
 
 ```go
 styles := clog.DefaultStyles()
-styles.Messages[clog.ErrorLevel] = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("1"))) // red
-styles.Messages[clog.WarnLevel] = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("3"))) // yellow
+
+styles.Messages[clog.ErrorLevel] = new(
+  lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
+)
+
+styles.Messages[clog.WarnLevel] = new(
+  lipgloss.NewStyle().Foreground(lipgloss.Color("3")), // yellow
+)
+
 clog.SetStyles(styles)
 ```
 
-Use `DefaultMessageStyles()` to get the defaults (unstyled for all levels). `DefaultValueStyles()` returns the default value string styles (`"true"` → green, `"false"` → red, `"<nil>"` / `""` → grey).
+Use `DefaultMessageStyles()` to get the defaults (unstyled for all levels).

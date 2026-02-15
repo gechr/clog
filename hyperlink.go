@@ -45,7 +45,7 @@ func SetHyperlinkPathFormat(format string) {
 }
 
 // SetHyperlinkFileFormat configures the URL format for file-only hyperlinks
-// (used by [Path] and [PathLink] with lineNumber 0, when the path is not a directory).
+// (used by [Path] and [PathLink] with line 0, when the path is not a directory).
 //
 // Falls back to [SetHyperlinkPathFormat] if not set.
 //
@@ -64,7 +64,7 @@ func SetHyperlinkDirFormat(format string) {
 }
 
 // SetHyperlinkLineFormat configures the URL format for file+line hyperlinks
-// (used by [Line] and [PathLink] with lineNumber > 0).
+// (used by [Line] and [PathLink] with line > 0).
 //
 // Use {path} and {line} as placeholders. Examples:
 //
@@ -107,15 +107,15 @@ func Hyperlink(url, text string) string {
 }
 
 // PathLink creates a clickable terminal hyperlink for a file path.
-// The lineNumber parameter is optional — pass 0 to omit line numbers.
-func PathLink(path string, lineNumber int) string {
-	display := pathDisplayText(path, lineNumber, 0)
+// The line parameter is optional — pass 0 to omit line numbers.
+func PathLink(path string, line int) string {
+	display := pathDisplayText(path, line, 0)
 
 	if !hyperlinksEnabled.Load() || ColorsDisabled() {
 		return display
 	}
 
-	return Hyperlink(resolvePathURL(path, lineNumber, 0), display)
+	return Hyperlink(resolvePathURL(path, line, 0), display)
 }
 
 // osc8 wraps text in raw OSC 8 escape sequences unconditionally.
@@ -124,13 +124,13 @@ func osc8(url, text string) string {
 }
 
 // pathDisplayText returns the display string for a path hyperlink.
-func pathDisplayText(path string, lineNumber, column int) string {
-	if column > 0 && lineNumber > 0 {
-		return path + ":" + strconv.Itoa(lineNumber) + ":" + strconv.Itoa(column)
+func pathDisplayText(path string, line, column int) string {
+	if column > 0 && line > 0 {
+		return path + ":" + strconv.Itoa(line) + ":" + strconv.Itoa(column)
 	}
 
-	if lineNumber > 0 {
-		return path + ":" + strconv.Itoa(lineNumber)
+	if line > 0 {
+		return path + ":" + strconv.Itoa(line)
 	}
 
 	return path
@@ -158,15 +158,15 @@ func isDirectory(path string) bool {
 }
 
 // resolvePathURL builds the full hyperlink URL for a file path.
-func resolvePathURL(path string, lineNumber, column int) string {
+func resolvePathURL(path string, line, column int) string {
 	abs := absPath(path)
 
-	return buildPathURL(abs, lineNumber, column, isDirectory(abs))
+	return buildPathURL(abs, line, column, isDirectory(abs))
 }
 
 // pathLinkWithMode is like [PathLink] but respects a per-logger [ColorMode].
-func pathLinkWithMode(path string, lineNumber, column int, mode ColorMode) string {
-	display := pathDisplayText(path, lineNumber, column)
+func pathLinkWithMode(path string, line, column int, mode ColorMode) string {
+	display := pathDisplayText(path, line, column)
 
 	disabled := mode == ColorNever ||
 		(mode == ColorAuto && (!hyperlinksEnabled.Load() || ColorsDisabled()))
@@ -174,7 +174,7 @@ func pathLinkWithMode(path string, lineNumber, column int, mode ColorMode) strin
 		return display
 	}
 
-	return osc8(resolvePathURL(path, lineNumber, column), display)
+	return osc8(resolvePathURL(path, line, column), display)
 }
 
 // hyperlinkWithMode is like [Hyperlink] but respects a per-logger [ColorMode].
@@ -199,7 +199,7 @@ func loadFormat(ptrs ...*atomic.Pointer[string]) *string {
 	return nil
 }
 
-func buildPathURL(absPath string, lineNumber, column int, isDir bool) string {
+func buildPathURL(absPath string, line, column int, isDir bool) string {
 	var fmtPtr *string
 
 	switch {
@@ -209,7 +209,7 @@ func buildPathURL(absPath string, lineNumber, column int, isDir bool) string {
 	case column > 0:
 		// columnFormat → lineFormat → file://
 		fmtPtr = loadFormat(&hyperlinkColumnFormat, &hyperlinkLineFormat)
-	case lineNumber > 0:
+	case line > 0:
 		// lineFormat → file://
 		fmtPtr = loadFormat(&hyperlinkLineFormat)
 	default:
@@ -223,7 +223,7 @@ func buildPathURL(absPath string, lineNumber, column int, isDir bool) string {
 
 	u := *fmtPtr
 	u = strings.ReplaceAll(u, "{path}", absPath)
-	u = strings.ReplaceAll(u, "{line}", strconv.Itoa(lineNumber))
+	u = strings.ReplaceAll(u, "{line}", strconv.Itoa(line))
 	u = strings.ReplaceAll(u, "{column}", strconv.Itoa(column))
 	u = strings.ReplaceAll(u, "{col}", strconv.Itoa(column))
 

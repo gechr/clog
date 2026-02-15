@@ -143,7 +143,7 @@ func TestSpinnerBuilderLineMinimum(t *testing.T) {
 
 	require.Len(t, b.fields, 1)
 	assert.Equal(t, "file", b.fields[0].Key)
-	// lineNumber < 1 is clamped to 1.
+	// line < 1 is clamped to 1.
 	assert.Equal(t, "main.go:1", b.fields[0].Value)
 }
 

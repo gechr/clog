@@ -188,7 +188,7 @@ func TestContextLineMinimum(t *testing.T) {
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "file", ctx.fields[0].Key)
-	// lineNumber < 1 is clamped to 1.
+	// line < 1 is clamped to 1.
 	assert.Equal(t, "main.go:1", ctx.fields[0].Value)
 }
 

@@ -91,29 +91,29 @@ func (b *SpinnerBuilder) Path(key, path string) *SpinnerBuilder {
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
 // Uses the [Default] logger's [ColorMode] setting.
-func (b *SpinnerBuilder) Line(key, path string, lineNumber int) *SpinnerBuilder {
+func (b *SpinnerBuilder) Line(key, path string, line int) *SpinnerBuilder {
 	Default.mu.Lock()
 	mode := Default.colorMode
 	Default.mu.Unlock()
 
-	if lineNumber < 1 {
-		lineNumber = 1
+	if line < 1 {
+		line = 1
 	}
 
-	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, lineNumber, 0, mode)})
+	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, line, 0, mode)})
 
 	return b
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Uses the [Default] logger's [ColorMode] setting.
-func (b *SpinnerBuilder) Column(key, path string, lineNumber, column int) *SpinnerBuilder {
+func (b *SpinnerBuilder) Column(key, path string, line, column int) *SpinnerBuilder {
 	Default.mu.Lock()
 	mode := Default.colorMode
 	Default.mu.Unlock()
 
-	if lineNumber < 1 {
-		lineNumber = 1
+	if line < 1 {
+		line = 1
 	}
 
 	if column < 1 {
@@ -122,7 +122,7 @@ func (b *SpinnerBuilder) Column(key, path string, lineNumber, column int) *Spinn
 
 	b.fields = append(
 		b.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, lineNumber, column, mode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, column, mode)},
 	)
 
 	return b

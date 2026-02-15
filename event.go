@@ -202,31 +202,31 @@ func (e *Event) Path(key, path string) *Event {
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
-func (e *Event) Line(key, path string, lineNumber int) *Event {
+func (e *Event) Line(key, path string, line int) *Event {
 	if e == nil {
 		return e
 	}
 
-	if lineNumber < 1 {
-		lineNumber = 1
+	if line < 1 {
+		line = 1
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, lineNumber, 0, e.logger.colorMode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, 0, e.logger.colorMode)},
 	)
 	return e
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
-func (e *Event) Column(key, path string, lineNumber, column int) *Event {
+func (e *Event) Column(key, path string, line, column int) *Event {
 	if e == nil {
 		return e
 	}
 
-	if lineNumber < 1 {
-		lineNumber = 1
+	if line < 1 {
+		line = 1
 	}
 
 	if column < 1 {
@@ -235,7 +235,7 @@ func (e *Event) Column(key, path string, lineNumber, column int) *Event {
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, lineNumber, column, e.logger.colorMode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, column, e.logger.colorMode)},
 	)
 	return e
 }
