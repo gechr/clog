@@ -1,6 +1,9 @@
 GO       ?= go
 GO_TOOLS ?= $(shell $(GO) tool | grep /)
 
+.PHONY: all
+all: fmt lint test
+
 .PHONY: demo
 demo:
 	@vhs ./assets/demo.tape

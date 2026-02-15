@@ -227,7 +227,7 @@ logger := clog.With().Dict("db", clog.Dict().
 
 ## Custom Prefix
 
-Override the default emoji prefix per-event or per-logger:
+Override the default emoji prefix per-event, per-logger, or globally:
 
 ```go
 // Per-event
@@ -236,19 +236,43 @@ clog.Info().Prefix("📦").Str("pkg", "clog").Msg("Installed")
 // Per-logger (via sub-logger)
 logger := clog.With().Prefix("🔒").Str("component", "auth").Logger()
 logger.Info().Msg("Ready")
+
+// Global (changes defaults for all levels)
+clog.SetPrefixes(clog.LevelMap{
+  clog.InfoLevel:  ">>",
+  clog.WarnLevel:  "!!",
+  clog.ErrorLevel: "XX",
+})
 ```
 
 Prefix resolution order: event override > logger preset > default emoji for level.
+
+Missing levels in `SetPrefixes` fall back to the defaults. Use `DefaultPrefixes()` to get a copy of the default prefix map.
+
+## Custom Labels
+
+Override the default level labels with `SetLevelLabels`:
+
+```go
+clog.SetLevelLabels(clog.LevelMap{
+  clog.InfoLevel:  "INFO",
+  clog.WarnLevel:  "WARNING",
+  clog.ErrorLevel: "ERROR",
+})
+```
+
+Missing levels fall back to the defaults. Use `DefaultLabels()` to get a copy of the default label map.
 
 ## Level Alignment
 
 Control how level labels are aligned when they have different widths:
 
 ```go
-clog.SetLevelAlign(clog.AlignRight)   // default: "  INF", " WARN", "ERROR"
-clog.SetLevelAlign(clog.AlignLeft)    //          "INF  ", "WARN ", "ERROR"
-clog.SetLevelAlign(clog.AlignCenter)  //          " INF ", "WARN ", "ERROR"
-clog.SetLevelAlign(clog.AlignNone)    //          "INF",   "WARN",  "ERROR"
+// Alignment is visible when labels have different widths (e.g. via SetLevelLabels)
+clog.SetLevelAlign(clog.AlignRight)   // default: "   INFO", "WARNING", "  ERROR"
+clog.SetLevelAlign(clog.AlignLeft)    //          "INFO   ", "WARNING", "ERROR  "
+clog.SetLevelAlign(clog.AlignCenter)  //          " INFO  ", "WARNING", " ERROR "
+clog.SetLevelAlign(clog.AlignNone)    //          "INFO",    "WARNING", "ERROR"
 ```
 
 ## Part Order
@@ -457,6 +481,7 @@ clog.GetLevel()                  // returns the current level of the Default log
 clog.IsVerbose()                 // true if level is Debug or Trace
 clog.IsTerminal()                // true if stdout is a terminal
 clog.ColorsDisabled()            // true if colours are globally disabled
+clog.SetOutput(w)                // change the output writer
 clog.SetExitFunc(fn)             // override os.Exit for Fatal (useful in tests)
 clog.SetHyperlinksEnabled(false) // disable all hyperlink rendering
 ```
@@ -579,7 +604,7 @@ clog.SetStyles(styles)
 | `Timestamp`     | `*lipgloss.Style`            | Timestamp style (nil to disable)              |
 | `Values`        | `map[string]*lipgloss.Style` | Formatted value string → style                |
 
-Value styles only apply at `Info` level and above (not `Trace` or `Debug`).
+Value styles only apply at `Info` level and above by default. Use `SetFieldStyleLevel` to change the threshold.
 
 ### Per-Level Message Styles
 

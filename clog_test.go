@@ -1313,6 +1313,17 @@ func TestSubLoggerInheritsQuoteSettings(t *testing.T) {
 	assert.Equal(t, ']', sub.quoteClose)
 }
 
+func TestSetOmitQuotesFalse(t *testing.T) {
+	l := New(io.Discard)
+	// First set to QuoteNever via SetOmitQuotes(true).
+	l.SetOmitQuotes(true)
+	assert.Equal(t, QuoteNever, l.quoteMode)
+
+	// SetOmitQuotes(false) should restore QuoteAuto.
+	l.SetOmitQuotes(false)
+	assert.Equal(t, QuoteAuto, l.quoteMode)
+}
+
 func TestPackageLevelSetOmitQuotes(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()

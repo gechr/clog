@@ -3,6 +3,7 @@ package clog
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -423,6 +424,17 @@ func TestLoadHyperlinkColumnFormatFromEnv(t *testing.T) {
 	}
 }
 
+func TestAbsPathAlreadyAbsolute(t *testing.T) {
+	got := absPath("/already/absolute/path.go")
+	assert.Equal(t, "/already/absolute/path.go", got)
+}
+
+func TestAbsPathRelative(t *testing.T) {
+	got := absPath("relative.go")
+	assert.True(t, filepath.IsAbs(got), "expected absolute path for relative input")
+	assert.True(t, strings.HasSuffix(got, "/relative.go"), "expected path to end with relative.go")
+}
+
 func TestAbsPathFallbackOnGetwdFailure(t *testing.T) {
 	// When filepath.Abs cannot resolve a relative path (Getwd fails),
 	// absPath should return the original path unchanged.
@@ -443,6 +455,23 @@ func TestAbsPathFallbackOnGetwdFailure(t *testing.T) {
 	}
 
 	assert.True(t, filepath.IsAbs(got), "expected fallback or absolute path")
+}
+
+func TestIsDirectory(t *testing.T) {
+	// Existing directory should return true.
+	assert.True(t, isDirectory(os.TempDir()))
+
+	// Non-existent path should return false.
+	assert.False(t, isDirectory("/nonexistent/path/that/does/not/exist"))
+
+	// File (not directory) should return false.
+	f, err := os.CreateTemp(t.TempDir(), "clog-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.Close()
+
+	assert.False(t, isDirectory(f.Name()))
 }
 
 func TestHyperlinkWithModeAlways(t *testing.T) {

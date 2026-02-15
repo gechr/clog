@@ -835,6 +835,9 @@ func TestReflectValueKind(t *testing.T) {
 			name: "string", val: "hello", want: kindString,
 		},
 		{
+			name: "error", val: errors.New("fail"), want: kindError,
+		},
+		{
 			name: "slice", val: []int{1}, want: kindDefault,
 		},
 		{
@@ -976,4 +979,123 @@ func TestMergeFields(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestStyleValueDuration(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleValue("5s", "elapsed", kindDuration, styles)
+	assert.Equal(t, styles.FieldDuration.Render("5s"), got)
+}
+
+func TestStyleValueDurationNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldDuration = nil
+	got := styleValue("5s", "elapsed", kindDuration, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleValueTime(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleValue("2025-06-15 10:30:00", "ts", kindTime, styles)
+	assert.Equal(t, styles.FieldTime.Render("2025-06-15 10:30:00"), got)
+}
+
+func TestStyleValueTimeNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldTime = nil
+	got := styleValue("2025-06-15 10:30:00", "ts", kindTime, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleValueError(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleValue("boom", "err", kindError, styles)
+	assert.Equal(t, styles.FieldError.Render("boom"), got)
+}
+
+func TestStyleValueErrorNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldError = nil
+	got := styleValue("boom", "err", kindError, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleValuePerKeyMatch(t *testing.T) {
+	styles := DefaultStyles()
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	styles.Keys["status"] = new(keyStyle)
+
+	got := styleValue("running", "status", kindString, styles)
+	assert.Equal(t, keyStyle.Render("running"), got)
+}
+
+func TestStyleValuePerValueMatch(t *testing.T) {
+	styles := DefaultStyles()
+	valStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles.Values["running"] = new(valStyle)
+
+	// No key style set, so value style should apply.
+	got := styleValue("running", "status", kindString, styles)
+	assert.Equal(t, valStyle.Render("running"), got)
+}
+
+func TestStyleAnyElementError(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleAnyElement("boom", kindError, styles)
+	assert.Equal(t, styles.FieldError.Render("boom"), got)
+}
+
+func TestStyleAnyElementErrorNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldError = nil
+	got := styleAnyElement("boom", kindError, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleAnyElementDuration(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleAnyElement("5s", kindDuration, styles)
+	assert.Equal(t, styles.FieldDuration.Render("5s"), got)
+}
+
+func TestStyleAnyElementDurationNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldDuration = nil
+	got := styleAnyElement("5s", kindDuration, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleAnyElementTime(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleAnyElement("2025-06-15", kindTime, styles)
+	assert.Equal(t, styles.FieldTime.Render("2025-06-15"), got)
+}
+
+func TestStyleAnyElementTimeNil(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldTime = nil
+	got := styleAnyElement("2025-06-15", kindTime, styles)
+	assert.Empty(t, got)
+}
+
+func TestReflectValueKindBool(t *testing.T) {
+	assert.Equal(t, kindBool, reflectValueKind(true))
+	assert.Equal(t, kindBool, reflectValueKind(false))
+}
+
+func TestQuoteStringOpenCharNoCloseChar(t *testing.T) {
+	// When closeChar is 0, openChar should be used for both sides.
+	got := quoteString("hello", '\'', 0)
+	assert.Equal(t, "'hello'", got)
+}
+
+func TestQuoteStringOpenAndCloseChar(t *testing.T) {
+	got := quoteString("hello", '(', ')')
+	assert.Equal(t, "(hello)", got)
+}
+
+func TestQuoteStringDefaultQuoting(t *testing.T) {
+	// When openChar is 0, strconv.Quote is used.
+	got := quoteString("hello", 0, 0)
+	assert.Equal(t, `"hello"`, got)
 }

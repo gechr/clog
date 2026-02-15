@@ -107,6 +107,15 @@ func TestContextDur(t *testing.T) {
 	assert.Equal(t, time.Second, ctx.fields[0].Value)
 }
 
+func TestContextTime(t *testing.T) {
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	ctx := New(io.Discard).With().Time("created", ts)
+
+	require.Len(t, ctx.fields, 1)
+	assert.Equal(t, "created", ctx.fields[0].Key)
+	assert.Equal(t, ts, ctx.fields[0].Value)
+}
+
 func TestContextAny(t *testing.T) {
 	ctx := New(io.Discard).With().Any("data", 123)
 
