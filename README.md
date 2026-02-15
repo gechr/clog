@@ -22,9 +22,9 @@ package main
 import "github.com/gechr/clog"
 
 func main() {
-    clog.Info().Str("port", "8080").Msg("Server started")
-    clog.Warn().Str("path", "/old").Msg("Deprecated endpoint")
-    clog.Error().Err(err).Msg("Connection failed")
+  clog.Info().Str("port", "8080").Msg("Server started")
+  clog.Warn().Str("path", "/old").Msg("Deprecated endpoint")
+  clog.Error().Err(err).Msg("Connection failed")
 }
 ```
 
@@ -46,7 +46,7 @@ ERR ❌ Connection failed error=connection refused
 | `Dry`   | `DRY` | 🚧     | Dry-run indicators                                   |
 | `Warn`  | `WRN` | ⚠️     | Warnings that don't prevent operation                |
 | `Error` | `ERR` | ❌     | Errors that need attention                           |
-| `Fatal` | `FTL` | ‼️     | Fatal errors - calls `os.Exit(1)` after logging      |
+| `Fatal` | `FTL` | 💥     | Fatal errors - calls `os.Exit(1)` after logging      |
 
 ### Setting the Level
 
@@ -111,12 +111,12 @@ Suppress fields with empty or zero values to reduce noise in log output.
 ```go
 clog.SetOmitEmpty(true)
 clog.Info().
-    Str("name", "alice").
-    Str("nickname", "").   // omitted
-    Any("role", nil).      // omitted
-    Int("age", 0).         // kept (zero but not empty)
-    Bool("admin", false).  // kept (zero but not empty)
-    Msg("User")
+  Str("name", "alice").
+  Str("nickname", "").   // omitted
+  Any("role", nil).      // omitted
+  Int("age", 0).         // kept (zero but not empty)
+  Bool("admin", false).  // kept (zero but not empty)
+  Msg("User")
 // INF ℹ️ User name=alice age=0 admin=false
 ```
 
@@ -125,12 +125,12 @@ clog.Info().
 ```go
 clog.SetOmitZero(true)
 clog.Info().
-    Str("name", "alice").
-    Str("nickname", "").   // omitted
-    Any("role", nil).      // omitted
-    Int("age", 0).         // omitted
-    Bool("admin", false).  // omitted
-    Msg("User")
+  Str("name", "alice").
+  Str("nickname", "").   // omitted
+  Any("role", nil).      // omitted
+  Int("age", 0).         // omitted
+  Bool("admin", false).  // omitted
+  Msg("User")
 // INF ℹ️ User name=alice
 ```
 
@@ -210,8 +210,8 @@ Group related fields under a common key prefix using dot notation:
 
 ```go
 clog.Info().Dict("request", clog.Dict().
-    Str("method", "GET").
-    Int("status", 200),
+  Str("method", "GET").
+  Int("status", 200),
 ).Msg("Handled")
 // INF ℹ️ Handled request.method=GET request.status=200
 ```
@@ -220,8 +220,8 @@ Works with sub-loggers too:
 
 ```go
 logger := clog.With().Dict("db", clog.Dict().
-    Str("host", "localhost").
-    Int("port", 5432),
+  Str("host", "localhost").
+  Int("port", 5432),
 ).Logger()
 ```
 
@@ -276,11 +276,11 @@ Display animated spinners during long-running operations:
 
 ```go
 err := clog.Spinner("Downloading").
-    Str("url", fileURL).
-    Wait(ctx, func(ctx context.Context) error {
-        return download(ctx, fileURL)
-    }).
-    Msg("Downloaded")
+  Str("url", fileURL).
+  Wait(ctx, func(ctx context.Context) error {
+    return download(ctx, fileURL)
+  }).
+  Msg("Downloaded")
 ```
 
 The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result.
@@ -291,28 +291,41 @@ Use `Progress` to update the spinner title and fields during execution:
 
 ```go
 err := clog.Spinner("Processing").
-    Progress(ctx, func(ctx context.Context, update *clog.ProgressUpdate) error {
-        for i, item := range items {
-            update.Title("Processing").Str("progress", fmt.Sprintf("%d/%d", i+1, len(items))).Send()
-            if err := process(ctx, item); err != nil {
-                return err
-            }
-        }
-        return nil
-    }).
-    Msg("Processed all items")
+  Progress(ctx, func(ctx context.Context, update *clog.ProgressUpdate) error {
+    for i, item := range items {
+      update.Title("Processing").Str("progress", fmt.Sprintf("%d/%d", i+1, len(items))).Send()
+      if err := process(ctx, item); err != nil {
+        return err
+      }
+    }
+    return nil
+  }).
+  Msg("Processed all items")
 ```
 
 ### WaitResult Finalisers
 
-| Method      | Success behaviour          | Failure behaviour                |
-| ----------- | -------------------------- | -------------------------------- |
-| `.Msg(s)`   | Logs at `INF` with message | Logs at `ERR` with spinner title |
-| `.Debug(s)` | Logs at `DBG` with message | Logs at `ERR` with spinner title |
-| `.Err()`    | Logs at `INF` with title   | Logs at `ERR` with title + error |
-| `.Silent()` | Returns error, no logging  | Returns error, no logging        |
+| Method      | Success behaviour          | Failure behaviour               |
+| ----------- | -------------------------- | ------------------------------- |
+| `.Msg(s)`   | Logs at `INF` with message | Logs at `ERR` with error string |
+| `.Err()`    | Logs at `INF` with title   | Logs at `ERR` with error string |
+| `.Send()`   | Logs at configured level   | Logs at configured level        |
+| `.Silent()` | Returns error, no logging  | Returns error, no logging       |
 
 All finalisers return the `error` from the action. You can chain any field method (`.Str()`, `.Int()`, `.Bool()`, `.Dur()`, etc.) and `.Prefix()` on a `WaitResult` before finalising.
+
+### Custom Success/Error Behaviour
+
+Use `OnSuccessLevel`, `OnSuccessMessage`, `OnErrorLevel`, and `OnErrorMessage` to customise how the result is logged, then call `.Send()`:
+
+```go
+// Fatal on error instead of the default error level
+err := clog.Spinner("Connecting to database").
+  Str("host", "db.internal").
+  Wait(ctx, connectToDB).
+  OnErrorLevel(clog.FatalLevel).
+  Send()
+```
 
 Spinners gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
 
@@ -320,9 +333,9 @@ Spinners gracefully degrade: when colours are disabled (CI, piped output), the a
 
 ```go
 clog.Spinner("Loading").
-    Type(spinner.Dot).
-    Wait(ctx, action).
-    Msg("Done")
+  Type(spinner.Dot).
+  Wait(ctx, action).
+  Msg("Done")
 ```
 
 ## Hyperlinks
@@ -393,7 +406,7 @@ Implement the `Handler` interface for custom output formats:
 
 ```go
 type Handler interface {
-    Log(Entry)
+  Log(Entry)
 }
 ```
 
@@ -402,8 +415,8 @@ The `Entry` struct provides `Level`, `Time`, `Message`, `Prefix`, and `Fields`. 
 ```go
 // Using HandlerFunc adapter
 clog.SetHandler(clog.HandlerFunc(func(e clog.Entry) {
-    data, _ := json.Marshal(e)
-    fmt.Println(string(data))
+  data, _ := json.Marshal(e)
+  fmt.Println(string(data))
 }))
 ```
 
@@ -416,9 +429,9 @@ The package-level functions (`Info()`, `Warn()`, etc.) use the `Default` logger 
 ```go
 // Full configuration
 clog.Configure(&clog.Config{
-    Verbose: true,           // enables debug level + timestamps
-    Output:  os.Stderr,      // custom writer
-    Styles:  customStyles,   // custom visual styles
+  Verbose: true,           // enables debug level + timestamps
+  Output:  os.Stderr,      // custom writer
+  Styles:  customStyles,   // custom visual styles
 })
 
 // Toggle verbose mode
@@ -526,18 +539,17 @@ styles := clog.DefaultStyles()
 
 // 1. Key styles: all values of the "status" field are green
 styles.Keys["status"] = new(lipgloss.NewStyle().
-    Foreground(lipgloss.Color("2")))
+  Foreground(lipgloss.Color("2"))) // green
 
 // 2. Value styles: exact string matches
 styles.Values["PASS"] = new(
   lipgloss.NewStyle().
-  Foreground(lipgloss.Color("2")),
-) // green
+  Foreground(lipgloss.Color("2")), // green
+)
 
-styles.Values["FAIL"] = new(
-  lipgloss.NewStyle().
-    Foreground(lipgloss.Color("1")),
-) // red
+styles.Values["FAIL"] = new(lipgloss.NewStyle().
+  Foreground(lipgloss.Color("1")), // red
+)
 
 // 3. Type styles: string values → white, numeric values → magenta, errors → red by default
 styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))

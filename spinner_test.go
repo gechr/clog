@@ -255,7 +255,13 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 
 // newTestWaitResult creates a WaitResult with initSelf called for test use.
 func newTestWaitResult(title string, err error) *WaitResult {
-	w := &WaitResult{title: title, err: err}
+	w := &WaitResult{
+		title:        title,
+		err:          err,
+		successLevel: InfoLevel,
+		successMsg:   title,
+		errorLevel:   ErrorLevel,
+	}
 	w.initSelf(w)
 	return w
 }
@@ -334,49 +340,7 @@ func TestWaitResultMsgError(t *testing.T) {
 
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, ErrorLevel, got.Level)
-	assert.Equal(t, "loading", got.Message)
-}
-
-func TestWaitResultDebugSuccess(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = New(io.Discard)
-	Default.SetLevel(DebugLevel)
-
-	var got Entry
-
-	Default.SetHandler(HandlerFunc(func(e Entry) {
-		got = e
-	}))
-
-	w := newTestWaitResult("loading", nil)
-	err := w.Debug("done")
-
-	require.NoError(t, err)
-	assert.Equal(t, DebugLevel, got.Level)
-	assert.Equal(t, "done", got.Message)
-}
-
-func TestWaitResultDebugError(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = New(io.Discard)
-
-	var got Entry
-
-	Default.SetHandler(HandlerFunc(func(e Entry) {
-		got = e
-	}))
-
-	testErr := errors.New("boom")
-	w := newTestWaitResult("loading", testErr)
-
-	err := w.Debug("done")
-
-	require.ErrorIs(t, err, testErr)
-	assert.Equal(t, ErrorLevel, got.Level)
+	assert.Equal(t, "boom", got.Message)
 }
 
 func TestWaitResultErrSuccess(t *testing.T) {
@@ -418,6 +382,129 @@ func TestWaitResultErrError(t *testing.T) {
 
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, ErrorLevel, got.Level)
+}
+
+func TestWaitResultOnSuccessLevel(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+	Default.SetLevel(WarnLevel)
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	w := newTestWaitResult("loading", nil)
+	err := w.OnSuccessLevel(WarnLevel).Send()
+
+	require.NoError(t, err)
+	assert.Equal(t, WarnLevel, got.Level)
+	assert.Equal(t, "loading", got.Message)
+}
+
+func TestWaitResultOnSuccessMessage(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	w := newTestWaitResult("loading", nil)
+	err := w.OnSuccessMessage("finished").Send()
+
+	require.NoError(t, err)
+	assert.Equal(t, InfoLevel, got.Level)
+	assert.Equal(t, "finished", got.Message)
+}
+
+func TestWaitResultOnErrorLevel(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+	Default.SetExitFunc(func(_ int) {}) // prevent os.Exit
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	testErr := errors.New("boom")
+	w := newTestWaitResult("loading", testErr)
+	err := w.OnErrorLevel(FatalLevel).Send()
+
+	require.ErrorIs(t, err, testErr)
+	assert.Equal(t, FatalLevel, got.Level)
+}
+
+func TestWaitResultOnErrorMessage(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	testErr := errors.New("boom")
+	w := newTestWaitResult("loading", testErr)
+	err := w.OnErrorMessage("custom failure").Send()
+
+	require.ErrorIs(t, err, testErr)
+	assert.Equal(t, ErrorLevel, got.Level)
+	assert.Equal(t, "custom failure", got.Message)
+}
+
+func TestWaitResultOnErrorMessageDefault(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	testErr := errors.New("boom")
+	w := newTestWaitResult("loading", testErr)
+	err := w.Send()
+
+	require.ErrorIs(t, err, testErr)
+	assert.Equal(t, "boom", got.Message)
+}
+
+func TestWaitResultSendSuccess(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(io.Discard)
+
+	var got Entry
+
+	Default.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+
+	w := newTestWaitResult("loading", nil)
+	err := w.Send()
+
+	require.NoError(t, err)
+	assert.Equal(t, InfoLevel, got.Level)
+	assert.Equal(t, "loading", got.Message)
 }
 
 func TestWaitResultSilent(t *testing.T) {

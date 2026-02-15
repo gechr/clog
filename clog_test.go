@@ -183,7 +183,7 @@ func TestResolvePrefix(t *testing.T) {
 		{name: "default_debug", level: DebugLevel, want: "🔍"},
 		{name: "default_warn", level: WarnLevel, want: "⚠️"},
 		{name: "default_error", level: ErrorLevel, want: "❌"},
-		{name: "default_fatal", level: FatalLevel, want: "‼️"},
+		{name: "default_fatal", level: FatalLevel, want: "💥"},
 		{name: "default_dry", level: DryLevel, want: "🚧"},
 		{
 			name:         "logger_prefix",

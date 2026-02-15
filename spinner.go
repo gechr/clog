@@ -175,7 +175,14 @@ func (b *SpinnerBuilder) Progress(
 
 	err := runSpinner(ctx, &titlePtr, &fieldsPtr, b.spinner, wrapped)
 
-	w := &WaitResult{title: *titlePtr.Load(), err: err}
+	title := *titlePtr.Load()
+	w := &WaitResult{
+		title:        title,
+		err:          err,
+		successLevel: InfoLevel,
+		successMsg:   title,
+		errorLevel:   ErrorLevel,
+	}
 	w.fields = *fieldsPtr.Load()
 	w.initSelf(w)
 
@@ -187,9 +194,13 @@ func (b *SpinnerBuilder) Progress(
 type WaitResult struct {
 	fieldBuilder[WaitResult]
 
-	err    error
-	prefix *string // nil = use default emoji for level
-	title  string
+	err          error
+	prefix       *string // nil = use default emoji for level
+	title        string
+	successLevel Level
+	successMsg   string
+	errorLevel   Level
+	errorMsg     *string // nil = use error string
 }
 
 // Prefix sets a custom emoji prefix for the completion log message.
@@ -199,40 +210,65 @@ func (w *WaitResult) Prefix(prefix string) *WaitResult {
 	return w
 }
 
-// Msg logs at info level with the given message on success, or at error
-// level with the original spinner title on failure. Returns the error.
-func (w *WaitResult) Msg(msg string) error {
+// OnSuccessLevel sets the log level for the success case. Defaults to [InfoLevel].
+func (w *WaitResult) OnSuccessLevel(level Level) *WaitResult {
+	w.successLevel = level
+
+	return w
+}
+
+// OnSuccessMessage sets the message for the success case. Defaults to the
+// original spinner title.
+func (w *WaitResult) OnSuccessMessage(msg string) *WaitResult {
+	w.successMsg = msg
+
+	return w
+}
+
+// OnErrorLevel sets the log level for the error case. Defaults to [ErrorLevel].
+func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
+	w.errorLevel = level
+
+	return w
+}
+
+// OnErrorMessage sets a custom message for the error case. Defaults to the
+// error string.
+func (w *WaitResult) OnErrorMessage(msg string) *WaitResult {
+	w.errorMsg = &msg
+
+	return w
+}
+
+// Send finalises the result, logging at the configured success or error
+// level. Returns the error from the task.
+func (w *WaitResult) Send() error {
 	if w.err == nil {
-		w.event(InfoLevel).Msg(msg)
+		w.event(w.successLevel).Msg(w.successMsg)
 	} else {
-		w.event(ErrorLevel).Err(w.err).Msg(w.title)
+		msg := w.err.Error()
+		if w.errorMsg != nil {
+			msg = *w.errorMsg
+		}
+
+		w.event(w.errorLevel).Err(w.err).Msg(msg)
 	}
 
 	return w.err
 }
 
-// Debug logs at debug level with the given message on success, or at
-// error level on failure. Returns the error.
-func (w *WaitResult) Debug(msg string) error {
-	if w.err == nil {
-		w.event(DebugLevel).Msg(msg)
-	} else {
-		w.event(ErrorLevel).Err(w.err).Msg(w.title)
-	}
+// Msg logs at info level with the given message on success, or at error
+// level with the original spinner title on failure. Returns the error.
+func (w *WaitResult) Msg(msg string) error {
+	w.successMsg = msg
 
-	return w.err
+	return w.Send()
 }
 
 // Err returns the error, logging success at info level or failure at error
 // level using the original spinner title.
 func (w *WaitResult) Err() error {
-	if w.err == nil {
-		w.event(InfoLevel).Msg(w.title)
-	} else {
-		w.event(ErrorLevel).Err(w.err).Msg(w.title)
-	}
-
-	return w.err
+	return w.Send()
 }
 
 // Silent returns just the error without logging anything.

@@ -3,8 +3,8 @@ Output ./assets/demo.gif
 Set Shell bash
 Set FontSize 22
 Set Framerate 60
-Set Width 1396
-Set Height 266
+Set Width 1420
+Set Height 300
 Set Padding 15
 Set Margin 10
 Set MarginFill "#674EFF"

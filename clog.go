@@ -63,7 +63,7 @@ var defaultPrefixes = LevelMap{
 	DryLevel:   "🚧",
 	WarnLevel:  "⚠️",
 	ErrorLevel: "❌",
-	FatalLevel: "‼️",
+	FatalLevel: "💥",
 }
 
 // levelLabels are the short text labels for each level.

@@ -383,14 +383,13 @@ func demo() {
 		Prefix("✅").
 		Msg("Demo loaded")
 
-	_ = clog.Spinner("Connecting to database").
-		Str("host", "db.internal").
-		Int("port", 5432).
+	_ = clog.Spinner("Validating config").
+		Str("file", "app.toml").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(2 * time.Second)
-			return errors.New("connection refused")
+			time.Sleep(1 * time.Second)
+			return errors.New("missing required field: port")
 		}).
-		Msg("Connected")
+		Err()
 
 	_ = clog.Spinner("Deploying").
 		Str("env", "production").
@@ -431,11 +430,13 @@ func demo() {
 		Prefix("📦").
 		Msg("Artifacts downloaded")
 
-	_ = clog.Spinner("Validating config").
-		Str("file", "app.toml").
+	_ = clog.Spinner("Connecting to database").
+		Str("host", "db.internal").
+		Int("port", 5432).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1 * time.Second)
-			return errors.New("missing required field: port")
+			time.Sleep(2 * time.Second)
+			return errors.New("connection refused")
 		}).
-		Err()
+		OnErrorLevel(clog.FatalLevel).
+		Send()
 }
