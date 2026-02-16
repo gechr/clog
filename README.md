@@ -90,6 +90,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Path`      | `Path(key, path string)`                     | Clickable file/directory hyperlink    |
 | `Line`      | `Line(key, path string, line int)`           | Clickable file:line hyperlink         |
 | `Column`    | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink  |
+| `URL`       | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text) |
 | `Link`      | `Link(key, url, text string)`                | Clickable URL hyperlink               |
 | `Stringer`  | `Stringer(key string, val fmt.Stringer)`     | Calls `String()` (nil-safe)           |
 | `Stringers` | `Stringers(key string, vals []fmt.Stringer)` | Slice of `fmt.Stringer` values        |
@@ -371,6 +372,7 @@ Render clickable terminal hyperlinks using OSC 8 escape sequences:
 clog.Info().Path("dir", "src/").Msg("Directory")
 clog.Info().Line("file", "config.yaml", 42).Msg("File with line")
 clog.Info().Column("loc", "main.go", 42, 10).Msg("File with line and column")
+clog.Info().URL("docs", "https://example.com/docs").Msg("See docs")
 clog.Info().Link("docs", "https://example.com", "docs").Msg("URL")
 
 // Standalone functions (for use with Str)

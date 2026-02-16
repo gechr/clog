@@ -128,6 +128,18 @@ func (b *SpinnerBuilder) Column(key, path string, line, column int) *SpinnerBuil
 	return b
 }
 
+// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+// Uses the [Default] logger's [ColorMode] setting.
+func (b *SpinnerBuilder) URL(key, url string) *SpinnerBuilder {
+	Default.mu.Lock()
+	mode := Default.colorMode
+	Default.mu.Unlock()
+
+	b.fields = append(b.fields, Field{Key: key, Value: hyperlinkWithMode(url, url, mode)})
+
+	return b
+}
+
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
 // Uses the [Default] logger's [ColorMode] setting.
 func (b *SpinnerBuilder) Link(key, url, text string) *SpinnerBuilder {

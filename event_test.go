@@ -116,6 +116,31 @@ func TestEventLinkColorAlways(t *testing.T) {
 	assert.Contains(t, val, "docs")
 }
 
+func TestEventURL(t *testing.T) {
+	l := New(io.Discard)
+	e := l.Info()
+	e.URL("link", "https://example.com")
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "link", e.fields[0].Key)
+	// Colors disabled in tests (no TTY), so returns plain text.
+	assert.Equal(t, "https://example.com", e.fields[0].Value)
+}
+
+func TestEventURLColorAlways(t *testing.T) {
+	l := New(io.Discard)
+	l.SetColorMode(ColorAlways)
+
+	e := l.Info()
+	e.URL("link", "https://example.com")
+
+	require.Len(t, e.fields, 1)
+
+	val, ok := e.fields[0].Value.(string)
+	require.True(t, ok)
+	assert.Equal(t, "\x1b]8;;https://example.com\x1b\\https://example.com\x1b]8;;\x1b\\", val)
+}
+
 func TestEventBool(t *testing.T) {
 	e := New(io.Discard).Info()
 	e.Bool("ok", true)
@@ -397,6 +422,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Line("k", "file.go", 1))
 	assert.Nil(t, e.Column("k", "file.go", 1, 1))
 	assert.Nil(t, e.Link("k", "https://example.com", "text"))
+	assert.Nil(t, e.URL("k", "https://example.com"))
 	assert.Nil(t, e.Stringer("k", testStringer{s: "x"}))
 	assert.Nil(t, e.Stringers("k", []fmt.Stringer{testStringer{s: "x"}}))
 	assert.Nil(t, e.Prefix("p"))

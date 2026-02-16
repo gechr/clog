@@ -240,6 +240,20 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 	return e
 }
 
+// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) URL(key, url string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: hyperlinkWithMode(url, url, e.logger.colorMode)},
+	)
+	return e
+}
+
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Link(key, url, text string) *Event {

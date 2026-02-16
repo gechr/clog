@@ -83,6 +83,14 @@ func TestContextLink(t *testing.T) {
 	assert.Equal(t, "docs", ctx.fields[0].Value)
 }
 
+func TestContextURL(t *testing.T) {
+	ctx := New(io.Discard).With().URL("link", "https://example.com")
+
+	require.Len(t, ctx.fields, 1)
+	assert.Equal(t, "link", ctx.fields[0].Key)
+	assert.Equal(t, "https://example.com", ctx.fields[0].Value)
+}
+
 func TestContextBool(t *testing.T) {
 	ctx := New(io.Discard).With().Bool("ok", true)
 

@@ -112,6 +112,16 @@ func (c *Context) Column(key, path string, line, column int) *Context {
 	return c
 }
 
+// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+// Respects the logger's [ColorMode] setting.
+func (c *Context) URL(key, url string) *Context {
+	c.fields = append(
+		c.fields,
+		Field{Key: key, Value: hyperlinkWithMode(url, url, c.logger.colorMode)},
+	)
+	return c
+}
+
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) Link(key, url, text string) *Context {

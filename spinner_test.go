@@ -156,6 +156,15 @@ func TestSpinnerBuilderLink(t *testing.T) {
 	assert.Equal(t, "docs", b.fields[0].Value)
 }
 
+func TestSpinnerBuilderURL(t *testing.T) {
+	b := Spinner("test").URL("link", "https://example.com")
+
+	require.Len(t, b.fields, 1)
+	assert.Equal(t, "link", b.fields[0].Key)
+	// In test env, colors are disabled so hyperlink returns plain text.
+	assert.Equal(t, "https://example.com", b.fields[0].Value)
+}
+
 func TestSpinnerBuilderAny(t *testing.T) {
 	b := Spinner("test").Any("data", 123)
 
