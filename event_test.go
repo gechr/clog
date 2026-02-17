@@ -161,7 +161,7 @@ func TestEventBools(t *testing.T) {
 
 func TestEventDur(t *testing.T) {
 	e := New(io.Discard).Info()
-	e.Dur("elapsed", time.Second)
+	e.Duration("elapsed", time.Second)
 
 	require.Len(t, e.fields, 1)
 	assert.Equal(t, "elapsed", e.fields[0].Key)
@@ -412,7 +412,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Floats64("k", []float64{1.0}))
 	assert.Nil(t, e.Bool("k", true))
 	assert.Nil(t, e.Bools("k", []bool{true}))
-	assert.Nil(t, e.Dur("k", time.Second))
+	assert.Nil(t, e.Duration("k", time.Second))
 	assert.Nil(t, e.Time("k", time.Now()))
 	assert.Nil(t, e.Err(errors.New("x")))
 	assert.Nil(t, e.Any("k", "v"))
@@ -423,6 +423,9 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Column("k", "file.go", 1, 1))
 	assert.Nil(t, e.Link("k", "https://example.com", "text"))
 	assert.Nil(t, e.URL("k", "https://example.com"))
+	assert.Nil(t, e.Durations("k", []time.Duration{time.Second}))
+	assert.Nil(t, e.Quantity("k", "10GB"))
+	assert.Nil(t, e.Quantities("k", []string{"10GB"}))
 	assert.Nil(t, e.Stringer("k", testStringer{s: "x"}))
 	assert.Nil(t, e.Stringers("k", []fmt.Stringer{testStringer{s: "x"}}))
 	assert.Nil(t, e.Prefix("p"))
@@ -529,6 +532,92 @@ func TestEventChaining(t *testing.T) {
 
 	assert.Equal(t, "chained", got.Message)
 	require.Len(t, got.Fields, 3)
+}
+
+func TestEventDurations(t *testing.T) {
+	e := New(io.Discard).Info()
+	vals := []time.Duration{time.Second, 2 * time.Millisecond}
+	e.Durations("timings", vals)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "timings", e.fields[0].Key)
+
+	got, ok := e.fields[0].Value.([]time.Duration)
+	require.True(t, ok, "expected []time.Duration value")
+	assert.Equal(t, vals, got)
+}
+
+func TestEventDurationsOutput(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.Info().Durations("d", []time.Duration{time.Second, 500 * time.Millisecond}).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test d=[1s, 500ms]\n", buf.String())
+}
+
+func TestEventQuantity(t *testing.T) {
+	e := New(io.Discard).Info()
+	e.Quantity("size", "10GB")
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "size", e.fields[0].Key)
+}
+
+func TestEventQuantityOutput(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.Info().Quantity("size", "10GB").Msg("done")
+
+	assert.Equal(t, "INF ℹ️ done size=10GB\n", buf.String())
+}
+
+func TestEventQuantities(t *testing.T) {
+	e := New(io.Discard).Info()
+	e.Quantities("sizes", []string{"10GB", "5MB"})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "sizes", e.fields[0].Key)
+}
+
+func TestEventQuantitiesOutput(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.Info().Quantities("sizes", []string{"10GB", "5MB"}).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test sizes=[10GB, 5MB]\n", buf.String())
+}
+
+func TestEventDictNilParam(t *testing.T) {
+	e := New(io.Discard).Info()
+	e.Str("before", "x")
+
+	result := e.Dict("group", nil)
+
+	assert.Same(t, e, result, "expected same event returned")
+	require.Len(t, e.fields, 1, "nil dict should not add fields")
+	assert.Equal(t, "before", e.fields[0].Key)
+}
+
+func TestEventStringerTypedNil(t *testing.T) {
+	e := New(io.Discard).Info()
+	var buf *bytes.Buffer // typed nil that implements fmt.Stringer
+
+	result := e.Stringer("key", buf)
+
+	assert.Same(t, e, result, "expected same event returned")
+	assert.Empty(t, e.fields, "typed nil stringer should not add a field")
+}
+
+func TestEventEmptyFieldKey(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.Info().Str("", "value").Msg("test")
+
+	assert.Contains(t, buf.String(), "=value")
 }
 
 func TestEventMsgFatalCallsExit(t *testing.T) {

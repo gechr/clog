@@ -9,50 +9,15 @@ type fieldBuilder[T any] struct {
 	self   *T
 }
 
-// Str adds a string field.
-func (fb *fieldBuilder[T]) Str(key, val string) *T {
+// Any adds a field with an arbitrary value.
+func (fb *fieldBuilder[T]) Any(key string, val any) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})
 	return fb.self
 }
 
-// Strs adds a string slice field.
-func (fb *fieldBuilder[T]) Strs(key string, vals []string) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
-	return fb.self
-}
-
-// Int adds an int field.
-func (fb *fieldBuilder[T]) Int(key string, val int) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: val})
-	return fb.self
-}
-
-// Ints adds an int slice field.
-func (fb *fieldBuilder[T]) Ints(key string, vals []int) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
-	return fb.self
-}
-
-// Uint64 adds a uint64 field.
-func (fb *fieldBuilder[T]) Uint64(key string, val uint64) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: val})
-	return fb.self
-}
-
-// Uints64 adds a uint64 slice field.
-func (fb *fieldBuilder[T]) Uints64(key string, vals []uint64) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
-	return fb.self
-}
-
-// Float64 adds a float64 field.
-func (fb *fieldBuilder[T]) Float64(key string, val float64) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: val})
-	return fb.self
-}
-
-// Floats64 adds a float64 slice field.
-func (fb *fieldBuilder[T]) Floats64(key string, vals []float64) *T {
+// Anys adds a slice of arbitrary values. Individual elements are
+// highlighted using reflection to determine their type.
+func (fb *fieldBuilder[T]) Anys(key string, vals []any) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
 	return fb.self
 }
@@ -69,9 +34,72 @@ func (fb *fieldBuilder[T]) Bools(key string, vals []bool) *T {
 	return fb.self
 }
 
-// Dur adds a [time.Duration] field.
-func (fb *fieldBuilder[T]) Dur(key string, val time.Duration) *T {
+// Duration adds a [time.Duration] field.
+func (fb *fieldBuilder[T]) Duration(key string, val time.Duration) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
+// Durations adds a [time.Duration] slice field.
+func (fb *fieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
+	return fb.self
+}
+
+// Float64 adds a float64 field.
+func (fb *fieldBuilder[T]) Float64(key string, val float64) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
+// Floats64 adds a float64 slice field.
+func (fb *fieldBuilder[T]) Floats64(key string, vals []float64) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
+	return fb.self
+}
+
+func (fb *fieldBuilder[T]) initSelf(s *T) { fb.self = s }
+
+// Int adds an int field.
+func (fb *fieldBuilder[T]) Int(key string, val int) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
+// Ints adds an int slice field.
+func (fb *fieldBuilder[T]) Ints(key string, vals []int) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
+	return fb.self
+}
+
+// Quantities adds a quantity string slice field. Each element is styled
+// with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+func (fb *fieldBuilder[T]) Quantities(key string, vals []string) *T {
+	q := make([]quantity, len(vals))
+	for i, v := range vals {
+		q[i] = quantity(v)
+	}
+	fb.fields = append(fb.fields, Field{Key: key, Value: q})
+	return fb.self
+}
+
+// Quantity adds a quantity string field where numeric and unit segments are
+// styled independently (e.g. "5m", "5.1km", "100MB").
+// The value is styled with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+func (fb *fieldBuilder[T]) Quantity(key, val string) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: quantity(val)})
+	return fb.self
+}
+
+// Str adds a string field.
+func (fb *fieldBuilder[T]) Str(key, val string) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
+// Strs adds a string slice field.
+func (fb *fieldBuilder[T]) Strs(key string, vals []string) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
 	return fb.self
 }
 
@@ -81,17 +109,14 @@ func (fb *fieldBuilder[T]) Time(key string, val time.Time) *T {
 	return fb.self
 }
 
-// Any adds a field with an arbitrary value.
-func (fb *fieldBuilder[T]) Any(key string, val any) *T {
+// Uint64 adds a uint64 field.
+func (fb *fieldBuilder[T]) Uint64(key string, val uint64) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})
 	return fb.self
 }
 
-// Anys adds a slice of arbitrary values. Individual elements are
-// highlighted using reflection to determine their type.
-func (fb *fieldBuilder[T]) Anys(key string, vals []any) *T {
+// Uints64 adds a uint64 slice field.
+func (fb *fieldBuilder[T]) Uints64(key string, vals []uint64) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
 	return fb.self
 }
-
-func (fb *fieldBuilder[T]) initSelf(s *T) { fb.self = s }

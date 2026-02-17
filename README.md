@@ -69,31 +69,34 @@ Events and contexts support typed field methods. All methods are safe to call on
 
 ### Event Fields
 
-| Method      | Signature                                    | Description                           |
-| ----------- | -------------------------------------------- | ------------------------------------- |
-| `Str`       | `Str(key, val string)`                       | String field                          |
-| `Strs`      | `Strs(key string, vals []string)`            | String slice field                    |
-| `Int`       | `Int(key string, val int)`                   | Integer field                         |
-| `Ints`      | `Ints(key string, vals []int)`               | Integer slice field                   |
-| `Uint64`    | `Uint64(key string, val uint64)`             | Unsigned integer field                |
-| `Uints64`   | `Uints64(key string, vals []uint64)`         | Unsigned integer slice field          |
-| `Float64`   | `Float64(key string, val float64)`           | Float field                           |
-| `Floats64`  | `Floats64(key string, vals []float64)`       | Float slice field                     |
-| `Bool`      | `Bool(key string, val bool)`                 | Boolean field                         |
-| `Bools`     | `Bools(key string, vals []bool)`             | Boolean slice field                   |
-| `Dur`       | `Dur(key string, val time.Duration)`         | Duration field                        |
-| `Time`      | `Time(key string, val time.Time)`            | Time field                            |
-| `Err`       | `Err(err error)`                             | Error field (key `"error"`, nil-safe) |
-| `Any`       | `Any(key string, val any)`                   | Arbitrary value                       |
-| `Anys`      | `Anys(key string, vals []any)`               | Arbitrary value slice                 |
-| `Dict`      | `Dict(key string, dict *Event)`              | Nested fields with dot-notation keys  |
-| `Path`      | `Path(key, path string)`                     | Clickable file/directory hyperlink    |
-| `Line`      | `Line(key, path string, line int)`           | Clickable file:line hyperlink         |
-| `Column`    | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink  |
-| `URL`       | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text) |
-| `Link`      | `Link(key, url, text string)`                | Clickable URL hyperlink               |
-| `Stringer`  | `Stringer(key string, val fmt.Stringer)`     | Calls `String()` (nil-safe)           |
-| `Stringers` | `Stringers(key string, vals []fmt.Stringer)` | Slice of `fmt.Stringer` values        |
+| Method       | Signature                                     | Description                           |
+| ------------ | --------------------------------------------- | ------------------------------------- |
+| `Str`        | `Str(key, val string)`                        | String field                          |
+| `Strs`       | `Strs(key string, vals []string)`             | String slice field                    |
+| `Int`        | `Int(key string, val int)`                    | Integer field                         |
+| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                   |
+| `Uint64`     | `Uint64(key string, val uint64)`              | Unsigned integer field                |
+| `Uints64`    | `Uints64(key string, vals []uint64)`          | Unsigned integer slice field          |
+| `Float64`    | `Float64(key string, val float64)`            | Float field                           |
+| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                     |
+| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                         |
+| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                   |
+| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                        |
+| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                  |
+| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)        |
+| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                  |
+| `Time`       | `Time(key string, val time.Time)`             | Time field                            |
+| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe) |
+| `Any`        | `Any(key string, val any)`                    | Arbitrary value                       |
+| `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                 |
+| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys  |
+| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink    |
+| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink         |
+| `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink  |
+| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text) |
+| `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink               |
+| `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)           |
+| `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values        |
 
 ### Finalising Events
 
@@ -337,7 +340,7 @@ err := clog.Spinner("Processing").
 | `.Send()`   | Logs at configured level   | Logs at configured level        |
 | `.Silent()` | Returns error, no logging  | Returns error, no logging       |
 
-All finalisers return the `error` from the action. You can chain any field method (`.Str()`, `.Int()`, `.Bool()`, `.Dur()`, etc.) and `.Prefix()` on a `WaitResult` before finalising.
+All finalisers return the `error` from the action. You can chain any field method (`.Str()`, `.Int()`, `.Bool()`, `.Duration()`, etc.) and `.Prefix()` on a `WaitResult` before finalising.
 
 ### Custom Success/Error Behaviour
 
@@ -472,6 +475,7 @@ logger.SetLevel(clog.DebugLevel)
 logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
 logger.SetFieldTimeFormat(time.Kitchen)    // format for .Time() fields (default: time.RFC3339)
+logger.SetTimeLocation(time.UTC)           // timezone for timestamps (default: time.Local)
 logger.SetFieldStyleLevel(clog.TraceLevel) // min level for field value styling (default: "info")
 logger.SetHandler(myHandler)
 ```
@@ -590,21 +594,27 @@ clog.SetStyles(styles)
 
 ### Styles Reference
 
-| Field           | Type                         | Description                                   |
-| --------------- | ---------------------------- | --------------------------------------------- |
-| `FieldDuration` | `*lipgloss.Style`            | Duration value style (nil to disable)         |
-| `FieldError`    | `*lipgloss.Style`            | Error value style (nil to disable)            |
-| `FieldNumber`   | `*lipgloss.Style`            | Numeric value style (nil to disable)          |
-| `FieldString`   | `*lipgloss.Style`            | String value style (nil to disable)           |
-| `FieldTime`     | `*lipgloss.Style`            | Time value style (nil to disable)             |
-| `KeyDefault`    | `*lipgloss.Style`            | Field key style (nil to disable)              |
-| `Keys`          | `map[string]*lipgloss.Style` | Field key name → value style                  |
-| `Levels`        | `map[Level]*lipgloss.Style`  | Per-level label style (nil to disable)        |
-| `Messages`      | `map[Level]*lipgloss.Style`  | Per-level message style (nil to disable)      |
-| `Separator`     | `*lipgloss.Style`            | Style for the separator between key and value |
-| `SeparatorText` | `string`                     | Key/value separator (default `"="`)           |
-| `Timestamp`     | `*lipgloss.Style`            | Timestamp style (nil to disable)              |
-| `Values`        | `map[string]*lipgloss.Style` | Formatted value string → style                |
+| Field                     | Type                         | Description                                              |
+| ------------------------- | ---------------------------- | -------------------------------------------------------- |
+| `DurationUnits`           | `map[string]*lipgloss.Style` | Duration unit string → style override                    |
+| `FieldDurationNumber`     | `*lipgloss.Style`            | Duration numeric part style (nil to disable)             |
+| `FieldDurationUnit`       | `*lipgloss.Style`            | Duration unit part style (nil to disable)                |
+| `FieldError`              | `*lipgloss.Style`            | Error value style (nil to disable)                       |
+| `FieldNumber`             | `*lipgloss.Style`            | Numeric value style (nil to disable)                     |
+| `FieldQuantityNumber`     | `*lipgloss.Style`            | Quantity numeric part style (nil to disable)             |
+| `FieldQuantityUnit`       | `*lipgloss.Style`            | Quantity unit part style (nil to disable)                |
+| `FieldString`             | `*lipgloss.Style`            | String value style (nil to disable)                      |
+| `FieldTime`               | `*lipgloss.Style`            | Time value style (nil to disable)                        |
+| `KeyDefault`              | `*lipgloss.Style`            | Field key style (nil to disable)                         |
+| `Keys`                    | `map[string]*lipgloss.Style` | Field key name → value style                             |
+| `Levels`                  | `map[Level]*lipgloss.Style`  | Per-level label style (nil to disable)                   |
+| `Messages`                | `map[Level]*lipgloss.Style`  | Per-level message style (nil to disable)                 |
+| `QuantityUnits`           | `map[string]*lipgloss.Style` | Quantity unit string → style override                    |
+| `QuantityUnitsIgnoreCase` | `bool`                       | Case-insensitive quantity unit matching (default `true`) |
+| `Separator`               | `*lipgloss.Style`            | Style for the separator between key and value            |
+| `SeparatorText`           | `string`                     | Key/value separator (default `"="`)                      |
+| `Timestamp`               | `*lipgloss.Style`            | Timestamp style (nil to disable)                         |
+| `Values`                  | `map[string]*lipgloss.Style` | Formatted value string → style                           |
 
 Value styles only apply at `Info` level and above by default. Use `SetFieldStyleLevel` to change the threshold.
 
@@ -627,3 +637,5 @@ clog.SetStyles(styles)
 ```
 
 Use `DefaultMessageStyles()` to get the defaults (unstyled for all levels).
+
+Use `DefaultValueStyles()` to get the default value styles (`true`=green, `false`=red, `nil`=grey, `""`=grey).

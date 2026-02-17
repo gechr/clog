@@ -10,11 +10,11 @@ type Field struct {
 
 // Entry represents a completed log entry passed to a [Handler].
 type Entry struct {
+	Fields  []Field
 	Level   Level
-	Time    time.Time // Zero value if timestamps are disabled.
 	Message string
 	Prefix  string
-	Fields  []Field
+	Time    time.Time // Zero value if timestamps are disabled.
 }
 
 // Handler processes log entries. Implement this interface to customise

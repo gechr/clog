@@ -90,7 +90,7 @@ func TestSpinnerBuilderBools(t *testing.T) {
 }
 
 func TestSpinnerBuilderDur(t *testing.T) {
-	b := Spinner("test").Dur("elapsed", time.Second)
+	b := Spinner("test").Duration("elapsed", time.Second)
 
 	require.Len(t, b.fields, 1)
 	assert.Equal(t, "elapsed", b.fields[0].Key)

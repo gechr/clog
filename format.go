@@ -7,7 +7,13 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/charmbracelet/lipgloss"
 )
+
+// quantity wraps a string value with numeric and unit segments (e.g. "5m",
+// "5.1km", "100MB") so [formatValue] can identify it for quantity styling.
+type quantity string
 
 // formatFieldsOpts configures field formatting behaviour.
 type formatFieldsOpts struct {
@@ -30,9 +36,16 @@ const (
 	kindDuration
 	kindError
 	kindNumber
+	kindQuantity
 	kindSlice
 	kindString
 	kindTime
+)
+
+const (
+	sliceOpen  = '['
+	sliceClose = ']'
+	sliceSep   = ", "
 )
 
 // formatFields formats fields for display.
@@ -105,6 +118,8 @@ func formatValue(
 		return strconv.FormatFloat(val, 'f', -1, 64), kindNumber
 	case bool:
 		return strconv.FormatBool(val), kindBool
+	case quantity:
+		return string(val), kindQuantity
 	case time.Duration:
 		return val.String(), kindDuration
 	case time.Time:
@@ -113,6 +128,10 @@ func formatValue(
 		}
 
 		return val.Format(timeFormat), kindTime
+	case []time.Duration:
+		return formatDurationSlice(val, nil), kindSlice
+	case []quantity:
+		return formatQuantitySlice(val, nil), kindSlice
 	case []string:
 		return formatStringSlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
@@ -128,6 +147,312 @@ func formatValue(
 	default:
 		return fmt.Sprintf("%v", v), kindDefault
 	}
+}
+
+// formatAnySlice formats a []any slice with comma separation and per-element
+// styling. Uses reflection to determine each element's type for highlighting.
+func formatAnySlice(
+	vals []any,
+	styles *Styles,
+	quoteMode QuoteMode,
+	quoteOpen, quoteClose rune,
+) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := fmt.Sprintf("%v", v)
+		kind := reflectValueKind(v)
+
+		if quoteMode != QuoteNever &&
+			(kind == kindDefault || kind == kindString) &&
+			(quoteMode == QuoteAlways || needsQuoting(s)) {
+			s = quoteString(s, quoteOpen, quoteClose)
+		}
+
+		if styles != nil {
+			styled := styleAnyElement(s, kind, styles)
+			if styled != "" {
+				buf.WriteString(styled)
+
+				continue
+			}
+		}
+
+		buf.WriteString(s)
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatBoolSlice formats a bool slice with comma separation.
+// When styles is non-nil, individual elements are styled via ValueStyles.
+func formatBoolSlice(vals []bool, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := strconv.FormatBool(v)
+		if styles != nil {
+			if style := styles.Values[s]; style != nil {
+				buf.WriteString(style.Render(s))
+
+				continue
+			}
+		}
+
+		buf.WriteString(s)
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatDurationSlice formats a [time.Duration] slice with comma separation.
+// When styles is non-nil, individual elements are styled via [styleDuration].
+func formatDurationSlice(vals []time.Duration, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := v.String()
+		if styles != nil {
+			if styled := styleDuration(s, styles); styled != "" {
+				buf.WriteString(styled)
+
+				continue
+			}
+		}
+
+		buf.WriteString(s)
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatFloat64Slice formats a float64 slice with comma separation.
+// When styles is non-nil, individual elements are styled via Number style.
+func formatFloat64Slice(vals []float64, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := strconv.FormatFloat(v, 'f', -1, 64)
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
+		} else {
+			buf.WriteString(s)
+		}
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatIntSlice formats an int slice with comma separation.
+// When styles is non-nil, individual elements are styled via Number style.
+func formatIntSlice(vals []int, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := strconv.Itoa(v)
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
+		} else {
+			buf.WriteString(s)
+		}
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatQuantitySlice formats a quantity slice with comma separation.
+// When styles is non-nil, individual elements are styled via [styleQuantity].
+func formatQuantitySlice(vals []quantity, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := string(v)
+		if styles != nil {
+			if styled := styleQuantity(s, styles); styled != "" {
+				buf.WriteString(styled)
+
+				continue
+			}
+		}
+
+		buf.WriteString(s)
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatStringSlice formats a string slice with comma separation and per-element quoting.
+// When styles is non-nil, individual elements are styled via ValueStyles.
+func formatStringSlice(
+	vals []string,
+	styles *Styles,
+	quoteMode QuoteMode,
+	quoteOpen, quoteClose rune,
+) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		display := v
+		if quoteMode != QuoteNever && (quoteMode == QuoteAlways || needsQuoting(v)) {
+			display = quoteString(v, quoteOpen, quoteClose)
+		}
+
+		if styles != nil {
+			if style := styles.Values[v]; style != nil {
+				buf.WriteString(style.Render(display))
+
+				continue
+			}
+
+			if styles.FieldString != nil {
+				buf.WriteString(styles.FieldString.Render(display))
+
+				continue
+			}
+		}
+
+		buf.WriteString(display)
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// formatUint64Slice formats a uint64 slice with comma separation.
+// When styles is non-nil, individual elements are styled via Number style.
+func formatUint64Slice(vals []uint64, styles *Styles) string {
+	var buf strings.Builder
+
+	buf.WriteByte(sliceOpen)
+
+	for i, v := range vals {
+		if i > 0 {
+			buf.WriteString(sliceSep)
+		}
+
+		s := strconv.FormatUint(v, 10)
+		if styles != nil && styles.FieldNumber != nil {
+			buf.WriteString(styles.FieldNumber.Render(s))
+		} else {
+			buf.WriteString(s)
+		}
+	}
+
+	buf.WriteByte(sliceClose)
+
+	return buf.String()
+}
+
+// styleAnyElement applies the appropriate style to a single element in a []any slice.
+func styleAnyElement(s string, kind valueKind, styles *Styles) string {
+	// Per-value styling (exact match on formatted string).
+	if style := styles.Values[s]; style != nil {
+		return style.Render(s)
+	}
+
+	switch kind { //nolint:exhaustive // slices don't appear as individual elements
+	case kindString:
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(s)
+		}
+	case kindNumber:
+		if styles.FieldNumber != nil {
+			return styles.FieldNumber.Render(s)
+		}
+	case kindError:
+		if styles.FieldError != nil {
+			return styles.FieldError.Render(s)
+		}
+	case kindDuration:
+		if styled := styleDuration(s, styles); styled != "" {
+			return styled
+		}
+	case kindQuantity:
+		if styled := styleQuantity(s, styles); styled != "" {
+			return styled
+		}
+
+		// Fall back to string styling for unrecognized quantity strings.
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(s)
+		}
+	case kindTime:
+		if styles.FieldTime != nil {
+			return styles.FieldTime.Render(s)
+		}
+	case kindBool, kindDefault:
+		// No type-based style for these.
+	}
+
+	return ""
+}
+
+// styleDuration renders a duration string (from [time.Duration.String]) with
+// separate styles for numeric and unit segments using [Styles.FieldDurationNumber]
+// and [Styles.FieldDurationUnit]. Returns "" when both styles are nil.
+func styleDuration(s string, styles *Styles) string {
+	return styleNumberUnit(
+		s,
+		styles.FieldDurationNumber,
+		styles.FieldDurationUnit,
+		styles.DurationUnits,
+		true,
+	)
 }
 
 // styledFieldValue applies styling to a formatted field value.
@@ -151,6 +476,119 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 	}
 
 	return valStr
+}
+
+// styledSlice re-formats a slice value with per-element styling.
+func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClose rune) string {
+	switch vals := v.(type) {
+	case []bool:
+		return formatBoolSlice(vals, styles)
+	case []time.Duration:
+		return formatDurationSlice(vals, styles)
+	case []quantity:
+		return formatQuantitySlice(vals, styles)
+	case []int:
+		return formatIntSlice(vals, styles)
+	case []uint64:
+		return formatUint64Slice(vals, styles)
+	case []float64:
+		return formatFloat64Slice(vals, styles)
+	case []string:
+		return formatStringSlice(vals, styles, quoteMode, quoteOpen, quoteClose)
+	case []any:
+		return formatAnySlice(vals, styles, quoteMode, quoteOpen, quoteClose)
+	default:
+		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "")
+		return s
+	}
+}
+
+// styleNumberUnit renders a string with separate styles for numeric and unit
+// segments. unitOverrides provides per-unit style lookups; ignoreCase controls
+// whether unit override matching is case-insensitive.
+// Returns "" when both default styles are nil, no unit overrides apply,
+// or the string is not a valid quantity pattern.
+func styleNumberUnit(
+	s string,
+	numStyle, unitStyle *lipgloss.Style,
+	unitOverrides map[string]*lipgloss.Style,
+	ignoreCase bool,
+) string {
+	if numStyle == nil && unitStyle == nil && len(unitOverrides) == 0 {
+		return ""
+	}
+
+	if !isQuantityString(s) {
+		return ""
+	}
+
+	var buf strings.Builder
+
+	runes := []rune(s)
+	i := 0
+
+	for i < len(runes) {
+		r := runes[i]
+
+		switch {
+		case unicode.IsDigit(r) || r == '.' || r == '-':
+			start := i
+			if r == '-' {
+				i++
+			}
+
+			for i < len(runes) && (unicode.IsDigit(runes[i]) || runes[i] == '.') {
+				i++
+			}
+
+			seg := string(runes[start:i])
+			if numStyle != nil {
+				buf.WriteString(numStyle.Render(seg))
+			} else {
+				buf.WriteString(seg)
+			}
+
+		case unicode.IsLetter(r):
+			start := i
+			for i < len(runes) && unicode.IsLetter(runes[i]) {
+				i++
+			}
+
+			seg := string(runes[start:i])
+			if style := unitOverrideStyle(seg, unitOverrides, ignoreCase); style != nil {
+				buf.WriteString(style.Render(seg))
+			} else if unitStyle != nil {
+				buf.WriteString(unitStyle.Render(seg))
+			} else {
+				buf.WriteString(seg)
+			}
+
+		case r == ' ':
+			buf.WriteRune(r)
+			i++
+
+		default:
+			buf.WriteRune(r)
+			i++
+		}
+	}
+
+	return buf.String()
+}
+
+// styleQuantity renders a quantity string with separate styles for the numeric
+// and unit segments (e.g. "5" in FieldQuantityNumber, "km" in FieldQuantityUnit).
+// Per-unit overrides in [Styles.QuantityUnits] take priority over [Styles.FieldQuantityUnit].
+// Returns "" when both default styles are nil and no unit overrides match,
+// or the string is not a valid quantity pattern.
+func styleQuantity(s string, styles *Styles) string {
+	return styleNumberUnit(
+		s,
+		styles.FieldQuantityNumber,
+		styles.FieldQuantityUnit,
+		styles.QuantityUnits,
+		styles.QuantityUnitsIgnoreCase,
+	)
 }
 
 // styleValue applies the appropriate style to a formatted value.
@@ -181,8 +619,17 @@ func styleValue(valStr, key string, kind valueKind, styles *Styles) string {
 			return styles.FieldError.Render(valStr)
 		}
 	case kindDuration:
-		if styles.FieldDuration != nil {
-			return styles.FieldDuration.Render(valStr)
+		if styled := styleDuration(valStr, styles); styled != "" {
+			return styled
+		}
+	case kindQuantity:
+		if styled := styleQuantity(valStr, styles); styled != "" {
+			return styled
+		}
+
+		// Fall back to string styling for unrecognized quantity strings.
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(valStr)
 		}
 	case kindTime:
 		if styles.FieldTime != nil {
@@ -193,296 +640,6 @@ func styleValue(valStr, key string, kind valueKind, styles *Styles) string {
 	}
 
 	return ""
-}
-
-// styledSlice re-formats a slice value with per-element styling.
-func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClose rune) string {
-	switch vals := v.(type) {
-	case []bool:
-		return formatBoolSlice(vals, styles)
-	case []int:
-		return formatIntSlice(vals, styles)
-	case []uint64:
-		return formatUint64Slice(vals, styles)
-	case []float64:
-		return formatFloat64Slice(vals, styles)
-	case []string:
-		return formatStringSlice(vals, styles, quoteMode, quoteOpen, quoteClose)
-	case []any:
-		return formatAnySlice(vals, styles, quoteMode, quoteOpen, quoteClose)
-	default:
-		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "")
-		return s
-	}
-}
-
-// styleAnyElement applies the appropriate style to a single element in a []any slice.
-func styleAnyElement(s string, kind valueKind, styles *Styles) string {
-	// Per-value styling (exact match on formatted string).
-	if style := styles.Values[s]; style != nil {
-		return style.Render(s)
-	}
-
-	switch kind { //nolint:exhaustive // slices don't appear as individual elements
-	case kindString:
-		if styles.FieldString != nil {
-			return styles.FieldString.Render(s)
-		}
-	case kindNumber:
-		if styles.FieldNumber != nil {
-			return styles.FieldNumber.Render(s)
-		}
-	case kindError:
-		if styles.FieldError != nil {
-			return styles.FieldError.Render(s)
-		}
-	case kindDuration:
-		if styles.FieldDuration != nil {
-			return styles.FieldDuration.Render(s)
-		}
-	case kindTime:
-		if styles.FieldTime != nil {
-			return styles.FieldTime.Render(s)
-		}
-	case kindBool, kindDefault:
-		// No type-based style for these.
-	}
-
-	return ""
-}
-
-// reflectValueKind uses reflection to classify a value for styling.
-// This handles types not covered by the formatValue type switch (e.g. int64,
-// float32, uint, custom named types with numeric underlying kinds).
-func reflectValueKind(v any) valueKind {
-	if v == nil {
-		return kindDefault
-	}
-
-	if _, ok := v.(error); ok {
-		return kindError
-	}
-
-	rv := reflect.ValueOf(v)
-
-	switch rv.Kind() { //nolint:exhaustive // only string, numeric and bool kinds need special styling
-	case reflect.String:
-		return kindString
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-		reflect.Float32, reflect.Float64:
-		return kindNumber
-	case reflect.Bool:
-		return kindBool
-	default:
-		return kindDefault
-	}
-}
-
-// formatStringSlice formats a string slice with comma separation and per-element quoting.
-// When styles is non-nil, individual elements are styled via ValueStyles.
-func formatStringSlice(
-	vals []string,
-	styles *Styles,
-	quoteMode QuoteMode,
-	quoteOpen, quoteClose rune,
-) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		display := v
-		if quoteMode != QuoteNever && (quoteMode == QuoteAlways || needsQuoting(v)) {
-			display = quoteString(v, quoteOpen, quoteClose)
-		}
-
-		if styles != nil {
-			if style := styles.Values[v]; style != nil {
-				buf.WriteString(style.Render(display))
-
-				continue
-			}
-
-			if styles.FieldString != nil {
-				buf.WriteString(styles.FieldString.Render(display))
-
-				continue
-			}
-		}
-
-		buf.WriteString(display)
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// formatIntSlice formats an int slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
-func formatIntSlice(vals []int, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		s := strconv.Itoa(v)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// formatUint64Slice formats a uint64 slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
-func formatUint64Slice(vals []uint64, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		s := strconv.FormatUint(v, 10)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// formatFloat64Slice formats a float64 slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
-func formatFloat64Slice(vals []float64, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		s := strconv.FormatFloat(v, 'f', -1, 64)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// formatBoolSlice formats a bool slice with comma separation.
-// When styles is non-nil, individual elements are styled via ValueStyles.
-func formatBoolSlice(vals []bool, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		s := strconv.FormatBool(v)
-		if styles != nil {
-			if style := styles.Values[s]; style != nil {
-				buf.WriteString(style.Render(s))
-
-				continue
-			}
-		}
-
-		buf.WriteString(s)
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// formatAnySlice formats a []any slice with comma separation and per-element
-// styling. Uses reflection to determine each element's type for highlighting.
-func formatAnySlice(
-	vals []any,
-	styles *Styles,
-	quoteMode QuoteMode,
-	quoteOpen, quoteClose rune,
-) string {
-	var buf strings.Builder
-
-	buf.WriteByte('[')
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(", ")
-		}
-
-		s := fmt.Sprintf("%v", v)
-		kind := reflectValueKind(v)
-
-		if quoteMode != QuoteNever &&
-			(kind == kindDefault || kind == kindString) &&
-			(quoteMode == QuoteAlways || needsQuoting(s)) {
-			s = quoteString(s, quoteOpen, quoteClose)
-		}
-
-		if styles != nil {
-			styled := styleAnyElement(s, kind, styles)
-			if styled != "" {
-				buf.WriteString(styled)
-
-				continue
-			}
-		}
-
-		buf.WriteString(s)
-	}
-
-	buf.WriteByte(']')
-
-	return buf.String()
-}
-
-// quoteString wraps s in quotes. When open is 0, it uses [strconv.Quote]
-// (Go-style double-quoted with escaping). Otherwise it wraps with open/close runes.
-// If close is 0, open is used for both sides.
-func quoteString(s string, openChar, closeChar rune) string {
-	if openChar == 0 {
-		return strconv.Quote(s)
-	}
-
-	if closeChar == 0 {
-		closeChar = openChar
-	}
-
-	return string(openChar) + s + string(closeChar)
 }
 
 // needsQuoting returns true if the string needs quoting for parseable output.
@@ -499,6 +656,21 @@ func needsQuoting(s string) bool {
 	}
 
 	return false
+}
+
+// quoteString wraps s in quotes. When open is 0, it uses [strconv.Quote]
+// (Go-style double-quoted with escaping). Otherwise it wraps with open/close runes.
+// If close is 0, open is used for both sides.
+func quoteString(s string, openChar, closeChar rune) string {
+	if openChar == 0 {
+		return strconv.Quote(s)
+	}
+
+	if closeChar == 0 {
+		closeChar = openChar
+	}
+
+	return string(openChar) + s + string(closeChar)
 }
 
 // isEmptyValue reports whether v is semantically "nothing": nil, an empty
@@ -518,6 +690,56 @@ func isEmptyValue(v any) bool {
 	default:
 		return false
 	}
+}
+
+// isQuantityString reports whether s looks like a quantity: an optional leading
+// '-' followed by one or more digit+letter groups with optional spaces between
+// the number and unit (e.g. "5m", "5.1km", "100 MB", "2h30m").
+func isQuantityString(s string) bool {
+	runes := []rune(s)
+	i := 0
+
+	if i < len(runes) && runes[i] == '-' {
+		i++
+	}
+
+	if i >= len(runes) || !unicode.IsDigit(runes[i]) {
+		return false
+	}
+
+	groups := 0
+
+	for i < len(runes) {
+		if !unicode.IsDigit(runes[i]) && runes[i] != '.' {
+			return false
+		}
+
+		for i < len(runes) && (unicode.IsDigit(runes[i]) || runes[i] == '.') {
+			i++
+		}
+
+		// Skip optional space between number and unit.
+		for i < len(runes) && runes[i] == ' ' {
+			i++
+		}
+
+		if i >= len(runes) || !unicode.IsLetter(runes[i]) {
+			return false
+		}
+
+		for i < len(runes) && unicode.IsLetter(runes[i]) {
+			i++
+		}
+
+		// Skip optional space before next group.
+		for i < len(runes) && runes[i] == ' ' {
+			i++
+		}
+
+		groups++
+	}
+
+	return groups > 0
 }
 
 // isZeroValue reports whether v is the zero value for its type. This is a
@@ -570,4 +792,59 @@ func mergeFields(base, overrides []Field) []Field {
 	}
 
 	return result
+}
+
+// reflectValueKind uses reflection to classify a value for styling.
+// This handles types not covered by the formatValue type switch (e.g. int64,
+// float32, uint, custom named types with numeric underlying kinds).
+func reflectValueKind(v any) valueKind {
+	if v == nil {
+		return kindDefault
+	}
+
+	if _, ok := v.(error); ok {
+		return kindError
+	}
+
+	rv := reflect.ValueOf(v)
+
+	switch rv.Kind() { //nolint:exhaustive // only string, numeric and bool kinds need special styling
+	case reflect.String:
+		return kindString
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return kindNumber
+	case reflect.Bool:
+		return kindBool
+	default:
+		return kindDefault
+	}
+}
+
+// unitOverrideStyle looks up a per-unit style from the given overrides map.
+// When ignoreCase is true, keys are matched case-insensitively.
+func unitOverrideStyle(
+	unit string,
+	overrides map[string]*lipgloss.Style,
+	ignoreCase bool,
+) *lipgloss.Style {
+	if len(overrides) == 0 {
+		return nil
+	}
+
+	if style := overrides[unit]; style != nil {
+		return style
+	}
+
+	if ignoreCase {
+		lower := strings.ToLower(unit)
+		for k, style := range overrides {
+			if strings.ToLower(k) == lower {
+				return style
+			}
+		}
+	}
+
+	return nil
 }

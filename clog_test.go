@@ -663,9 +663,9 @@ func TestSetSeparatorFromEnvNotSet(t *testing.T) {
 	assert.Equal(t, "=", got)
 }
 
-func TestSetLabels(t *testing.T) {
+func TestSetLevelLabels(t *testing.T) {
 	l := New(io.Discard)
-	l.SetLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
+	l.SetLevelLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
 
 	assert.Equal(t, "WARN", l.labels[WarnLevel])
 	// Other labels should retain defaults.
@@ -688,7 +688,7 @@ func TestFormatLabelAlignNone(t *testing.T) {
 
 func TestFormatLabelAlignLeft(t *testing.T) {
 	l := New(io.Discard)
-	l.SetLabels(LevelMap{ //nolint:exhaustive // intentionally partial
+	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
 		ErrorLevel: "ERROR",
@@ -701,7 +701,7 @@ func TestFormatLabelAlignLeft(t *testing.T) {
 
 func TestFormatLabelAlignRight(t *testing.T) {
 	l := New(io.Discard)
-	l.SetLabels(LevelMap{ //nolint:exhaustive // intentionally partial
+	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
 		ErrorLevel: "ERROR",
@@ -714,7 +714,7 @@ func TestFormatLabelAlignRight(t *testing.T) {
 
 func TestFormatLabelAlignCenter(t *testing.T) {
 	l := New(io.Discard)
-	l.SetLabels(LevelMap{ //nolint:exhaustive // intentionally partial
+	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
 		ErrorLevel: "ERROR",
@@ -800,7 +800,7 @@ func TestResolvePrefixUsesCustomPrefixes(t *testing.T) {
 	assert.Equal(t, "CUSTOM", l.resolvePrefix(e))
 }
 
-func TestPackageLevelSetLabels(t *testing.T) {
+func TestPackageLevelSetLevelLabels(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
@@ -1522,4 +1522,55 @@ func TestSubLoggerInheritsFieldTimeFormat(t *testing.T) {
 	sub := l.With().Str("k", "v").Logger()
 
 	assert.Equal(t, time.Kitchen, sub.fieldTimeFormat)
+}
+
+func TestConcurrentLogging(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.SetLevel(TraceLevel)
+
+	const goroutines = 10
+	const iterations = 50
+
+	done := make(chan struct{})
+
+	for i := range goroutines {
+		go func(id int) {
+			defer func() { done <- struct{}{} }()
+			for j := range iterations {
+				l.Info().
+					Int("goroutine", id).
+					Int("iter", j).
+					Str("msg", "concurrent").
+					Msg("test")
+			}
+		}(i)
+	}
+
+	for range goroutines {
+		<-done
+	}
+
+	got := buf.String()
+	lines := strings.Split(strings.TrimSpace(got), "\n")
+	assert.Len(t, lines, goroutines*iterations)
+}
+
+func TestDefaultLabels(t *testing.T) {
+	labels := DefaultLabels()
+
+	assert.Equal(t, "TRC", labels[TraceLevel])
+	assert.Equal(t, "DBG", labels[DebugLevel])
+	assert.Equal(t, "INF", labels[InfoLevel])
+	assert.Equal(t, "DRY", labels[DryLevel])
+	assert.Equal(t, "WRN", labels[WarnLevel])
+	assert.Equal(t, "ERR", labels[ErrorLevel])
+	assert.Equal(t, "FTL", labels[FatalLevel])
+
+	// Modifying the returned map should not affect defaults.
+	labels[InfoLevel] = "CHANGED"
+
+	labels2 := DefaultLabels()
+	assert.Equal(t, "INF", labels2[InfoLevel], "DefaultLabels should return a copy")
 }

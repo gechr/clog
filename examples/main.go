@@ -31,7 +31,7 @@ func main() {
 	// --- Spinner ---
 	header("Spinner")
 	_ = clog.Spinner("Loading demo").
-		Str("eta", "24 hours").
+		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(1 * time.Second)
 			return nil
@@ -86,7 +86,10 @@ func main() {
 	clog.Info().
 		Float64("latency_ms", 12.345).
 		Uint64("request_id", 9876543210).
-		Dur("timeout", 30*time.Second).
+		Duration("timeout", 30*time.Second).
+		Quantity("cooldown", "5m").
+		Quantity("distance", "5.1km").
+		Quantities("limits", []string{"100MB", "5m", "10 req"}).
 		Time("started", time.Now().Add(-30*time.Second)).
 		Msg("Request handled")
 
@@ -132,6 +135,10 @@ func main() {
 	clog.Info().
 		Bools("flags", []bool{true, false, true}).
 		Msg("Bool slice")
+
+	clog.Info().
+		Durations("latencies", []time.Duration{5 * time.Second, 2*time.Minute + 30*time.Second, 500 * time.Millisecond}).
+		Msg("Duration slice")
 	// --- Formatted messages ---
 	header("Formatted Messages")
 	clog.Info().Msgf("Processed %d items in %s", 150, 2*time.Second)
@@ -150,7 +157,7 @@ func main() {
 
 	db := clog.With().Str("component", "db").Str("host", "postgres:5432").Logger()
 	db.Info().Msg("Connected")
-	db.Debug().Dur("latency", 2*time.Millisecond).Msg("Query executed")
+	db.Debug().Duration("latency", 2*time.Millisecond).Msg("Query executed")
 	// --- Level alignment ---
 	header("Level Alignment (Right, default)")
 	clog.SetLevelLabels(clog.LevelMap{
@@ -252,7 +259,7 @@ func main() {
 	clog.SetStyles(partStyles)
 	clog.SetParts(clog.PartTimestamp, clog.PartLevel, clog.PartPrefix, clog.PartFields, clog.PartMessage)
 	clog.Info().Str("user", "alice").Int("status", 200).Msg("Request handled")
-	clog.Warn().Str("query", "SELECT *").Dur("latency", 5*time.Second).Msg("Slow query")
+	clog.Warn().Str("query", "SELECT *").Duration("latency", 5*time.Second).Msg("Slow query")
 	clog.SetStyles(clog.DefaultStyles())  // reset
 	clog.SetParts(clog.DefaultParts()...) // reset
 

@@ -2,6 +2,7 @@ package clog
 
 import (
 	"fmt"
+	"reflect"
 	"time"
 )
 
@@ -15,8 +16,8 @@ type Event struct {
 	prefix *string // nil = use logger/default prefix
 }
 
-// Str adds a string field.
-func (e *Event) Str(key, val string) *Event {
+// Any adds a field with an arbitrary value.
+func (e *Event) Any(key string, val any) *Event {
 	if e == nil {
 		return e
 	}
@@ -25,68 +26,9 @@ func (e *Event) Str(key, val string) *Event {
 	return e
 }
 
-// Strs adds a string slice field.
-func (e *Event) Strs(key string, vals []string) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
-// Int adds an int field.
-func (e *Event) Int(key string, val int) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Ints adds an int slice field.
-func (e *Event) Ints(key string, vals []int) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
-// Uint64 adds a uint64 field.
-func (e *Event) Uint64(key string, val uint64) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Uints64 adds a uint64 slice field.
-func (e *Event) Uints64(key string, vals []uint64) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
-// Float64 adds a float64 field.
-func (e *Event) Float64(key string, val float64) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Floats64 adds a float64 slice field.
-func (e *Event) Floats64(key string, vals []float64) *Event {
+// Anys adds a slice of arbitrary values. Individual elements are
+// highlighted using reflection to determine their type.
+func (e *Event) Anys(key string, vals []any) *Event {
 	if e == nil {
 		return e
 	}
@@ -115,109 +57,6 @@ func (e *Event) Bools(key string, vals []bool) *Event {
 	return e
 }
 
-// Dur adds a [time.Duration] field.
-func (e *Event) Dur(key string, val time.Duration) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Time adds a [time.Time] field.
-func (e *Event) Time(key string, val time.Time) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Err adds an error field with key "error". No-op if err is nil.
-func (e *Event) Err(err error) *Event {
-	if e == nil || err == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: ErrorKey, Value: err})
-	return e
-}
-
-// Dict adds a group of fields under a key prefix using dot notation.
-// Build the nested fields using [Dict] to create a field-only Event:
-//
-//	clog.Info().Dict("request", clog.Dict().
-//	    Str("method", "GET").
-//	    Int("status", 200),
-//	).Msg("handled")
-//	// Output: INF ℹ️ handled request.method=GET request.status=200
-func (e *Event) Dict(key string, dict *Event) *Event {
-	if e == nil {
-		return e
-	}
-
-	for _, f := range dict.fields {
-		e.fields = append(e.fields, Field{Key: key + "." + f.Key, Value: f.Value})
-	}
-
-	return e
-}
-
-// Any adds a field with an arbitrary value.
-func (e *Event) Any(key string, val any) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val})
-	return e
-}
-
-// Anys adds a slice of arbitrary values. Individual elements are
-// highlighted using reflection to determine their type.
-func (e *Event) Anys(key string, vals []any) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
-// Path adds a file path field as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) Path(key, path string) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, 0, 0, e.logger.colorMode)},
-	)
-	return e
-}
-
-// Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) Line(key, path string, line int) *Event {
-	if e == nil {
-		return e
-	}
-
-	if line < 1 {
-		line = 1
-	}
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, 0, e.logger.colorMode)},
-	)
-	return e
-}
-
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Column(key, path string, line, column int) *Event {
@@ -233,23 +72,127 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 		column = 1
 	}
 
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, column, e.logger.colorMode)},
-	)
-	return e
-}
-
-// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) URL(key, url string) *Event {
-	if e == nil {
-		return e
+	mode := ColorAuto
+	if e.logger != nil {
+		mode = e.logger.colorMode
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, url, e.logger.colorMode)},
+		Field{Key: key, Value: pathLinkWithMode(path, line, column, mode)},
+	)
+	return e
+}
+
+// Dict adds a group of fields under a key prefix using dot notation.
+// Build the nested fields using [Dict] to create a field-only Event:
+//
+//	clog.Info().Dict("request", clog.Dict().
+//	    Str("method", "GET").
+//	    Int("status", 200),
+//	).Msg("handled")
+//	// Output: INF ℹ️ handled request.method=GET request.status=200
+func (e *Event) Dict(key string, dict *Event) *Event {
+	if e == nil || dict == nil {
+		return e
+	}
+
+	for _, f := range dict.fields {
+		e.fields = append(e.fields, Field{Key: key + "." + f.Key, Value: f.Value})
+	}
+
+	return e
+}
+
+// Duration adds a [time.Duration] field.
+func (e *Event) Duration(key string, val time.Duration) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Durations adds a [time.Duration] slice field.
+func (e *Event) Durations(key string, vals []time.Duration) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Err adds an error field with key "error". No-op if err is nil.
+func (e *Event) Err(err error) *Event {
+	if e == nil || err == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: ErrorKey, Value: err})
+	return e
+}
+
+// Float64 adds a float64 field.
+func (e *Event) Float64(key string, val float64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Floats64 adds a float64 slice field.
+func (e *Event) Floats64(key string, vals []float64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Int adds an int field.
+func (e *Event) Int(key string, val int) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Ints adds an int slice field.
+func (e *Event) Ints(key string, vals []int) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Line adds a file path field with a line number as a clickable terminal hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Line(key, path string, line int) *Event {
+	if e == nil {
+		return e
+	}
+
+	if line < 1 {
+		line = 1
+	}
+
+	mode := ColorAuto
+	if e.logger != nil {
+		mode = e.logger.colorMode
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: pathLinkWithMode(path, line, 0, mode)},
 	)
 	return e
 }
@@ -261,49 +204,15 @@ func (e *Event) Link(key, url, text string) *Event {
 		return e
 	}
 
+	mode := ColorAuto
+	if e.logger != nil {
+		mode = e.logger.colorMode
+	}
+
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, text, e.logger.colorMode)},
+		Field{Key: key, Value: hyperlinkWithMode(url, text, mode)},
 	)
-	return e
-}
-
-// Stringer adds a field by calling the value's String method. No-op if val is nil.
-func (e *Event) Stringer(key string, val fmt.Stringer) *Event {
-	if e == nil || val == nil {
-		return e
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: val.String()})
-	return e
-}
-
-// Stringers adds a field with a slice of [fmt.Stringer] values.
-func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
-	if e == nil {
-		return e
-	}
-
-	strs := make([]string, len(vals))
-	for i, v := range vals {
-		if v == nil {
-			strs[i] = nilStr
-		} else {
-			strs[i] = v.String()
-		}
-	}
-
-	e.fields = append(e.fields, Field{Key: key, Value: strs})
-	return e
-}
-
-// Prefix overrides the default emoji prefix for this entry.
-func (e *Event) Prefix(prefix string) *Event {
-	if e == nil {
-		return e
-	}
-
-	e.prefix = new(prefix)
 	return e
 }
 
@@ -330,9 +239,198 @@ func (e *Event) Msgf(format string, args ...any) {
 	e.Msg(fmt.Sprintf(format, args...))
 }
 
+// Path adds a file path field as a clickable terminal hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Path(key, path string) *Event {
+	if e == nil {
+		return e
+	}
+
+	mode := ColorAuto
+	if e.logger != nil {
+		mode = e.logger.colorMode
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: pathLinkWithMode(path, 0, 0, mode)},
+	)
+	return e
+}
+
+// Prefix overrides the default emoji prefix for this entry.
+func (e *Event) Prefix(prefix string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.prefix = new(prefix)
+	return e
+}
+
+// Quantities adds a quantity string slice field. Each element is styled
+// with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+func (e *Event) Quantities(key string, vals []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	q := make([]quantity, len(vals))
+	for i, v := range vals {
+		q[i] = quantity(v)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: q})
+	return e
+}
+
+// Quantity adds a quantity string field where numeric and unit segments are
+// styled independently (e.g. "5m", "5.1km", "100MB").
+// The value is styled with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+func (e *Event) Quantity(key, val string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: quantity(val)})
+	return e
+}
+
 // Send finalises the event with an empty message.
 func (e *Event) Send() {
 	e.Msg("")
+}
+
+// Str adds a string field.
+func (e *Event) Str(key, val string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Stringer adds a field by calling the value's String method. No-op if val is nil.
+func (e *Event) Stringer(key string, val fmt.Stringer) *Event {
+	if e == nil || val == nil {
+		return e
+	}
+
+	rv := reflect.ValueOf(val)
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+		if rv.IsNil() {
+			return e
+		}
+	case reflect.Invalid, reflect.Bool,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
+		reflect.Array, reflect.String, reflect.Struct, reflect.UnsafePointer:
+		// Value types can't be nil.
+		break
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val.String()})
+	return e
+}
+
+// Stringers adds a field with a slice of [fmt.Stringer] values.
+func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
+	if e == nil {
+		return e
+	}
+
+	strs := make([]string, len(vals))
+	for i, v := range vals {
+		if v == nil {
+			strs[i] = nilStr
+		} else {
+			rv := reflect.ValueOf(v)
+			switch rv.Kind() {
+			case reflect.Pointer,
+				reflect.Interface,
+				reflect.Map,
+				reflect.Slice,
+				reflect.Chan,
+				reflect.Func:
+				if rv.IsNil() {
+					strs[i] = nilStr
+					continue
+				}
+			case reflect.Invalid, reflect.Bool,
+				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
+				reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
+				reflect.Array, reflect.String, reflect.Struct, reflect.UnsafePointer:
+				// Value types can't be nil.
+				break
+			}
+			strs[i] = v.String()
+		}
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: strs})
+	return e
+}
+
+// Strs adds a string slice field.
+func (e *Event) Strs(key string, vals []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Time adds a [time.Time] field.
+func (e *Event) Time(key string, val time.Time) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uint64 adds a uint64 field.
+func (e *Event) Uint64(key string, val uint64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uints64 adds a uint64 slice field.
+func (e *Event) Uints64(key string, vals []uint64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) URL(key, url string) *Event {
+	if e == nil {
+		return e
+	}
+
+	mode := ColorAuto
+	if e.logger != nil {
+		mode = e.logger.colorMode
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: hyperlinkWithMode(url, url, mode)},
+	)
+	return e
 }
 
 // withFields appends pre-existing fields to the event (used internally).

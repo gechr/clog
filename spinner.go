@@ -24,10 +24,10 @@ var DefaultSpinner = spinner.Spinner{
 type ProgressUpdate struct {
 	fieldBuilder[ProgressUpdate]
 
+	base      []Field
+	fieldsPtr *atomic.Pointer[[]Field]
 	title     string
 	titlePtr  *atomic.Pointer[string]
-	fieldsPtr *atomic.Pointer[[]Field]
-	base      []Field
 }
 
 // Title sets the spinner's displayed title.
@@ -207,17 +207,54 @@ type WaitResult struct {
 	fieldBuilder[WaitResult]
 
 	err          error
-	prefix       *string // nil = use default emoji for level
-	title        string
-	successLevel Level
-	successMsg   string
 	errorLevel   Level
 	errorMsg     *string // nil = use error string
+	prefix       *string // nil = use default emoji for level
+	successLevel Level
+	successMsg   string
+	title        string
 }
 
-// Prefix sets a custom emoji prefix for the completion log message.
-func (w *WaitResult) Prefix(prefix string) *WaitResult {
-	w.prefix = new(prefix)
+// Err returns the error, logging success at info level or failure at error
+// level using the original spinner title.
+func (w *WaitResult) Err() error {
+	return w.Send()
+}
+
+func (w *WaitResult) event(level Level) *Event {
+	e := Default.newEvent(level)
+	if e == nil {
+		return nil
+	}
+
+	e = e.withFields(w.fields)
+
+	if w.prefix != nil {
+		e = e.withPrefix(*w.prefix)
+	}
+
+	return e
+}
+
+// Msg logs at info level with the given message on success, or at error
+// level with the original spinner title on failure. Returns the error.
+func (w *WaitResult) Msg(msg string) error {
+	w.successMsg = msg
+
+	return w.Send()
+}
+
+// OnErrorLevel sets the log level for the error case. Defaults to [ErrorLevel].
+func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
+	w.errorLevel = level
+
+	return w
+}
+
+// OnErrorMessage sets a custom message for the error case. Defaults to the
+// error string.
+func (w *WaitResult) OnErrorMessage(msg string) *WaitResult {
+	w.errorMsg = &msg
 
 	return w
 }
@@ -237,17 +274,9 @@ func (w *WaitResult) OnSuccessMessage(msg string) *WaitResult {
 	return w
 }
 
-// OnErrorLevel sets the log level for the error case. Defaults to [ErrorLevel].
-func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
-	w.errorLevel = level
-
-	return w
-}
-
-// OnErrorMessage sets a custom message for the error case. Defaults to the
-// error string.
-func (w *WaitResult) OnErrorMessage(msg string) *WaitResult {
-	w.errorMsg = &msg
+// Prefix sets a custom emoji prefix for the completion log message.
+func (w *WaitResult) Prefix(prefix string) *WaitResult {
+	w.prefix = new(prefix)
 
 	return w
 }
@@ -269,38 +298,9 @@ func (w *WaitResult) Send() error {
 	return w.err
 }
 
-// Msg logs at info level with the given message on success, or at error
-// level with the original spinner title on failure. Returns the error.
-func (w *WaitResult) Msg(msg string) error {
-	w.successMsg = msg
-
-	return w.Send()
-}
-
-// Err returns the error, logging success at info level or failure at error
-// level using the original spinner title.
-func (w *WaitResult) Err() error {
-	return w.Send()
-}
-
 // Silent returns just the error without logging anything.
 func (w *WaitResult) Silent() error {
 	return w.err
-}
-
-func (w *WaitResult) event(level Level) *Event {
-	e := Default.newEvent(level)
-	if e == nil {
-		return nil
-	}
-
-	e = e.withFields(w.fields)
-
-	if w.prefix != nil {
-		e = e.withPrefix(*w.prefix)
-	}
-
-	return e
 }
 
 //nolint:cyclop // spinner loop has inherent complexity

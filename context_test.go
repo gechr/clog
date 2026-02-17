@@ -108,7 +108,7 @@ func TestContextBools(t *testing.T) {
 }
 
 func TestContextDur(t *testing.T) {
-	ctx := New(io.Discard).With().Dur("elapsed", time.Second)
+	ctx := New(io.Discard).With().Duration("elapsed", time.Second)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "elapsed", ctx.fields[0].Key)
@@ -244,6 +244,32 @@ func TestContextStringersWithNil(t *testing.T) {
 	vals, ok := ctx.fields[0].Value.([]string)
 	require.True(t, ok, "expected []string value")
 	assert.Equal(t, []string{"a", "<nil>"}, vals)
+}
+
+func TestContextDurations(t *testing.T) {
+	vals := []time.Duration{time.Second, 2 * time.Millisecond}
+	ctx := New(io.Discard).With().Durations("timings", vals)
+
+	require.Len(t, ctx.fields, 1)
+	assert.Equal(t, "timings", ctx.fields[0].Key)
+
+	got, ok := ctx.fields[0].Value.([]time.Duration)
+	require.True(t, ok, "expected []time.Duration value")
+	assert.Equal(t, vals, got)
+}
+
+func TestContextQuantity(t *testing.T) {
+	ctx := New(io.Discard).With().Quantity("size", "10GB")
+
+	require.Len(t, ctx.fields, 1)
+	assert.Equal(t, "size", ctx.fields[0].Key)
+}
+
+func TestContextQuantities(t *testing.T) {
+	ctx := New(io.Discard).With().Quantities("sizes", []string{"10GB", "5MB"})
+
+	require.Len(t, ctx.fields, 1)
+	assert.Equal(t, "sizes", ctx.fields[0].Key)
 }
 
 func TestContextPrefix(t *testing.T) {

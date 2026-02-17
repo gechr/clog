@@ -173,13 +173,13 @@ type Logger struct {
 	levelAlign      LevelAlign
 	omitEmpty       bool
 	omitZero        bool
-	quoteMode       QuoteMode
 	out             io.Writer
-	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
-	quoteClose      rune // 0 means same as quoteOpen (or default)
 	parts           []Part
 	prefix          *string // nil = use default emoji for level
 	prefixes        LevelMap
+	quoteClose      rune // 0 means same as quoteOpen (or default)
+	quoteMode       QuoteMode
+	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
 	reportTimestamp bool
 	styles          *Styles
 	timeFormat      string
@@ -192,8 +192,8 @@ func New(out io.Writer) *Logger {
 		mu: &sync.Mutex{},
 
 		exitFunc:        os.Exit,
-		fieldTimeFormat: time.RFC3339,
 		fieldStyleLevel: InfoLevel,
+		fieldTimeFormat: time.RFC3339,
 		labels:          DefaultLabels(),
 		level:           InfoLevel,
 		levelAlign:      AlignRight,
@@ -206,52 +206,23 @@ func New(out io.Writer) *Logger {
 	}
 }
 
-// SetOutput sets the output writer.
-func (l *Logger) SetOutput(out io.Writer) {
+// SetColorMode sets the colour mode for this logger.
+// [ColorAuto] (default) uses global detection; [ColorAlways] forces colours
+// and hyperlinks; [ColorNever] disables them.
+func (l *Logger) SetColorMode(mode ColorMode) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.out = out
+	l.colorMode = mode
 }
 
-// SetLevel sets the minimum log level.
-func (l *Logger) SetLevel(level Level) {
+// SetExitFunc sets the function called by Fatal-level events.
+// Defaults to [os.Exit]. This can be used in tests to intercept fatal exits.
+func (l *Logger) SetExitFunc(fn func(int)) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.level = level
-}
-
-// SetStyles sets the display styles.
-func (l *Logger) SetStyles(styles *Styles) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.styles = styles
-}
-
-// SetReportTimestamp enables or disables timestamp reporting.
-func (l *Logger) SetReportTimestamp(report bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.reportTimestamp = report
-}
-
-// SetTimeFormat sets the timestamp format string.
-func (l *Logger) SetTimeFormat(format string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.timeFormat = format
-}
-
-// SetTimeLocation sets the timezone for timestamps. Defaults to [time.Local].
-func (l *Logger) SetTimeLocation(loc *time.Location) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.timeLocation = loc
+	l.exitFunc = fn
 }
 
 // SetFieldStyleLevel sets the minimum log level at which field values are
@@ -282,10 +253,26 @@ func (l *Logger) SetHandler(h Handler) {
 	l.handler = h
 }
 
-// SetLabels sets the level labels used in log output.
+// SetLevel sets the minimum log level.
+func (l *Logger) SetLevel(level Level) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.level = level
+}
+
+// SetLevelAlign sets the alignment mode for level labels.
+func (l *Logger) SetLevelAlign(align LevelAlign) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.levelAlign = align
+}
+
+// SetLevelLabels sets the level labels used in log output.
 // Pass a map from [Level] to label string (e.g. {WarnLevel: "WARN"}).
 // Missing levels fall back to the defaults.
-func (l *Logger) SetLabels(labels LevelMap) {
+func (l *Logger) SetLevelLabels(labels LevelMap) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -295,27 +282,6 @@ func (l *Logger) SetLabels(labels LevelMap) {
 	l.labels = merged
 }
 
-// SetPrefixes sets the emoji prefixes used for each level.
-// Pass a map from [Level] to prefix string. Missing levels fall back to the defaults.
-func (l *Logger) SetPrefixes(prefixes LevelMap) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	merged := DefaultPrefixes()
-	maps.Copy(merged, prefixes)
-
-	l.prefixes = merged
-}
-
-// SetExitFunc sets the function called by Fatal-level events.
-// Defaults to [os.Exit]. This can be used in tests to intercept fatal exits.
-func (l *Logger) SetExitFunc(fn func(int)) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.exitFunc = fn
-}
-
 // SetOmitEmpty enables or disables omitting fields with empty values.
 // Empty means nil, empty strings, and nil or empty slices/maps.
 func (l *Logger) SetOmitEmpty(omit bool) {
@@ -323,16 +289,6 @@ func (l *Logger) SetOmitEmpty(omit bool) {
 	defer l.mu.Unlock()
 
 	l.omitEmpty = omit
-}
-
-// SetQuoteMode sets the quoting behaviour for field values.
-// [QuoteAuto] (default) quotes only when needed; [QuoteAlways] always quotes
-// string/error/default-kind values; [QuoteNever] never quotes.
-func (l *Logger) SetQuoteMode(mode QuoteMode) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	l.quoteMode = mode
 }
 
 // SetOmitQuotes disables quoting of field values that contain spaces or
@@ -358,10 +314,44 @@ func (l *Logger) SetOmitZero(omit bool) {
 	l.omitZero = omit
 }
 
+// SetOutput sets the output writer.
+func (l *Logger) SetOutput(out io.Writer) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.out = out
+}
+
+// SetParts sets the order in which parts appear in log output.
+// Parts not included in the order are hidden. Parts can be reordered freely.
+// Panics if no parts are provided.
+func (l *Logger) SetParts(parts ...Part) {
+	if len(parts) == 0 {
+		panic("clog: SetParts requires at least one part")
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.parts = parts
+}
+
+// SetPrefixes sets the emoji prefixes used for each level.
+// Pass a map from [Level] to prefix string. Missing levels fall back to the defaults.
+func (l *Logger) SetPrefixes(prefixes LevelMap) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	merged := DefaultPrefixes()
+	maps.Copy(merged, prefixes)
+
+	l.prefixes = merged
+}
+
 // SetQuoteChar sets the character used to quote field values that contain
 // spaces or special characters. The default (zero value) uses Go-style
 // double-quoted strings via [strconv.Quote]. Setting a non-zero rune wraps
-// values with that character on both sides (e.g. '\”).
+// values with that character on both sides (e.g. '\").
 //
 // For asymmetric quotes (e.g. '[' and ']'), use [Logger.SetQuoteChars].
 func (l *Logger) SetQuoteChar(char rune) {
@@ -382,36 +372,46 @@ func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 	l.quoteClose = closeChar
 }
 
-// SetColorMode sets the colour mode for this logger.
-// [ColorAuto] (default) uses global detection; [ColorAlways] forces colours
-// and hyperlinks; [ColorNever] disables them.
-func (l *Logger) SetColorMode(mode ColorMode) {
+// SetQuoteMode sets the quoting behaviour for field values.
+// [QuoteAuto] (default) quotes only when needed; [QuoteAlways] always quotes
+// string/error/default-kind values; [QuoteNever] never quotes.
+func (l *Logger) SetQuoteMode(mode QuoteMode) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.colorMode = mode
+	l.quoteMode = mode
 }
 
-// SetLevelAlign sets the alignment mode for level labels.
-func (l *Logger) SetLevelAlign(align LevelAlign) {
+// SetReportTimestamp enables or disables timestamp reporting.
+func (l *Logger) SetReportTimestamp(report bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.levelAlign = align
+	l.reportTimestamp = report
 }
 
-// SetParts sets the order in which parts appear in log output.
-// Parts not included in the order are hidden. Parts can be reordered freely.
-// Panics if no parts are provided.
-func (l *Logger) SetParts(parts ...Part) {
-	if len(parts) == 0 {
-		panic("clog: SetParts requires at least one part")
-	}
-
+// SetStyles sets the display styles.
+func (l *Logger) SetStyles(styles *Styles) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.parts = parts
+	l.styles = styles
+}
+
+// SetTimeFormat sets the timestamp format string.
+func (l *Logger) SetTimeFormat(format string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.timeFormat = format
+}
+
+// SetTimeLocation sets the timezone for timestamps. Defaults to [time.Local].
+func (l *Logger) SetTimeLocation(loc *time.Location) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	l.timeLocation = loc
 }
 
 // With returns a [Context] for building a sub-logger with preset fields.
@@ -456,21 +456,47 @@ func (l *Logger) Error() *Event { return l.newEvent(ErrorLevel) }
 // Fatal returns a new [Event] at fatal level.
 func (l *Logger) Fatal() *Event { return l.newEvent(FatalLevel) }
 
-// newEvent creates a new [Event] for the given level.
-// Returns nil if the level is below the logger's minimum (all Event methods
-// are no-ops on nil).
-func (l *Logger) newEvent(level Level) *Event {
+// colorsDisabled returns true if this logger should suppress colours.
+func (l *Logger) colorsDisabled() bool {
+	switch l.colorMode {
+	case ColorAlways:
+		return false
+	case ColorNever:
+		return true
+	case ColorAuto:
+		return ColorsDisabled()
+	}
+
+	return ColorsDisabled()
+}
+
+// exit calls the logger's exit function (used by Fatal-level events).
+func (l *Logger) exit(code int) {
 	l.mu.Lock()
-	defer l.mu.Unlock()
+	fn := l.exitFunc
+	l.mu.Unlock()
 
-	if level < l.level {
-		return nil
+	fn(code)
+}
+
+// formatLabel returns the level label, padded according to the logger's alignment setting.
+func (l *Logger) formatLabel(level Level) string {
+	label := l.labels[level]
+
+	maxW := l.maxLabelWidth()
+
+	switch l.levelAlign {
+	case AlignNone:
+		return label
+	case AlignLeft:
+		return fmt.Sprintf("%-*s", maxW, label)
+	case AlignRight:
+		return fmt.Sprintf("%*s", maxW, label)
+	case AlignCenter:
+		return centerPad(label, maxW)
 	}
 
-	return &Event{
-		logger: l,
-		level:  level,
-	}
+	return label
 }
 
 // log writes a log entry using either the custom handler or the built-in pretty formatter.
@@ -574,49 +600,6 @@ func (l *Logger) log(e *Event, msg string) {
 	_, _ = io.WriteString(l.out, strings.Join(parts, " ")+"\n")
 }
 
-// exit calls the logger's exit function (used by Fatal-level events).
-func (l *Logger) exit(code int) {
-	l.mu.Lock()
-	fn := l.exitFunc
-	l.mu.Unlock()
-
-	fn(code)
-}
-
-// colorsDisabled returns true if this logger should suppress colours.
-func (l *Logger) colorsDisabled() bool {
-	switch l.colorMode {
-	case ColorAlways:
-		return false
-	case ColorNever:
-		return true
-	case ColorAuto:
-		return ColorsDisabled()
-	}
-
-	return ColorsDisabled()
-}
-
-// formatLabel returns the level label, padded according to the logger's alignment setting.
-func (l *Logger) formatLabel(level Level) string {
-	label := l.labels[level]
-
-	maxW := l.maxLabelWidth()
-
-	switch l.levelAlign {
-	case AlignNone:
-		return label
-	case AlignLeft:
-		return fmt.Sprintf("%-*s", maxW, label)
-	case AlignRight:
-		return fmt.Sprintf("%*s", maxW, label)
-	case AlignCenter:
-		return centerPad(label, maxW)
-	}
-
-	return label
-}
-
 // maxLabelWidth returns the length of the longest configured label.
 func (l *Logger) maxLabelWidth() int {
 	maxWidth := 0
@@ -627,6 +610,23 @@ func (l *Logger) maxLabelWidth() int {
 	}
 
 	return maxWidth
+}
+
+// newEvent creates a new [Event] for the given level.
+// Returns nil if the level is below the logger's minimum (all Event methods
+// are no-ops on nil).
+func (l *Logger) newEvent(level Level) *Event {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if level < l.level {
+		return nil
+	}
+
+	return &Event{
+		logger: l,
+		level:  level,
+	}
 }
 
 // resolvePrefix returns the appropriate prefix for a log entry, checking
@@ -779,37 +779,96 @@ func IsVerbose() bool {
 
 // Package-level convenience functions that use the [Default] logger.
 
-func SetColorMode(mode ColorMode)            { Default.SetColorMode(mode) }
-func SetExitFunc(fn func(int))               { Default.SetExitFunc(fn) }
-func SetHandler(h Handler)                   { Default.SetHandler(h) }
-func SetLevel(level Level)                   { Default.SetLevel(level) }
-func SetLevelAlign(align LevelAlign)         { Default.SetLevelAlign(align) }
-func SetLevelLabels(labels LevelMap)         { Default.SetLabels(labels) }
-func SetOmitEmpty(omit bool)                 { Default.SetOmitEmpty(omit) }
-func SetOmitQuotes(omit bool)                { Default.SetOmitQuotes(omit) }
-func SetOmitZero(omit bool)                  { Default.SetOmitZero(omit) }
-func SetOutput(out io.Writer)                { Default.SetOutput(out) }
-func SetQuoteChar(char rune)                 { Default.SetQuoteChar(char) }
+// SetColorMode sets the colour mode on the [Default] logger.
+func SetColorMode(mode ColorMode) { Default.SetColorMode(mode) }
+
+// SetExitFunc sets the fatal-exit function on the [Default] logger.
+func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
+
+// SetFieldStyleLevel sets the minimum level for styled fields on the [Default] logger.
+func SetFieldStyleLevel(level Level) { Default.SetFieldStyleLevel(level) }
+
+// SetFieldTimeFormat sets the time format for time fields on the [Default] logger.
+func SetFieldTimeFormat(format string) { Default.SetFieldTimeFormat(format) }
+
+// SetHandler sets the log handler on the [Default] logger.
+func SetHandler(h Handler) { Default.SetHandler(h) }
+
+// SetLevel sets the minimum log level on the [Default] logger.
+func SetLevel(level Level) { Default.SetLevel(level) }
+
+// SetLevelAlign sets the level-label alignment on the [Default] logger.
+func SetLevelAlign(align LevelAlign) { Default.SetLevelAlign(align) }
+
+// SetLevelLabels sets the level labels on the [Default] logger.
+func SetLevelLabels(labels LevelMap) { Default.SetLevelLabels(labels) }
+
+// SetOmitEmpty enables or disables omitting empty fields on the [Default] logger.
+func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
+
+// SetOmitQuotes enables or disables omitting quotes on the [Default] logger.
+//
+// Deprecated: Use [SetQuoteMode] with [QuoteNever] or [QuoteAuto] instead.
+func SetOmitQuotes(omit bool) { Default.SetOmitQuotes(omit) }
+
+// SetOmitZero enables or disables omitting zero-value fields on the [Default] logger.
+func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
+
+// SetOutput sets the output writer on the [Default] logger.
+func SetOutput(out io.Writer) { Default.SetOutput(out) }
+
+// SetParts sets the log-line part order on the [Default] logger.
+func SetParts(order ...Part) { Default.SetParts(order...) }
+
+// SetPrefixes sets the level prefixes on the [Default] logger.
+func SetPrefixes(prefixes LevelMap) { Default.SetPrefixes(prefixes) }
+
+// SetQuoteChar sets the quote character on the [Default] logger.
+func SetQuoteChar(char rune) { Default.SetQuoteChar(char) }
+
+// SetQuoteChars sets the opening and closing quote characters on the [Default] logger.
 func SetQuoteChars(openChar, closeChar rune) { Default.SetQuoteChars(openChar, closeChar) }
-func SetQuoteMode(mode QuoteMode)            { Default.SetQuoteMode(mode) }
-func SetParts(order ...Part)                 { Default.SetParts(order...) }
-func SetPrefixes(prefixes LevelMap)          { Default.SetPrefixes(prefixes) }
-func SetReportTimestamp(report bool)         { Default.SetReportTimestamp(report) }
-func SetStyles(styles *Styles)               { Default.SetStyles(styles) }
-func SetFieldStyleLevel(level Level)         { Default.SetFieldStyleLevel(level) }
-func SetFieldTimeFormat(format string)       { Default.SetFieldTimeFormat(format) }
-func SetTimeFormat(format string)            { Default.SetTimeFormat(format) }
-func SetTimeLocation(loc *time.Location)     { Default.SetTimeLocation(loc) }
 
+// SetQuoteMode sets the quoting behaviour on the [Default] logger.
+func SetQuoteMode(mode QuoteMode) { Default.SetQuoteMode(mode) }
+
+// SetReportTimestamp enables or disables timestamps on the [Default] logger.
+func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
+
+// SetStyles sets the display styles on the [Default] logger.
+func SetStyles(styles *Styles) { Default.SetStyles(styles) }
+
+// SetTimeFormat sets the timestamp format on the [Default] logger.
+func SetTimeFormat(format string) { Default.SetTimeFormat(format) }
+
+// SetTimeLocation sets the timestamp timezone on the [Default] logger.
+func SetTimeLocation(loc *time.Location) { Default.SetTimeLocation(loc) }
+
+// With returns a [Context] for building a sub-logger from the [Default] logger.
 func With() *Context { return Default.With() }
-func Dict() *Event   { return &Event{} }
 
+// Dict returns a new detached [Event] for use as a nested dictionary field.
+func Dict() *Event { return &Event{} }
+
+// Trace returns a new trace-level [Event] from the [Default] logger.
 func Trace() *Event { return Default.Trace() }
+
+// Debug returns a new debug-level [Event] from the [Default] logger.
 func Debug() *Event { return Default.Debug() }
-func Info() *Event  { return Default.Info() }
-func Dry() *Event   { return Default.Dry() }
-func Warn() *Event  { return Default.Warn() }
+
+// Info returns a new info-level [Event] from the [Default] logger.
+func Info() *Event { return Default.Info() }
+
+// Dry returns a new dry-level [Event] from the [Default] logger.
+func Dry() *Event { return Default.Dry() }
+
+// Warn returns a new warn-level [Event] from the [Default] logger.
+func Warn() *Event { return Default.Warn() }
+
+// Error returns a new error-level [Event] from the [Default] logger.
 func Error() *Event { return Default.Error() }
+
+// Fatal returns a new fatal-level [Event] from the [Default] logger.
 func Fatal() *Event { return Default.Fatal() }
 
 // centerPad centres s within width, padding with spaces.

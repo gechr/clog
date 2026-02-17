@@ -984,12 +984,16 @@ func TestMergeFields(t *testing.T) {
 func TestStyleValueDuration(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleValue("5s", "elapsed", kindDuration, styles)
-	assert.Equal(t, styles.FieldDuration.Render("5s"), got)
+
+	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+	assert.Equal(t, want, got)
 }
 
 func TestStyleValueDurationNil(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldDuration = nil
+	styles.FieldDurationNumber = nil
+	styles.FieldDurationUnit = nil
+
 	got := styleValue("5s", "elapsed", kindDuration, styles)
 	assert.Empty(t, got)
 }
@@ -1055,12 +1059,16 @@ func TestStyleAnyElementErrorNil(t *testing.T) {
 func TestStyleAnyElementDuration(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleAnyElement("5s", kindDuration, styles)
-	assert.Equal(t, styles.FieldDuration.Render("5s"), got)
+
+	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+	assert.Equal(t, want, got)
 }
 
 func TestStyleAnyElementDurationNil(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldDuration = nil
+	styles.FieldDurationNumber = nil
+	styles.FieldDurationUnit = nil
+
 	got := styleAnyElement("5s", kindDuration, styles)
 	assert.Empty(t, got)
 }
@@ -1098,4 +1106,281 @@ func TestQuoteStringDefaultQuoting(t *testing.T) {
 	// When openChar is 0, strconv.Quote is used.
 	got := quoteString("hello", 0, 0)
 	assert.Equal(t, `"hello"`, got)
+}
+
+func TestStyleQuantity(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "seconds", input: "5s", want: num("5") + unit("s")},
+		{
+			name:  "minutes_seconds",
+			input: "2m30s",
+			want:  num("2") + unit("m") + num("30") + unit("s"),
+		},
+		{name: "hours_minutes", input: "1h30m", want: num("1") + unit("h") + num("30") + unit("m")},
+		{name: "zero", input: "0s", want: num("0") + unit("s")},
+		{name: "milliseconds", input: "500ms", want: num("500") + unit("ms")},
+		{name: "microseconds", input: "1.5µs", want: num("1.5") + unit("µs")},
+		{name: "negative", input: "-1h30m", want: num("-1") + unit("h") + num("30") + unit("m")},
+		{name: "weeks_days", input: "1w2d", want: num("1") + unit("w") + num("2") + unit("d")},
+		{name: "distance", input: "5.1km", want: num("5.1") + unit("km")},
+		{name: "filesize", input: "100MB", want: num("100") + unit("MB")},
+		{name: "spaced", input: "5.1 km", want: num("5.1") + " " + unit("km")},
+		{name: "spaced_filesize", input: "100 MB", want: num("100") + " " + unit("MB")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := styleQuantity(tt.input, styles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestStyleQuantityPartialNil(t *testing.T) {
+	styles := DefaultStyles()
+	unit := styles.FieldQuantityUnit.Render
+
+	styles.FieldQuantityNumber = nil
+
+	got := styleQuantity("5s", styles)
+	assert.Equal(t, "5"+unit("s"), got)
+}
+
+func TestFormatValueQuantity(t *testing.T) {
+	got, kind := formatValue(quantity("5.1km"), QuoteAuto, 0, 0, "")
+	assert.Equal(t, "5.1km", got)
+	assert.Equal(t, kindQuantity, kind)
+}
+
+func TestIsQuantityString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  bool
+	}{
+		{name: "simple", input: "5s", want: true},
+		{name: "compound", input: "2h30m", want: true},
+		{name: "negative", input: "-1h30m", want: true},
+		{name: "decimal", input: "1.5µs", want: true},
+		{name: "weeks_days", input: "1w2d", want: true},
+		{name: "milliseconds", input: "500ms", want: true},
+		{name: "zero", input: "0s", want: true},
+		{name: "distance", input: "5.1km", want: true},
+		{name: "filesize", input: "100MB", want: true},
+		{name: "spaced", input: "5 m", want: true},
+		{name: "spaced_distance", input: "5.1 km", want: true},
+		{name: "spaced_filesize", input: "100 MB", want: true},
+		{name: "word", input: "hello", want: false},
+		{name: "empty", input: "", want: false},
+		{name: "bare_number", input: "42", want: false},
+		{name: "bare_unit", input: "ms", want: false},
+		{name: "trailing_number", input: "5m2", want: false},
+		{name: "just_minus", input: "-", want: false},
+		{name: "minus_unit", input: "-m", want: false},
+		{name: "only_spaces", input: "   ", want: false},
+		{name: "space_then_number", input: " 5m", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, isQuantityString(tt.input))
+		})
+	}
+}
+
+func TestStyleValueQuantityFallbackToString(t *testing.T) {
+	styles := DefaultStyles()
+
+	// "hello" is not a valid quantity, so styleValue should fall back to FieldString.
+	got := styleValue("hello", "field", kindQuantity, styles)
+	assert.Equal(t, styles.FieldString.Render("hello"), got)
+}
+
+func TestStyleValueQuantityFallbackNilString(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldString = nil
+
+	// No quantity match, no string style — should return "".
+	got := styleValue("hello", "field", kindQuantity, styles)
+	assert.Empty(t, got)
+}
+
+func TestStyleAnyElementQuantityFallbackToString(t *testing.T) {
+	styles := DefaultStyles()
+
+	got := styleAnyElement("hello", kindQuantity, styles)
+	assert.Equal(t, styles.FieldString.Render("hello"), got)
+}
+
+func TestStyleQuantityUnitOverride(t *testing.T) {
+	styles := DefaultStyles()
+	kmStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles.QuantityUnits["km"] = new(kmStyle)
+
+	num := styles.FieldQuantityNumber.Render
+
+	got := styleQuantity("5.1km", styles)
+	assert.Equal(t, num("5.1")+kmStyle.Render("km"), got)
+}
+
+func TestStyleQuantityUnitOverrideCompound(t *testing.T) {
+	styles := DefaultStyles()
+	hStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles.QuantityUnits["h"] = new(hStyle)
+
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+
+	// "h" gets the override, "m" gets the default.
+	got := styleQuantity("2h30m", styles)
+	assert.Equal(t, num("2")+hStyle.Render("h")+num("30")+unit("m"), got)
+}
+
+func TestStyleQuantityOnlyUnitOverrides(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldQuantityNumber = nil
+	styles.FieldQuantityUnit = nil
+
+	kmStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles.QuantityUnits["km"] = new(kmStyle)
+
+	got := styleQuantity("5km", styles)
+	assert.Equal(t, "5"+kmStyle.Render("km"), got)
+}
+
+func TestStyleQuantityUnitIgnoreCase(t *testing.T) {
+	styles := DefaultStyles()
+	mbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	styles.QuantityUnits["mb"] = new(mbStyle)
+
+	num := styles.FieldQuantityNumber.Render
+
+	// "MB" should match "mb" with case-insensitive lookup (default).
+	got := styleQuantity("100MB", styles)
+	assert.Equal(t, num("100")+mbStyle.Render("MB"), got)
+}
+
+func TestStyleQuantityUnitCaseSensitive(t *testing.T) {
+	styles := DefaultStyles()
+	styles.QuantityUnitsIgnoreCase = false
+
+	mbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	styles.QuantityUnits["mb"] = new(mbStyle)
+
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+
+	// "MB" should NOT match "mb" when case-sensitive.
+	got := styleQuantity("100MB", styles)
+	assert.Equal(t, num("100")+unit("MB"), got)
+}
+
+func TestFormatDurationSlicePlain(t *testing.T) {
+	vals := []time.Duration{5 * time.Second, 2*time.Minute + 30*time.Second}
+	got := formatDurationSlice(vals, nil)
+	assert.Equal(t, "[5s, 2m30s]", got)
+}
+
+func TestFormatDurationSliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldDurationNumber.Render
+	unit := styles.FieldDurationUnit.Render
+
+	vals := []time.Duration{5 * time.Second, 500 * time.Millisecond}
+	got := formatDurationSlice(vals, styles)
+
+	want := "[" +
+		num("5") + unit("s") +
+		", " +
+		num("500") + unit("ms") +
+		"]"
+	assert.Equal(t, want, got)
+}
+
+func TestFormatDurationSliceEmpty(t *testing.T) {
+	got := formatDurationSlice([]time.Duration{}, nil)
+	assert.Equal(t, "[]", got)
+}
+
+func TestFormatFieldsDurationSliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   InfoLevel,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "latencies",
+		Value: []time.Duration{5 * time.Second, 2 * time.Minute},
+	}}, opts)
+
+	num := styles.FieldDurationNumber.Render
+	unit := styles.FieldDurationUnit.Render
+	want := " " + styles.KeyDefault.Render(
+		"latencies",
+	) + styles.Separator.Render(
+		styles.SeparatorText,
+	) + "[" + num("5") + unit("s") +
+		", " + num("2") + unit("m") + num("0") + unit("s") + "]"
+	assert.Equal(t, want, got)
+}
+
+func TestFormatQuantitySlicePlain(t *testing.T) {
+	vals := []quantity{"5m", "2h30m", "100 MB"}
+	got := formatQuantitySlice(vals, nil)
+	assert.Equal(t, "[5m, 2h30m, 100 MB]", got)
+}
+
+func TestFormatQuantitySliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+
+	vals := []quantity{"5m", "100MB"}
+	got := formatQuantitySlice(vals, styles)
+
+	want := "[" +
+		num("5") + unit("m") +
+		", " +
+		num("100") + unit("MB") +
+		"]"
+	assert.Equal(t, want, got)
+}
+
+func TestFormatQuantitySliceEmpty(t *testing.T) {
+	got := formatQuantitySlice([]quantity{}, nil)
+	assert.Equal(t, "[]", got)
+}
+
+func TestFormatFieldsQuantitySliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   InfoLevel,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "rates",
+		Value: []quantity{"5m", "10s"},
+	}}, opts)
+
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+	want := " " + styles.KeyDefault.Render(
+		"rates",
+	) + styles.Separator.Render(
+		styles.SeparatorText,
+	) + "[" + num("5") + unit("m") +
+		", " + num("10") + unit("s") + "]"
+	assert.Equal(t, want, got)
 }
