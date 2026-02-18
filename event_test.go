@@ -424,6 +424,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Link("k", "https://example.com", "text"))
 	assert.Nil(t, e.URL("k", "https://example.com"))
 	assert.Nil(t, e.Durations("k", []time.Duration{time.Second}))
+	assert.Nil(t, e.Percent("k", 50))
 	assert.Nil(t, e.Quantity("k", "10GB"))
 	assert.Nil(t, e.Quantities("k", []string{"10GB"}))
 	assert.Nil(t, e.Stringer("k", testStringer{s: "x"}))
@@ -554,6 +555,43 @@ func TestEventDurationsOutput(t *testing.T) {
 	l.Info().Durations("d", []time.Duration{time.Second, 500 * time.Millisecond}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test d=[1s, 500ms]\n", buf.String())
+}
+
+func TestEventPercent(t *testing.T) {
+	e := New(io.Discard).Info()
+	e.Percent("progress", 75)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "progress", e.fields[0].Key)
+
+	p, ok := e.fields[0].Value.(percent)
+	require.True(t, ok, "expected percent value")
+	assert.InDelta(t, 75.0, float64(p), 0)
+}
+
+func TestEventPercentClamping(t *testing.T) {
+	e := New(io.Discard).Info()
+	e.Percent("low", -10)
+	e.Percent("high", 150)
+
+	require.Len(t, e.fields, 2)
+
+	low, ok := e.fields[0].Value.(percent)
+	require.True(t, ok)
+	assert.InDelta(t, 0.0, float64(low), 0, "negative should clamp to 0")
+
+	high, ok := e.fields[1].Value.(percent)
+	require.True(t, ok)
+	assert.InDelta(t, 100.0, float64(high), 0, "over 100 should clamp to 100")
+}
+
+func TestEventPercentOutput(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(&buf)
+	l.Info().Percent("progress", 75).Msg("done")
+
+	assert.Equal(t, "INF ℹ️ done progress=75%\n", buf.String())
 }
 
 func TestEventQuantity(t *testing.T) {

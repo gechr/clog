@@ -19,6 +19,10 @@ fmt:
 	@$(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint fmt --enable=gci,golines,gofumpt
 	@$(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint run --fix --enable-only tagalign
 
+.PHONY: gen
+gen:
+	@$(GO) generate
+
 .PHONY: lint
 lint:
 	@$(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint run

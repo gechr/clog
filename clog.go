@@ -20,21 +20,13 @@ import (
 	"time"
 )
 
-const (
-	// DefaultEnvLogLevel is the default environment variable checked for the log level.
-	DefaultEnvLogLevel = "CLOG_LEVEL"
-
-	// DefaultEnvSeparator is the environment variable checked for the key-value separator.
-	DefaultEnvSeparator = "CLOG_SEPARATOR"
-)
-
 // ErrorKey is the default field key used by [Event.Err] and [Context.Err].
 const ErrorKey = "error"
 
 const (
-	// LevelTrace is the "trace" level string for [SetLevelFromEnv].
+	// LevelTrace is the "trace" level string.
 	LevelTrace = "trace"
-	// LevelDebug is the "debug" level string for [SetLevelFromEnv].
+	// LevelDebug is the "debug" level string.
 	LevelDebug = "debug"
 	// LevelInfo is the "info" level string.
 	LevelInfo = "info"
@@ -42,15 +34,14 @@ const (
 	LevelDry = "dry"
 	// LevelWarn is the "warn" level string.
 	LevelWarn = "warn"
-	// LevelWarning is the "warning" level string (alias for warn).
-	LevelWarning = "warning"
 	// LevelError is the "error" level string.
 	LevelError = "error"
 	// LevelFatal is the "fatal" level string.
 	LevelFatal = "fatal"
 )
 
-const nilStr = "<nil>"
+// Nil is the string representation used for nil values (e.g. in [DefaultValueStyles]).
+const Nil = "<nil>"
 
 // Default is the default logger instance.
 var Default = New(os.Stdout)
@@ -95,7 +86,6 @@ func (l Level) String() string {
 	if s, ok := levelLabels[l]; ok {
 		return s
 	}
-
 	return fmt.Sprintf("LVL(%d)", int(l))
 }
 
@@ -117,15 +107,20 @@ const (
 )
 
 // ColorMode controls how a [Logger] determines colour and hyperlink output.
+//
+// ColorMode implements [encoding.TextMarshaler] and [encoding.TextUnmarshaler],
+// so it works directly with [flag.TextVar] and most flag libraries.
+//
+//go:generate go tool golang.org/x/tools/cmd/stringer -type=ColorMode -linecomment
 type ColorMode int
 
 const (
 	// ColorAuto uses global detection (terminal, NO_COLOR, etc.). This is the default.
-	ColorAuto ColorMode = iota
+	ColorAuto ColorMode = iota // auto
 	// ColorAlways forces colours and hyperlinks, even when output is not a TTY.
-	ColorAlways
+	ColorAlways // always
 	// ColorNever disables colours and hyperlinks.
-	ColorNever
+	ColorNever // never
 )
 
 // QuoteMode controls how field values are quoted in log output.
@@ -162,7 +157,6 @@ type Logger struct {
 	mu *sync.Mutex
 
 	colorMode       ColorMode
-	envLogLevel     string    // env var name registered by SetLevelFromEnv
 	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
 	fieldStyleLevel Level
 	fieldTimeFormat string
@@ -212,7 +206,6 @@ func New(out io.Writer) *Logger {
 func (l *Logger) SetColorMode(mode ColorMode) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.colorMode = mode
 }
 
@@ -221,7 +214,6 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 func (l *Logger) SetExitFunc(fn func(int)) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.exitFunc = fn
 }
 
@@ -231,7 +223,6 @@ func (l *Logger) SetExitFunc(fn func(int)) {
 func (l *Logger) SetFieldStyleLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.fieldStyleLevel = level
 }
 
@@ -240,7 +231,6 @@ func (l *Logger) SetFieldStyleLevel(level Level) {
 func (l *Logger) SetFieldTimeFormat(format string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.fieldTimeFormat = format
 }
 
@@ -249,7 +239,6 @@ func (l *Logger) SetFieldTimeFormat(format string) {
 func (l *Logger) SetHandler(h Handler) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.handler = h
 }
 
@@ -257,7 +246,6 @@ func (l *Logger) SetHandler(h Handler) {
 func (l *Logger) SetLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.level = level
 }
 
@@ -265,7 +253,6 @@ func (l *Logger) SetLevel(level Level) {
 func (l *Logger) SetLevelAlign(align LevelAlign) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.levelAlign = align
 }
 
@@ -275,10 +262,8 @@ func (l *Logger) SetLevelAlign(align LevelAlign) {
 func (l *Logger) SetLevelLabels(labels LevelMap) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	merged := DefaultLabels()
 	maps.Copy(merged, labels)
-
 	l.labels = merged
 }
 
@@ -287,21 +272,7 @@ func (l *Logger) SetLevelLabels(labels LevelMap) {
 func (l *Logger) SetOmitEmpty(omit bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.omitEmpty = omit
-}
-
-// SetOmitQuotes disables quoting of field values that contain spaces or
-// special characters. By default, such values are wrapped in quotes for
-// parseable output.
-//
-// Deprecated: Use [Logger.SetQuoteMode] with [QuoteNever] or [QuoteAuto] instead.
-func (l *Logger) SetOmitQuotes(omit bool) {
-	if omit {
-		l.SetQuoteMode(QuoteNever)
-	} else {
-		l.SetQuoteMode(QuoteAuto)
-	}
 }
 
 // SetOmitZero enables or disables omitting fields with zero values.
@@ -310,7 +281,6 @@ func (l *Logger) SetOmitQuotes(omit bool) {
 func (l *Logger) SetOmitZero(omit bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.omitZero = omit
 }
 
@@ -318,7 +288,6 @@ func (l *Logger) SetOmitZero(omit bool) {
 func (l *Logger) SetOutput(out io.Writer) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.out = out
 }
 
@@ -332,7 +301,6 @@ func (l *Logger) SetParts(parts ...Part) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.parts = parts
 }
 
@@ -341,7 +309,6 @@ func (l *Logger) SetParts(parts ...Part) {
 func (l *Logger) SetPrefixes(prefixes LevelMap) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	merged := DefaultPrefixes()
 	maps.Copy(merged, prefixes)
 
@@ -357,7 +324,6 @@ func (l *Logger) SetPrefixes(prefixes LevelMap) {
 func (l *Logger) SetQuoteChar(char rune) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.quoteOpen = char
 	l.quoteClose = char
 }
@@ -367,7 +333,6 @@ func (l *Logger) SetQuoteChar(char rune) {
 func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.quoteOpen = openChar
 	l.quoteClose = closeChar
 }
@@ -378,7 +343,6 @@ func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 func (l *Logger) SetQuoteMode(mode QuoteMode) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.quoteMode = mode
 }
 
@@ -386,7 +350,6 @@ func (l *Logger) SetQuoteMode(mode QuoteMode) {
 func (l *Logger) SetReportTimestamp(report bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.reportTimestamp = report
 }
 
@@ -394,7 +357,6 @@ func (l *Logger) SetReportTimestamp(report bool) {
 func (l *Logger) SetStyles(styles *Styles) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.styles = styles
 }
 
@@ -402,7 +364,6 @@ func (l *Logger) SetStyles(styles *Styles) {
 func (l *Logger) SetTimeFormat(format string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.timeFormat = format
 }
 
@@ -410,7 +371,6 @@ func (l *Logger) SetTimeFormat(format string) {
 func (l *Logger) SetTimeLocation(loc *time.Location) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	l.timeLocation = loc
 }
 
@@ -421,7 +381,6 @@ func (l *Logger) SetTimeLocation(loc *time.Location) {
 func (l *Logger) With() *Context {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	fields := make([]Field, len(l.fields))
 	copy(fields, l.fields)
 
@@ -431,7 +390,6 @@ func (l *Logger) With() *Context {
 	}
 	c.fields = fields
 	c.initSelf(c)
-
 	return c
 }
 
@@ -466,7 +424,6 @@ func (l *Logger) colorsDisabled() bool {
 	case ColorAuto:
 		return ColorsDisabled()
 	}
-
 	return ColorsDisabled()
 }
 
@@ -495,7 +452,6 @@ func (l *Logger) formatLabel(level Level) string {
 	case AlignCenter:
 		return centerPad(label, maxW)
 	}
-
 	return label
 }
 
@@ -503,7 +459,6 @@ func (l *Logger) formatLabel(level Level) string {
 func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	// Merge logger context fields with event fields.
 	allFields := slices.Concat(l.fields, e.fields)
 
@@ -532,7 +487,6 @@ func (l *Logger) log(e *Event, msg string) {
 		}
 
 		l.handler.Log(entry)
-
 		return
 	}
 
@@ -608,7 +562,6 @@ func (l *Logger) maxLabelWidth() int {
 			maxWidth = len(lbl)
 		}
 	}
-
 	return maxWidth
 }
 
@@ -618,11 +571,9 @@ func (l *Logger) maxLabelWidth() int {
 func (l *Logger) newEvent(level Level) *Event {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-
 	if level < l.level {
 		return nil
 	}
-
 	return &Event{
 		logger: l,
 		level:  level,
@@ -630,7 +581,7 @@ func (l *Logger) newEvent(level Level) *Event {
 }
 
 // resolvePrefix returns the appropriate prefix for a log entry, checking
-// event override → logger preset → default for level.
+// event override -> logger preset -> default for level.
 func (l *Logger) resolvePrefix(e *Event) string {
 	if e.prefix != nil {
 		return *e.prefix
@@ -639,7 +590,6 @@ func (l *Logger) resolvePrefix(e *Event) string {
 	if l.prefix != nil {
 		return *l.prefix
 	}
-
 	return l.prefixes[e.level]
 }
 
@@ -656,8 +606,9 @@ type Config struct {
 // Configure sets up the [Default] logger with the given configuration.
 // Call this once at application startup.
 //
-// Note: this respects the CLOG_LEVEL environment variable — it won't reset
-// the level if CLOG_LEVEL was set and cfg.Verbose is false.
+// Note: this respects the log level environment variable — it won't reset
+// the level if CLOG_LOG_LEVEL (or a custom prefix equivalent) was set and
+// cfg.Verbose is false.
 func Configure(cfg *Config) {
 	if cfg == nil {
 		return
@@ -671,80 +622,26 @@ func Configure(cfg *Config) {
 		Default.SetStyles(cfg.Styles)
 	}
 
-	ConfigureVerbose(cfg.Verbose)
+	SetVerbose(cfg.Verbose)
 }
 
-// ConfigureVerbose enables or disables verbose mode on the [Default] logger.
+// SetVerbose enables or disables verbose mode on the [Default] logger.
 // When verbose is true, it always enables debug logging. When false, it
-// respects the CLOG_LEVEL environment variable if set.
-func ConfigureVerbose(verbose bool) {
+// respects the log level environment variable if set.
+func SetVerbose(verbose bool) {
 	if verbose {
 		Default.SetLevel(DebugLevel)
 		Default.SetReportTimestamp(true)
-
 		return
 	}
 
-	Default.mu.Lock()
-	envVar := Default.envLogLevel
-	Default.mu.Unlock()
-
-	// Respect the env var if set (either CLOG_LEVEL or a custom one via SetLevelFromEnv).
-	if os.Getenv(DefaultEnvLogLevel) != "" || (envVar != "" && os.Getenv(envVar) != "") {
+	// Respect the env var if set (custom prefix or CLOG_LOG_LEVEL).
+	if getEnv(envLogLevel) != "" {
 		return
 	}
 
 	Default.SetLevel(InfoLevel)
 	Default.SetReportTimestamp(false)
-}
-
-// SetLevelFromEnv reads the named environment variable and sets the level
-// on the [Default] logger. Recognised values: trace, debug, info, dry, warn,
-// warning, error, fatal.
-func SetLevelFromEnv(envVar string) {
-	Default.mu.Lock()
-	Default.envLogLevel = envVar
-	Default.mu.Unlock()
-
-	level := os.Getenv(envVar)
-	if level == "" {
-		return
-	}
-
-	switch strings.ToLower(level) {
-	case LevelTrace:
-		Default.SetLevel(TraceLevel)
-		Default.SetReportTimestamp(true)
-	case LevelDebug:
-		Default.SetLevel(DebugLevel)
-		Default.SetReportTimestamp(true)
-	case LevelInfo:
-		Default.SetLevel(InfoLevel)
-	case LevelDry:
-		Default.SetLevel(DryLevel)
-	case LevelWarn, LevelWarning:
-		Default.SetLevel(WarnLevel)
-	case LevelError:
-		Default.SetLevel(ErrorLevel)
-	case LevelFatal:
-		Default.SetLevel(FatalLevel)
-	default:
-		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", level, envVar)
-	}
-}
-
-// SetSeparatorFromEnv reads the named environment variable and sets the
-// key-value separator on the [Default] logger's styles.
-func SetSeparatorFromEnv(envVar string) {
-	sep := os.Getenv(envVar)
-	if sep == "" {
-		return
-	}
-
-	Default.mu.Lock()
-	defer Default.mu.Unlock()
-
-	Default.styles.SeparatorText = sep
 }
 
 // DefaultLabels returns a copy of the default level labels.
@@ -767,7 +664,6 @@ func DefaultPrefixes() LevelMap {
 func GetLevel() Level {
 	Default.mu.Lock()
 	defer Default.mu.Unlock()
-
 	return Default.level
 }
 
@@ -805,11 +701,6 @@ func SetLevelLabels(labels LevelMap) { Default.SetLevelLabels(labels) }
 
 // SetOmitEmpty enables or disables omitting empty fields on the [Default] logger.
 func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
-
-// SetOmitQuotes enables or disables omitting quotes on the [Default] logger.
-//
-// Deprecated: Use [SetQuoteMode] with [QuoteNever] or [QuoteAuto] instead.
-func SetOmitQuotes(omit bool) { Default.SetOmitQuotes(omit) }
 
 // SetOmitZero enables or disables omitting zero-value fields on the [Default] logger.
 func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
@@ -876,11 +767,5 @@ func centerPad(s string, width int) string {
 	pad := width - len(s)
 	left := pad / 2 //nolint:mnd // half the padding goes left
 	right := pad - left
-
 	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
-}
-
-func init() {
-	SetLevelFromEnv(DefaultEnvLogLevel)
-	SetSeparatorFromEnv(DefaultEnvSeparator)
 }

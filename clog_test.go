@@ -99,7 +99,7 @@ func TestSetLevel(t *testing.T) {
 	assert.Equal(t, ErrorLevel, l.level)
 }
 
-func TestSetLevelFromEnv(t *testing.T) {
+func TestLoadLogLevelFromEnv(t *testing.T) {
 	tests := []struct {
 		name          string
 		value         string
@@ -123,8 +123,8 @@ func TestSetLevelFromEnv(t *testing.T) {
 			defer func() { Default = origDefault }()
 
 			Default = New(io.Discard)
-			t.Setenv("TEST_CLOG_LEVEL", tt.value)
-			SetLevelFromEnv("TEST_CLOG_LEVEL")
+			t.Setenv("CLOG_LOG_LEVEL", tt.value)
+			loadLogLevelFromEnv()
 
 			assert.Equal(t, tt.wantLevel, Default.level)
 			assert.Equal(t, tt.wantTimestamp, Default.reportTimestamp)
@@ -132,14 +132,15 @@ func TestSetLevelFromEnv(t *testing.T) {
 	}
 }
 
-func TestSetLevelFromEnvNotSet(t *testing.T) {
+func TestLoadLogLevelFromEnvNotSet(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = New(io.Discard)
 	Default.SetLevel(WarnLevel)
+	t.Setenv("CLOG_LOG_LEVEL", "")
 
-	SetLevelFromEnv("CLOG_TEST_NONEXISTENT_VAR")
+	loadLogLevelFromEnv()
 
 	assert.Equal(t, WarnLevel, Default.level)
 }
@@ -286,7 +287,7 @@ func TestConfigure(t *testing.T) {
 		Default = New(io.Discard)
 		Default.SetLevel(DebugLevel)
 		Default.SetReportTimestamp(true)
-		t.Setenv(DefaultEnvLogLevel, "")
+		t.Setenv("CLOG_LOG_LEVEL", "")
 
 		Configure(&Config{Verbose: false})
 
@@ -300,7 +301,7 @@ func TestConfigure(t *testing.T) {
 
 		Default = New(io.Discard)
 		Default.SetLevel(DebugLevel)
-		t.Setenv(DefaultEnvLogLevel, "debug")
+		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
 		Configure(&Config{Verbose: false})
 
@@ -308,13 +309,13 @@ func TestConfigure(t *testing.T) {
 	})
 }
 
-func TestConfigureVerbose(t *testing.T) {
+func TestSetVerbose(t *testing.T) {
 	t.Run("enable", func(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
 		Default = New(io.Discard)
-		ConfigureVerbose(true)
+		SetVerbose(true)
 
 		assert.Equal(t, DebugLevel, Default.level)
 		assert.True(t, Default.reportTimestamp)
@@ -326,9 +327,9 @@ func TestConfigureVerbose(t *testing.T) {
 
 		Default = New(io.Discard)
 		Default.SetLevel(DebugLevel)
-		t.Setenv(DefaultEnvLogLevel, "")
+		t.Setenv("CLOG_LOG_LEVEL", "")
 
-		ConfigureVerbose(false)
+		SetVerbose(false)
 
 		assert.Equal(t, InfoLevel, Default.level)
 	})
@@ -339,9 +340,9 @@ func TestConfigureVerbose(t *testing.T) {
 
 		Default = New(io.Discard)
 		Default.SetLevel(DebugLevel)
-		t.Setenv(DefaultEnvLogLevel, "debug")
+		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
-		ConfigureVerbose(false)
+		SetVerbose(false)
 
 		assert.Equal(t, DebugLevel, Default.level)
 	})
@@ -599,68 +600,39 @@ func TestLogFormattedOutputMultipleFields(t *testing.T) {
 	assert.Equal(t, "INF ℹ️ test a=1 b=2 c=true\n", buf.String())
 }
 
-func TestSetLevelFromEnvDry(t *testing.T) {
+func TestLoadLogLevelFromEnvDry(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = New(io.Discard)
-	t.Setenv("TEST_CLOG_LEVEL_DRY", "dry")
-	SetLevelFromEnv("TEST_CLOG_LEVEL_DRY")
+	t.Setenv("CLOG_LOG_LEVEL", "dry")
+	loadLogLevelFromEnv()
 
 	assert.Equal(t, DryLevel, Default.level)
 }
 
-func TestSetLevelFromEnvFatal(t *testing.T) {
+func TestLoadLogLevelFromEnvFatal(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = New(io.Discard)
-	t.Setenv("TEST_CLOG_LEVEL_FATAL", "fatal")
-	SetLevelFromEnv("TEST_CLOG_LEVEL_FATAL")
+	t.Setenv("CLOG_LOG_LEVEL", "fatal")
+	loadLogLevelFromEnv()
 
 	assert.Equal(t, FatalLevel, Default.level)
 }
 
-func TestSetLevelFromEnvUnrecognised(t *testing.T) {
+func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = New(io.Discard)
-	t.Setenv("TEST_CLOG_LEVEL_BAD", "bogus")
+	t.Setenv("CLOG_LOG_LEVEL", "bogus")
 
 	// Should not change the level, just print to stderr.
-	SetLevelFromEnv("TEST_CLOG_LEVEL_BAD")
+	loadLogLevelFromEnv()
 
 	assert.Equal(t, InfoLevel, Default.level)
-}
-
-func TestSetSeparatorFromEnv(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = New(io.Discard)
-	t.Setenv("TEST_CLOG_SEP", ":")
-	SetSeparatorFromEnv("TEST_CLOG_SEP")
-
-	Default.mu.Lock()
-	got := Default.styles.SeparatorText
-	Default.mu.Unlock()
-
-	assert.Equal(t, ":", got)
-}
-
-func TestSetSeparatorFromEnvNotSet(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = New(io.Discard)
-	SetSeparatorFromEnv("CLOG_TEST_NONEXISTENT_SEP")
-
-	Default.mu.Lock()
-	got := Default.styles.SeparatorText
-	Default.mu.Unlock()
-
-	assert.Equal(t, "=", got)
 }
 
 func TestSetLevelLabels(t *testing.T) {
@@ -1231,36 +1203,6 @@ func TestOmitQuotesDisabledByDefault(t *testing.T) {
 	assert.Equal(t, QuoteAuto, l.quoteMode)
 }
 
-func TestOmitQuotes(t *testing.T) {
-	var buf bytes.Buffer
-
-	l := New(&buf)
-	l.SetOmitQuotes(true)
-	l.Info().Str("msg", "hello world").Msg("test")
-
-	assert.Equal(t, "INF ℹ️ test msg=hello world\n", buf.String())
-}
-
-func TestOmitQuotesInStringSlice(t *testing.T) {
-	var buf bytes.Buffer
-
-	l := New(&buf)
-	l.SetOmitQuotes(true)
-	l.Info().Strs("args", []string{"hello world", "ok"}).Msg("test")
-
-	assert.Equal(t, "INF ℹ️ test args=[hello world, ok]\n", buf.String())
-}
-
-func TestOmitQuotesInAnySlice(t *testing.T) {
-	var buf bytes.Buffer
-
-	l := New(&buf)
-	l.SetOmitQuotes(true)
-	l.Info().Anys("vals", []any{"hello world", 1}).Msg("test")
-
-	assert.Equal(t, "INF ℹ️ test vals=[hello world, 1]\n", buf.String())
-}
-
 func TestQuoteChar(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -1299,39 +1241,6 @@ func TestQuoteCharDefaultUsesStrconvQuote(t *testing.T) {
 	l.Info().Str("msg", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test msg=\"hello world\"\n", buf.String())
-}
-
-func TestSubLoggerInheritsQuoteSettings(t *testing.T) {
-	l := New(io.Discard)
-	l.SetOmitQuotes(true)
-	l.SetQuoteChars('[', ']')
-
-	sub := l.With().Str("k", "v").Logger()
-
-	assert.Equal(t, QuoteNever, sub.quoteMode)
-	assert.Equal(t, '[', sub.quoteOpen)
-	assert.Equal(t, ']', sub.quoteClose)
-}
-
-func TestSetOmitQuotesFalse(t *testing.T) {
-	l := New(io.Discard)
-	// First set to QuoteNever via SetOmitQuotes(true).
-	l.SetOmitQuotes(true)
-	assert.Equal(t, QuoteNever, l.quoteMode)
-
-	// SetOmitQuotes(false) should restore QuoteAuto.
-	l.SetOmitQuotes(false)
-	assert.Equal(t, QuoteAuto, l.quoteMode)
-}
-
-func TestPackageLevelSetOmitQuotes(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = New(io.Discard)
-	SetOmitQuotes(true)
-
-	assert.Equal(t, QuoteNever, Default.quoteMode)
 }
 
 func TestPackageLevelSetQuoteChar(t *testing.T) {
@@ -1374,18 +1283,6 @@ func TestPackageLevelSetQuoteChars(t *testing.T) {
 
 	assert.Equal(t, '[', Default.quoteOpen)
 	assert.Equal(t, ']', Default.quoteClose)
-}
-
-func TestOmitQuotesTakesPrecedenceOverQuoteChar(t *testing.T) {
-	var buf bytes.Buffer
-
-	l := New(&buf)
-	l.SetOmitQuotes(true)
-	l.SetQuoteChar('\'')
-	l.Info().Str("msg", "hello world").Msg("test")
-
-	// OmitQuotes should suppress quoting entirely, regardless of quoteChar.
-	assert.Equal(t, "INF ℹ️ test msg=hello world\n", buf.String())
 }
 
 func TestQuoteModeAuto(t *testing.T) {

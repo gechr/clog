@@ -100,7 +100,6 @@ func (e *Event) Dict(key string, dict *Event) *Event {
 	for _, f := range dict.fields {
 		e.fields = append(e.fields, Field{Key: key + "." + f.Key, Value: f.Value})
 	}
-
 	return e
 }
 
@@ -239,6 +238,18 @@ func (e *Event) Msgf(format string, args ...any) {
 	e.Msg(fmt.Sprintf(format, args...))
 }
 
+// Percent adds a percentage field (0–100) with gradient color styling.
+// Values are clamped to the 0–100 range. The color is interpolated from
+// the [Styles.PercentGradient] stops (default: red → yellow → green).
+func (e *Event) Percent(key string, val float64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: percent(clampPercent(val))})
+	return e
+}
+
 // Path adds a file path field as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Path(key, path string) *Event {
@@ -344,7 +355,7 @@ func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
 	strs := make([]string, len(vals))
 	for i, v := range vals {
 		if v == nil {
-			strs[i] = nilStr
+			strs[i] = Nil
 		} else {
 			rv := reflect.ValueOf(v)
 			switch rv.Kind() {
@@ -355,7 +366,7 @@ func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
 				reflect.Chan,
 				reflect.Func:
 				if rv.IsNil() {
-					strs[i] = nilStr
+					strs[i] = Nil
 					continue
 				}
 			case reflect.Invalid, reflect.Bool,

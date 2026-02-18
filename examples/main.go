@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand/v2"
 	"os"
 	"time"
 
@@ -417,9 +416,8 @@ func demo() {
 		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
 			hundred := 100
 			for i := range hundred {
-				progress := min(i+rand.IntN(5)+1, hundred)
-				percent := fmt.Sprintf("%d%%", progress)
-				update.Title("Applying migrations").Str("progress", percent).Send()
+				progress := min(i+1, hundred)
+				update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil

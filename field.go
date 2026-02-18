@@ -72,6 +72,14 @@ func (fb *fieldBuilder[T]) Ints(key string, vals []int) *T {
 	return fb.self
 }
 
+// Percent adds a percentage field (0–100) with gradient color styling.
+// Values are clamped to the 0–100 range. The color is interpolated from
+// the [Styles.PercentGradient] stops (default: red → yellow → green).
+func (fb *fieldBuilder[T]) Percent(key string, val float64) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: percent(clampPercent(val))})
+	return fb.self
+}
+
 // Quantities adds a quantity string slice field. Each element is styled
 // with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
 func (fb *fieldBuilder[T]) Quantities(key string, vals []string) *T {

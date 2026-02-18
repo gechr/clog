@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-func TestConfigureColorOutputNever(t *testing.T) {
+func TestSetGlobalColorModeNever(t *testing.T) {
 	origForced := colorsForced.Load()
 	origDisabled := colorsDisabledFlag.Load()
 	origEnabled := hyperlinksEnabled.Load()
@@ -17,14 +18,14 @@ func TestConfigureColorOutputNever(t *testing.T) {
 		hyperlinksEnabled.Store(origEnabled)
 	}()
 
-	ConfigureColorOutput("never")
+	SetGlobalColorMode(ColorNever)
 
 	assert.False(t, colorsForced.Load(), "expected colorsForced false")
 	assert.True(t, colorsDisabledFlag.Load(), "expected colorsDisabledFlag true")
 	assert.False(t, hyperlinksEnabled.Load(), "expected hyperlinks disabled")
 }
 
-func TestConfigureColorOutputAlways(t *testing.T) {
+func TestSetGlobalColorModeAlways(t *testing.T) {
 	origForced := colorsForced.Load()
 	origDisabled := colorsDisabledFlag.Load()
 
@@ -33,13 +34,13 @@ func TestConfigureColorOutputAlways(t *testing.T) {
 		colorsDisabledFlag.Store(origDisabled)
 	}()
 
-	ConfigureColorOutput("always")
+	SetGlobalColorMode(ColorAlways)
 
 	assert.True(t, colorsForced.Load(), "expected colorsForced true")
 	assert.False(t, colorsDisabledFlag.Load(), "expected colorsDisabledFlag false")
 }
 
-func TestConfigureColorOutputAuto(t *testing.T) {
+func TestSetGlobalColorModeAuto(t *testing.T) {
 	origForced := colorsForced.Load()
 	origDisabled := colorsDisabledFlag.Load()
 
@@ -52,10 +53,47 @@ func TestConfigureColorOutputAuto(t *testing.T) {
 	colorsForced.Store(true)
 	colorsDisabledFlag.Store(true)
 
-	ConfigureColorOutput("auto")
+	SetGlobalColorMode(ColorAuto)
 
 	assert.False(t, colorsForced.Load(), "expected colorsForced false")
 	assert.False(t, colorsDisabledFlag.Load(), "expected colorsDisabledFlag false")
+}
+
+func TestColorModeMarshalText(t *testing.T) {
+	for _, tt := range []struct {
+		mode ColorMode
+		want string
+	}{
+		{ColorAuto, "auto"},
+		{ColorAlways, "always"},
+		{ColorNever, "never"},
+	} {
+		got, err := tt.mode.MarshalText()
+		require.NoError(t, err)
+		assert.Equal(t, tt.want, string(got))
+	}
+}
+
+func TestColorModeUnmarshalText(t *testing.T) {
+	for _, tt := range []struct {
+		text string
+		want ColorMode
+	}{
+		{"auto", ColorAuto},
+		{"always", ColorAlways},
+		{"never", ColorNever},
+	} {
+		var got ColorMode
+		require.NoError(t, got.UnmarshalText([]byte(tt.text)))
+		assert.Equal(t, tt.want, got)
+	}
+}
+
+func TestColorModeUnmarshalTextInvalid(t *testing.T) {
+	var m ColorMode
+	err := m.UnmarshalText([]byte("bogus"))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown color mode")
 }
 
 func TestColorsDisabledForced(t *testing.T) {

@@ -66,14 +66,12 @@ func Spinner(title string) *SpinnerBuilder {
 		title:   title,
 	}
 	b.initSelf(b)
-
 	return b
 }
 
 // Type sets the spinner animation type.
 func (b *SpinnerBuilder) Type(s spinner.Spinner) *SpinnerBuilder {
 	b.spinner = s
-
 	return b
 }
 
@@ -85,7 +83,6 @@ func (b *SpinnerBuilder) Path(key, path string) *SpinnerBuilder {
 	Default.mu.Unlock()
 
 	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, 0, 0, mode)})
-
 	return b
 }
 
@@ -101,7 +98,6 @@ func (b *SpinnerBuilder) Line(key, path string, line int) *SpinnerBuilder {
 	}
 
 	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, line, 0, mode)})
-
 	return b
 }
 
@@ -124,7 +120,6 @@ func (b *SpinnerBuilder) Column(key, path string, line, column int) *SpinnerBuil
 		b.fields,
 		Field{Key: key, Value: pathLinkWithMode(path, line, column, mode)},
 	)
-
 	return b
 }
 
@@ -136,7 +131,6 @@ func (b *SpinnerBuilder) URL(key, url string) *SpinnerBuilder {
 	Default.mu.Unlock()
 
 	b.fields = append(b.fields, Field{Key: key, Value: hyperlinkWithMode(url, url, mode)})
-
 	return b
 }
 
@@ -148,7 +142,6 @@ func (b *SpinnerBuilder) Link(key, url, text string) *SpinnerBuilder {
 	Default.mu.Unlock()
 
 	b.fields = append(b.fields, Field{Key: key, Value: hyperlinkWithMode(url, text, mode)})
-
 	return b
 }
 
@@ -197,7 +190,6 @@ func (b *SpinnerBuilder) Progress(
 	}
 	w.fields = *fieldsPtr.Load()
 	w.initSelf(w)
-
 	return w
 }
 
@@ -232,7 +224,6 @@ func (w *WaitResult) event(level Level) *Event {
 	if w.prefix != nil {
 		e = e.withPrefix(*w.prefix)
 	}
-
 	return e
 }
 
@@ -240,14 +231,12 @@ func (w *WaitResult) event(level Level) *Event {
 // level with the original spinner title on failure. Returns the error.
 func (w *WaitResult) Msg(msg string) error {
 	w.successMsg = msg
-
 	return w.Send()
 }
 
 // OnErrorLevel sets the log level for the error case. Defaults to [ErrorLevel].
 func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
 	w.errorLevel = level
-
 	return w
 }
 
@@ -255,14 +244,12 @@ func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
 // error string.
 func (w *WaitResult) OnErrorMessage(msg string) *WaitResult {
 	w.errorMsg = &msg
-
 	return w
 }
 
 // OnSuccessLevel sets the log level for the success case. Defaults to [InfoLevel].
 func (w *WaitResult) OnSuccessLevel(level Level) *WaitResult {
 	w.successLevel = level
-
 	return w
 }
 
@@ -270,14 +257,12 @@ func (w *WaitResult) OnSuccessLevel(level Level) *WaitResult {
 // original spinner title.
 func (w *WaitResult) OnSuccessMessage(msg string) *WaitResult {
 	w.successMsg = msg
-
 	return w
 }
 
 // Prefix sets a custom emoji prefix for the completion log message.
 func (w *WaitResult) Prefix(prefix string) *WaitResult {
 	w.prefix = new(prefix)
-
 	return w
 }
 
@@ -294,7 +279,6 @@ func (w *WaitResult) Send() error {
 
 		w.event(w.errorLevel).Err(w.err).Msg(msg)
 	}
-
 	return w.err
 }
 
@@ -319,19 +303,19 @@ func runSpinner(
 
 	// Snapshot Default's settings under the mutex to avoid data races.
 	Default.mu.Lock()
-	noColor := Default.colorsDisabled()
-	out := Default.out
-	styles := Default.styles
+	fieldStyleLevel := Default.fieldStyleLevel
+	fieldTimeFormat := Default.fieldTimeFormat
 	label := Default.formatLabel(InfoLevel)
-	reportTS := Default.reportTimestamp
-	timeFmt := Default.timeFormat
-	timeLoc := Default.timeLocation
+	noColor := Default.colorsDisabled()
 	order := Default.parts
+	out := Default.out
+	quoteClose := Default.quoteClose
 	quoteMode := Default.quoteMode
 	quoteOpen := Default.quoteOpen
-	quoteClose := Default.quoteClose
-	fieldTimeFormat := Default.fieldTimeFormat
-	fieldStyleLevel := Default.fieldStyleLevel
+	reportTS := Default.reportTimestamp
+	styles := Default.styles
+	timeFmt := Default.timeFormat
+	timeLoc := Default.timeLocation
 	Default.mu.Unlock()
 
 	// Don't animate if colours are disabled (CI, piped output, etc.).
@@ -359,9 +343,9 @@ func runSpinner(
 				part = strings.TrimLeft(
 					formatFields(*fields.Load(), formatFieldsOpts{
 						noColor:    true,
+						quoteClose: quoteClose,
 						quoteMode:  quoteMode,
 						quoteOpen:  quoteOpen,
-						quoteClose: quoteClose,
 						timeFormat: fieldTimeFormat,
 					}), " ",
 				)
@@ -373,7 +357,6 @@ func runSpinner(
 		}
 
 		_, _ = fmt.Fprintf(out, "%s\n", strings.Join(parts, " "))
-
 		return <-done
 	}
 
@@ -399,7 +382,6 @@ func runSpinner(
 		select {
 		case err := <-done:
 			_, _ = io.WriteString(out, "\r"+ansi.EraseLineRight)
-
 			return err
 		case <-ticker.C:
 			char := s.Frames[frame%len(s.Frames)]
@@ -449,7 +431,6 @@ func runSpinner(
 			frame++
 		case <-ctx.Done():
 			_, _ = io.WriteString(out, "\r"+ansi.EraseLineRight)
-
 			return ctx.Err()
 		}
 	}

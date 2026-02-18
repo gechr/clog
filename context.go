@@ -47,7 +47,6 @@ func (c *Context) Dict(key string, dict *Event) *Context {
 	for _, f := range dict.fields {
 		c.fields = append(c.fields, Field{Key: key + "." + f.Key, Value: f.Value})
 	}
-
 	return c
 }
 
@@ -90,7 +89,6 @@ func (c *Context) Link(key, url, text string) *Context {
 func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
-
 	return &Logger{
 		mu: c.logger.mu,
 
@@ -156,7 +154,7 @@ func (c *Context) Stringers(key string, vals []fmt.Stringer) *Context {
 	strs := make([]string, len(vals))
 	for i, v := range vals {
 		if v == nil {
-			strs[i] = nilStr
+			strs[i] = Nil
 		} else {
 			strs[i] = v.String()
 		}

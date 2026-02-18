@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/lucasb-eyer/go-colorful"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -171,17 +172,39 @@ func TestFormatValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "")
+			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "", 0)
 			assert.Equal(t, tt.wantStr, got)
 			assert.Equal(t, tt.wantKind, kind)
 		})
 	}
 }
 
+func TestFormatValuePercent(t *testing.T) {
+	got, kind := formatValue(percent(75), QuoteAuto, 0, 0, "", 0)
+	assert.Equal(t, "75%", got)
+	assert.Equal(t, kindPercent, kind)
+}
+
+func TestFormatValuePercentDecimal(t *testing.T) {
+	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 0)
+	assert.Equal(t, "33%", got)
+	assert.Equal(t, kindPercent, kind)
+}
+
+func TestFormatValuePercentPrecision(t *testing.T) {
+	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 1)
+	assert.Equal(t, "33.3%", got)
+	assert.Equal(t, kindPercent, kind)
+
+	got, kind = formatValue(percent(33.333), QuoteAuto, 0, 0, "", 2)
+	assert.Equal(t, "33.33%", got)
+	assert.Equal(t, kindPercent, kind)
+}
+
 func TestFormatValueTimeCustomFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339)
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339, 0)
 	assert.Equal(t, "2025-06-15T10:30:00Z", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -190,7 +213,7 @@ func TestFormatValueTimeEmptyFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
 	// Empty timeFormat should fall back to time.DateTime.
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, "")
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, "", 0)
 	assert.Equal(t, "2025-06-15 10:30:00", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -544,9 +567,9 @@ func TestStyleValuePriority(t *testing.T) {
 	// No style for unrecognised default kind values.
 	assert.Empty(t, styleValue("something", "something", "field", kindDefault, styles))
 
-	// No style for slices (originalValue is nil because styledFieldValue
-	// handles slices before calling styleValue).
-	assert.Empty(t, styleValue("[1, 2]", nil, "field", kindSlice, styles))
+	// No style for slices (styledFieldValue handles slices before calling
+	// styleValue, but if it does reach here the slice itself is not styled).
+	assert.Empty(t, styleValue("[1, 2]", []int{1, 2}, "field", kindSlice, styles))
 }
 
 func TestFormatFieldsIntSliceStyled(t *testing.T) {
@@ -869,7 +892,7 @@ func TestStyledSliceDefault(t *testing.T) {
 func TestFormatBoolSliceNoMatchingValueStyle(t *testing.T) {
 	styles := DefaultStyles()
 	// Remove all value styles so the bool values have no matching style.
-	styles.Values = map[any]*lipgloss.Style{}
+	styles.Values = ValueStyleMap{}
 
 	got := formatBoolSlice([]bool{true, false}, styles)
 
@@ -1168,7 +1191,7 @@ func TestStyleQuantityPartialNil(t *testing.T) {
 }
 
 func TestFormatValueQuantity(t *testing.T) {
-	got, kind := formatValue(quantity("5.1km"), QuoteAuto, 0, 0, "")
+	got, kind := formatValue(quantity("5.1km"), QuoteAuto, 0, 0, "", 0)
 	assert.Equal(t, "5.1km", got)
 	assert.Equal(t, kindQuantity, kind)
 }
@@ -1398,7 +1421,7 @@ func TestFormatFieldsQuantitySliceStyled(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
-func TestStyleQuantityThreshold(t *testing.T) {
+func TestStyleThreshold(t *testing.T) {
 	styles := DefaultStyles()
 	num := styles.FieldQuantityNumber.Render
 
@@ -1407,9 +1430,9 @@ func TestStyleQuantityThreshold(t *testing.T) {
 	yellowNum := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	yellowUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
 
-	styles.QuantityThresholds["ms"] = []QuantityThreshold{
-		{Value: 5000, Number: new(redNum), Unit: new(redUnit)},
-		{Value: 1000, Number: new(yellowNum), Unit: new(yellowUnit)},
+	styles.QuantityThresholds["ms"] = []Threshold{
+		{Value: 5000, Style: ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
+		{Value: 1000, Style: ThresholdStyle{Number: new(yellowNum), Unit: new(yellowUnit)}},
 	}
 
 	tests := []struct {
@@ -1452,14 +1475,14 @@ func TestStyleQuantityThreshold(t *testing.T) {
 	}
 }
 
-func TestStyleQuantityThresholdCompound(t *testing.T) {
+func TestStyleThresholdCompound(t *testing.T) {
 	styles := DefaultStyles()
 	num := styles.FieldQuantityNumber.Render
 	unit := styles.FieldQuantityUnit.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	styles.QuantityThresholds["h"] = []QuantityThreshold{
-		{Value: 10, Number: new(redNum)},
+	styles.QuantityThresholds["h"] = []Threshold{
+		{Value: 10, Style: ThresholdStyle{Number: new(redNum)}},
 	}
 
 	// "12h30m" — "h" threshold fires for 12, "m" uses default.
@@ -1467,14 +1490,14 @@ func TestStyleQuantityThresholdCompound(t *testing.T) {
 	assert.Equal(t, redNum.Render("12")+unit("h")+num("30")+unit("m"), got)
 }
 
-func TestStyleQuantityThresholdNilOverrides(t *testing.T) {
+func TestStyleThresholdNilOverrides(t *testing.T) {
 	styles := DefaultStyles()
 	num := styles.FieldQuantityNumber.Render
 
 	// Threshold with only Number override (Unit = nil keeps default).
 	yellowNum := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
-	styles.QuantityThresholds["s"] = []QuantityThreshold{
-		{Value: 30, Number: new(yellowNum)},
+	styles.QuantityThresholds["s"] = []Threshold{
+		{Value: 30, Style: ThresholdStyle{Number: new(yellowNum)}},
 	}
 
 	got := styleQuantity("60s", styles)
@@ -1492,8 +1515,8 @@ func TestStyleDurationThreshold(t *testing.T) {
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
 
-	styles.DurationThresholds["s"] = []QuantityThreshold{
-		{Value: 30, Number: new(redNum), Unit: new(redUnit)},
+	styles.DurationThresholds["s"] = []Threshold{
+		{Value: 30, Style: ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
 	}
 
 	// 45s exceeds 30s threshold.
@@ -1505,13 +1528,13 @@ func TestStyleDurationThreshold(t *testing.T) {
 	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
 }
 
-func TestStyleQuantityThresholdIgnoreCase(t *testing.T) {
+func TestStyleThresholdIgnoreCase(t *testing.T) {
 	styles := DefaultStyles()
 	num := styles.FieldQuantityNumber.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-	styles.QuantityThresholds["mb"] = []QuantityThreshold{
-		{Value: 500, Number: new(redNum)},
+	styles.QuantityThresholds["mb"] = []Threshold{
+		{Value: 500, Style: ThresholdStyle{Number: new(redNum)}},
 	}
 
 	// "MB" should match "mb" threshold with case-insensitive matching (default).
@@ -1523,15 +1546,15 @@ func TestStyleQuantityThresholdIgnoreCase(t *testing.T) {
 	assert.Equal(t, num("100")+styles.FieldQuantityUnit.Render("MB"), got)
 }
 
-func TestStyleQuantityThresholdOnlyOverridesEnabled(t *testing.T) {
+func TestStyleThresholdOnlyOverridesEnabled(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldQuantityNumber = nil
 	styles.FieldQuantityUnit = nil
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
-	styles.QuantityThresholds["ms"] = []QuantityThreshold{
-		{Value: 100, Number: new(redNum), Unit: new(redUnit)},
+	styles.QuantityThresholds["ms"] = []Threshold{
+		{Value: 100, Style: ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
 	}
 
 	// Above threshold — threshold styles apply even with nil defaults.
@@ -1555,6 +1578,26 @@ func TestTypedValuesBoolVsString(t *testing.T) {
 	assert.Nil(t, styles.Values["false"], "string \"false\" should not have a style")
 }
 
+func TestLookupValueStyleNil(t *testing.T) {
+	styles := DefaultStyles()
+
+	// Go nil should have a style in defaults.
+	assert.NotNil(t, styles.Values[nil], "nil should have a style")
+
+	// lookupValueStyle should find it.
+	got := lookupValueStyle(nil, styles.Values)
+	assert.NotNil(t, got, "lookupValueStyle should match Go nil")
+}
+
+func TestStyleValueNilViaAny(t *testing.T) {
+	styles := DefaultStyles()
+
+	// Any("k", nil) -> formatValue returns "<nil>", kindDefault.
+	// styleValue should find the nil value style via lookupValueStyle.
+	got := styleValue("<nil>", nil, "k", kindDefault, styles)
+	assert.NotEmpty(t, got, "nil value should be styled via Values[nil]")
+}
+
 func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	styles := DefaultStyles()
 
@@ -1564,12 +1607,143 @@ func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	styles.Values[true] = new(boolStyle)
 	styles.FieldString = new(strStyle)
 
-	// Bool field true → styled via typed Values[true].
+	// Bool field true -> styled via typed Values[true].
 	got := styleValue("true", true, "ok", kindBool, styles)
 	assert.Equal(t, boolStyle.Render("true"), got)
 
-	// String field "true" → NOT styled via Values (no string "true" key).
+	// String field "true" -> NOT styled via Values (no string "true" key).
 	// Should fall through to FieldString styling.
 	got = styleValue("true", "true", "ok", kindString, styles)
 	assert.Equal(t, strStyle.Render("true"), got)
+}
+
+func TestClampPercent(t *testing.T) {
+	assert.InDelta(t, 0.0, clampPercent(-10), 0)
+	assert.InDelta(t, 0.0, clampPercent(0), 0)
+	assert.InDelta(t, 50.0, clampPercent(50), 0)
+	assert.InDelta(t, 100.0, clampPercent(100), 0)
+	assert.InDelta(t, 100.0, clampPercent(200), 0)
+}
+
+func TestInterpolateGradientEmpty(t *testing.T) {
+	c := interpolateGradient(0.5, nil)
+	// Empty -> white fallback.
+	assert.InDelta(t, 1.0, c.R, 0.01)
+	assert.InDelta(t, 1.0, c.G, 0.01)
+	assert.InDelta(t, 1.0, c.B, 0.01)
+}
+
+func TestInterpolateGradientSingleStop(t *testing.T) {
+	red := colorful.Color{R: 1, G: 0, B: 0}
+	c := interpolateGradient(0.5, []ColorStop{{Position: 0.5, Color: red}})
+	assert.InDelta(t, 1.0, c.R, 0.01)
+	assert.InDelta(t, 0.0, c.G, 0.01)
+	assert.InDelta(t, 0.0, c.B, 0.01)
+}
+
+func TestInterpolateGradientEdges(t *testing.T) {
+	stops := DefaultPercentGradient()
+
+	// At 0.0 -> red.
+	c := interpolateGradient(0.0, stops)
+	assert.InDelta(t, 1.0, c.R, 0.01)
+	assert.InDelta(t, 0.0, c.G, 0.1)
+
+	// At 1.0 -> green.
+	c = interpolateGradient(1.0, stops)
+	assert.InDelta(t, 0.0, c.R, 0.1)
+	assert.InDelta(t, 1.0, c.G, 0.01)
+
+	// Below 0.0 -> clamp to red.
+	c = interpolateGradient(-0.5, stops)
+	assert.InDelta(t, 1.0, c.R, 0.01)
+
+	// Above 1.0 -> clamp to green.
+	c = interpolateGradient(1.5, stops)
+	assert.InDelta(t, 0.0, c.R, 0.1)
+	assert.InDelta(t, 1.0, c.G, 0.01)
+}
+
+func TestInterpolateGradientMidpoint(t *testing.T) {
+	stops := DefaultPercentGradient()
+
+	// At 0.5 -> yellow (R=1, G=1, B=0).
+	c := interpolateGradient(0.5, stops)
+	assert.InDelta(t, 1.0, c.R, 0.01)
+	assert.InDelta(t, 1.0, c.G, 0.01)
+	assert.InDelta(t, 0.0, c.B, 0.1)
+}
+
+func TestStylePercentOutput(t *testing.T) {
+	styles := DefaultStyles()
+	got := stylePercent("75%", percent(75), styles)
+
+	// Should contain ANSI escape codes (color applied).
+	assert.NotEmpty(t, got)
+	assert.Contains(t, got, "75%")
+}
+
+func TestStylePercentNoGradient(t *testing.T) {
+	styles := DefaultStyles()
+	styles.PercentGradient = nil
+	got := stylePercent("50%", percent(50), styles)
+	assert.Empty(t, got, "nil gradient should return empty")
+}
+
+func TestStylePercentWrongType(t *testing.T) {
+	styles := DefaultStyles()
+	got := stylePercent("50%", "not a percent", styles)
+	assert.Empty(t, got, "non-percent originalValue should return empty")
+}
+
+func TestStylePercentSingleStop(t *testing.T) {
+	styles := DefaultStyles()
+	blue := colorful.Color{R: 0, G: 0, B: 1}
+	styles.PercentGradient = []ColorStop{{Position: 0.5, Color: blue}}
+	got := stylePercent("50%", percent(50), styles)
+
+	// Should use the single stop's color for any value.
+	assert.NotEmpty(t, got)
+	assert.Contains(t, got, "50%")
+}
+
+func TestStyleValuePercent(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleValue("75%", percent(75), "progress", kindPercent, styles)
+	assert.NotEmpty(t, got)
+	assert.Contains(t, got, "75%")
+}
+
+func TestStyleValuePercentNilGradient(t *testing.T) {
+	styles := DefaultStyles()
+	styles.PercentGradient = nil
+	got := styleValue("50%", percent(50), "progress", kindPercent, styles)
+	assert.Empty(t, got)
+}
+
+func TestStylePercentBaseStyle(t *testing.T) {
+	styles := DefaultStyles()
+	bold := lipgloss.NewStyle().Bold(true)
+	styles.FieldPercent = new(bold)
+
+	got := stylePercent("75%", percent(75), styles)
+	assert.NotEmpty(t, got)
+	assert.Contains(t, got, "75%")
+}
+
+func TestStylePercentBaseStyleOnly(t *testing.T) {
+	styles := DefaultStyles()
+	bold := lipgloss.NewStyle().Bold(true)
+	styles.FieldPercent = new(bold)
+	styles.PercentGradient = nil // no gradient, base style only
+
+	got := stylePercent("50%", percent(50), styles)
+	assert.Equal(t, bold.Render("50%"), got)
+}
+
+func TestStyleAnyElementPercent(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleAnyElement("75%", percent(75), kindPercent, styles)
+	assert.NotEmpty(t, got)
+	assert.Contains(t, got, "75%")
 }

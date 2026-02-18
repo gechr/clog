@@ -220,7 +220,6 @@ func TestSpinnerProgressSuccess(t *testing.T) {
 		Str("file", "a.go").
 		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
 			update.Title("step 2").Str("file", "b.go").Send()
-
 			return nil
 		})
 
@@ -254,7 +253,6 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 	).Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
 		// Update title without additional fields.
 		update.Title("step 2").Send()
-
 		return nil
 	})
 
@@ -611,7 +609,6 @@ func TestRunSpinnerAnimationDoneCase(t *testing.T) {
 		Wait(context.Background(), func(_ context.Context) error {
 			// Wait long enough for at least one spinner frame to render.
 			time.Sleep(20 * time.Millisecond)
-
 			return nil
 		})
 
@@ -656,7 +653,6 @@ func TestRunSpinnerAnimationContextCancel(t *testing.T) {
 	result := Spinner("loading").Type(fastSpinner).Wait(ctx, func(_ context.Context) error {
 		// Block much longer than the cancel delay.
 		time.Sleep(10 * time.Second)
-
 		return nil
 	})
 
@@ -690,7 +686,6 @@ func TestRunSpinnerAnimationError(t *testing.T) {
 	).Type(fastSpinner).
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(10 * time.Millisecond)
-
 			return testErr
 		})
 
@@ -757,7 +752,6 @@ func TestRunSpinnerAnimationWithTimestamp(t *testing.T) {
 	result := Spinner("loading").Type(fastSpinner).
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(20 * time.Millisecond)
-
 			return nil
 		})
 

@@ -54,12 +54,11 @@ ERR ❌ Connection failed error=connection refused
 // Programmatically
 clog.SetLevel(clog.DebugLevel)
 
-// From environment variable (checked automatically on init)
-// export CLOG_LEVEL=debug
-clog.SetLevelFromEnv("CLOG_LEVEL")
+// From environment variable (CLOG_LOG_LEVEL is checked automatically on init)
+// export CLOG_LOG_LEVEL=debug
 ```
 
-Recognised `CLOG_LEVEL` values: `trace`, `debug`, `info`, `dry`, `warn`, `warning`, `error`, `fatal`.
+Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `dry`, `warn`, `warning`, `error`, `fatal`, `critical`.
 
 Setting `trace` or `debug` also enables timestamps.
 
@@ -71,32 +70,33 @@ Events and contexts support typed field methods. All methods are safe to call on
 
 | Method       | Signature                                     | Description                           |
 | ------------ | --------------------------------------------- | ------------------------------------- |
-| `Str`        | `Str(key, val string)`                        | String field                          |
-| `Strs`       | `Strs(key string, vals []string)`             | String slice field                    |
-| `Int`        | `Int(key string, val int)`                    | Integer field                         |
-| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                   |
-| `Uint64`     | `Uint64(key string, val uint64)`              | Unsigned integer field                |
-| `Uints64`    | `Uints64(key string, vals []uint64)`          | Unsigned integer slice field          |
-| `Float64`    | `Float64(key string, val float64)`            | Float field                           |
-| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                     |
-| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                         |
-| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                   |
-| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                        |
-| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                  |
-| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)        |
-| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                  |
-| `Time`       | `Time(key string, val time.Time)`             | Time field                            |
-| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe) |
 | `Any`        | `Any(key string, val any)`                    | Arbitrary value                       |
 | `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                 |
-| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys  |
-| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink    |
-| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink         |
+| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                         |
+| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                   |
 | `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink  |
-| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text) |
+| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys  |
+| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                        |
+| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                  |
+| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe) |
+| `Float64`    | `Float64(key string, val float64)`            | Float field                           |
+| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                     |
+| `Int`        | `Int(key string, val int)`                    | Integer field                         |
+| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                   |
+| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink         |
 | `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink               |
+| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink    |
+| `Percent`    | `Percent(key string, val float64)`            | Percentage with gradient colour       |
+| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                  |
+| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)        |
+| `Str`        | `Str(key, val string)`                        | String field                          |
 | `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)           |
 | `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values        |
+| `Strs`       | `Strs(key string, vals []string)`             | String slice field                    |
+| `Time`       | `Time(key string, val time.Time)`             | Time field                            |
+| `Uint64`     | `Uint64(key string, val uint64)`              | Unsigned integer field                |
+| `Uints64`    | `Uints64(key string, vals []uint64)`          | Unsigned integer slice field          |
+| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text) |
 
 ### Finalising Events
 
@@ -124,7 +124,7 @@ clog.Info().
 // INF ℹ️ User name=alice age=0 admin=false
 ```
 
-**OmitZero** is a superset of OmitEmpty - it additionally omits `0`, `false`, `0.0`, zero durations, and any other typed zero value.
+**OmitZero** is a superset of `OmitEmpty` - it additionally omits `0`, `false`, `0.0`, zero durations, and any other typed zero value.
 
 ```go
 clog.SetOmitZero(true)
@@ -193,8 +193,6 @@ clog.Info().Str("msg", "hello world").Msg("test")
 ```
 
 Quoting applies to individual field values and to elements within string and `[]any` slices. All quoting settings are inherited by sub-loggers. Pass `0` to reset to the default (`strconv.Quote`).
-
-> **Deprecated:** `SetOmitQuotes(true/false)` still works but delegates to `SetQuoteMode(QuoteNever)` / `SetQuoteMode(QuoteAuto)`. Prefer `SetQuoteMode` for new code.
 
 ## Sub-loggers
 
@@ -410,12 +408,12 @@ Use `{path}`, `{line}`, and `{column}` (or `{col}`) as placeholders. Default for
 
 Format resolution order:
 
-| Context        | Fallback chain                                  |
-| -------------- | ----------------------------------------------- |
-| Directory      | `DirFormat`    → `PathFormat` → `file://{path}` |
-| File (no line) | `FileFormat`   → `PathFormat` → `file://{path}` |
-| File + line    | `LineFormat`   → `file://{path}`                |
-| File + column  | `ColumnFormat` → `LineFormat` → `file://{path}` |
+| Context        | Fallback chain                                    |
+| -------------- | ------------------------------------------------- |
+| Directory      | `DirFormat`    -> `PathFormat` -> `file://{path}` |
+| File (no line) | `FileFormat`   -> `PathFormat` -> `file://{path}` |
+| File + line    | `LineFormat`   -> `file://{path}`                 |
+| File + column  | `ColumnFormat` -> `LineFormat` -> `file://{path}` |
 
 These can also be set via environment variables:
 
@@ -464,7 +462,7 @@ clog.Configure(&clog.Config{
 })
 
 // Toggle verbose mode
-clog.ConfigureVerbose(true)
+clog.SetVerbose(true)
 ```
 
 ### Custom Logger
@@ -476,7 +474,7 @@ logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
 logger.SetFieldTimeFormat(time.Kitchen)    // format for .Time() fields (default: time.RFC3339)
 logger.SetTimeLocation(time.UTC)           // timezone for timestamps (default: time.Local)
-logger.SetFieldStyleLevel(clog.TraceLevel) // min level for field value styling (default: "info")
+logger.SetFieldStyleLevel(clog.TraceLevel) // min level for field value styling (default: InfoLevel)
 logger.SetHandler(myHandler)
 ```
 
@@ -494,13 +492,38 @@ clog.SetHyperlinksEnabled(false) // disable all hyperlink rendering
 
 ### Environment Variables
 
-`CLOG_LEVEL` and `CLOG_SEPARATOR` are checked automatically at init.
+All env vars follow the pattern `{PREFIX}_{SUFFIX}`. The default prefix is `CLOG`.
+
+| Suffix                    | Default env var                   |
+| ------------------------- | --------------------------------- |
+| `LOG_LEVEL`               | `CLOG_LOG_LEVEL`                  |
+| `HYPERLINK_PATH_FORMAT`   | `CLOG_HYPERLINK_PATH_FORMAT`      |
+| `HYPERLINK_FILE_FORMAT`   | `CLOG_HYPERLINK_FILE_FORMAT`      |
+| `HYPERLINK_DIR_FORMAT`    | `CLOG_HYPERLINK_DIR_FORMAT`       |
+| `HYPERLINK_LINE_FORMAT`   | `CLOG_HYPERLINK_LINE_FORMAT`      |
+| `HYPERLINK_COLUMN_FORMAT` | `CLOG_HYPERLINK_COLUMN_FORMAT`    |
+
+`CLOG_LOG_LEVEL` is checked automatically at init.
 
 ```sh
-CLOG_LEVEL=debug ./some-app  # enables debug logging + timestamps
-CLOG_LEVEL=warn ./some-app   # suppresses info messages
-CLOG_SEPARATOR=: ./some-app  # use ":" instead of "=" between keys and values
+CLOG_LOG_LEVEL=debug ./some-app  # enables debug logging + timestamps
+CLOG_LOG_LEVEL=warn ./some-app   # suppresses info messages
 ```
+
+### Custom Env Prefix
+
+Use `SetEnvPrefix` to whitelabel the env var names for your application. The custom prefix is checked first, with `CLOG_` as a fallback.
+
+```go
+clog.SetEnvPrefix("MYAPP")
+// Now checks MYAPP_LOG_LEVEL first, then CLOG_LOG_LEVEL
+// Now checks MYAPP_HYPERLINK_PATH_FORMAT first, then CLOG_HYPERLINK_PATH_FORMAT
+// etc.
+```
+
+This means `CLOG_LOG_LEVEL=debug` always works as a universal escape hatch, even when the application uses a custom prefix.
+
+`NO_COLOR` is never prefixed — it follows the [no-color.org](https://no-color.org/) standard independently.
 
 ## `NO_COLOR`
 
@@ -509,9 +532,9 @@ clog respects the [`NO_COLOR`](https://no-color.org/) convention. When the `NO_C
 ### Global Colour Control
 
 ```go
-clog.ConfigureColorOutput("auto")   // detect terminal capabilities (default)
-clog.ConfigureColorOutput("always") // force colours (overrides NO_COLOR)
-clog.ConfigureColorOutput("never")  // disable all colours and hyperlinks
+clog.SetGlobalColorMode(clog.ColorAuto)   // detect terminal capabilities (default)
+clog.SetGlobalColorMode(clog.ColorAlways) // force colours (overrides NO_COLOR)
+clog.SetGlobalColorMode(clog.ColorNever)  // disable all colours and hyperlinks
 ```
 
 ### Per-Logger Colour Mode
@@ -536,6 +559,8 @@ l.SetColorMode(clog.ColorAlways)
 l.Info().Line("file", "main.go", 42).Msg("Loaded")
 // buf contains OSC 8 hyperlink escape sequences
 ```
+
+`ColorMode` implements `encoding.TextMarshaler` and `encoding.TextUnmarshaler`, so it works directly with `flag.TextVar` and most flag libraries.
 
 ## Styles
 
@@ -562,7 +587,7 @@ clog.SetStyles(styles)
 Values are styled with a three-tier priority system:
 
 1. **Key styles** - style all values of a specific field key
-1. **Value styles** - style values matching an exact string
+1. **Value styles** - style values matching a typed key (bool `true` != string `"true"`)
 1. **Type styles** - style values by their Go type
 
 ```go
@@ -572,7 +597,7 @@ styles := clog.DefaultStyles()
 styles.Keys["status"] = new(lipgloss.NewStyle().
   Foreground(lipgloss.Color("2"))) // green
 
-// 2. Value styles: exact string matches
+// 2. Value styles: typed key matches (bool `true` != string "true")
 styles.Values["PASS"] = new(
   lipgloss.NewStyle().
   Foreground(lipgloss.Color("2")), // green
@@ -582,7 +607,7 @@ styles.Values["FAIL"] = new(lipgloss.NewStyle().
   Foreground(lipgloss.Color("1")), // red
 )
 
-// 3. Type styles: string values → white, numeric values → magenta, errors → red by default
+// 3. Type styles: string values -> white, numeric values -> magenta, errors -> red by default
 styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
 styles.FieldNumber = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))
 styles.FieldError  = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
@@ -594,27 +619,82 @@ clog.SetStyles(styles)
 
 ### Styles Reference
 
-| Field                     | Type                         | Description                                              |
-| ------------------------- | ---------------------------- | -------------------------------------------------------- |
-| `DurationUnits`           | `map[string]*lipgloss.Style` | Duration unit string → style override                    |
-| `FieldDurationNumber`     | `*lipgloss.Style`            | Duration numeric part style (nil to disable)             |
-| `FieldDurationUnit`       | `*lipgloss.Style`            | Duration unit part style (nil to disable)                |
-| `FieldError`              | `*lipgloss.Style`            | Error value style (nil to disable)                       |
-| `FieldNumber`             | `*lipgloss.Style`            | Numeric value style (nil to disable)                     |
-| `FieldQuantityNumber`     | `*lipgloss.Style`            | Quantity numeric part style (nil to disable)             |
-| `FieldQuantityUnit`       | `*lipgloss.Style`            | Quantity unit part style (nil to disable)                |
-| `FieldString`             | `*lipgloss.Style`            | String value style (nil to disable)                      |
-| `FieldTime`               | `*lipgloss.Style`            | Time value style (nil to disable)                        |
-| `KeyDefault`              | `*lipgloss.Style`            | Field key style (nil to disable)                         |
-| `Keys`                    | `map[string]*lipgloss.Style` | Field key name → value style                             |
-| `Levels`                  | `map[Level]*lipgloss.Style`  | Per-level label style (nil to disable)                   |
-| `Messages`                | `map[Level]*lipgloss.Style`  | Per-level message style (nil to disable)                 |
-| `QuantityUnits`           | `map[string]*lipgloss.Style` | Quantity unit string → style override                    |
-| `QuantityUnitsIgnoreCase` | `bool`                       | Case-insensitive quantity unit matching (default `true`) |
-| `Separator`               | `*lipgloss.Style`            | Style for the separator between key and value            |
-| `SeparatorText`           | `string`                     | Key/value separator (default `"="`)                      |
-| `Timestamp`               | `*lipgloss.Style`            | Timestamp style (nil to disable)                         |
-| `Values`                  | `map[string]*lipgloss.Style` | Formatted value string → style                           |
+| Field                     | Type                         | Alias           | Default                  |
+| ------------------------- | ---------------------------- | --------------- | ------------------------ |
+| `DurationThresholds`      | `map[string][]Threshold`     | `ThresholdMap`  | `{}`                     |
+| `DurationUnits`           | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
+| `FieldDurationNumber`     | `*lipgloss.Style`            |                 | magenta                  |
+| `FieldDurationUnit`       | `*lipgloss.Style`            |                 | magenta faint            |
+| `FieldError`              | `*lipgloss.Style`            |                 | red                      |
+| `FieldNumber`             | `*lipgloss.Style`            |                 | magenta                  |
+| `FieldPercent`            | `*lipgloss.Style`            |                 | `nil`                    |
+| `FieldQuantityNumber`     | `*lipgloss.Style`            |                 | magenta                  |
+| `FieldQuantityUnit`       | `*lipgloss.Style`            |                 | magenta faint            |
+| `FieldString`             | `*lipgloss.Style`            |                 | white                    |
+| `FieldTime`               | `*lipgloss.Style`            |                 | magenta                  |
+| `KeyDefault`              | `*lipgloss.Style`            |                 | blue                     |
+| `Keys`                    | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
+| `Levels`                  | `map[Level]*lipgloss.Style`  | `LevelStyleMap` | per-level bold colours   |
+| `Messages`                | `map[Level]*lipgloss.Style`  | `LevelStyleMap` | `DefaultMessageStyles()` |
+| `PercentGradient`         | `[]ColorStop`                |                 | red → yellow → green     |
+| `PercentPrecision`        | `int`                        |                 | `0`                      |
+| `QuantityThresholds`      | `map[string][]Threshold`     | `ThresholdMap`  | `{}`                     |
+| `QuantityUnits`           | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
+| `QuantityUnitsIgnoreCase` | `bool`                       |                 | `true`                   |
+| `Separator`               | `*lipgloss.Style`            |                 | faint                    |
+| `SeparatorText`           | `string`                     |                 | `"="`                    |
+| `Timestamp`               | `*lipgloss.Style`            |                 | faint                    |
+| `Values`                  | `map[any]*lipgloss.Style`    | `ValueStyleMap` | `DefaultValueStyles()`   |
+
+| Field                     | Description                                                                         |
+| ------------------------- | ----------------------------------------------------------------------------------- |
+| `DurationThresholds`      | Duration unit -> magnitude-based style thresholds                                   |
+| `DurationUnits`           | Duration unit string -> style override                                              |
+| `FieldDurationNumber`     | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable |
+| `FieldDurationUnit`       | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable    |
+| `FieldError`              | Style for error field values, nil to disable                                        |
+| `FieldNumber`             | Style for int/float field values, nil to disable                                    |
+| `FieldPercent`            | Base style for `Percent` fields (foreground overridden by gradient), nil to disable |
+| `FieldQuantityNumber`     | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable       |
+| `FieldQuantityUnit`       | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable         |
+| `FieldString`             | Style for string field values, nil to disable                                       |
+| `FieldTime`               | Style for `time.Time` field values, nil to disable                                  |
+| `KeyDefault`              | Style for field key names without a per-key override, nil to disable                |
+| `Keys`                    | Field key name -> value style override                                              |
+| `Levels`                  | Per-level label style (e.g. "INF", "ERR"), nil to disable                           |
+| `Messages`                | Per-level message text style, nil to disable                                        |
+| `PercentGradient`         | Gradient colour stops for `Percent` fields                                          |
+| `PercentPrecision`        | Decimal places for `Percent` display (0 = "75%", 1 = "75.0%")                       |
+| `QuantityThresholds`      | Quantity unit -> magnitude-based style thresholds                                   |
+| `QuantityUnits`           | Quantity unit string -> style override                                              |
+| `QuantityUnitsIgnoreCase` | Whether quantity unit matching is case-insensitive                                  |
+| `Separator`               | Style for the separator between key and value                                       |
+| `SeparatorText`           | Key/value separator string                                                          |
+| `Timestamp`               | Style for the timestamp prefix, nil to disable                                      |
+| `Values`                  | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)          |
+
+Each `Threshold` pairs a minimum value with style overrides:
+
+```go
+type ThresholdStyle struct {
+  Number *lipgloss.Style // Override for the number segment (nil = keep default).
+  Unit   *lipgloss.Style // Override for the unit segment (nil = keep default).
+}
+
+type Threshold struct {
+  Value float64        // Minimum numeric value (inclusive) to trigger this style.
+  Style ThresholdStyle // Style overrides for number and unit segments.
+}
+```
+
+Thresholds are evaluated in descending order — the first match wins:
+
+```go
+styles.QuantityThresholds["ms"] = clog.Thresholds{
+  {Value: 5000, Style: clog.ThresholdStyle{Number: redStyle, Unit: redStyle}},
+  {Value: 1000, Style: clog.ThresholdStyle{Number: yellowStyle, Unit: yellowStyle}},
+}
+```
 
 Value styles only apply at `Info` level and above by default. Use `SetFieldStyleLevel` to change the threshold.
 

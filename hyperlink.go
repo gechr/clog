@@ -102,7 +102,6 @@ func Hyperlink(url, text string) string {
 	if !hyperlinksEnabled.Load() || ColorsDisabled() {
 		return text
 	}
-
 	return osc8(url, text)
 }
 
@@ -114,7 +113,6 @@ func PathLink(path string, line int) string {
 	if !hyperlinksEnabled.Load() || ColorsDisabled() {
 		return display
 	}
-
 	return Hyperlink(resolvePathURL(path, line, 0), display)
 }
 
@@ -128,7 +126,6 @@ func absPath(path string) string {
 	if abs, err := filepath.Abs(path); err == nil {
 		return abs
 	}
-
 	return path
 }
 
@@ -137,16 +134,16 @@ func buildPathURL(absPath string, line, column int, isDir bool) string {
 
 	switch {
 	case isDir:
-		// dirFormat → pathFormat → file://
+		// dirFormat -> pathFormat -> file://
 		fmtPtr = loadFormat(&hyperlinkDirFormat, &hyperlinkPathFormat)
 	case column > 0:
-		// columnFormat → lineFormat → file://
+		// columnFormat -> lineFormat -> file://
 		fmtPtr = loadFormat(&hyperlinkColumnFormat, &hyperlinkLineFormat)
 	case line > 0:
-		// lineFormat → file://
+		// lineFormat -> file://
 		fmtPtr = loadFormat(&hyperlinkLineFormat)
 	default:
-		// fileFormat → pathFormat → file://
+		// fileFormat -> pathFormat -> file://
 		fmtPtr = loadFormat(&hyperlinkFileFormat, &hyperlinkPathFormat)
 	}
 
@@ -159,7 +156,6 @@ func buildPathURL(absPath string, line, column int, isDir bool) string {
 	u = strings.ReplaceAll(u, "{line}", strconv.Itoa(line))
 	u = strings.ReplaceAll(u, "{column}", strconv.Itoa(column))
 	u = strings.ReplaceAll(u, "{col}", strconv.Itoa(column))
-
 	return u
 }
 
@@ -170,7 +166,6 @@ func hyperlinkWithMode(url, text string, mode ColorMode) string {
 	if disabled {
 		return text
 	}
-
 	return osc8(url, text)
 }
 
@@ -178,7 +173,6 @@ func hyperlinkWithMode(url, text string, mode ColorMode) string {
 func isDirectory(path string) bool {
 	//nolint:gosec // path comes from the caller's own code, not user input
 	info, err := os.Stat(path)
-
 	return err == nil && info.IsDir()
 }
 
@@ -189,30 +183,7 @@ func loadFormat(ptrs ...*atomic.Pointer[string]) *string {
 			return f
 		}
 	}
-
 	return nil
-}
-
-func loadHyperlinkFormatsFromEnv() {
-	if v := os.Getenv("CLOG_HYPERLINK_PATH_FORMAT"); v != "" {
-		hyperlinkPathFormat.Store(&v)
-	}
-
-	if v := os.Getenv("CLOG_HYPERLINK_FILE_FORMAT"); v != "" {
-		hyperlinkFileFormat.Store(&v)
-	}
-
-	if v := os.Getenv("CLOG_HYPERLINK_DIR_FORMAT"); v != "" {
-		hyperlinkDirFormat.Store(&v)
-	}
-
-	if v := os.Getenv("CLOG_HYPERLINK_LINE_FORMAT"); v != "" {
-		hyperlinkLineFormat.Store(&v)
-	}
-
-	if v := os.Getenv("CLOG_HYPERLINK_COLUMN_FORMAT"); v != "" {
-		hyperlinkColumnFormat.Store(&v)
-	}
 }
 
 // osc8 wraps text in raw OSC 8 escape sequences unconditionally.
@@ -229,7 +200,6 @@ func pathDisplayText(path string, line, column int) string {
 	if line > 0 {
 		return path + ":" + strconv.Itoa(line)
 	}
-
 	return path
 }
 
@@ -242,18 +212,11 @@ func pathLinkWithMode(path string, line, column int, mode ColorMode) string {
 	if disabled {
 		return display
 	}
-
 	return osc8(resolvePathURL(path, line, column), display)
 }
 
 // resolvePathURL builds the full hyperlink URL for a file path.
 func resolvePathURL(path string, line, column int) string {
 	abs := absPath(path)
-
 	return buildPathURL(abs, line, column, isDirectory(abs))
-}
-
-func init() {
-	hyperlinksEnabled.Store(true)
-	loadHyperlinkFormatsFromEnv()
 }

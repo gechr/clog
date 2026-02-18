@@ -9,7 +9,12 @@ import (
 	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/lucasb-eyer/go-colorful"
 )
+
+// percent wraps a float64 value (0–100) so [formatValue] can identify it
+// for percentage styling with gradient colors.
+type percent float64
 
 // quantity wraps a string value with numeric and unit segments (e.g. "5m",
 // "5.1km", "100MB") so [formatValue] can identify it for quantity styling.
@@ -36,6 +41,7 @@ const (
 	kindDuration
 	kindError
 	kindNumber
+	kindPercent
 	kindQuantity
 	kindSlice
 	kindString
@@ -43,6 +49,8 @@ const (
 )
 
 const (
+	percentMax = 100.0
+
 	sliceOpen  = '['
 	sliceClose = ']'
 	sliceSep   = ", "
@@ -77,12 +85,18 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			buf.WriteString(sep)
 		}
 
+		percentPrecision := 0
+		if opts.styles != nil {
+			percentPrecision = opts.styles.PercentPrecision
+		}
+
 		valStr, kind := formatValue(
 			f.Value,
 			opts.quoteMode,
 			opts.quoteOpen,
 			opts.quoteClose,
 			opts.timeFormat,
+			percentPrecision,
 		)
 		if opts.quoteMode != QuoteNever &&
 			(kind == kindDefault || kind == kindString || kind == kindError || kind == kindTime) &&
@@ -93,7 +107,6 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		styled := styledFieldValue(f, valStr, kind, opts)
 		buf.WriteString(styled)
 	}
-
 	return buf.String()
 }
 
@@ -104,6 +117,7 @@ func formatValue(
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
 	timeFormat string,
+	percentPrecision int,
 ) (string, valueKind) {
 	switch val := v.(type) {
 	case error:
@@ -118,6 +132,8 @@ func formatValue(
 		return strconv.FormatFloat(val, 'f', -1, 64), kindNumber
 	case bool:
 		return strconv.FormatBool(val), kindBool
+	case percent:
+		return strconv.FormatFloat(float64(val), 'f', percentPrecision, 64) + "%", kindPercent
 	case quantity:
 		return string(val), kindQuantity
 	case time.Duration:
@@ -126,7 +142,6 @@ func formatValue(
 		if timeFormat == "" {
 			timeFormat = time.DateTime
 		}
-
 		return val.Format(timeFormat), kindTime
 	case []time.Duration:
 		return formatDurationSlice(val, nil), kindSlice
@@ -188,7 +203,6 @@ func formatAnySlice(
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -217,7 +231,6 @@ func formatBoolSlice(vals []bool, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -246,7 +259,6 @@ func formatDurationSlice(vals []time.Duration, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -271,7 +283,6 @@ func formatFloat64Slice(vals []float64, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -296,7 +307,6 @@ func formatIntSlice(vals []int, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -325,7 +335,6 @@ func formatQuantitySlice(vals []quantity, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -369,7 +378,6 @@ func formatStringSlice(
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -394,7 +402,6 @@ func formatUint64Slice(vals []uint64, styles *Styles) string {
 	}
 
 	buf.WriteByte(sliceClose)
-
 	return buf.String()
 }
 
@@ -423,6 +430,10 @@ func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles
 		if styled := styleDuration(s, styles); styled != "" {
 			return styled
 		}
+	case kindPercent:
+		if styled := stylePercent(s, originalValue, styles); styled != "" {
+			return styled
+		}
 	case kindQuantity:
 		if styled := styleQuantity(s, styles); styled != "" {
 			return styled
@@ -439,7 +450,6 @@ func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles
 	case kindBool, kindDefault:
 		// No type-based style for these.
 	}
-
 	return ""
 }
 
@@ -469,14 +479,12 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		if style := opts.styles.Keys[f.Key]; style != nil {
 			return style.Render(valStr)
 		}
-
 		return styledSlice(f.Value, opts.styles, opts.quoteMode, opts.quoteOpen, opts.quoteClose)
 	}
 
 	if styled := styleValue(valStr, f.Value, f.Key, kind, opts.styles); styled != "" {
 		return styled
 	}
-
 	return valStr
 }
 
@@ -500,7 +508,7 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 	case []any:
 		return formatAnySlice(vals, styles, quoteMode, quoteOpen, quoteClose)
 	default:
-		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "")
+		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "", 0)
 		return s
 	}
 }
@@ -514,8 +522,8 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 func styleNumberUnit(
 	s string,
 	numStyle, unitStyle *lipgloss.Style,
-	unitOverrides map[string]*lipgloss.Style,
-	thresholds map[string][]QuantityThreshold,
+	unitOverrides StyleMap,
+	thresholds ThresholdMap,
 	ignoreCase bool,
 ) string {
 	if numStyle == nil && unitStyle == nil && len(unitOverrides) == 0 && len(thresholds) == 0 {
@@ -614,8 +622,44 @@ func styleNumberUnit(
 
 	// Flush any trailing pending number.
 	renderPendingNum(&buf, pendingNum, pendingSpaces, numStyle)
-
 	return buf.String()
+}
+
+// stylePercent renders a percentage string with a gradient color based on the
+// value. The color is interpolated from the [Styles.PercentGradient] stops and
+// applied as the foreground on top of [Styles.FieldPercent] (if set).
+// originalValue must be a [percent] typed value.
+// Returns "" when both FieldPercent and PercentGradient are nil/empty.
+func stylePercent(valStr string, originalValue any, styles *Styles) string {
+	p, ok := originalValue.(percent)
+	if !ok {
+		return ""
+	}
+
+	hasGradient := len(styles.PercentGradient) > 0
+
+	if !hasGradient && styles.FieldPercent == nil {
+		return ""
+	}
+
+	// Start from the base style (bold, italic, etc.) or a blank one.
+	var style lipgloss.Style
+	if styles.FieldPercent != nil {
+		style = *styles.FieldPercent
+	}
+
+	// Apply gradient foreground on top of the base style.
+	if hasGradient {
+		var c colorful.Color
+		if len(styles.PercentGradient) == 1 {
+			c = styles.PercentGradient[0].Color
+		} else {
+			c = interpolateGradient(float64(p)/percentMax, styles.PercentGradient)
+		}
+
+		style = style.Foreground(lipgloss.Color(c.Clamped().Hex()))
+	}
+	return style.Render(valStr)
 }
 
 // styleQuantity renders a quantity string with separate styles for the numeric
@@ -635,7 +679,7 @@ func styleQuantity(s string, styles *Styles) string {
 }
 
 // styleValue applies the appropriate style to a formatted value.
-// Priority: key style → value style → type style. Returns "" if no style applies.
+// Priority: key style -> value style -> type style. Returns "" if no style applies.
 // originalValue is the pre-format typed value for typed Values map lookups.
 func styleValue(
 	valStr string,
@@ -672,6 +716,10 @@ func styleValue(
 		if styled := styleDuration(valStr, styles); styled != "" {
 			return styled
 		}
+	case kindPercent:
+		if styled := stylePercent(valStr, originalValue, styles); styled != "" {
+			return styled
+		}
 	case kindQuantity:
 		if styled := styleQuantity(valStr, styles); styled != "" {
 			return styled
@@ -688,7 +736,6 @@ func styleValue(
 	case kindBool, kindSlice, kindDefault:
 		// No type-based style for these.
 	}
-
 	return ""
 }
 
@@ -704,7 +751,6 @@ func needsQuoting(s string) bool {
 			return true
 		}
 	}
-
 	return false
 }
 
@@ -719,7 +765,6 @@ func quoteString(s string, openChar, closeChar rune) string {
 	if closeChar == 0 {
 		closeChar = openChar
 	}
-
 	return string(openChar) + s + string(closeChar)
 }
 
@@ -788,7 +833,6 @@ func isQuantityString(s string) bool {
 
 		groups++
 	}
-
 	return groups > 0
 }
 
@@ -840,7 +884,6 @@ func mergeFields(base, overrides []Field) []Field {
 			result = append(result, f)
 		}
 	}
-
 	return result
 }
 
@@ -872,17 +915,58 @@ func reflectValueKind(v any) valueKind {
 	}
 }
 
+// clampPercent restricts val to the 0–100 range.
+func clampPercent(val float64) float64 {
+	return max(0, min(percentMax, val))
+}
+
+// interpolateGradient computes the color at position t (0.0–1.0) along the
+// given gradient stops using CIE-LCh blending for perceptually uniform
+// transitions. Edge cases: empty -> white, single stop -> that color,
+// t outside range -> clamp to nearest stop.
+func interpolateGradient(t float64, stops []ColorStop) colorful.Color {
+	if len(stops) == 0 {
+		return colorful.Color{R: 1, G: 1, B: 1} // white fallback
+	}
+
+	if len(stops) == 1 {
+		return stops[0].Color
+	}
+
+	// Clamp t to the range of the gradient.
+	if t <= stops[0].Position {
+		return stops[0].Color
+	}
+
+	if t >= stops[len(stops)-1].Position {
+		return stops[len(stops)-1].Color
+	}
+
+	// Find the two bracketing stops.
+	for i := 1; i < len(stops); i++ {
+		if t <= stops[i].Position {
+			segLen := stops[i].Position - stops[i-1].Position
+			if segLen <= 0 {
+				return stops[i].Color
+			}
+
+			localT := (t - stops[i-1].Position) / segLen
+			return stops[i-1].Color.BlendLuvLCh(stops[i].Color, localT)
+		}
+	}
+	return stops[len(stops)-1].Color
+}
+
 // lookupValueStyle safely looks up a typed value in the Values map.
 // Returns nil for unhashable types (slices, maps, functions) that would panic.
-func lookupValueStyle(v any, values map[any]*lipgloss.Style) *lipgloss.Style {
-	if len(values) == 0 || v == nil {
+func lookupValueStyle(v any, values ValueStyleMap) *lipgloss.Style {
+	if len(values) == 0 {
 		return nil
 	}
 
 	if t := reflect.TypeOf(v); t != nil && !t.Comparable() {
 		return nil
 	}
-
 	return values[v]
 }
 
@@ -892,8 +976,8 @@ func lookupValueStyle(v any, values map[any]*lipgloss.Style) *lipgloss.Style {
 func resolveSegmentStyles(
 	num, unit string,
 	numStyle, unitStyle *lipgloss.Style,
-	unitOverrides map[string]*lipgloss.Style,
-	thresholds map[string][]QuantityThreshold,
+	unitOverrides StyleMap,
+	thresholds ThresholdMap,
 	ignoreCase bool,
 ) (*lipgloss.Style, *lipgloss.Style) {
 	effNumStyle := numStyle
@@ -914,18 +998,17 @@ func resolveSegmentStyles(
 
 	for _, t := range thresholdForUnit(unit, thresholds, ignoreCase) {
 		if numVal >= t.Value {
-			if t.Number != nil {
-				effNumStyle = t.Number
+			if t.Style.Number != nil {
+				effNumStyle = t.Style.Number
 			}
 
-			if t.Unit != nil {
-				effUnitStyle = t.Unit
+			if t.Style.Unit != nil {
+				effUnitStyle = t.Style.Unit
 			}
 
 			break
 		}
 	}
-
 	return effNumStyle, effUnitStyle
 }
 
@@ -949,9 +1032,9 @@ func renderPendingNum(buf *strings.Builder, num, spaces string, style *lipgloss.
 // When ignoreCase is true, keys are matched case-insensitively.
 func thresholdForUnit(
 	unit string,
-	thresholds map[string][]QuantityThreshold,
+	thresholds ThresholdMap,
 	ignoreCase bool,
-) []QuantityThreshold {
+) []Threshold {
 	if len(thresholds) == 0 {
 		return nil
 	}
@@ -968,7 +1051,6 @@ func thresholdForUnit(
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -976,7 +1058,7 @@ func thresholdForUnit(
 // When ignoreCase is true, keys are matched case-insensitively.
 func unitOverrideStyle(
 	unit string,
-	overrides map[string]*lipgloss.Style,
+	overrides StyleMap,
 	ignoreCase bool,
 ) *lipgloss.Style {
 	if len(overrides) == 0 {
@@ -995,6 +1077,5 @@ func unitOverrideStyle(
 			}
 		}
 	}
-
 	return nil
 }
