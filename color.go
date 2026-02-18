@@ -2,61 +2,15 @@ package clog
 
 import (
 	"fmt"
-	"os"
 	"sync/atomic"
-
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
 )
 
-var (
-	colorsDisabledFlag atomic.Bool
-	colorsForced       atomic.Bool
-	noColorEnvSet      atomic.Bool
-)
+// noColorEnvSet is loaded once at init time from the NO_COLOR environment variable.
+var noColorEnvSet atomic.Bool
 
-// ColorsDisabled returns true if colours should be disabled.
-// This is true when NO_COLOR is set, [SetGlobalColorMode]([ColorNever]) was called,
-// or stdout is not a terminal -- unless colours were forced via
-// [SetGlobalColorMode]([ColorAlways]).
+// ColorsDisabled returns true if colours are disabled on the [Default] logger.
 func ColorsDisabled() bool {
-	if colorsForced.Load() {
-		return false
-	}
-	return colorsDisabledFlag.Load() || noColorEnvSet.Load() || !IsTerminal()
-}
-
-// SetGlobalColorMode sets the colour output mode.
-//
-//   - [ColorAuto]   -- detect terminal capabilities (default behaviour).
-//   - [ColorAlways] -- force colours even when output is not a TTY (overrides NO_COLOR).
-//   - [ColorNever]  -- disable all colours and hyperlinks.
-//
-// Call this early in your application, before creating custom [Styles].
-func SetGlobalColorMode(mode ColorMode) {
-	switch mode {
-	case ColorAlways:
-		os.Unsetenv("NO_COLOR")
-		colorsForced.Store(true)
-		colorsDisabledFlag.Store(false)
-		lipgloss.DefaultRenderer().SetOutput(
-			termenv.NewOutput(os.Stdout, termenv.WithProfile(termenv.TrueColor)),
-		)
-	case ColorAuto:
-		colorsForced.Store(false)
-		colorsDisabledFlag.Store(false)
-		_, set := os.LookupEnv("NO_COLOR")
-		noColorEnvSet.Store(set)
-		lipgloss.DefaultRenderer().SetOutput(termenv.NewOutput(os.Stdout))
-	case ColorNever:
-		_ = os.Setenv("NO_COLOR", "1")
-		colorsForced.Store(false)
-		colorsDisabledFlag.Store(true)
-		hyperlinksEnabled.Store(false)
-		lipgloss.DefaultRenderer().SetOutput(
-			termenv.NewOutput(os.Stdout, termenv.WithProfile(termenv.Ascii)),
-		)
-	}
+	return Default.output.ColorsDisabled()
 }
 
 // MarshalText implements [encoding.TextMarshaler].

@@ -14,7 +14,7 @@ import (
 func TestNewLogger(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 
 	assert.Equal(t, InfoLevel, l.level)
 	assert.Nil(t, l.prefix)
@@ -76,7 +76,7 @@ func TestLevelFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(io.Discard)
+			l := NewWriter(io.Discard)
 			l.SetLevel(tt.logLevel)
 
 			e := tt.method(l)
@@ -90,7 +90,7 @@ func TestLevelFiltering(t *testing.T) {
 }
 
 func TestSetLevel(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	l.SetLevel(DebugLevel)
 	assert.Equal(t, DebugLevel, l.level)
@@ -122,7 +122,7 @@ func TestLoadLogLevelFromEnv(t *testing.T) {
 			origDefault := Default
 			defer func() { Default = origDefault }()
 
-			Default = New(io.Discard)
+			Default = NewWriter(io.Discard)
 			t.Setenv("CLOG_LOG_LEVEL", tt.value)
 			loadLogLevelFromEnv()
 
@@ -136,7 +136,7 @@ func TestLoadLogLevelFromEnvNotSet(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(WarnLevel)
 	t.Setenv("CLOG_LOG_LEVEL", "")
 
@@ -149,7 +149,7 @@ func TestGetLevel(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(WarnLevel)
 
 	assert.Equal(t, WarnLevel, GetLevel())
@@ -159,7 +159,7 @@ func TestIsVerbose(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	Default.SetLevel(InfoLevel)
 	assert.False(t, IsVerbose(), "expected IsVerbose() false at InfoLevel")
@@ -221,7 +221,7 @@ func TestResolvePrefix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			l := New(io.Discard)
+			l := NewWriter(io.Discard)
 			l.prefix = tt.loggerPrefix
 
 			e := &Event{logger: l, level: tt.level, prefix: tt.eventPrefix}
@@ -237,7 +237,7 @@ func TestConfigure(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		Configure(&Config{Verbose: true})
 
 		assert.Equal(t, DebugLevel, Default.level)
@@ -248,24 +248,25 @@ func TestConfigure(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 
 		var buf bytes.Buffer
 
-		Configure(&Config{Output: &buf})
+		out := TestOutput(&buf)
+		Configure(&Config{Output: out})
 
 		Default.mu.Lock()
-		out := Default.out
+		got := Default.output
 		Default.mu.Unlock()
 
-		assert.Equal(t, &buf, out)
+		assert.Same(t, out, got)
 	})
 
 	t.Run("styles", func(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		styles := DefaultStyles()
 		Configure(&Config{Styles: styles})
 
@@ -284,7 +285,7 @@ func TestConfigure(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		Default.SetLevel(DebugLevel)
 		Default.SetReportTimestamp(true)
 		t.Setenv("CLOG_LOG_LEVEL", "")
@@ -299,7 +300,7 @@ func TestConfigure(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		Default.SetLevel(DebugLevel)
 		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
@@ -314,7 +315,7 @@ func TestSetVerbose(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		SetVerbose(true)
 
 		assert.Equal(t, DebugLevel, Default.level)
@@ -325,7 +326,7 @@ func TestSetVerbose(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		Default.SetLevel(DebugLevel)
 		t.Setenv("CLOG_LOG_LEVEL", "")
 
@@ -338,7 +339,7 @@ func TestSetVerbose(t *testing.T) {
 		origDefault := Default
 		defer func() { Default = origDefault }()
 
-		Default = New(io.Discard)
+		Default = NewWriter(io.Discard)
 		Default.SetLevel(DebugLevel)
 		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
@@ -352,7 +353,7 @@ func TestPackageLevelConvenienceFunctions(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(TraceLevel)
 
 	var got Entry
@@ -388,7 +389,7 @@ func TestPackageLevelWith(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	ctx := With()
 	assert.NotNil(t, ctx, "expected non-nil context from With()")
@@ -398,7 +399,7 @@ func TestPackageLevelSetters(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	SetLevel(WarnLevel)
 	assert.Equal(t, WarnLevel, Default.level)
@@ -415,10 +416,10 @@ func TestPackageLevelSetters(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	SetOutput(&buf)
+	SetOutputWriter(&buf)
 
 	Default.mu.Lock()
-	out := Default.out
+	out := Default.output.Writer()
 	Default.mu.Unlock()
 
 	assert.Equal(t, &buf, out)
@@ -448,7 +449,7 @@ func TestPackageLevelSetters(t *testing.T) {
 }
 
 func TestCustomHandlerReceivesEntries(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var entries []Entry
 
@@ -469,7 +470,7 @@ func TestCustomHandlerReceivesEntries(t *testing.T) {
 func TestCustomHandlerNoBufferOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetHandler(HandlerFunc(func(_ Entry) {}))
 
 	l.Info().Msg("intercepted")
@@ -478,7 +479,7 @@ func TestCustomHandlerNoBufferOutput(t *testing.T) {
 }
 
 func TestSubLoggerWithWith(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -498,14 +499,14 @@ func TestSubLoggerWithWith(t *testing.T) {
 }
 
 func TestWithSharesMutex(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	sub := l.With().Str("k", "v").Logger()
 
 	assert.Same(t, l.mu, sub.mu, "sub-logger should share parent's mutex")
 }
 
 func TestWithCopiesFields(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.fields = []Field{{Key: "parent", Value: "yes"}}
 
 	ctx := l.With()
@@ -515,7 +516,7 @@ func TestWithCopiesFields(t *testing.T) {
 }
 
 func TestEventFieldsDoNotModifyLogger(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.fields = []Field{{Key: "ctx", Value: "val"}}
 
 	var got Entry
@@ -533,7 +534,7 @@ func TestEventFieldsDoNotModifyLogger(t *testing.T) {
 func TestLogFormattedOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️ hello\n", buf.String())
@@ -542,7 +543,7 @@ func TestLogFormattedOutput(t *testing.T) {
 func TestLogFormattedOutputWithFields(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("key", "val").Msg("hello")
 
 	assert.Equal(t, "INF ℹ️ hello key=val\n", buf.String())
@@ -551,7 +552,7 @@ func TestLogFormattedOutputWithFields(t *testing.T) {
 func TestLogFormattedOutputCustomPrefix(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Prefix(">>>").Msg("hello")
 
 	assert.Equal(t, "INF >>> hello\n", buf.String())
@@ -560,7 +561,7 @@ func TestLogFormattedOutputCustomPrefix(t *testing.T) {
 func TestLogFormattedOutputEmptyPrefix(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Prefix("").Msg("hello")
 
 	assert.Equal(t, "INF hello\n", buf.String())
@@ -569,7 +570,7 @@ func TestLogFormattedOutputEmptyPrefix(t *testing.T) {
 func TestLogFormattedOutputWithTimestamp(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetReportTimestamp(true)
 	l.Info().Msg("hello")
 
@@ -585,7 +586,7 @@ func TestLogFormattedOutputWithTimestamp(t *testing.T) {
 func TestLogFormattedOutputQuotedFields(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("msg", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test msg=\"hello world\"\n", buf.String())
@@ -594,7 +595,7 @@ func TestLogFormattedOutputQuotedFields(t *testing.T) {
 func TestLogFormattedOutputMultipleFields(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("a", "1").Int("b", 2).Bool("c", true).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test a=1 b=2 c=true\n", buf.String())
@@ -604,7 +605,7 @@ func TestLoadLogLevelFromEnvDry(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	t.Setenv("CLOG_LOG_LEVEL", "dry")
 	loadLogLevelFromEnv()
 
@@ -615,7 +616,7 @@ func TestLoadLogLevelFromEnvFatal(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	t.Setenv("CLOG_LOG_LEVEL", "fatal")
 	loadLogLevelFromEnv()
 
@@ -626,7 +627,7 @@ func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	t.Setenv("CLOG_LOG_LEVEL", "bogus")
 
 	// Should not change the level, just print to stderr.
@@ -636,7 +637,7 @@ func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 }
 
 func TestSetLevelLabels(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
 
 	assert.Equal(t, "WARN", l.labels[WarnLevel])
@@ -645,21 +646,21 @@ func TestSetLevelLabels(t *testing.T) {
 }
 
 func TestSetLevelAlign(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelAlign(AlignLeft)
 
 	assert.Equal(t, AlignLeft, l.levelAlign)
 }
 
 func TestFormatLabelAlignNone(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelAlign(AlignNone)
 
 	assert.Equal(t, "INF", l.formatLabel(InfoLevel))
 }
 
 func TestFormatLabelAlignLeft(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
@@ -672,7 +673,7 @@ func TestFormatLabelAlignLeft(t *testing.T) {
 }
 
 func TestFormatLabelAlignRight(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
@@ -685,7 +686,7 @@ func TestFormatLabelAlignRight(t *testing.T) {
 }
 
 func TestFormatLabelAlignCenter(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
 		InfoLevel:  "INF",
 		WarnLevel:  "WARN",
@@ -702,14 +703,14 @@ func TestFormatLabelAlignCenter(t *testing.T) {
 }
 
 func TestFormatLabelUnknownAlign(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.levelAlign = LevelAlign(99) // invalid value
 
 	assert.Equal(t, "INF", l.formatLabel(InfoLevel))
 }
 
 func TestSetPrefixes(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetPrefixes(LevelMap{InfoLevel: ">>>"}) //nolint:exhaustive // intentionally partial
 
 	assert.Equal(t, ">>>", l.prefixes[InfoLevel])
@@ -721,14 +722,14 @@ func TestPackageLevelSetPrefixes(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetPrefixes(LevelMap{InfoLevel: ">>>"}) //nolint:exhaustive // intentionally partial
 
 	assert.Equal(t, ">>>", Default.prefixes[InfoLevel])
 }
 
 func TestSetTimeLocation(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	loc := time.UTC
 	l.SetTimeLocation(loc)
 
@@ -739,7 +740,7 @@ func TestPackageLevelSetTimeLocation(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	loc := time.UTC
 	SetTimeLocation(loc)
 
@@ -765,7 +766,7 @@ func TestDefaultPrefixes(t *testing.T) {
 }
 
 func TestResolvePrefixUsesCustomPrefixes(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetPrefixes(LevelMap{InfoLevel: "CUSTOM"}) //nolint:exhaustive // intentionally partial
 
 	e := &Event{logger: l, level: InfoLevel}
@@ -776,7 +777,7 @@ func TestPackageLevelSetLevelLabels(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetLevelLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
 
 	assert.Equal(t, "WARN", Default.labels[WarnLevel])
@@ -786,45 +787,51 @@ func TestPackageLevelSetLevelAlign(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetLevelAlign(AlignNone)
 
 	assert.Equal(t, AlignNone, Default.levelAlign)
 }
 
-func TestSetColorMode(t *testing.T) {
-	l := New(io.Discard)
+func TestColorsDisabledPerOutput(t *testing.T) {
+	always := New(NewOutput(io.Discard, ColorAlways))
+	assert.False(t, always.colorsDisabled())
 
-	l.SetColorMode(ColorAlways)
-	assert.False(t, l.colorsDisabled())
+	never := New(NewOutput(io.Discard, ColorNever))
+	assert.True(t, never.colorsDisabled())
 
-	l.SetColorMode(ColorNever)
-	assert.True(t, l.colorsDisabled())
-
-	l.SetColorMode(ColorAuto)
-	// Auto falls through to global detection.
-	assert.Equal(t, ColorsDisabled(), l.colorsDisabled())
-
-	// Invalid color mode falls through to global detection.
-	l.colorMode = ColorMode(99)
-	assert.Equal(t, ColorsDisabled(), l.colorsDisabled())
+	auto := New(NewOutput(io.Discard, ColorAuto))
+	// ColorAuto on a non-TTY writer -> colours disabled.
+	assert.True(t, auto.colorsDisabled())
 }
 
 func TestPackageLevelSetColorMode(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetColorMode(ColorAlways)
 
-	assert.Equal(t, ColorAlways, Default.colorMode)
+	assert.False(
+		t,
+		Default.colorsDisabled(),
+		"expected colors enabled after SetColorMode(ColorAlways)",
+	)
+
+	SetColorMode(ColorNever)
+
+	assert.True(
+		t,
+		Default.colorsDisabled(),
+		"expected colors disabled after SetColorMode(ColorNever)",
+	)
 }
 
 func TestPackageLevelFatal(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	// Fatal() should return non-nil event (FatalLevel is always >= any level).
 	e := Fatal()
 
@@ -832,14 +839,9 @@ func TestPackageLevelFatal(t *testing.T) {
 }
 
 func TestLogFormattedOutputColored(t *testing.T) {
-	origForced := colorsForced.Load()
-	defer colorsForced.Store(origForced)
-
-	colorsForced.Store(true)
-
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(NewOutput(&buf, ColorAlways))
 	l.Info().Str("k", "v").Msg("hello")
 
 	got := buf.String()
@@ -851,14 +853,9 @@ func TestLogFormattedOutputColored(t *testing.T) {
 }
 
 func TestLogFormattedOutputColoredWithTimestamp(t *testing.T) {
-	origForced := colorsForced.Load()
-	defer colorsForced.Store(origForced)
-
-	colorsForced.Store(true)
-
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(NewOutput(&buf, ColorAlways))
 	l.SetReportTimestamp(true)
 	l.Info().Msg("hello")
 
@@ -885,7 +882,7 @@ func TestLogFormattedOutputAllLevels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 
-			l := New(&buf)
+			l := New(TestOutput(&buf))
 			l.SetLevel(TraceLevel)
 			tt.method(l).Msg("test")
 
@@ -904,7 +901,7 @@ func TestLogFormattedOutputAllLevels(t *testing.T) {
 func TestLogEmptyMessageNoDoubleSpace(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("status", "ok").Send()
 
 	got := buf.String()
@@ -918,7 +915,7 @@ func TestLogEmptyMessageNoDoubleSpace(t *testing.T) {
 func TestLogEmptyMessageNoFieldsNoTrailingSpace(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Send()
 
 	got := buf.String()
@@ -930,7 +927,7 @@ func TestLogEmptyMessageNoFieldsNoTrailingSpace(t *testing.T) {
 func TestLogWithMessageHasSpace(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("k", "v").Msg("hello")
 
 	got := buf.String()
@@ -943,7 +940,7 @@ func TestSetParts(t *testing.T) {
 	t.Run("reorder", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage, PartLevel, PartPrefix)
 		l.Info().Msg("hello")
 
@@ -953,7 +950,7 @@ func TestSetParts(t *testing.T) {
 	t.Run("omit_parts", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage)
 		l.Info().Msg("hello")
 
@@ -963,7 +960,7 @@ func TestSetParts(t *testing.T) {
 	t.Run("fields_before_message", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetParts(PartLevel, PartFields, PartMessage)
 		l.Info().Str("k", "v").Msg("hello")
 
@@ -973,7 +970,7 @@ func TestSetParts(t *testing.T) {
 	t.Run("all_parts_with_timestamp", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetReportTimestamp(true)
 		l.SetParts(PartLevel, PartMessage, PartTimestamp)
 		l.Info().Msg("hello")
@@ -983,7 +980,7 @@ func TestSetParts(t *testing.T) {
 	})
 
 	t.Run("empty_panics", func(t *testing.T) {
-		l := New(io.Discard)
+		l := NewWriter(io.Discard)
 		assert.Panics(t, func() { l.SetParts() })
 	})
 }
@@ -992,7 +989,7 @@ func TestPackageLevelSetParts(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetParts(PartMessage, PartLevel)
 
 	Default.mu.Lock()
@@ -1016,7 +1013,7 @@ func TestPerLevelMessageStyle(t *testing.T) {
 	t.Run("uses_per_level_style", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage)
 		l.styles.Messages[ErrorLevel] = l.styles.Levels[ErrorLevel]
 
@@ -1029,7 +1026,7 @@ func TestPerLevelMessageStyle(t *testing.T) {
 	t.Run("default_is_unstyled", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(&buf)
+		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage)
 
 		l.Info().Msg("hello")
@@ -1041,7 +1038,7 @@ func TestPerLevelMessageStyle(t *testing.T) {
 func TestSubLoggerInheritsPartOrder(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetParts(PartMessage, PartLevel, PartFields)
 
 	sub := l.With().Str("k", "v").Logger()
@@ -1051,7 +1048,7 @@ func TestSubLoggerInheritsPartOrder(t *testing.T) {
 }
 
 func TestOmitEmptyDisabledByDefault(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	assert.False(t, l.omitEmpty)
 	assert.False(t, l.omitZero)
 }
@@ -1059,7 +1056,7 @@ func TestOmitEmptyDisabledByDefault(t *testing.T) {
 func TestOmitEmpty(t *testing.T) {
 	var got Entry
 
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetOmitEmpty(true)
 	l.SetHandler(HandlerFunc(func(e Entry) {
 		got = e
@@ -1095,7 +1092,7 @@ func TestOmitEmpty(t *testing.T) {
 func TestOmitZero(t *testing.T) {
 	var got Entry
 
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetOmitZero(true)
 	l.SetHandler(HandlerFunc(func(e Entry) {
 		got = e
@@ -1133,7 +1130,7 @@ func TestOmitZero(t *testing.T) {
 func TestOmitZeroSupersedesOmitEmpty(t *testing.T) {
 	var got Entry
 
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetOmitEmpty(true)
 	l.SetOmitZero(true)
 	l.SetHandler(HandlerFunc(func(e Entry) {
@@ -1150,7 +1147,7 @@ func TestOmitZeroSupersedesOmitEmpty(t *testing.T) {
 func TestOmitEmptyFormattedOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetOmitEmpty(true)
 	l.Info().Str("a", "").Str("b", "keep").Msg("test")
 
@@ -1160,7 +1157,7 @@ func TestOmitEmptyFormattedOutput(t *testing.T) {
 func TestOmitZeroFormattedOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetOmitZero(true)
 	l.Info().Int("a", 0).Int("b", 1).Msg("test")
 
@@ -1168,7 +1165,7 @@ func TestOmitZeroFormattedOutput(t *testing.T) {
 }
 
 func TestSubLoggerInheritsOmitSettings(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetOmitEmpty(true)
 	l.SetOmitZero(true)
 
@@ -1182,7 +1179,7 @@ func TestPackageLevelSetOmitEmpty(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetOmitEmpty(true)
 
 	assert.True(t, Default.omitEmpty)
@@ -1192,21 +1189,21 @@ func TestPackageLevelSetOmitZero(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetOmitZero(true)
 
 	assert.True(t, Default.omitZero)
 }
 
 func TestOmitQuotesDisabledByDefault(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	assert.Equal(t, QuoteAuto, l.quoteMode)
 }
 
 func TestQuoteChar(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteChar('\'')
 	l.Info().Str("msg", "hello world").Msg("test")
 
@@ -1216,7 +1213,7 @@ func TestQuoteChar(t *testing.T) {
 func TestQuoteCharInStringSlice(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteChar('\'')
 	l.Info().Strs("args", []string{"hello world", "ok"}).Msg("test")
 
@@ -1226,7 +1223,7 @@ func TestQuoteCharInStringSlice(t *testing.T) {
 func TestQuoteCharInAnySlice(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteChar('\'')
 	l.Info().Anys("vals", []any{"hello world", 1}).Msg("test")
 
@@ -1236,7 +1233,7 @@ func TestQuoteCharInAnySlice(t *testing.T) {
 func TestQuoteCharDefaultUsesStrconvQuote(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	// Default quoteChar (0) should use strconv.Quote with escaping.
 	l.Info().Str("msg", "hello world").Msg("test")
 
@@ -1247,7 +1244,7 @@ func TestPackageLevelSetQuoteChar(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetQuoteChar('\'')
 
 	assert.Equal(t, '\'', Default.quoteOpen)
@@ -1257,7 +1254,7 @@ func TestPackageLevelSetQuoteChar(t *testing.T) {
 func TestQuoteChars(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteChars('[', ']')
 	l.Info().Str("msg", "hello world").Msg("test")
 
@@ -1267,7 +1264,7 @@ func TestQuoteChars(t *testing.T) {
 func TestQuoteCharsInStringSlice(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteChars('«', '»')
 	l.Info().Strs("args", []string{"hello world", "ok"}).Msg("test")
 
@@ -1278,7 +1275,7 @@ func TestPackageLevelSetQuoteChars(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetQuoteChars('[', ']')
 
 	assert.Equal(t, '[', Default.quoteOpen)
@@ -1288,7 +1285,7 @@ func TestPackageLevelSetQuoteChars(t *testing.T) {
 func TestQuoteModeAuto(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	// QuoteAuto is the default — simple strings unquoted, spaced strings quoted.
 	l.Info().Str("simple", "timeout").Str("spaced", "hello world").Msg("test")
 
@@ -1298,7 +1295,7 @@ func TestQuoteModeAuto(t *testing.T) {
 func TestQuoteModeAlways(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteMode(QuoteAlways)
 	l.Info().Str("reason", "timeout").Msg("test")
 
@@ -1308,7 +1305,7 @@ func TestQuoteModeAlways(t *testing.T) {
 func TestQuoteModeNever(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteMode(QuoteNever)
 	l.Info().Str("msg", "hello world").Msg("test")
 
@@ -1318,7 +1315,7 @@ func TestQuoteModeNever(t *testing.T) {
 func TestQuoteModeAlwaysInStringSlice(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetQuoteMode(QuoteAlways)
 	l.Info().Strs("tags", []string{"api", "v2"}).Msg("test")
 
@@ -1329,14 +1326,14 @@ func TestPackageLevelSetQuoteMode(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetQuoteMode(QuoteAlways)
 
 	assert.Equal(t, QuoteAlways, Default.quoteMode)
 }
 
 func TestSetFieldStyleLevel(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	assert.Equal(t, InfoLevel, l.fieldStyleLevel)
 
@@ -1348,7 +1345,7 @@ func TestPackageLevelSetFieldStyleLevel(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetFieldStyleLevel(DebugLevel)
 
 	Default.mu.Lock()
@@ -1359,7 +1356,7 @@ func TestPackageLevelSetFieldStyleLevel(t *testing.T) {
 }
 
 func TestSubLoggerInheritsFieldStyleLevel(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetFieldStyleLevel(TraceLevel)
 
 	sub := l.With().Str("k", "v").Logger()
@@ -1368,7 +1365,7 @@ func TestSubLoggerInheritsFieldStyleLevel(t *testing.T) {
 }
 
 func TestSetFieldTimeFormat(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	assert.Equal(t, time.RFC3339, l.fieldTimeFormat)
 
@@ -1380,7 +1377,7 @@ func TestPackageLevelSetFieldTimeFormat(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	SetFieldTimeFormat(time.RFC3339)
 
 	Default.mu.Lock()
@@ -1393,7 +1390,7 @@ func TestPackageLevelSetFieldTimeFormat(t *testing.T) {
 func TestLogFormattedOutputWithTimeField(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 	l.Info().Time("created", ts).Msg("test")
 
@@ -1403,7 +1400,7 @@ func TestLogFormattedOutputWithTimeField(t *testing.T) {
 func TestLogFormattedOutputWithTimeFieldCustomFormat(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetFieldTimeFormat(time.DateOnly)
 
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
@@ -1413,7 +1410,7 @@ func TestLogFormattedOutputWithTimeFieldCustomFormat(t *testing.T) {
 }
 
 func TestSubLoggerInheritsFieldTimeFormat(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetFieldTimeFormat(time.Kitchen)
 
 	sub := l.With().Str("k", "v").Logger()
@@ -1424,7 +1421,7 @@ func TestSubLoggerInheritsFieldTimeFormat(t *testing.T) {
 func TestConcurrentLogging(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.SetLevel(TraceLevel)
 
 	const goroutines = 10

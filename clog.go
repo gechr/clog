@@ -44,7 +44,7 @@ const (
 const Nil = "<nil>"
 
 // Default is the default logger instance.
-var Default = New(os.Stdout)
+var Default = New(Stdout(ColorAuto))
 
 // Default emoji prefixes for each level.
 var defaultPrefixes = LevelMap{
@@ -156,7 +156,6 @@ const (
 type Logger struct {
 	mu *sync.Mutex
 
-	colorMode       ColorMode
 	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
 	fieldStyleLevel Level
 	fieldTimeFormat string
@@ -167,7 +166,7 @@ type Logger struct {
 	levelAlign      LevelAlign
 	omitEmpty       bool
 	omitZero        bool
-	out             io.Writer
+	output          *Output
 	parts           []Part
 	prefix          *string // nil = use default emoji for level
 	prefixes        LevelMap
@@ -180,8 +179,8 @@ type Logger struct {
 	timeLocation    *time.Location
 }
 
-// New creates a new [Logger] that writes to out.
-func New(out io.Writer) *Logger {
+// New creates a new [Logger] that writes to the given [Output].
+func New(output *Output) *Logger {
 	return &Logger{
 		mu: &sync.Mutex{},
 
@@ -191,7 +190,7 @@ func New(out io.Writer) *Logger {
 		labels:          DefaultLabels(),
 		level:           InfoLevel,
 		levelAlign:      AlignRight,
-		out:             out,
+		output:          output,
 		parts:           DefaultParts(),
 		prefixes:        DefaultPrefixes(),
 		styles:          DefaultStyles(),
@@ -200,13 +199,9 @@ func New(out io.Writer) *Logger {
 	}
 }
 
-// SetColorMode sets the colour mode for this logger.
-// [ColorAuto] (default) uses global detection; [ColorAlways] forces colours
-// and hyperlinks; [ColorNever] disables them.
-func (l *Logger) SetColorMode(mode ColorMode) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.colorMode = mode
+// NewWriter creates a new [Logger] that writes to w with [ColorAuto].
+func NewWriter(w io.Writer) *Logger {
+	return New(NewOutput(w, ColorAuto))
 }
 
 // SetExitFunc sets the function called by Fatal-level events.
@@ -284,11 +279,23 @@ func (l *Logger) SetOmitZero(omit bool) {
 	l.omitZero = omit
 }
 
-// SetOutput sets the output writer.
-func (l *Logger) SetOutput(out io.Writer) {
+// SetOutput sets the output.
+func (l *Logger) SetOutput(out *Output) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.out = out
+	l.output = out
+}
+
+// SetOutputWriter sets the output writer with [ColorAuto].
+func (l *Logger) SetOutputWriter(w io.Writer) {
+	l.SetOutput(NewOutput(w, ColorAuto))
+}
+
+// Output returns the logger's [Output].
+func (l *Logger) Output() *Output {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.output
 }
 
 // SetParts sets the order in which parts appear in log output.
@@ -416,15 +423,7 @@ func (l *Logger) Fatal() *Event { return l.newEvent(FatalLevel) }
 
 // colorsDisabled returns true if this logger should suppress colours.
 func (l *Logger) colorsDisabled() bool {
-	switch l.colorMode {
-	case ColorAlways:
-		return false
-	case ColorNever:
-		return true
-	case ColorAuto:
-		return ColorsDisabled()
-	}
-	return ColorsDisabled()
+	return l.output.ColorsDisabled()
 }
 
 // exit calls the logger's exit function (used by Fatal-level events).
@@ -551,7 +550,7 @@ func (l *Logger) log(e *Event, msg string) {
 		}
 	}
 
-	_, _ = io.WriteString(l.out, strings.Join(parts, " ")+"\n")
+	_, _ = io.WriteString(l.output.Writer(), strings.Join(parts, " ")+"\n")
 }
 
 // maxLabelWidth returns the length of the longest configured label.
@@ -597,8 +596,8 @@ func (l *Logger) resolvePrefix(e *Event) string {
 type Config struct {
 	// Verbose enables debug level logging and timestamps.
 	Verbose bool
-	// Output is the writer to use (defaults to [os.Stdout]).
-	Output io.Writer
+	// Output is the output to use (defaults to [Stdout]([ColorAuto])).
+	Output *Output
 	// Styles allows customising the visual styles.
 	Styles *Styles
 }
@@ -675,8 +674,14 @@ func IsVerbose() bool {
 
 // Package-level convenience functions that use the [Default] logger.
 
-// SetColorMode sets the colour mode on the [Default] logger.
-func SetColorMode(mode ColorMode) { Default.SetColorMode(mode) }
+// SetColorMode sets the colour mode on the [Default] logger by recreating
+// its [Output] with the given mode.
+func SetColorMode(mode ColorMode) {
+	Default.mu.Lock()
+	w := Default.output.Writer()
+	Default.mu.Unlock()
+	Default.SetOutput(NewOutput(w, mode))
+}
 
 // SetExitFunc sets the fatal-exit function on the [Default] logger.
 func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
@@ -705,8 +710,11 @@ func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
 // SetOmitZero enables or disables omitting zero-value fields on the [Default] logger.
 func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
 
-// SetOutput sets the output writer on the [Default] logger.
-func SetOutput(out io.Writer) { Default.SetOutput(out) }
+// SetOutput sets the output on the [Default] logger.
+func SetOutput(out *Output) { Default.SetOutput(out) }
+
+// SetOutputWriter sets the output writer on the [Default] logger with [ColorAuto].
+func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 
 // SetParts sets the log-line part order on the [Default] logger.
 func SetParts(order ...Part) { Default.SetParts(order...) }

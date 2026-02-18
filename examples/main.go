@@ -38,6 +38,20 @@ func main() {
 		Prefix("✅").
 		Msg("Demo loaded")
 
+	_ = clog.Spinner("Running migrations").
+		Str("db", "postgres").
+		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+			hundred := 100
+			for i := range hundred {
+				progress := min(i+1, hundred)
+				update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
+				time.Sleep(30 * time.Millisecond)
+			}
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Migrations applied")
+
 	_ = clog.Spinner("Connecting to database").
 		Str("host", "db.internal").
 		Int("port", 5432).

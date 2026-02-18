@@ -456,19 +456,42 @@ The package-level functions (`Info()`, `Warn()`, etc.) use the `Default` logger 
 ```go
 // Full configuration
 clog.Configure(&clog.Config{
-  Verbose: true,           // enables debug level + timestamps
-  Output:  os.Stderr,      // custom writer
-  Styles:  customStyles,   // custom visual styles
+  Verbose: true,                            // enables debug level + timestamps
+  Output:  clog.Stderr(clog.ColorAuto),     // custom output
+  Styles:  customStyles,                    // custom visual styles
 })
 
 // Toggle verbose mode
 clog.SetVerbose(true)
 ```
 
+### Output
+
+Each `Logger` writes to an `*Output`, which bundles an `io.Writer` with its terminal capabilities (TTY detection, width, color profile):
+
+```go
+// Standard constructors
+out := clog.Stdout(clog.ColorAuto)                  // os.Stdout with auto-detection
+out := clog.Stderr(clog.ColorAlways)                // os.Stderr with forced colours
+out := clog.NewOutput(w, clog.ColorNever)           // arbitrary writer, colours disabled
+out := clog.TestOutput(&buf)                        // shorthand for NewOutput(w, ColorNever)
+```
+
+`Output` methods:
+
+| Method             | Description                                                                |
+| ------------------ | -------------------------------------------------------------------------- |
+| `Writer()`         | Returns the underlying `io.Writer`                                         |
+| `IsTTY()`          | True if the writer is connected to a terminal                              |
+| `ColorsDisabled()` | True if colours are suppressed for this output                             |
+| `Width()`          | Terminal width (0 for non-TTY, lazily cached)                              |
+| `RefreshWidth()`   | Re-detect terminal width on next `Width()` call                            |
+| `Renderer()`       | Returns the [lipgloss](https://github.com/charmbracelet/lipgloss) renderer |
+
 ### Custom Logger
 
 ```go
-logger := clog.New(os.Stderr)
+logger := clog.New(clog.Stderr(clog.ColorAuto))
 logger.SetLevel(clog.DebugLevel)
 logger.SetReportTimestamp(true)
 logger.SetTimeFormat("15:04:05.000")
@@ -478,14 +501,21 @@ logger.SetFieldStyleLevel(clog.TraceLevel) // min level for field value styling 
 logger.SetHandler(myHandler)
 ```
 
+For simple cases where you just need a writer with default color detection:
+
+```go
+logger := clog.NewWriter(os.Stderr) // equivalent to New(NewOutput(os.Stderr, ColorAuto))
+```
+
 ### Utility Functions
 
 ```go
 clog.GetLevel()                  // returns the current level of the Default logger
 clog.IsVerbose()                 // true if level is Debug or Trace
-clog.IsTerminal()                // true if stdout is a terminal
-clog.ColorsDisabled()            // true if colours are globally disabled
-clog.SetOutput(w)                // change the output writer
+clog.IsTerminal()                // true if Default output is a terminal
+clog.ColorsDisabled()            // true if colours are disabled on the Default logger
+clog.SetOutput(out)              // change the output (accepts *Output)
+clog.SetOutputWriter(w)          // change the output writer (with ColorAuto)
 clog.SetExitFunc(fn)             // override os.Exit for Fatal (useful in tests)
 clog.SetHyperlinksEnabled(false) // disable all hyperlink rendering
 ```
@@ -529,33 +559,24 @@ This means `CLOG_LOG_LEVEL=debug` always works as a universal escape hatch, even
 
 clog respects the [`NO_COLOR`](https://no-color.org/) convention. When the `NO_COLOR` environment variable is set (any value, including empty), all colours and hyperlinks are disabled.
 
-### Global Colour Control
+### Colour Control
+
+Colour behaviour is set per-`Output` via `ColorMode`:
 
 ```go
-clog.SetGlobalColorMode(clog.ColorAuto)   // detect terminal capabilities (default)
-clog.SetGlobalColorMode(clog.ColorAlways) // force colours (overrides NO_COLOR)
-clog.SetGlobalColorMode(clog.ColorNever)  // disable all colours and hyperlinks
-```
+// Package-level (recreates Default logger's Output)
+clog.SetColorMode(clog.ColorAlways) // force colours (overrides NO_COLOR)
+clog.SetColorMode(clog.ColorNever)  // disable all colours and hyperlinks
+clog.SetColorMode(clog.ColorAuto)   // detect terminal capabilities (default)
 
-### Per-Logger Colour Mode
-
-Each logger can override the global colour detection with `SetColorMode`:
-
-```go
-logger := clog.New(os.Stdout)
-logger.SetColorMode(clog.ColorAlways) // force colours for this logger
-logger.SetColorMode(clog.ColorNever)  // disable colours for this logger
-logger.SetColorMode(clog.ColorAuto)   // use global detection (default)
-
-// Package-level (sets Default logger)
-clog.SetColorMode(clog.ColorAlways)
+// Per-logger via Output
+logger := clog.New(clog.NewOutput(os.Stdout, clog.ColorAlways))
 ```
 
 This is useful in tests to verify hyperlink output without mutating global state:
 
 ```go
-l := clog.New(&buf)
-l.SetColorMode(clog.ColorAlways)
+l := clog.New(clog.NewOutput(&buf, clog.ColorAlways))
 l.Info().Line("file", "main.go", 42).Msg("Loaded")
 // buf contains OSC 8 hyperlink escape sequences
 ```

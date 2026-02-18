@@ -1,13 +1,8 @@
 package clog
 
-import (
-	"os"
-
-	"golang.org/x/term"
-)
-
-// IsTerminal returns true if stdout is connected to a terminal.
+// IsTerminal returns true if the [Default] logger's output is connected to a terminal.
 func IsTerminal() bool {
-	//nolint:gosec // Fd() fits in int on all supported platforms
-	return term.IsTerminal(int(os.Stdout.Fd()))
+	Default.mu.Lock()
+	defer Default.mu.Unlock()
+	return Default.output.IsTTY()
 }

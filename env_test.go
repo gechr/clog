@@ -67,7 +67,7 @@ func TestSetEnvPrefix(t *testing.T) {
 
 	saveEnvPrefix(t)
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	t.Setenv("MYAPP_LOG_LEVEL", "debug")
 	t.Setenv("CLOG_LOG_LEVEL", "")
 
@@ -83,7 +83,7 @@ func TestSetEnvPrefixFallbackToClog(t *testing.T) {
 
 	saveEnvPrefix(t)
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	t.Setenv("MYAPP_LOG_LEVEL", "")
 	t.Setenv("CLOG_LOG_LEVEL", "warn")
 

@@ -159,11 +159,9 @@ func buildPathURL(absPath string, line, column int, isDir bool) string {
 	return u
 }
 
-// hyperlinkWithMode is like [Hyperlink] but respects a per-logger [ColorMode].
-func hyperlinkWithMode(url, text string, mode ColorMode) string {
-	disabled := mode == ColorNever ||
-		(mode == ColorAuto && (!hyperlinksEnabled.Load() || ColorsDisabled()))
-	if disabled {
+// hyperlink is like [Hyperlink] but uses the Output's colour settings.
+func (o *Output) hyperlink(url, text string) string {
+	if !hyperlinksEnabled.Load() || o.ColorsDisabled() {
 		return text
 	}
 	return osc8(url, text)
@@ -203,13 +201,11 @@ func pathDisplayText(path string, line, column int) string {
 	return path
 }
 
-// pathLinkWithMode is like [PathLink] but respects a per-logger [ColorMode].
-func pathLinkWithMode(path string, line, column int, mode ColorMode) string {
+// pathLink is like [PathLink] but uses the Output's colour settings.
+func (o *Output) pathLink(path string, line, column int) string {
 	display := pathDisplayText(path, line, column)
 
-	disabled := mode == ColorNever ||
-		(mode == ColorAuto && (!hyperlinksEnabled.Load() || ColorsDisabled()))
-	if disabled {
+	if !hyperlinksEnabled.Load() || o.ColorsDisabled() {
 		return display
 	}
 	return osc8(resolvePathURL(path, line, column), display)

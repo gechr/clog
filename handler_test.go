@@ -31,7 +31,7 @@ func TestHandlerFuncAdapter(t *testing.T) {
 }
 
 func TestEntryFieldsPopulated(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -52,7 +52,7 @@ func TestEntryFieldsPopulated(t *testing.T) {
 }
 
 func TestEntryTimeZeroWhenTimestampDisabled(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 

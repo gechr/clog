@@ -27,7 +27,7 @@ func (c *Context) Column(key, path string, line, column int) *Context {
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, column, c.logger.colorMode)},
+		Field{Key: key, Value: c.logger.output.pathLink(path, line, column)},
 	)
 	return c
 }
@@ -69,7 +69,7 @@ func (c *Context) Line(key, path string, line int) *Context {
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, 0, c.logger.colorMode)},
+		Field{Key: key, Value: c.logger.output.pathLink(path, line, 0)},
 	)
 	return c
 }
@@ -79,7 +79,7 @@ func (c *Context) Line(key, path string, line int) *Context {
 func (c *Context) Link(key, url, text string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, text, c.logger.colorMode)},
+		Field{Key: key, Value: c.logger.output.hyperlink(url, text)},
 	)
 	return c
 }
@@ -92,7 +92,6 @@ func (c *Context) Logger() *Logger {
 	return &Logger{
 		mu: c.logger.mu,
 
-		colorMode:       c.logger.colorMode,
 		exitFunc:        c.logger.exitFunc,
 		fieldStyleLevel: c.logger.fieldStyleLevel,
 		fieldTimeFormat: c.logger.fieldTimeFormat,
@@ -103,7 +102,7 @@ func (c *Context) Logger() *Logger {
 		levelAlign:      c.logger.levelAlign,
 		omitEmpty:       c.logger.omitEmpty,
 		omitZero:        c.logger.omitZero,
-		out:             c.logger.out,
+		output:          c.logger.output,
 		parts:           c.logger.parts,
 		prefix:          c.prefix,
 		prefixes:        c.logger.prefixes,
@@ -122,7 +121,7 @@ func (c *Context) Logger() *Logger {
 func (c *Context) Path(key, path string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, 0, 0, c.logger.colorMode)},
+		Field{Key: key, Value: c.logger.output.pathLink(path, 0, 0)},
 	)
 	return c
 }
@@ -169,7 +168,7 @@ func (c *Context) Stringers(key string, vals []fmt.Stringer) *Context {
 func (c *Context) URL(key, url string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, url, c.logger.colorMode)},
+		Field{Key: key, Value: c.logger.output.hyperlink(url, url)},
 	)
 	return c
 }

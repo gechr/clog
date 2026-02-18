@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -40,6 +41,23 @@ func clearFormats(t *testing.T) {
 	hyperlinkColumnFormat.Store(nil)
 }
 
+// withColorsEnabled sets Default to ColorAlways and enables hyperlinks for the
+// duration of the test. Restores the original Default and hyperlinks flag on cleanup.
+func withColorsEnabled(t *testing.T) {
+	t.Helper()
+
+	origDefault := Default
+	origEnabled := hyperlinksEnabled.Load()
+
+	t.Cleanup(func() {
+		Default = origDefault
+		hyperlinksEnabled.Store(origEnabled)
+	})
+
+	Default = New(NewOutput(io.Discard, ColorAlways))
+	hyperlinksEnabled.Store(true)
+}
+
 func TestHyperlinkColorsDisabled(t *testing.T) {
 	// In test environment, ColorsDisabled() returns true (no terminal).
 	got := Hyperlink("https://example.com", "click here")
@@ -47,16 +65,7 @@ func TestHyperlinkColorsDisabled(t *testing.T) {
 }
 
 func TestHyperlinkEnabled(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
+	withColorsEnabled(t)
 
 	got := Hyperlink("https://example.com", "click")
 	want := "\x1b]8;;https://example.com\x1b\\click\x1b]8;;\x1b\\"
@@ -65,15 +74,15 @@ func TestHyperlinkEnabled(t *testing.T) {
 }
 
 func TestHyperlinkDisabledViaFlag(t *testing.T) {
-	origForced := colorsForced.Load()
+	origDefault := Default
 	origEnabled := hyperlinksEnabled.Load()
 
 	defer func() {
-		colorsForced.Store(origForced)
+		Default = origDefault
 		hyperlinksEnabled.Store(origEnabled)
 	}()
 
-	colorsForced.Store(true)
+	Default = New(NewOutput(io.Discard, ColorAlways))
 	hyperlinksEnabled.Store(false)
 
 	got := Hyperlink("https://example.com", "text")
@@ -111,18 +120,8 @@ func TestSetHyperlinksEnabled(t *testing.T) {
 }
 
 func TestPathLinkEnabled(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
+	withColorsEnabled(t)
 	clearFormats(t)
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
 
 	got := PathLink("/tmp/test.go", 42)
 	want := "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:42\x1b]8;;\x1b\\"
@@ -131,18 +130,8 @@ func TestPathLinkEnabled(t *testing.T) {
 }
 
 func TestPathLinkRelativePath(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
+	withColorsEnabled(t)
 	clearFormats(t)
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
 
 	// Relative path should be resolved to absolute.
 	got := PathLink("test.go", 0)
@@ -153,18 +142,8 @@ func TestPathLinkRelativePath(t *testing.T) {
 }
 
 func TestPathLinkDirectory(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
+	withColorsEnabled(t)
 	clearFormats(t)
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
 
 	// Set a line format — directories should still use file://.
 	fmtStr := "vscode://file{path}:{line}"
@@ -176,18 +155,8 @@ func TestPathLinkDirectory(t *testing.T) {
 }
 
 func TestPathLinkWithLineFormat(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
+	withColorsEnabled(t)
 	clearFormats(t)
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
 
 	fmtStr := "vscode://file{path}:{line}"
 	hyperlinkLineFormat.Store(&fmtStr)
@@ -198,18 +167,8 @@ func TestPathLinkWithLineFormat(t *testing.T) {
 }
 
 func TestPathLinkWithPathFormat(t *testing.T) {
-	origForced := colorsForced.Load()
-	origEnabled := hyperlinksEnabled.Load()
-
-	defer func() {
-		colorsForced.Store(origForced)
-		hyperlinksEnabled.Store(origEnabled)
-	}()
-
+	withColorsEnabled(t)
 	clearFormats(t)
-
-	colorsForced.Store(true)
-	hyperlinksEnabled.Store(true)
 
 	fmtStr := "vscode://file{path}"
 	hyperlinkPathFormat.Store(&fmtStr)
@@ -325,63 +284,83 @@ func TestLoadHyperlinkFormatsFromEnvEmpty(t *testing.T) {
 	assert.Nil(t, hyperlinkLineFormat.Load())
 }
 
-func TestHyperlinkWithModeNever(t *testing.T) {
-	got := hyperlinkWithMode("https://example.com", "text", ColorNever)
+func TestOutputHyperlinkNever(t *testing.T) {
+	output := NewOutput(io.Discard, ColorNever)
+	got := output.hyperlink("https://example.com", "text")
 	assert.Equal(t, "text", got)
 }
 
-func TestPathLinkWithModeAlways(t *testing.T) {
+func TestOutputPathLinkAlways(t *testing.T) {
 	clearFormats(t)
 
-	got := pathLinkWithMode("/tmp/test.go", 42, 0, ColorAlways)
+	output := NewOutput(io.Discard, ColorAlways)
+	hyperlinksEnabled.Store(true)
+	defer hyperlinksEnabled.Store(false)
+
+	got := output.pathLink("/tmp/test.go", 42, 0)
 	want := "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:42\x1b]8;;\x1b\\"
 
 	assert.Equal(t, want, got)
 }
 
-func TestPathLinkWithModeAlwaysDir(t *testing.T) {
+func TestOutputPathLinkAlwaysDir(t *testing.T) {
 	clearFormats(t)
 
-	got := pathLinkWithMode("/tmp", 0, 0, ColorAlways)
+	output := NewOutput(io.Discard, ColorAlways)
+	hyperlinksEnabled.Store(true)
+	defer hyperlinksEnabled.Store(false)
+
+	got := output.pathLink("/tmp", 0, 0)
 	want := "\x1b]8;;file:///tmp\x1b\\/tmp\x1b]8;;\x1b\\"
 
 	assert.Equal(t, want, got)
 }
 
-func TestPathLinkWithModeNever(t *testing.T) {
-	got := pathLinkWithMode("/tmp/test.go", 42, 0, ColorNever)
+func TestOutputPathLinkNever(t *testing.T) {
+	output := NewOutput(io.Discard, ColorNever)
+	got := output.pathLink("/tmp/test.go", 42, 0)
 
 	assert.Equal(t, "/tmp/test.go:42", got)
 }
 
-func TestPathLinkWithModeNoLine(t *testing.T) {
-	got := pathLinkWithMode("/tmp/test.go", 0, 0, ColorNever)
+func TestOutputPathLinkNoLine(t *testing.T) {
+	output := NewOutput(io.Discard, ColorNever)
+	got := output.pathLink("/tmp/test.go", 0, 0)
 
 	assert.Equal(t, "/tmp/test.go", got)
 }
 
-func TestPathLinkWithModeColumn(t *testing.T) {
-	got := pathLinkWithMode("/tmp/test.go", 42, 10, ColorNever)
+func TestOutputPathLinkColumn(t *testing.T) {
+	output := NewOutput(io.Discard, ColorNever)
+	got := output.pathLink("/tmp/test.go", 42, 10)
 
 	assert.Equal(t, "/tmp/test.go:42:10", got)
 }
 
-func TestPathLinkWithModeColumnAlways(t *testing.T) {
+func TestOutputPathLinkColumnAlways(t *testing.T) {
 	clearFormats(t)
 
-	got := pathLinkWithMode("/tmp/test.go", 42, 10, ColorAlways)
+	output := NewOutput(io.Discard, ColorAlways)
+	hyperlinksEnabled.Store(true)
+	defer hyperlinksEnabled.Store(false)
+
+	got := output.pathLink("/tmp/test.go", 42, 10)
 	want := "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:42:10\x1b]8;;\x1b\\"
 
 	assert.Equal(t, want, got)
 }
 
-func TestPathLinkWithModeColumnFormat(t *testing.T) {
+func TestOutputPathLinkColumnFormat(t *testing.T) {
 	clearFormats(t)
+
+	output := NewOutput(io.Discard, ColorAlways)
+	hyperlinksEnabled.Store(true)
+	defer hyperlinksEnabled.Store(false)
 
 	colFmt := "vscode://file{path}:{line}:{column}"
 	hyperlinkColumnFormat.Store(&colFmt)
 
-	got := pathLinkWithMode("/tmp/test.go", 42, 10, ColorAlways)
+	got := output.pathLink("/tmp/test.go", 42, 10)
 	want := "\x1b]8;;vscode://file/tmp/test.go:42:10\x1b\\/tmp/test.go:42:10\x1b]8;;\x1b\\"
 
 	assert.Equal(t, want, got)
@@ -474,8 +453,12 @@ func TestIsDirectory(t *testing.T) {
 	assert.False(t, isDirectory(f.Name()))
 }
 
-func TestHyperlinkWithModeAlways(t *testing.T) {
-	got := hyperlinkWithMode("https://example.com", "text", ColorAlways)
+func TestOutputHyperlinkAlways(t *testing.T) {
+	output := NewOutput(io.Discard, ColorAlways)
+	hyperlinksEnabled.Store(true)
+	defer hyperlinksEnabled.Store(false)
+
+	got := output.hyperlink("https://example.com", "text")
 	want := "\x1b]8;;https://example.com\x1b\\text\x1b]8;;\x1b\\"
 	assert.Equal(t, want, got)
 }

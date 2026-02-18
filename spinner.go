@@ -3,13 +3,11 @@ package clog
 import (
 	"context"
 	"fmt"
-	"io"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/x/ansi"
 )
 
 // DefaultSpinner is the default spinner animation.
@@ -76,37 +74,30 @@ func (b *SpinnerBuilder) Type(s spinner.Spinner) *SpinnerBuilder {
 }
 
 // Path adds a file path field as a clickable terminal hyperlink.
-// Uses the [Default] logger's [ColorMode] setting.
+// Uses the [Default] logger's [Output] setting.
 func (b *SpinnerBuilder) Path(key, path string) *SpinnerBuilder {
-	Default.mu.Lock()
-	mode := Default.colorMode
-	Default.mu.Unlock()
-
-	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, 0, 0, mode)})
+	output := Default.Output()
+	b.fields = append(b.fields, Field{Key: key, Value: output.pathLink(path, 0, 0)})
 	return b
 }
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Uses the [Default] logger's [ColorMode] setting.
+// Uses the [Default] logger's [Output] setting.
 func (b *SpinnerBuilder) Line(key, path string, line int) *SpinnerBuilder {
-	Default.mu.Lock()
-	mode := Default.colorMode
-	Default.mu.Unlock()
+	output := Default.Output()
 
 	if line < 1 {
 		line = 1
 	}
 
-	b.fields = append(b.fields, Field{Key: key, Value: pathLinkWithMode(path, line, 0, mode)})
+	b.fields = append(b.fields, Field{Key: key, Value: output.pathLink(path, line, 0)})
 	return b
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
-// Uses the [Default] logger's [ColorMode] setting.
+// Uses the [Default] logger's [Output] setting.
 func (b *SpinnerBuilder) Column(key, path string, line, column int) *SpinnerBuilder {
-	Default.mu.Lock()
-	mode := Default.colorMode
-	Default.mu.Unlock()
+	output := Default.Output()
 
 	if line < 1 {
 		line = 1
@@ -118,30 +109,24 @@ func (b *SpinnerBuilder) Column(key, path string, line, column int) *SpinnerBuil
 
 	b.fields = append(
 		b.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, column, mode)},
+		Field{Key: key, Value: output.pathLink(path, line, column)},
 	)
 	return b
 }
 
 // URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
-// Uses the [Default] logger's [ColorMode] setting.
+// Uses the [Default] logger's [Output] setting.
 func (b *SpinnerBuilder) URL(key, url string) *SpinnerBuilder {
-	Default.mu.Lock()
-	mode := Default.colorMode
-	Default.mu.Unlock()
-
-	b.fields = append(b.fields, Field{Key: key, Value: hyperlinkWithMode(url, url, mode)})
+	output := Default.Output()
+	b.fields = append(b.fields, Field{Key: key, Value: output.hyperlink(url, url)})
 	return b
 }
 
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
-// Uses the [Default] logger's [ColorMode] setting.
+// Uses the [Default] logger's [Output] setting.
 func (b *SpinnerBuilder) Link(key, url, text string) *SpinnerBuilder {
-	Default.mu.Lock()
-	mode := Default.colorMode
-	Default.mu.Unlock()
-
-	b.fields = append(b.fields, Field{Key: key, Value: hyperlinkWithMode(url, text, mode)})
+	output := Default.Output()
+	b.fields = append(b.fields, Field{Key: key, Value: output.hyperlink(url, text)})
 	return b
 }
 
@@ -306,9 +291,10 @@ func runSpinner(
 	fieldStyleLevel := Default.fieldStyleLevel
 	fieldTimeFormat := Default.fieldTimeFormat
 	label := Default.formatLabel(InfoLevel)
-	noColor := Default.colorsDisabled()
+	noColor := Default.output.ColorsDisabled()
 	order := Default.parts
-	out := Default.out
+	out := Default.output.Writer()
+	termOut := Default.output.Renderer().Output()
 	quoteClose := Default.quoteClose
 	quoteMode := Default.quoteMode
 	quoteOpen := Default.quoteOpen
@@ -361,10 +347,8 @@ func runSpinner(
 	}
 
 	// Hide cursor during animation.
-	_, _ = io.WriteString(out, ansi.HideCursor)
-	defer func() {
-		_, _ = io.WriteString(out, ansi.ShowCursor)
-	}()
+	termOut.HideCursor()
+	defer termOut.ShowCursor()
 
 	var levelPrefix string
 	if style := styles.Levels[InfoLevel]; style != nil {
@@ -381,7 +365,8 @@ func runSpinner(
 	for {
 		select {
 		case err := <-done:
-			_, _ = io.WriteString(out, "\r"+ansi.EraseLineRight)
+			termOut.ClearLine()
+			_, _ = fmt.Fprint(out, "\r")
 			return err
 		case <-ticker.C:
 			char := s.Frames[frame%len(s.Frames)]
@@ -426,11 +411,12 @@ func runSpinner(
 				}
 			}
 
-			line := "\r" + ansi.EraseLineRight + strings.Join(parts, " ")
-			_, _ = io.WriteString(out, line)
+			termOut.ClearLine()
+			_, _ = fmt.Fprintf(out, "\r%s", strings.Join(parts, " "))
 			frame++
 		case <-ctx.Done():
-			_, _ = io.WriteString(out, "\r"+ansi.EraseLineRight)
+			termOut.ClearLine()
+			_, _ = fmt.Fprint(out, "\r")
 			return ctx.Err()
 		}
 	}

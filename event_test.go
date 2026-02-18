@@ -19,7 +19,7 @@ type testStringer struct {
 func (ts testStringer) String() string { return ts.s }
 
 func TestEventStr(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Str("key", "val")
 
 	require.Len(t, e.fields, 1)
@@ -28,7 +28,7 @@ func TestEventStr(t *testing.T) {
 }
 
 func TestEventStrs(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Strs("keys", []string{"a", "b"})
 
 	require.Len(t, e.fields, 1)
@@ -39,7 +39,7 @@ func TestEventStrs(t *testing.T) {
 }
 
 func TestEventInt(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Int("count", 42)
 
 	require.Len(t, e.fields, 1)
@@ -48,7 +48,7 @@ func TestEventInt(t *testing.T) {
 }
 
 func TestEventInts(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Ints("nums", []int{1, 2, 3})
 
 	require.Len(t, e.fields, 1)
@@ -56,7 +56,7 @@ func TestEventInts(t *testing.T) {
 }
 
 func TestEventUint64(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Uint64("size", 999)
 
 	require.Len(t, e.fields, 1)
@@ -65,7 +65,7 @@ func TestEventUint64(t *testing.T) {
 }
 
 func TestEventUints64(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Uints64("sizes", []uint64{1, 2, 3})
 
 	require.Len(t, e.fields, 1)
@@ -73,7 +73,7 @@ func TestEventUints64(t *testing.T) {
 }
 
 func TestEventFloat64(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Float64("pi", 3.14)
 
 	require.Len(t, e.fields, 1)
@@ -82,7 +82,7 @@ func TestEventFloat64(t *testing.T) {
 }
 
 func TestEventFloats64(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Floats64("vals", []float64{1.1, 2.2})
 
 	require.Len(t, e.fields, 1)
@@ -91,7 +91,7 @@ func TestEventFloats64(t *testing.T) {
 }
 
 func TestEventLink(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Link("docs", "https://example.com", "docs")
 
@@ -102,8 +102,7 @@ func TestEventLink(t *testing.T) {
 }
 
 func TestEventLinkColorAlways(t *testing.T) {
-	l := New(io.Discard)
-	l.SetColorMode(ColorAlways)
+	l := New(NewOutput(io.Discard, ColorAlways))
 
 	e := l.Info()
 	e.Link("docs", "https://example.com", "docs")
@@ -117,7 +116,7 @@ func TestEventLinkColorAlways(t *testing.T) {
 }
 
 func TestEventURL(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.URL("link", "https://example.com")
 
@@ -128,8 +127,7 @@ func TestEventURL(t *testing.T) {
 }
 
 func TestEventURLColorAlways(t *testing.T) {
-	l := New(io.Discard)
-	l.SetColorMode(ColorAlways)
+	l := New(NewOutput(io.Discard, ColorAlways))
 
 	e := l.Info()
 	e.URL("link", "https://example.com")
@@ -142,7 +140,7 @@ func TestEventURLColorAlways(t *testing.T) {
 }
 
 func TestEventBool(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Bool("ok", true)
 
 	require.Len(t, e.fields, 1)
@@ -151,7 +149,7 @@ func TestEventBool(t *testing.T) {
 }
 
 func TestEventBools(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Bools("flags", []bool{true, false})
 
 	require.Len(t, e.fields, 1)
@@ -160,7 +158,7 @@ func TestEventBools(t *testing.T) {
 }
 
 func TestEventDur(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Duration("elapsed", time.Second)
 
 	require.Len(t, e.fields, 1)
@@ -170,7 +168,7 @@ func TestEventDur(t *testing.T) {
 
 func TestEventTime(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Time("created", ts)
 
 	require.Len(t, e.fields, 1)
@@ -179,7 +177,7 @@ func TestEventTime(t *testing.T) {
 }
 
 func TestEventAny(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Any("data", 123)
 
 	require.Len(t, e.fields, 1)
@@ -188,7 +186,7 @@ func TestEventAny(t *testing.T) {
 }
 
 func TestEventAnys(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	vals := []any{"hello", 42, true}
 	e.Anys("mixed", vals)
 
@@ -201,7 +199,7 @@ func TestEventAnys(t *testing.T) {
 }
 
 func TestEventDict(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Dict("request", Dict().Str("method", "GET").Int("status", 200))
 
 	require.Len(t, e.fields, 2)
@@ -221,14 +219,14 @@ func TestEventDictNilReceiver(t *testing.T) {
 func TestEventDictOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Dict("req", Dict().Str("method", "GET").Int("status", 200)).Msg("handled")
 
 	assert.Equal(t, "INF ℹ️ handled req.method=GET req.status=200\n", buf.String())
 }
 
 func TestEventErr(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	err := errors.New("boom")
 	e.Err(err)
 
@@ -241,7 +239,7 @@ func TestEventErr(t *testing.T) {
 }
 
 func TestEventErrNil(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	result := e.Err(nil)
 
 	assert.Same(t, e, result, "expected same event returned")
@@ -249,7 +247,7 @@ func TestEventErrNil(t *testing.T) {
 }
 
 func TestEventPath(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Path("dir", "/tmp")
 
@@ -259,7 +257,7 @@ func TestEventPath(t *testing.T) {
 }
 
 func TestEventLine(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Line("file", "main.go", 42)
 
@@ -270,8 +268,7 @@ func TestEventLine(t *testing.T) {
 }
 
 func TestEventLineColorAlways(t *testing.T) {
-	l := New(io.Discard)
-	l.SetColorMode(ColorAlways)
+	l := New(NewOutput(io.Discard, ColorAlways))
 
 	e := l.Info()
 	e.Line("file", "main.go", 10)
@@ -287,8 +284,7 @@ func TestEventLineColorAlways(t *testing.T) {
 }
 
 func TestEventLineColorNever(t *testing.T) {
-	l := New(io.Discard)
-	l.SetColorMode(ColorNever)
+	l := New(NewOutput(io.Discard, ColorNever))
 
 	e := l.Info()
 	e.Line("file", "main.go", 10)
@@ -298,7 +294,7 @@ func TestEventLineColorNever(t *testing.T) {
 }
 
 func TestEventLineMinimum(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Line("file", "main.go", 0)
 
@@ -308,7 +304,7 @@ func TestEventLineMinimum(t *testing.T) {
 }
 
 func TestEventColumn(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Column("loc", "main.go", 42, 10)
 
@@ -321,8 +317,7 @@ func TestEventColumn(t *testing.T) {
 func TestEventColumnColorAlways(t *testing.T) {
 	clearFormats(t)
 
-	l := New(io.Discard)
-	l.SetColorMode(ColorAlways)
+	l := New(NewOutput(io.Discard, ColorAlways))
 
 	e := l.Info()
 	e.Column("loc", "/tmp/test.go", 10, 5)
@@ -336,7 +331,7 @@ func TestEventColumnColorAlways(t *testing.T) {
 }
 
 func TestEventColumnMinimum(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Column("loc", "main.go", 0, 0)
 
@@ -346,7 +341,7 @@ func TestEventColumnMinimum(t *testing.T) {
 }
 
 func TestEventStringer(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Stringer("name", testStringer{s: "hello"})
 
 	require.Len(t, e.fields, 1)
@@ -355,7 +350,7 @@ func TestEventStringer(t *testing.T) {
 }
 
 func TestEventStringerNil(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	result := e.Stringer("key", nil)
 
 	assert.Same(t, e, result, "expected same event returned")
@@ -363,7 +358,7 @@ func TestEventStringerNil(t *testing.T) {
 }
 
 func TestEventStringers(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Stringers("items", []fmt.Stringer{testStringer{s: "x"}, testStringer{s: "y"}})
 
 	require.Len(t, e.fields, 1)
@@ -374,7 +369,7 @@ func TestEventStringers(t *testing.T) {
 }
 
 func TestEventStringersWithNil(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Stringers("items", []fmt.Stringer{testStringer{s: "x"}, nil})
 
 	require.Len(t, e.fields, 1)
@@ -385,7 +380,7 @@ func TestEventStringersWithNil(t *testing.T) {
 }
 
 func TestEventPrefix(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -440,7 +435,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 }
 
 func TestEventMsg(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -457,7 +452,7 @@ func TestEventMsg(t *testing.T) {
 }
 
 func TestEventMsgf(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -471,7 +466,7 @@ func TestEventMsgf(t *testing.T) {
 }
 
 func TestEventSend(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -486,7 +481,7 @@ func TestEventSend(t *testing.T) {
 }
 
 func TestEventWithFields(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e = e.withFields([]Field{{Key: "a", Value: "1"}, {Key: "b", Value: "2"}})
 
 	require.Len(t, e.fields, 2)
@@ -502,7 +497,7 @@ func TestEventWithFieldsNilReceiver(t *testing.T) {
 }
 
 func TestEventWithPrefix(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e = e.withPrefix("CUSTOM")
 
 	require.NotNil(t, e.prefix)
@@ -517,7 +512,7 @@ func TestEventWithPrefixNilReceiver(t *testing.T) {
 }
 
 func TestEventChaining(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -536,7 +531,7 @@ func TestEventChaining(t *testing.T) {
 }
 
 func TestEventDurations(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	vals := []time.Duration{time.Second, 2 * time.Millisecond}
 	e.Durations("timings", vals)
 
@@ -551,14 +546,14 @@ func TestEventDurations(t *testing.T) {
 func TestEventDurationsOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Durations("d", []time.Duration{time.Second, 500 * time.Millisecond}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test d=[1s, 500ms]\n", buf.String())
 }
 
 func TestEventPercent(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Percent("progress", 75)
 
 	require.Len(t, e.fields, 1)
@@ -570,7 +565,7 @@ func TestEventPercent(t *testing.T) {
 }
 
 func TestEventPercentClamping(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Percent("low", -10)
 	e.Percent("high", 150)
 
@@ -588,14 +583,14 @@ func TestEventPercentClamping(t *testing.T) {
 func TestEventPercentOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Percent("progress", 75).Msg("done")
 
 	assert.Equal(t, "INF ℹ️ done progress=75%\n", buf.String())
 }
 
 func TestEventQuantity(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Quantity("size", "10GB")
 
 	require.Len(t, e.fields, 1)
@@ -605,14 +600,14 @@ func TestEventQuantity(t *testing.T) {
 func TestEventQuantityOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Quantity("size", "10GB").Msg("done")
 
 	assert.Equal(t, "INF ℹ️ done size=10GB\n", buf.String())
 }
 
 func TestEventQuantities(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Quantities("sizes", []string{"10GB", "5MB"})
 
 	require.Len(t, e.fields, 1)
@@ -622,14 +617,14 @@ func TestEventQuantities(t *testing.T) {
 func TestEventQuantitiesOutput(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Quantities("sizes", []string{"10GB", "5MB"}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test sizes=[10GB, 5MB]\n", buf.String())
 }
 
 func TestEventDictNilParam(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	e.Str("before", "x")
 
 	result := e.Dict("group", nil)
@@ -640,7 +635,7 @@ func TestEventDictNilParam(t *testing.T) {
 }
 
 func TestEventStringerTypedNil(t *testing.T) {
-	e := New(io.Discard).Info()
+	e := NewWriter(io.Discard).Info()
 	var buf *bytes.Buffer // typed nil that implements fmt.Stringer
 
 	result := e.Stringer("key", buf)
@@ -652,7 +647,7 @@ func TestEventStringerTypedNil(t *testing.T) {
 func TestEventEmptyFieldKey(t *testing.T) {
 	var buf bytes.Buffer
 
-	l := New(&buf)
+	l := New(TestOutput(&buf))
 	l.Info().Str("", "value").Msg("test")
 
 	assert.Contains(t, buf.String(), "=value")
@@ -661,7 +656,7 @@ func TestEventEmptyFieldKey(t *testing.T) {
 func TestEventMsgFatalCallsExit(t *testing.T) {
 	var exitCode int
 
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetExitFunc(func(code int) { exitCode = code })
 	l.Fatal().Msg("fatal error")
 

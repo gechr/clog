@@ -12,7 +12,7 @@ import (
 )
 
 func TestContextStr(t *testing.T) {
-	ctx := New(io.Discard).With().Str("key", "val")
+	ctx := NewWriter(io.Discard).With().Str("key", "val")
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "key", ctx.fields[0].Key)
@@ -20,7 +20,7 @@ func TestContextStr(t *testing.T) {
 }
 
 func TestContextStrs(t *testing.T) {
-	ctx := New(io.Discard).With().Strs("keys", []string{"a", "b"})
+	ctx := NewWriter(io.Discard).With().Strs("keys", []string{"a", "b"})
 
 	require.Len(t, ctx.fields, 1)
 
@@ -30,7 +30,7 @@ func TestContextStrs(t *testing.T) {
 }
 
 func TestContextInt(t *testing.T) {
-	ctx := New(io.Discard).With().Int("n", 42)
+	ctx := NewWriter(io.Discard).With().Int("n", 42)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "n", ctx.fields[0].Key)
@@ -38,14 +38,14 @@ func TestContextInt(t *testing.T) {
 }
 
 func TestContextInts(t *testing.T) {
-	ctx := New(io.Discard).With().Ints("nums", []int{1, 2, 3})
+	ctx := NewWriter(io.Discard).With().Ints("nums", []int{1, 2, 3})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "nums", ctx.fields[0].Key)
 }
 
 func TestContextUint64(t *testing.T) {
-	ctx := New(io.Discard).With().Uint64("size", 999)
+	ctx := NewWriter(io.Discard).With().Uint64("size", 999)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "size", ctx.fields[0].Key)
@@ -53,14 +53,14 @@ func TestContextUint64(t *testing.T) {
 }
 
 func TestContextUints64(t *testing.T) {
-	ctx := New(io.Discard).With().Uints64("sizes", []uint64{1, 2, 3})
+	ctx := NewWriter(io.Discard).With().Uints64("sizes", []uint64{1, 2, 3})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "sizes", ctx.fields[0].Key)
 }
 
 func TestContextFloat64(t *testing.T) {
-	ctx := New(io.Discard).With().Float64("pi", 3.14)
+	ctx := NewWriter(io.Discard).With().Float64("pi", 3.14)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "pi", ctx.fields[0].Key)
@@ -68,7 +68,7 @@ func TestContextFloat64(t *testing.T) {
 }
 
 func TestContextFloats64(t *testing.T) {
-	ctx := New(io.Discard).With().Floats64("vals", []float64{1.1, 2.2})
+	ctx := NewWriter(io.Discard).With().Floats64("vals", []float64{1.1, 2.2})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "vals", ctx.fields[0].Key)
@@ -76,7 +76,7 @@ func TestContextFloats64(t *testing.T) {
 }
 
 func TestContextLink(t *testing.T) {
-	ctx := New(io.Discard).With().Link("docs", "https://example.com", "docs")
+	ctx := NewWriter(io.Discard).With().Link("docs", "https://example.com", "docs")
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "docs", ctx.fields[0].Key)
@@ -84,7 +84,7 @@ func TestContextLink(t *testing.T) {
 }
 
 func TestContextURL(t *testing.T) {
-	ctx := New(io.Discard).With().URL("link", "https://example.com")
+	ctx := NewWriter(io.Discard).With().URL("link", "https://example.com")
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "link", ctx.fields[0].Key)
@@ -92,7 +92,7 @@ func TestContextURL(t *testing.T) {
 }
 
 func TestContextBool(t *testing.T) {
-	ctx := New(io.Discard).With().Bool("ok", true)
+	ctx := NewWriter(io.Discard).With().Bool("ok", true)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "ok", ctx.fields[0].Key)
@@ -100,7 +100,7 @@ func TestContextBool(t *testing.T) {
 }
 
 func TestContextBools(t *testing.T) {
-	ctx := New(io.Discard).With().Bools("flags", []bool{true, false})
+	ctx := NewWriter(io.Discard).With().Bools("flags", []bool{true, false})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "flags", ctx.fields[0].Key)
@@ -108,7 +108,7 @@ func TestContextBools(t *testing.T) {
 }
 
 func TestContextDur(t *testing.T) {
-	ctx := New(io.Discard).With().Duration("elapsed", time.Second)
+	ctx := NewWriter(io.Discard).With().Duration("elapsed", time.Second)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "elapsed", ctx.fields[0].Key)
@@ -117,7 +117,7 @@ func TestContextDur(t *testing.T) {
 
 func TestContextTime(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
-	ctx := New(io.Discard).With().Time("created", ts)
+	ctx := NewWriter(io.Discard).With().Time("created", ts)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "created", ctx.fields[0].Key)
@@ -125,7 +125,7 @@ func TestContextTime(t *testing.T) {
 }
 
 func TestContextAny(t *testing.T) {
-	ctx := New(io.Discard).With().Any("data", 123)
+	ctx := NewWriter(io.Discard).With().Any("data", 123)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "data", ctx.fields[0].Key)
@@ -134,7 +134,7 @@ func TestContextAny(t *testing.T) {
 
 func TestContextAnys(t *testing.T) {
 	vals := []any{"hello", 42, true}
-	ctx := New(io.Discard).With().Anys("mixed", vals)
+	ctx := NewWriter(io.Discard).With().Anys("mixed", vals)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "mixed", ctx.fields[0].Key)
@@ -145,7 +145,10 @@ func TestContextAnys(t *testing.T) {
 }
 
 func TestContextDict(t *testing.T) {
-	ctx := New(io.Discard).With().Dict("db", Dict().Str("host", "localhost").Int("port", 5432))
+	ctx := NewWriter(
+		io.Discard,
+	).With().
+		Dict("db", Dict().Str("host", "localhost").Int("port", 5432))
 
 	require.Len(t, ctx.fields, 2)
 	assert.Equal(t, "db.host", ctx.fields[0].Key)
@@ -155,20 +158,20 @@ func TestContextDict(t *testing.T) {
 }
 
 func TestContextErr(t *testing.T) {
-	ctx := New(io.Discard).With().Err(errors.New("boom"))
+	ctx := NewWriter(io.Discard).With().Err(errors.New("boom"))
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "error", ctx.fields[0].Key)
 }
 
 func TestContextErrNil(t *testing.T) {
-	ctx := New(io.Discard).With().Err(nil)
+	ctx := NewWriter(io.Discard).With().Err(nil)
 
 	assert.Empty(t, ctx.fields)
 }
 
 func TestContextPath(t *testing.T) {
-	ctx := New(io.Discard).With().Path("dir", "/tmp")
+	ctx := NewWriter(io.Discard).With().Path("dir", "/tmp")
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "dir", ctx.fields[0].Key)
@@ -176,7 +179,7 @@ func TestContextPath(t *testing.T) {
 }
 
 func TestContextLine(t *testing.T) {
-	ctx := New(io.Discard).With().Line("file", "main.go", 10)
+	ctx := NewWriter(io.Discard).With().Line("file", "main.go", 10)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "file", ctx.fields[0].Key)
@@ -184,7 +187,7 @@ func TestContextLine(t *testing.T) {
 }
 
 func TestContextColumn(t *testing.T) {
-	ctx := New(io.Discard).With().Column("loc", "main.go", 10, 5)
+	ctx := NewWriter(io.Discard).With().Column("loc", "main.go", 10, 5)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "loc", ctx.fields[0].Key)
@@ -192,7 +195,7 @@ func TestContextColumn(t *testing.T) {
 }
 
 func TestContextColumnMinimum(t *testing.T) {
-	ctx := New(io.Discard).With().Column("loc", "main.go", 0, 0)
+	ctx := NewWriter(io.Discard).With().Column("loc", "main.go", 0, 0)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "loc", ctx.fields[0].Key)
@@ -201,7 +204,7 @@ func TestContextColumnMinimum(t *testing.T) {
 }
 
 func TestContextLineMinimum(t *testing.T) {
-	ctx := New(io.Discard).With().Line("file", "main.go", 0)
+	ctx := NewWriter(io.Discard).With().Line("file", "main.go", 0)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "file", ctx.fields[0].Key)
@@ -210,7 +213,7 @@ func TestContextLineMinimum(t *testing.T) {
 }
 
 func TestContextStringer(t *testing.T) {
-	ctx := New(io.Discard).With().Stringer("name", testStringer{s: "hello"})
+	ctx := NewWriter(io.Discard).With().Stringer("name", testStringer{s: "hello"})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "name", ctx.fields[0].Key)
@@ -218,13 +221,13 @@ func TestContextStringer(t *testing.T) {
 }
 
 func TestContextStringerNil(t *testing.T) {
-	ctx := New(io.Discard).With().Stringer("key", nil)
+	ctx := NewWriter(io.Discard).With().Stringer("key", nil)
 
 	assert.Empty(t, ctx.fields)
 }
 
 func TestContextStringers(t *testing.T) {
-	ctx := New(
+	ctx := NewWriter(
 		io.Discard,
 	).With().
 		Stringers("items", []fmt.Stringer{testStringer{s: "a"}, testStringer{s: "b"}})
@@ -237,7 +240,10 @@ func TestContextStringers(t *testing.T) {
 }
 
 func TestContextStringersWithNil(t *testing.T) {
-	ctx := New(io.Discard).With().Stringers("items", []fmt.Stringer{testStringer{s: "a"}, nil})
+	ctx := NewWriter(
+		io.Discard,
+	).With().
+		Stringers("items", []fmt.Stringer{testStringer{s: "a"}, nil})
 
 	require.Len(t, ctx.fields, 1)
 
@@ -248,7 +254,7 @@ func TestContextStringersWithNil(t *testing.T) {
 
 func TestContextDurations(t *testing.T) {
 	vals := []time.Duration{time.Second, 2 * time.Millisecond}
-	ctx := New(io.Discard).With().Durations("timings", vals)
+	ctx := NewWriter(io.Discard).With().Durations("timings", vals)
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "timings", ctx.fields[0].Key)
@@ -259,21 +265,21 @@ func TestContextDurations(t *testing.T) {
 }
 
 func TestContextQuantity(t *testing.T) {
-	ctx := New(io.Discard).With().Quantity("size", "10GB")
+	ctx := NewWriter(io.Discard).With().Quantity("size", "10GB")
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "size", ctx.fields[0].Key)
 }
 
 func TestContextQuantities(t *testing.T) {
-	ctx := New(io.Discard).With().Quantities("sizes", []string{"10GB", "5MB"})
+	ctx := NewWriter(io.Discard).With().Quantities("sizes", []string{"10GB", "5MB"})
 
 	require.Len(t, ctx.fields, 1)
 	assert.Equal(t, "sizes", ctx.fields[0].Key)
 }
 
 func TestContextPrefix(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 
 	var got Entry
 
@@ -288,7 +294,7 @@ func TestContextPrefix(t *testing.T) {
 }
 
 func TestContextLoggerInheritsSettings(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	l.SetLevel(DebugLevel)
 	l.SetReportTimestamp(true)
 	l.SetTimeFormat("2006-01-02")
@@ -317,7 +323,7 @@ func TestContextLoggerInheritsSettings(t *testing.T) {
 }
 
 func TestContextLoggerSharesMutex(t *testing.T) {
-	l := New(io.Discard)
+	l := NewWriter(io.Discard)
 	sub := l.With().Str("k", "v").Logger()
 
 	assert.Same(t, l.mu, sub.mu, "sub-logger should share parent's mutex")

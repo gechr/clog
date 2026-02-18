@@ -184,7 +184,7 @@ func TestSpinnerWaitSuccess(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	result := Spinner("loading").
 		Str("file", "test.go").
@@ -200,7 +200,7 @@ func TestSpinnerWaitError(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	testErr := errors.New("test error")
 	result := Spinner("loading").Wait(context.Background(), func(_ context.Context) error {
@@ -214,7 +214,7 @@ func TestSpinnerProgressSuccess(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	result := Spinner("step 1").
 		Str("file", "a.go").
@@ -230,7 +230,7 @@ func TestSpinnerProgressError(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	testErr := errors.New("fail")
 	result := Spinner(
@@ -246,7 +246,7 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	result := Spinner(
 		"step 1",
@@ -312,7 +312,7 @@ func TestWaitResultMsgSuccess(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -332,7 +332,7 @@ func TestWaitResultMsgError(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -354,7 +354,7 @@ func TestWaitResultErrSuccess(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -374,7 +374,7 @@ func TestWaitResultErrError(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -395,7 +395,7 @@ func TestWaitResultOnSuccessLevel(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(WarnLevel)
 
 	var got Entry
@@ -416,7 +416,7 @@ func TestWaitResultOnSuccessMessage(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -436,7 +436,7 @@ func TestWaitResultOnErrorLevel(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetExitFunc(func(_ int) {}) // prevent os.Exit
 
 	var got Entry
@@ -457,7 +457,7 @@ func TestWaitResultOnErrorMessage(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -478,7 +478,7 @@ func TestWaitResultOnErrorMessageDefault(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -498,7 +498,7 @@ func TestWaitResultSendSuccess(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -531,7 +531,7 @@ func TestWaitResultEventWithPrefix(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -551,7 +551,7 @@ func TestWaitResultEventWithFields(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 
 	var got Entry
 
@@ -573,7 +573,7 @@ func TestWaitResultEventLevelFiltered(_ *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(FatalLevel) // filter out everything
 
 	w := newTestWaitResult("test", nil)
@@ -583,19 +583,15 @@ func TestWaitResultEventLevelFiltered(_ *testing.T) {
 
 func TestRunSpinnerAnimationDoneCase(t *testing.T) {
 	origDefault := Default
-	origForced := colorsForced.Load()
 
 	defer func() {
 		Default = origDefault
-		colorsForced.Store(origForced)
 	}()
 
 	var buf bytes.Buffer
 
-	Default = New(&buf)
+	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel) // ensure not verbose
-
-	colorsForced.Store(true)
 
 	// Use a very fast spinner so tick fires quickly.
 	fastSpinner := spinner.Spinner{
@@ -622,19 +618,15 @@ func TestRunSpinnerAnimationDoneCase(t *testing.T) {
 
 func TestRunSpinnerAnimationContextCancel(t *testing.T) {
 	origDefault := Default
-	origForced := colorsForced.Load()
 
 	defer func() {
 		Default = origDefault
-		colorsForced.Store(origForced)
 	}()
 
 	var buf bytes.Buffer
 
-	Default = New(&buf)
+	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
-
-	colorsForced.Store(true)
 
 	fastSpinner := spinner.Spinner{
 		Frames: []string{"A"},
@@ -661,19 +653,15 @@ func TestRunSpinnerAnimationContextCancel(t *testing.T) {
 
 func TestRunSpinnerAnimationError(t *testing.T) {
 	origDefault := Default
-	origForced := colorsForced.Load()
 
 	defer func() {
 		Default = origDefault
-		colorsForced.Store(origForced)
 	}()
 
 	var buf bytes.Buffer
 
-	Default = New(&buf)
+	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
-
-	colorsForced.Store(true)
 
 	fastSpinner := spinner.Spinner{
 		Frames: []string{"A"},
@@ -696,7 +684,7 @@ func TestRunSpinnerVerboseFastPath(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
-	Default = New(io.Discard)
+	Default = NewWriter(io.Discard)
 	Default.SetLevel(DebugLevel)
 
 	// When IsVerbose() returns true, runSpinner should take fast path.
@@ -713,7 +701,7 @@ func TestRunSpinnerNoColorWithTimestamp(t *testing.T) {
 
 	var buf bytes.Buffer
 
-	Default = New(&buf)
+	Default = New(TestOutput(&buf))
 	Default.SetReportTimestamp(true)
 
 	result := Spinner("loading").Wait(context.Background(), func(_ context.Context) error {
@@ -730,19 +718,15 @@ func TestRunSpinnerNoColorWithTimestamp(t *testing.T) {
 
 func TestRunSpinnerAnimationWithTimestamp(t *testing.T) {
 	origDefault := Default
-	origForced := colorsForced.Load()
 
 	defer func() {
 		Default = origDefault
-		colorsForced.Store(origForced)
 	}()
 
 	var buf bytes.Buffer
 
-	Default = New(&buf)
+	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetReportTimestamp(true)
-
-	colorsForced.Store(true)
 
 	fastSpinner := spinner.Spinner{
 		Frames: []string{"A"},

@@ -72,14 +72,14 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 		column = 1
 	}
 
-	mode := ColorAuto
+	output := Default.output
 	if e.logger != nil {
-		mode = e.logger.colorMode
+		output = e.logger.output
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, column, mode)},
+		Field{Key: key, Value: output.pathLink(path, line, column)},
 	)
 	return e
 }
@@ -184,14 +184,14 @@ func (e *Event) Line(key, path string, line int) *Event {
 		line = 1
 	}
 
-	mode := ColorAuto
+	output := Default.output
 	if e.logger != nil {
-		mode = e.logger.colorMode
+		output = e.logger.output
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, line, 0, mode)},
+		Field{Key: key, Value: output.pathLink(path, line, 0)},
 	)
 	return e
 }
@@ -203,14 +203,14 @@ func (e *Event) Link(key, url, text string) *Event {
 		return e
 	}
 
-	mode := ColorAuto
+	output := Default.output
 	if e.logger != nil {
-		mode = e.logger.colorMode
+		output = e.logger.output
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, text, mode)},
+		Field{Key: key, Value: output.hyperlink(url, text)},
 	)
 	return e
 }
@@ -257,14 +257,14 @@ func (e *Event) Path(key, path string) *Event {
 		return e
 	}
 
-	mode := ColorAuto
+	output := Default.output
 	if e.logger != nil {
-		mode = e.logger.colorMode
+		output = e.logger.output
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: pathLinkWithMode(path, 0, 0, mode)},
+		Field{Key: key, Value: output.pathLink(path, 0, 0)},
 	)
 	return e
 }
@@ -432,14 +432,14 @@ func (e *Event) URL(key, url string) *Event {
 		return e
 	}
 
-	mode := ColorAuto
+	output := Default.output
 	if e.logger != nil {
-		mode = e.logger.colorMode
+		output = e.logger.output
 	}
 
 	e.fields = append(
 		e.fields,
-		Field{Key: key, Value: hyperlinkWithMode(url, url, mode)},
+		Field{Key: key, Value: output.hyperlink(url, url)},
 	)
 	return e
 }
