@@ -440,7 +440,7 @@ func TestFormatFieldsWithValueStyles(t *testing.T) {
 		"ok",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
-	) + styles.Values["true"].Render(
+	) + styles.Values[true].Render(
 		"true",
 	)
 	assert.Equal(t, want, got)
@@ -525,23 +525,28 @@ func TestStyleValuePriority(t *testing.T) {
 	styles.Keys["count"] = new(keyStyle)
 
 	// Key style should win over number style.
-	assert.Equal(t, keyStyle.Render("42"), styleValue("42", "count", kindNumber, styles))
+	assert.Equal(t, keyStyle.Render("42"), styleValue("42", 42, "count", kindNumber, styles))
 
 	// Without key style, number style should apply.
-	assert.Equal(t, styles.FieldNumber.Render("42"), styleValue("42", "other", kindNumber, styles))
-
-	// Value style should apply for matching values.
 	assert.Equal(
 		t,
-		styles.Values["true"].Render("true"),
-		styleValue("true", "field", kindBool, styles),
+		styles.FieldNumber.Render("42"),
+		styleValue("42", 42, "other", kindNumber, styles),
+	)
+
+	// Value style should apply for matching values (typed bool key).
+	assert.Equal(
+		t,
+		styles.Values[true].Render("true"),
+		styleValue("true", true, "field", kindBool, styles),
 	)
 
 	// No style for unrecognised default kind values.
-	assert.Empty(t, styleValue("something", "field", kindDefault, styles))
+	assert.Empty(t, styleValue("something", "something", "field", kindDefault, styles))
 
-	// No style for slices.
-	assert.Empty(t, styleValue("[1, 2]", "field", kindSlice, styles))
+	// No style for slices (originalValue is nil because styledFieldValue
+	// handles slices before calling styleValue).
+	assert.Empty(t, styleValue("[1, 2]", nil, "field", kindSlice, styles))
 }
 
 func TestFormatFieldsIntSliceStyled(t *testing.T) {
@@ -635,13 +640,14 @@ func TestFormatFieldsStringSliceStyled(t *testing.T) {
 		Value: []string{"true", "other"},
 	}}, opts)
 
+	// String "true" does NOT match bool true in the Values map,
+	// so both elements get default FieldString styling.
+	s := styles.FieldString.Render
 	want := " " + styles.KeyDefault.Render(
 		"vals",
 	) + styles.Separator.Render(
 		styles.SeparatorText,
-	) + "[" + styles.Values["true"].Render(
-		"true",
-	) + ", other]"
+	) + "[" + s("true") + ", " + s("other") + "]"
 	assert.Equal(t, want, got)
 }
 
@@ -723,8 +729,8 @@ func TestStyledSliceBool(t *testing.T) {
 	styles := DefaultStyles()
 	got := styledSlice([]bool{true, false}, styles, QuoteAuto, 0, 0)
 
-	trueStyled := styles.Values["true"].Render("true")
-	falseStyled := styles.Values["false"].Render("false")
+	trueStyled := styles.Values[true].Render("true")
+	falseStyled := styles.Values[false].Render("false")
 	want := "[" + trueStyled + ", " + falseStyled + "]"
 
 	assert.Equal(t, want, got)
@@ -752,7 +758,7 @@ func TestFormatFieldsAnySliceStyled(t *testing.T) {
 	}}, opts)
 
 	n := styles.FieldNumber.Render
-	trueStyled := styles.Values["true"].Render("true")
+	trueStyled := styles.Values[true].Render("true")
 	want := " " + styles.KeyDefault.Render(
 		"mixed",
 	) + styles.Separator.Render(
@@ -794,7 +800,7 @@ func TestStyledSliceAny(t *testing.T) {
 	styles := DefaultStyles()
 	got := styledSlice([]any{true, 42, "text"}, styles, QuoteAuto, 0, 0)
 
-	trueStyled := styles.Values["true"].Render("true")
+	trueStyled := styles.Values[true].Render("true")
 	numStyled := styles.FieldNumber.Render("42")
 	want := "[" + trueStyled + ", " + numStyled + ", text]"
 
@@ -863,7 +869,7 @@ func TestStyledSliceDefault(t *testing.T) {
 func TestFormatBoolSliceNoMatchingValueStyle(t *testing.T) {
 	styles := DefaultStyles()
 	// Remove all value styles so the bool values have no matching style.
-	styles.Values = map[string]*lipgloss.Style{}
+	styles.Values = map[any]*lipgloss.Style{}
 
 	got := formatBoolSlice([]bool{true, false}, styles)
 
@@ -983,7 +989,7 @@ func TestMergeFields(t *testing.T) {
 
 func TestStyleValueDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("5s", "elapsed", kindDuration, styles)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -994,33 +1000,40 @@ func TestStyleValueDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleValue("5s", "elapsed", kindDuration, styles)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueTime(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("2025-06-15 10:30:00", "ts", kindTime, styles)
+	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	got := styleValue("2025-06-15 10:30:00", ts, "ts", kindTime, styles)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15 10:30:00"), got)
 }
 
 func TestStyleValueTimeNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldTime = nil
-	got := styleValue("2025-06-15 10:30:00", "ts", kindTime, styles)
+	got := styleValue(
+		"2025-06-15 10:30:00",
+		time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC),
+		"ts",
+		kindTime,
+		styles,
+	)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("boom", "err", kindError, styles)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleValueErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleValue("boom", "err", kindError, styles)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles)
 	assert.Empty(t, got)
 }
 
@@ -1029,7 +1042,7 @@ func TestStyleValuePerKeyMatch(t *testing.T) {
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styles.Keys["status"] = new(keyStyle)
 
-	got := styleValue("running", "status", kindString, styles)
+	got := styleValue("running", "running", "status", kindString, styles)
 	assert.Equal(t, keyStyle.Render("running"), got)
 }
 
@@ -1039,26 +1052,26 @@ func TestStyleValuePerValueMatch(t *testing.T) {
 	styles.Values["running"] = new(valStyle)
 
 	// No key style set, so value style should apply.
-	got := styleValue("running", "status", kindString, styles)
+	got := styleValue("running", "running", "status", kindString, styles)
 	assert.Equal(t, valStyle.Render("running"), got)
 }
 
 func TestStyleAnyElementError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("boom", kindError, styles)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleAnyElementErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleAnyElement("boom", kindError, styles)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("5s", kindDuration, styles)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -1069,20 +1082,20 @@ func TestStyleAnyElementDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleAnyElement("5s", kindDuration, styles)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementTime(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("2025-06-15", kindTime, styles)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15"), got)
 }
 
 func TestStyleAnyElementTimeNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldTime = nil
-	got := styleAnyElement("2025-06-15", kindTime, styles)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles)
 	assert.Empty(t, got)
 }
 
@@ -1200,7 +1213,7 @@ func TestStyleValueQuantityFallbackToString(t *testing.T) {
 	styles := DefaultStyles()
 
 	// "hello" is not a valid quantity, so styleValue should fall back to FieldString.
-	got := styleValue("hello", "field", kindQuantity, styles)
+	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
 
@@ -1209,14 +1222,14 @@ func TestStyleValueQuantityFallbackNilString(t *testing.T) {
 	styles.FieldString = nil
 
 	// No quantity match, no string style — should return "".
-	got := styleValue("hello", "field", kindQuantity, styles)
+	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementQuantityFallbackToString(t *testing.T) {
 	styles := DefaultStyles()
 
-	got := styleAnyElement("hello", kindQuantity, styles)
+	got := styleAnyElement("hello", quantity("hello"), kindQuantity, styles)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
 
@@ -1383,4 +1396,180 @@ func TestFormatFieldsQuantitySliceStyled(t *testing.T) {
 	) + "[" + num("5") + unit("m") +
 		", " + num("10") + unit("s") + "]"
 	assert.Equal(t, want, got)
+}
+
+func TestStyleQuantityThreshold(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+
+	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
+	yellowNum := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	yellowUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
+
+	styles.QuantityThresholds["ms"] = []QuantityThreshold{
+		{Value: 5000, Number: new(redNum), Unit: new(redUnit)},
+		{Value: 1000, Number: new(yellowNum), Unit: new(yellowUnit)},
+	}
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "below_threshold",
+			input: "500ms",
+			want:  num("500") + styles.FieldQuantityUnit.Render("ms"),
+		},
+		{
+			name:  "at_yellow_threshold",
+			input: "1000ms",
+			want:  yellowNum.Render("1000") + yellowUnit.Render("ms"),
+		},
+		{
+			name:  "above_yellow_below_red",
+			input: "3000ms",
+			want:  yellowNum.Render("3000") + yellowUnit.Render("ms"),
+		},
+		{
+			name:  "at_red_threshold",
+			input: "5000ms",
+			want:  redNum.Render("5000") + redUnit.Render("ms"),
+		},
+		{
+			name:  "above_red_threshold",
+			input: "9999ms",
+			want:  redNum.Render("9999") + redUnit.Render("ms"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := styleQuantity(tt.input, styles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestStyleQuantityThresholdCompound(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+	unit := styles.FieldQuantityUnit.Render
+
+	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styles.QuantityThresholds["h"] = []QuantityThreshold{
+		{Value: 10, Number: new(redNum)},
+	}
+
+	// "12h30m" — "h" threshold fires for 12, "m" uses default.
+	got := styleQuantity("12h30m", styles)
+	assert.Equal(t, redNum.Render("12")+unit("h")+num("30")+unit("m"), got)
+}
+
+func TestStyleQuantityThresholdNilOverrides(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+
+	// Threshold with only Number override (Unit = nil keeps default).
+	yellowNum := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles.QuantityThresholds["s"] = []QuantityThreshold{
+		{Value: 30, Number: new(yellowNum)},
+	}
+
+	got := styleQuantity("60s", styles)
+	assert.Equal(t, yellowNum.Render("60")+styles.FieldQuantityUnit.Render("s"), got)
+
+	// Below threshold — uses default.
+	got = styleQuantity("5s", styles)
+	assert.Equal(t, num("5")+styles.FieldQuantityUnit.Render("s"), got)
+}
+
+func TestStyleDurationThreshold(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldDurationNumber.Render
+
+	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
+
+	styles.DurationThresholds["s"] = []QuantityThreshold{
+		{Value: 30, Number: new(redNum), Unit: new(redUnit)},
+	}
+
+	// 45s exceeds 30s threshold.
+	got := styleDuration("45s", styles)
+	assert.Equal(t, redNum.Render("45")+redUnit.Render("s"), got)
+
+	// 5s does not exceed threshold — uses default.
+	got = styleDuration("5s", styles)
+	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
+}
+
+func TestStyleQuantityThresholdIgnoreCase(t *testing.T) {
+	styles := DefaultStyles()
+	num := styles.FieldQuantityNumber.Render
+
+	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styles.QuantityThresholds["mb"] = []QuantityThreshold{
+		{Value: 500, Number: new(redNum)},
+	}
+
+	// "MB" should match "mb" threshold with case-insensitive matching (default).
+	got := styleQuantity("1000MB", styles)
+	assert.Equal(t, redNum.Render("1000")+styles.FieldQuantityUnit.Render("MB"), got)
+
+	// Below threshold — uses default number style.
+	got = styleQuantity("100MB", styles)
+	assert.Equal(t, num("100")+styles.FieldQuantityUnit.Render("MB"), got)
+}
+
+func TestStyleQuantityThresholdOnlyOverridesEnabled(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldQuantityNumber = nil
+	styles.FieldQuantityUnit = nil
+
+	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
+	styles.QuantityThresholds["ms"] = []QuantityThreshold{
+		{Value: 100, Number: new(redNum), Unit: new(redUnit)},
+	}
+
+	// Above threshold — threshold styles apply even with nil defaults.
+	got := styleQuantity("500ms", styles)
+	assert.Equal(t, redNum.Render("500")+redUnit.Render("ms"), got)
+
+	// Below threshold — no default styles, no threshold match.
+	got = styleQuantity("50ms", styles)
+	assert.Equal(t, "50ms", got)
+}
+
+func TestTypedValuesBoolVsString(t *testing.T) {
+	styles := DefaultStyles()
+
+	// bool true has a style in defaults.
+	assert.NotNil(t, styles.Values[true], "bool true should have a style")
+	assert.NotNil(t, styles.Values[false], "bool false should have a style")
+
+	// string "true" should NOT have a style in defaults.
+	assert.Nil(t, styles.Values["true"], "string \"true\" should not have a style")
+	assert.Nil(t, styles.Values["false"], "string \"false\" should not have a style")
+}
+
+func TestStyleValueBoolMatchesTyped(t *testing.T) {
+	styles := DefaultStyles()
+
+	// Use distinct styles so we can tell them apart without ANSI colour codes.
+	boolStyle := lipgloss.NewStyle().Bold(true).Underline(true)
+	strStyle := lipgloss.NewStyle().Italic(true)
+	styles.Values[true] = new(boolStyle)
+	styles.FieldString = new(strStyle)
+
+	// Bool field true → styled via typed Values[true].
+	got := styleValue("true", true, "ok", kindBool, styles)
+	assert.Equal(t, boolStyle.Render("true"), got)
+
+	// String field "true" → NOT styled via Values (no string "true" key).
+	// Should fall through to FieldString styling.
+	got = styleValue("true", "true", "ok", kindString, styles)
+	assert.Equal(t, strStyle.Render("true"), got)
 }

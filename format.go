@@ -176,7 +176,7 @@ func formatAnySlice(
 		}
 
 		if styles != nil {
-			styled := styleAnyElement(s, kind, styles)
+			styled := styleAnyElement(s, v, kind, styles)
 			if styled != "" {
 				buf.WriteString(styled)
 
@@ -206,7 +206,7 @@ func formatBoolSlice(vals []bool, styles *Styles) string {
 
 		s := strconv.FormatBool(v)
 		if styles != nil {
-			if style := styles.Values[s]; style != nil {
+			if style := styles.Values[v]; style != nil {
 				buf.WriteString(style.Render(s))
 
 				continue
@@ -399,9 +399,10 @@ func formatUint64Slice(vals []uint64, styles *Styles) string {
 }
 
 // styleAnyElement applies the appropriate style to a single element in a []any slice.
-func styleAnyElement(s string, kind valueKind, styles *Styles) string {
-	// Per-value styling (exact match on formatted string).
-	if style := styles.Values[s]; style != nil {
+// originalValue is the pre-format typed value for typed Values map lookups.
+func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles) string {
+	// Per-value styling (typed key lookup — bool true ≠ string "true").
+	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
 		return style.Render(s)
 	}
 
@@ -451,6 +452,7 @@ func styleDuration(s string, styles *Styles) string {
 		styles.FieldDurationNumber,
 		styles.FieldDurationUnit,
 		styles.DurationUnits,
+		styles.DurationThresholds,
 		true,
 	)
 }
@@ -471,7 +473,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		return styledSlice(f.Value, opts.styles, opts.quoteMode, opts.quoteOpen, opts.quoteClose)
 	}
 
-	if styled := styleValue(valStr, f.Key, kind, opts.styles); styled != "" {
+	if styled := styleValue(valStr, f.Value, f.Key, kind, opts.styles); styled != "" {
 		return styled
 	}
 
@@ -504,17 +506,19 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 }
 
 // styleNumberUnit renders a string with separate styles for numeric and unit
-// segments. unitOverrides provides per-unit style lookups; ignoreCase controls
-// whether unit override matching is case-insensitive.
-// Returns "" when both default styles are nil, no unit overrides apply,
-// or the string is not a valid quantity pattern.
+// segments. unitOverrides provides per-unit style lookups; thresholds provides
+// magnitude-based style overrides per unit; ignoreCase controls whether unit
+// matching is case-insensitive.
+// Returns "" when both default styles are nil, no unit overrides or thresholds
+// apply, or the string is not a valid quantity pattern.
 func styleNumberUnit(
 	s string,
 	numStyle, unitStyle *lipgloss.Style,
 	unitOverrides map[string]*lipgloss.Style,
+	thresholds map[string][]QuantityThreshold,
 	ignoreCase bool,
 ) string {
-	if numStyle == nil && unitStyle == nil && len(unitOverrides) == 0 {
+	if numStyle == nil && unitStyle == nil && len(unitOverrides) == 0 && len(thresholds) == 0 {
 		return ""
 	}
 
@@ -527,11 +531,19 @@ func styleNumberUnit(
 	runes := []rune(s)
 	i := 0
 
+	// Buffer the most recently parsed number segment so we can apply
+	// threshold-based style overrides once we know the following unit.
+	var pendingNum string
+	var pendingSpaces string
+
 	for i < len(runes) {
 		r := runes[i]
 
 		switch {
 		case unicode.IsDigit(r) || r == '.' || r == '-':
+			// Flush any prior pending number (defensive; valid quantities always pair num+unit).
+			renderPendingNum(&buf, pendingNum, pendingSpaces, numStyle)
+
 			start := i
 			if r == '-' {
 				i++
@@ -541,12 +553,8 @@ func styleNumberUnit(
 				i++
 			}
 
-			seg := string(runes[start:i])
-			if numStyle != nil {
-				buf.WriteString(numStyle.Render(seg))
-			} else {
-				buf.WriteString(seg)
-			}
+			pendingNum = string(runes[start:i])
+			pendingSpaces = ""
 
 		case unicode.IsLetter(r):
 			start := i
@@ -554,24 +562,58 @@ func styleNumberUnit(
 				i++
 			}
 
-			seg := string(runes[start:i])
-			if style := unitOverrideStyle(seg, unitOverrides, ignoreCase); style != nil {
-				buf.WriteString(style.Render(seg))
-			} else if unitStyle != nil {
-				buf.WriteString(unitStyle.Render(seg))
+			unit := string(runes[start:i])
+
+			// Resolve effective styles for this number+unit pair.
+			effNumStyle, effUnitStyle := resolveSegmentStyles(
+				pendingNum, unit,
+				numStyle, unitStyle,
+				unitOverrides, thresholds,
+				ignoreCase,
+			)
+
+			// Render the pending number with the resolved style.
+			if pendingNum != "" {
+				if effNumStyle != nil {
+					buf.WriteString(effNumStyle.Render(pendingNum))
+				} else {
+					buf.WriteString(pendingNum)
+				}
+
+				buf.WriteString(pendingSpaces)
+
+				pendingNum = ""
+				pendingSpaces = ""
+			}
+
+			// Render the unit.
+			if effUnitStyle != nil {
+				buf.WriteString(effUnitStyle.Render(unit))
 			} else {
-				buf.WriteString(seg)
+				buf.WriteString(unit)
 			}
 
 		case r == ' ':
-			buf.WriteRune(r)
+			if pendingNum != "" {
+				pendingSpaces += string(r)
+			} else {
+				buf.WriteRune(r)
+			}
+
 			i++
 
 		default:
+			renderPendingNum(&buf, pendingNum, pendingSpaces, numStyle)
+
+			pendingNum = ""
+			pendingSpaces = ""
 			buf.WriteRune(r)
 			i++
 		}
 	}
+
+	// Flush any trailing pending number.
+	renderPendingNum(&buf, pendingNum, pendingSpaces, numStyle)
 
 	return buf.String()
 }
@@ -587,20 +629,28 @@ func styleQuantity(s string, styles *Styles) string {
 		styles.FieldQuantityNumber,
 		styles.FieldQuantityUnit,
 		styles.QuantityUnits,
+		styles.QuantityThresholds,
 		styles.QuantityUnitsIgnoreCase,
 	)
 }
 
 // styleValue applies the appropriate style to a formatted value.
 // Priority: key style → value style → type style. Returns "" if no style applies.
-func styleValue(valStr, key string, kind valueKind, styles *Styles) string {
+// originalValue is the pre-format typed value for typed Values map lookups.
+func styleValue(
+	valStr string,
+	originalValue any,
+	key string,
+	kind valueKind,
+	styles *Styles,
+) string {
 	// Per-key styling takes priority.
 	if style := styles.Keys[key]; style != nil {
 		return style.Render(valStr)
 	}
 
-	// Per-value styling (exact match on formatted string).
-	if style := styles.Values[valStr]; style != nil {
+	// Per-value styling (typed key lookup — bool true ≠ string "true").
+	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
 		return style.Render(valStr)
 	}
 
@@ -820,6 +870,106 @@ func reflectValueKind(v any) valueKind {
 	default:
 		return kindDefault
 	}
+}
+
+// lookupValueStyle safely looks up a typed value in the Values map.
+// Returns nil for unhashable types (slices, maps, functions) that would panic.
+func lookupValueStyle(v any, values map[any]*lipgloss.Style) *lipgloss.Style {
+	if len(values) == 0 || v == nil {
+		return nil
+	}
+
+	if t := reflect.TypeOf(v); t != nil && !t.Comparable() {
+		return nil
+	}
+
+	return values[v]
+}
+
+// resolveSegmentStyles determines the effective number and unit styles for a
+// single number+unit pair, applying threshold overrides when the numeric value
+// meets or exceeds a configured threshold.
+func resolveSegmentStyles(
+	num, unit string,
+	numStyle, unitStyle *lipgloss.Style,
+	unitOverrides map[string]*lipgloss.Style,
+	thresholds map[string][]QuantityThreshold,
+	ignoreCase bool,
+) (*lipgloss.Style, *lipgloss.Style) {
+	effNumStyle := numStyle
+
+	effUnitStyle := unitOverrideStyle(unit, unitOverrides, ignoreCase)
+	if effUnitStyle == nil {
+		effUnitStyle = unitStyle
+	}
+
+	if len(thresholds) == 0 || num == "" {
+		return effNumStyle, effUnitStyle
+	}
+
+	numVal, err := strconv.ParseFloat(num, 64)
+	if err != nil {
+		return effNumStyle, effUnitStyle
+	}
+
+	for _, t := range thresholdForUnit(unit, thresholds, ignoreCase) {
+		if numVal >= t.Value {
+			if t.Number != nil {
+				effNumStyle = t.Number
+			}
+
+			if t.Unit != nil {
+				effUnitStyle = t.Unit
+			}
+
+			break
+		}
+	}
+
+	return effNumStyle, effUnitStyle
+}
+
+// renderPendingNum renders a buffered number segment with optional trailing
+// spaces. This is a no-op when num is empty.
+func renderPendingNum(buf *strings.Builder, num, spaces string, style *lipgloss.Style) {
+	if num == "" {
+		return
+	}
+
+	if style != nil {
+		buf.WriteString(style.Render(num))
+	} else {
+		buf.WriteString(num)
+	}
+
+	buf.WriteString(spaces)
+}
+
+// thresholdForUnit looks up quantity thresholds for a unit string.
+// When ignoreCase is true, keys are matched case-insensitively.
+func thresholdForUnit(
+	unit string,
+	thresholds map[string][]QuantityThreshold,
+	ignoreCase bool,
+) []QuantityThreshold {
+	if len(thresholds) == 0 {
+		return nil
+	}
+
+	if ts := thresholds[unit]; len(ts) > 0 {
+		return ts
+	}
+
+	if ignoreCase {
+		lower := strings.ToLower(unit)
+		for k, ts := range thresholds {
+			if strings.ToLower(k) == lower {
+				return ts
+			}
+		}
+	}
+
+	return nil
 }
 
 // unitOverrideStyle looks up a per-unit style from the given overrides map.
