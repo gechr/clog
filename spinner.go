@@ -36,7 +36,8 @@ func (u *ProgressUpdate) Title(title string) *ProgressUpdate {
 
 // Send applies the accumulated title and field changes to the spinner atomically.
 func (u *ProgressUpdate) Send() {
-	u.titlePtr.Store(&u.title)
+	title := u.title
+	u.titlePtr.Store(&title)
 	merged := mergeFields(u.base, u.fields)
 	u.fieldsPtr.Store(&merged)
 	u.fields = nil // reset for reuse
