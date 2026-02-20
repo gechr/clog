@@ -294,6 +294,24 @@ func TestContextPrefix(t *testing.T) {
 	assert.Equal(t, "CTX", got.Prefix)
 }
 
+func TestContextLoggerInheritsAtomicLevel(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetLevel(WarnLevel)
+
+	sub := l.With().Str("component", "db").Logger()
+
+	// Sub-logger must filter events below the parent's level.
+	assert.Nil(t, sub.Trace(), "Trace should be nil at WarnLevel")
+	assert.Nil(t, sub.Debug(), "Debug should be nil at WarnLevel")
+	assert.Nil(t, sub.Info(), "Info should be nil at WarnLevel")
+	assert.NotNil(t, sub.Warn(), "Warn should not be nil at WarnLevel")
+	assert.NotNil(t, sub.Error(), "Error should not be nil at WarnLevel")
+
+	// Verify atomicLevel matches the level field.
+	assert.Equal(t, int32(WarnLevel), sub.atomicLevel.Load(),
+		"sub-logger atomicLevel should match parent's level")
+}
+
 func TestContextLoggerInheritsSettings(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.SetLevel(DebugLevel)

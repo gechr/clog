@@ -86,7 +86,7 @@ func (c *Context) Link(key, url, text string) *Context {
 func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
-	return &Logger{
+	l := &Logger{
 		mu: c.logger.mu,
 
 		exitFunc:        c.logger.exitFunc,
@@ -111,6 +111,8 @@ func (c *Context) Logger() *Logger {
 		timeFormat:      c.logger.timeFormat,
 		timeLocation:    c.logger.timeLocation,
 	}
+	l.atomicLevel.Store(int32(c.logger.level)) //nolint:gosec // Level values are small constants (0-6)
+	return l
 }
 
 // Path adds a file path field as a clickable terminal hyperlink.
