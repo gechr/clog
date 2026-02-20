@@ -2,10 +2,7 @@ package clog
 
 import (
 	"context"
-	"fmt"
-	"strings"
 	"sync/atomic"
-	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 )
@@ -54,8 +51,11 @@ type ProgressTask func(context.Context, *ProgressUpdate) error
 type SpinnerBuilder struct {
 	fieldBuilder[SpinnerBuilder]
 
-	spinner spinner.Spinner
-	title   string
+	pulseStops   []ColorStop // nil = no pulse
+	shimmerDir   Direction   // shimmer wave direction
+	shimmerStops []ColorStop // nil = no shimmer
+	spinner      spinner.Spinner
+	title        string
 }
 
 // Spinner creates a new [SpinnerBuilder] with the given title.
@@ -71,6 +71,39 @@ func Spinner(title string) *SpinnerBuilder {
 // Type sets the spinner animation type.
 func (b *SpinnerBuilder) Type(s spinner.Spinner) *SpinnerBuilder {
 	b.spinner = s
+	return b
+}
+
+// Shimmer enables animated gradient shimmer on the spinner's message text.
+// With no arguments, the default shimmer gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (b *SpinnerBuilder) Shimmer(stops ...ColorStop) *SpinnerBuilder {
+	if len(stops) == 0 {
+		b.shimmerStops = DefaultShimmerGradient()
+	} else {
+		b.shimmerStops = stops
+	}
+	return b
+}
+
+// ShimmerDirection sets the direction the shimmer wave travels.
+// Defaults to [DirectionRight]. Use [DirectionLeft] to reverse
+// or [DirectionMiddleIn] for a wave entering from both edges.
+func (b *SpinnerBuilder) ShimmerDirection(d Direction) *SpinnerBuilder {
+	b.shimmerDir = d
+	return b
+}
+
+// Pulse enables an animated color pulse on the spinner's message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (b *SpinnerBuilder) Pulse(stops ...ColorStop) *SpinnerBuilder {
+	if len(stops) == 0 {
+		b.pulseStops = DefaultPulseGradient()
+	} else {
+		b.pulseStops = stops
+	}
 	return b
 }
 
@@ -164,7 +197,16 @@ func (b *SpinnerBuilder) Progress(
 		return task(ctx, update)
 	}
 
-	err := runSpinner(ctx, &titlePtr, &fieldsPtr, b.spinner, wrapped)
+	err := runAnimation(
+		ctx,
+		&titlePtr,
+		&fieldsPtr,
+		b.spinner,
+		b.shimmerStops,
+		b.shimmerDir,
+		b.pulseStops,
+		wrapped,
+	)
 
 	title := *titlePtr.Load()
 	w := &WaitResult{
@@ -271,154 +313,4 @@ func (w *WaitResult) Send() error {
 // Silent returns just the error without logging anything.
 func (w *WaitResult) Silent() error {
 	return w.err
-}
-
-//nolint:cyclop // spinner loop has inherent complexity
-func runSpinner(
-	ctx context.Context,
-	title *atomic.Pointer[string],
-	fields *atomic.Pointer[[]Field],
-	s spinner.Spinner,
-	task Task,
-) error {
-	// Run the task in a goroutine.
-	done := make(chan error, 1)
-	go func() {
-		done <- task(ctx)
-	}()
-
-	// Snapshot Default's settings under the mutex to avoid data races.
-	Default.mu.Lock()
-	fieldStyleLevel := Default.fieldStyleLevel
-	fieldTimeFormat := Default.fieldTimeFormat
-	label := Default.formatLabel(InfoLevel)
-	noColor := Default.output.ColorsDisabled()
-	order := Default.parts
-	out := Default.output.Writer()
-	termOut := Default.output.Renderer().Output()
-	quoteClose := Default.quoteClose
-	quoteMode := Default.quoteMode
-	quoteOpen := Default.quoteOpen
-	reportTS := Default.reportTimestamp
-	styles := Default.styles
-	timeFmt := Default.timeFormat
-	timeLoc := Default.timeLocation
-	Default.mu.Unlock()
-
-	// Don't animate if colours are disabled (CI, piped output, etc.).
-	// Print the initial title so the user knows something is in progress.
-	if noColor {
-		parts := make([]string, 0, len(order))
-
-		for _, p := range order {
-			var part string
-
-			switch p {
-			case PartTimestamp:
-				if !reportTS {
-					continue
-				}
-
-				part = time.Now().In(timeLoc).Format(timeFmt)
-			case PartLevel:
-				part = label
-			case PartPrefix:
-				part = "⏳"
-			case PartMessage:
-				part = *title.Load()
-			case PartFields:
-				part = strings.TrimLeft(
-					formatFields(*fields.Load(), formatFieldsOpts{
-						noColor:    true,
-						quoteClose: quoteClose,
-						quoteMode:  quoteMode,
-						quoteOpen:  quoteOpen,
-						timeFormat: fieldTimeFormat,
-					}), " ",
-				)
-			}
-
-			if part != "" {
-				parts = append(parts, part)
-			}
-		}
-
-		_, _ = fmt.Fprintf(out, "%s\n", strings.Join(parts, " "))
-		return <-done
-	}
-
-	// Hide cursor during animation.
-	termOut.HideCursor()
-	defer termOut.ShowCursor()
-
-	var levelPrefix string
-	if style := styles.Levels[InfoLevel]; style != nil {
-		levelPrefix = style.Render(label)
-	} else {
-		levelPrefix = label
-	}
-
-	ticker := time.NewTicker(s.FPS)
-	defer ticker.Stop()
-
-	frame := 0
-
-	for {
-		select {
-		case err := <-done:
-			termOut.ClearLine()
-			_, _ = fmt.Fprint(out, "\r")
-			return err
-		case <-ticker.C:
-			char := s.Frames[frame%len(s.Frames)]
-
-			parts := make([]string, 0, len(order))
-
-			for _, p := range order {
-				var part string
-
-				switch p {
-				case PartTimestamp:
-					if !reportTS {
-						continue
-					}
-
-					ts := time.Now().In(timeLoc).Format(timeFmt)
-					if styles.Timestamp != nil {
-						part = styles.Timestamp.Render(ts)
-					} else {
-						part = ts
-					}
-				case PartLevel:
-					part = levelPrefix
-				case PartPrefix:
-					part = char
-				case PartMessage:
-					part = *title.Load()
-				case PartFields:
-					part = strings.TrimLeft(formatFields(*fields.Load(), formatFieldsOpts{
-						fieldStyleLevel: fieldStyleLevel,
-						styles:          styles,
-						level:           InfoLevel,
-						quoteMode:       quoteMode,
-						quoteOpen:       quoteOpen,
-						quoteClose:      quoteClose,
-						timeFormat:      fieldTimeFormat,
-					}), " ")
-				}
-
-				if part != "" {
-					parts = append(parts, part)
-				}
-			}
-
-			termOut.ClearLine()
-			_, _ = fmt.Fprintf(out, "\r%s", strings.Join(parts, " "))
-			frame++
-		case <-ctx.Done():
-			termOut.ClearLine()
-			_, _ = fmt.Fprint(out, "\r")
-			return ctx.Err()
-		}
-	}
 }

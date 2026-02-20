@@ -48,8 +48,8 @@ var Default = New(Stdout(ColorAuto))
 
 // Default emoji prefixes for each level.
 var defaultPrefixes = LevelMap{
-	TraceLevel: "🔬",
-	DebugLevel: "🔍",
+	TraceLevel: "🔍",
+	DebugLevel: "🐞",
 	InfoLevel:  "ℹ️",
 	DryLevel:   "🚧",
 	WarnLevel:  "⚠️",

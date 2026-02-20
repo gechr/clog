@@ -40,8 +40,8 @@ ERR ❌ Connection failed error=connection refused
 
 | Level   | Label | Prefix | Description                                          |
 | ------- | ----- | ------ | ---------------------------------------------------- |
-| `Trace` | `TRC` | 🔬     | Finest-grained output, hidden by default             |
-| `Debug` | `DBG` | 🔍     | Verbose output, hidden by default                    |
+| `Trace` | `TRC` | 🔍     | Finest-grained output, hidden by default             |
+| `Debug` | `DBG` | 🐞     | Verbose output, hidden by default                    |
 | `Info`  | `INF` | ℹ️     | General operational messages (default minimum level) |
 | `Dry`   | `DRY` | 🚧     | Dry-run indicators                                   |
 | `Warn`  | `WRN` | ⚠️     | Warnings that don't prevent operation                |
@@ -363,6 +363,77 @@ clog.Spinner("Loading").
   Wait(ctx, action).
   Msg("Done")
 ```
+
+Available types from `github.com/charmbracelet/bubbles/spinner`: `Line`, `Dot`, `MiniDot`, `Jump`, `Pulse`, `Globe`, `Points`, `Meter`, `Hamburger`, `Moon`, `Ellipsis`.
+
+### Pulse Animation
+
+Apply a pulsing colour effect to the spinner's message text. All characters fade uniformly between gradient colours.
+
+```go
+// Default gradient (blue-gray to cyan)
+clog.Spinner("Warming up").
+  Pulse().
+  Wait(ctx, action).
+  Msg("Ready")
+
+// Custom gradient
+clog.Spinner("Replicating").
+  Pulse(
+    clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+    clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
+    clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+  ).
+  Wait(ctx, action).
+  Msg("Replicated")
+```
+
+Use `DefaultPulseGradient()` to get the default gradient stops.
+
+### Shimmer Animation
+
+Apply a sweeping gradient wave across the spinner's message text. Each character is coloured independently based on its position in the wave.
+
+```go
+// Default gradient
+clog.Spinner("Indexing documents").
+  Shimmer().
+  Wait(ctx, action).
+  Msg("Indexed")
+
+// Custom gradient with direction
+clog.Spinner("Synchronizing").
+  Shimmer(
+    clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+    clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+    clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+  ).
+  ShimmerDirection(clog.DirectionMiddleIn).
+  Wait(ctx, action).
+  Msg("Synchronized")
+```
+
+Use `DefaultShimmerGradient()` to get the default gradient stops.
+
+#### Shimmer Directions
+
+| Constant             | Description                               |
+| -------------------- | ----------------------------------------- |
+| `DirectionRight`     | Left to right (default)                   |
+| `DirectionLeft`      | Right to left                             |
+| `DirectionMiddleIn`  | Inward from both edges                    |
+| `DirectionMiddleOut` | Outward from the center                   |
+
+Both pulse and shimmer use `ColorStop` for gradient definitions:
+
+```go
+type ColorStop struct {
+  Position float64        // 0.0-1.0
+  Color    colorful.Color // from github.com/lucasb-eyer/go-colorful
+}
+```
+
+Pulse and shimmer gracefully degrade alongside spinners: when colours are disabled, no animation is rendered.
 
 ## Hyperlinks
 

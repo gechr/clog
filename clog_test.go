@@ -180,8 +180,8 @@ func TestResolvePrefix(t *testing.T) {
 		want         string
 	}{
 		{name: "default_info", level: InfoLevel, want: "ℹ️"},
-		{name: "default_trace", level: TraceLevel, want: "🔬"},
-		{name: "default_debug", level: DebugLevel, want: "🔍"},
+		{name: "default_trace", level: TraceLevel, want: "🔍"},
+		{name: "default_debug", level: DebugLevel, want: "🐞"},
 		{name: "default_warn", level: WarnLevel, want: "⚠️"},
 		{name: "default_error", level: ErrorLevel, want: "❌"},
 		{name: "default_fatal", level: FatalLevel, want: "💥"},
@@ -715,7 +715,7 @@ func TestSetPrefixes(t *testing.T) {
 
 	assert.Equal(t, ">>>", l.prefixes[InfoLevel])
 	// Other prefixes should retain defaults.
-	assert.Equal(t, "🔍", l.prefixes[DebugLevel])
+	assert.Equal(t, "🐞", l.prefixes[DebugLevel])
 }
 
 func TestPackageLevelSetPrefixes(t *testing.T) {
@@ -755,8 +755,8 @@ func TestDefaultPrefixes(t *testing.T) {
 	p := DefaultPrefixes()
 
 	assert.Equal(t, "ℹ️", p[InfoLevel])
-	assert.Equal(t, "🔬", p[TraceLevel])
-	assert.Equal(t, "🔍", p[DebugLevel])
+	assert.Equal(t, "🔍", p[TraceLevel])
+	assert.Equal(t, "🐞", p[DebugLevel])
 
 	// Modifying the returned map should not affect defaults.
 	p[InfoLevel] = "CHANGED"

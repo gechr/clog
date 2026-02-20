@@ -180,7 +180,7 @@ func TestSpinnerBuilderChaining(t *testing.T) {
 }
 
 func TestSpinnerWaitSuccess(t *testing.T) {
-	// In test env, ColorsDisabled() == true, so runSpinner takes fast path.
+	// In test env, ColorsDisabled() == true, so runAnimation takes fast path.
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
@@ -687,7 +687,7 @@ func TestRunSpinnerVerboseFastPath(t *testing.T) {
 	Default = NewWriter(io.Discard)
 	Default.SetLevel(DebugLevel)
 
-	// When IsVerbose() returns true, runSpinner should take fast path.
+	// When IsVerbose() returns true, runAnimation should take fast path.
 	result := Spinner("test").Wait(context.Background(), func(_ context.Context) error {
 		return nil
 	})

@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 func main() {
@@ -74,6 +75,93 @@ func main() {
 		}).
 		Prefix("🚀").
 		Msg("Deployed")
+
+	// --- Pulse ---
+	header("Pulse (default gradient)")
+	_ = clog.Spinner("Warming up inference engine").
+		Pulse().
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Inference engine ready")
+
+	header("Pulse (custom gradient)")
+	_ = clog.Spinner("Replicating data across regions").
+		Pulse(
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+		).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Data replicated")
+
+	// --- Shimmer ---
+	header("Shimmer (default gradient)")
+	_ = clog.Spinner("Indexing documents and rebuilding search catalogue").
+		Shimmer().
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Search catalogue rebuilt")
+
+	header("Shimmer (custom gradient)")
+	_ = clog.Spinner("Deploying service to production cluster and running health checks").
+		Shimmer(
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+		).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("🚀").
+		Msg("Service deployed and health checks passed")
+
+	header("Shimmer (middle direction, rainbow)")
+	_ = clog.Spinner("Synchronizing upstream dependencies and rebuilding artifacts").
+		Shimmer(
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		).
+		ShimmerDirection(clog.DirectionMiddleIn).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Dependencies synced and artifacts rebuilt")
+
+	_ = clog.Spinner("Broadcasting configuration changes to all edge nodes").
+		Shimmer(
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		).
+		ShimmerDirection(clog.DirectionMiddleOut).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Configuration broadcast complete")
 
 	// --- Basic levels ---
 	header("Levels")
@@ -394,14 +482,24 @@ func main() {
 }
 
 func demo() {
-	_ = clog.Spinner("Loading demo").
+	_ = clog.Spinner("Initializing environment and loading configuration modules").
+		Shimmer(
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		).
+		ShimmerDirection(clog.DirectionMiddleIn).
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(2 * time.Second)
+			time.Sleep(3 * time.Second)
 			return nil
 		}).
 		Prefix("✅").
-		Msg("Demo loaded")
+		Msg("Environment initialized")
 
 	_ = clog.Spinner("Validating config").
 		Str("file", "app.toml").
