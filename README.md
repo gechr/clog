@@ -73,41 +73,41 @@ Events and contexts support typed field methods. All methods are safe to call on
 
 ### Event Fields
 
-| Method       | Signature                                     | Description                                                          |
-| ------------ | --------------------------------------------- | -------------------------------------------------------------------- |
-| `Any`        | `Any(key string, val any)`                    | Arbitrary value                                                      |
-| `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                                                |
-| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                        |
-| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                  |
-| `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink                                 |
-| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys                                 |
-| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                       |
-| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                                                 |
-| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe)                                |
-| `Float64`    | `Float64(key string, val float64)`            | Float field                                                          |
-| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                                                    |
-| `Int`        | `Int(key string, val int)`                    | Integer field                                                        |
-| `Int64`      | `Int64(key string, val int64)`                | 64-bit integer field                                                 |
-| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                                                  |
-| `Ints64`     | `Ints64(key string, vals []int64)`            | 64-bit integer slice field                                           |
-| `JSON`       | `JSON(key string, val any)`                   | Marshals val to JSON with syntax highlighting                        |
-| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink                                        |
-| `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink                                              |
-| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink                                   |
-| `Percent`    | `Percent(key string, val float64)`            | Percentage with gradient colour                                      |
-| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                                                 |
-| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)                                       |
-| `RawJSON`    | `RawJSON(key string, val []byte)`             | Pre-serialized JSON bytes, emitted verbatim with syntax highlighting |
-| `Str`        | `Str(key, val string)`                        | String field                                                         |
-| `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)                                          |
-| `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values                                       |
-| `Strs`       | `Strs(key string, vals []string)`             | String slice field                                                   |
-| `Time`       | `Time(key string, val time.Time)`             | Time field                                                           |
-| `Uint`       | `Uint(key string, val uint)`                  | Unsigned integer field                                               |
-| `Uint64`     | `Uint64(key string, val uint64)`              | 64-bit unsigned integer field                                        |
-| `Uints`      | `Uints(key string, vals []uint)`              | Unsigned integer slice field                                         |
-| `Uints64`    | `Uints64(key string, vals []uint64)`          | 64-bit unsigned integer slice field                                  |
-| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text)                                |
+| Method       | Signature                                     | Description                                                               |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
+| `Any`        | `Any(key string, val any)`                    | Arbitrary value                                                           |
+| `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                                                     |
+| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                             |
+| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                       |
+| `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink                                      |
+| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys                                      |
+| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                            |
+| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                                                      |
+| `Err`        | `Err(err error)`                              | Attach error; `Send` uses it as message, `Msg`/`Msgf` add `"error"` field |
+| `Float64`    | `Float64(key string, val float64)`            | Float field                                                               |
+| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                                                         |
+| `Int`        | `Int(key string, val int)`                    | Integer field                                                             |
+| `Int64`      | `Int64(key string, val int64)`                | 64-bit integer field                                                      |
+| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                                                       |
+| `Ints64`     | `Ints64(key string, vals []int64)`            | 64-bit integer slice field                                                |
+| `JSON`       | `JSON(key string, val any)`                   | Marshals val to JSON with syntax highlighting                             |
+| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink                                             |
+| `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink                                                   |
+| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink                                        |
+| `Percent`    | `Percent(key string, val float64)`            | Percentage with gradient colour                                           |
+| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                                                      |
+| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)                                            |
+| `RawJSON`    | `RawJSON(key string, val []byte)`             | Pre-serialized JSON bytes, emitted verbatim with syntax highlighting      |
+| `Str`        | `Str(key, val string)`                        | String field                                                              |
+| `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)                                               |
+| `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values                                            |
+| `Strs`       | `Strs(key string, vals []string)`             | String slice field                                                        |
+| `Time`       | `Time(key string, val time.Time)`             | Time field                                                                |
+| `Uint`       | `Uint(key string, val uint)`                  | Unsigned integer field                                                    |
+| `Uint64`     | `Uint64(key string, val uint64)`              | 64-bit unsigned integer field                                             |
+| `Uints`      | `Uints(key string, vals []uint)`              | Unsigned integer slice field                                              |
+| `Uints64`    | `Uints64(key string, vals []uint64)`          | 64-bit unsigned integer slice field                                       |
+| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text)                                     |
 
 ### Finalising Events
 
@@ -115,6 +115,8 @@ Events and contexts support typed field methods. All methods are safe to call on
 clog.Info().Str("k", "v").Msg("message")  // Log with message
 clog.Info().Str("k", "v").Msgf("n=%d", 5) // Log with formatted message
 clog.Info().Str("k", "v").Send()          // Log with empty message
+clog.Error().Err(err).Send()              // Log with error as message (no error= field)
+clog.Error().Err(err).Msg("failed")       // Log with message + error= field
 ```
 
 ## Omitting Empty / Zero Fields
@@ -530,12 +532,38 @@ Format resolution order:
 These can also be set via environment variables:
 
 ```sh
-export CLOG_HYPERLINK_PATH_FORMAT="vscode://{path}"      # generic fallback
-export CLOG_HYPERLINK_FILE_FORMAT="vscode://file{path}"  # files only
-export CLOG_HYPERLINK_DIR_FORMAT="finder://{path}"       # directories only
+export CLOG_HYPERLINK_FORMAT="vscode"                      # named preset (sets all slots)
+export CLOG_HYPERLINK_PATH_FORMAT="vscode://{path}"        # generic fallback
+export CLOG_HYPERLINK_FILE_FORMAT="vscode://file{path}"    # files only
+export CLOG_HYPERLINK_DIR_FORMAT="finder://{path}"         # directories only
 export CLOG_HYPERLINK_LINE_FORMAT="vscode://{path}:{line}"
 export CLOG_HYPERLINK_COLUMN_FORMAT="vscode://{path}:{line}:{column}"
 ```
+
+`CLOG_HYPERLINK_FORMAT` accepts a preset name and configures all slots at once. Individual format vars override the preset for their specific slot.
+
+### Named Presets
+
+Use `SetHyperlinkPreset` or `CLOG_HYPERLINK_FORMAT` to configure all hyperlink format slots at once:
+
+```go
+clog.SetHyperlinkPreset("vscode")
+```
+
+```sh
+export CLOG_HYPERLINK_FORMAT=vscode
+```
+
+| Preset             | Scheme                 |
+| ------------------ | ---------------------- |
+| `cursor`           | `cursor://`            |
+| `kitty`            | `file://` with `#line` |
+| `macvim`           | `mvim://`              |
+| `subl`             | `subl://`              |
+| `textmate`         | `txmt://`              |
+| `vscode`           | `vscode://`            |
+| `vscode-insiders`  | `vscode-insiders://`   |
+| `vscodium`         | `vscodium://`          |
 
 Hyperlinks are automatically disabled when colours are disabled.
 
@@ -640,6 +668,7 @@ All env vars follow the pattern `{PREFIX}_{SUFFIX}`. The default prefix is `CLOG
 | Suffix                    | Default env var                |
 | ------------------------- | ------------------------------ |
 | `LOG_LEVEL`               | `CLOG_LOG_LEVEL`               |
+| `HYPERLINK_FORMAT`        | `CLOG_HYPERLINK_FORMAT`        |
 | `HYPERLINK_PATH_FORMAT`   | `CLOG_HYPERLINK_PATH_FORMAT`   |
 | `HYPERLINK_FILE_FORMAT`   | `CLOG_HYPERLINK_FILE_FORMAT`   |
 | `HYPERLINK_DIR_FORMAT`    | `CLOG_HYPERLINK_DIR_FORMAT`    |

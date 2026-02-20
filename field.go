@@ -39,6 +39,9 @@ func (fb *fieldBuilder[T]) Bools(key string, vals []bool) *T {
 }
 
 // Err adds an error field with key "error". No-op if err is nil.
+//
+// Unlike [Event.Err], context errors are always stored as a field because
+// context fields have no Send/Msg finalisation semantics.
 func (fb *fieldBuilder[T]) Err(err error) *T {
 	if err == nil {
 		return fb.self

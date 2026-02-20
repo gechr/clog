@@ -15,6 +15,7 @@ type Event struct {
 	level  Level
 	fields []Field
 	prefix *string // nil = use logger/default prefix
+	err    error   // set by Err(); used as message by Send(), or as error= field by Msg()
 }
 
 // Any adds a field with an arbitrary value.
@@ -124,13 +125,17 @@ func (e *Event) Durations(key string, vals []time.Duration) *Event {
 	return e
 }
 
-// Err adds an error field with key "error". No-op if err is nil.
+// Err attaches an error to the event. No-op if err is nil.
+//
+// If the event is finalised with [Event.Send], the error message becomes the
+// log message with no extra fields. If finalised with [Event.Msg] or
+// [Event.Msgf], the error is added as an "error" field alongside the message.
 func (e *Event) Err(err error) *Event {
 	if e == nil || err == nil {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: ErrorKey, Value: err})
+	e.err = err
 	return e
 }
 
@@ -237,6 +242,7 @@ func (e *Event) Link(key, url, text string) *Event {
 }
 
 // Msg finalises the event and writes the log entry.
+// If [Event.Err] was called, the error is included as an "error" field.
 // For [FatalLevel] events, Msg calls [os.Exit](1) after writing.
 func (e *Event) Msg(msg string) {
 	if e == nil {
@@ -245,6 +251,10 @@ func (e *Event) Msg(msg string) {
 
 	if e.logger == nil {
 		panic("clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead")
+	}
+
+	if e.err != nil {
+		e.fields = append(e.fields, Field{Key: ErrorKey, Value: e.err})
 	}
 
 	e.logger.log(e, msg)
@@ -359,8 +369,21 @@ func (e *Event) Quantity(key, val string) *Event {
 	return e
 }
 
-// Send finalises the event with an empty message.
+// Send finalises the event. If [Event.Err] was called, the error message is
+// used as the log message (no "error" field is added). Any other fields on the
+// event are preserved. If [Event.Err] was not called, the message is empty.
 func (e *Event) Send() {
+	if e == nil {
+		return
+	}
+
+	if e.err != nil {
+		msg := e.err.Error()
+		e.err = nil // prevent Msg from also adding it as a field
+		e.Msg(msg)
+		return
+	}
+
 	e.Msg("")
 }
 

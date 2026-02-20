@@ -206,12 +206,8 @@ func TestEventErr(t *testing.T) {
 	err := errors.New("boom")
 	e.Err(err)
 
-	require.Len(t, e.fields, 1)
-	assert.Equal(t, "error", e.fields[0].Key)
-
-	gotErr, ok := e.fields[0].Value.(error)
-	require.True(t, ok, "expected error value")
-	assert.Equal(t, "boom", gotErr.Error())
+	assert.Equal(t, err, e.err)
+	assert.Empty(t, e.fields)
 }
 
 func TestEventErrNil(t *testing.T) {
@@ -219,7 +215,49 @@ func TestEventErrNil(t *testing.T) {
 	result := e.Err(nil)
 
 	assert.Same(t, e, result, "expected same event returned")
+	require.NoError(t, e.err)
 	assert.Empty(t, e.fields)
+}
+
+func TestEventErrSendUsesErrorAsMessage(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.Error().Err(errors.New("connection refused")).Send()
+
+	got := buf.String()
+	assert.Contains(t, got, "connection refused")
+	assert.NotContains(t, got, "error=")
+}
+
+func TestEventErrMsgAddsErrorField(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.Error().Err(errors.New("connection refused")).Msg("an error occurred")
+
+	got := buf.String()
+	assert.Contains(t, got, "an error occurred")
+	assert.Contains(t, got, `error="connection refused"`)
+}
+
+func TestEventErrMsgfAddsErrorField(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.Error().Err(errors.New("connection refused")).Msgf("failed after %d retries", 3)
+
+	got := buf.String()
+	assert.Contains(t, got, "failed after 3 retries")
+	assert.Contains(t, got, `error="connection refused"`)
+}
+
+func TestEventErrSendPreservesFields(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.Error().Err(errors.New("connection refused")).Str("host", "db1").Send()
+
+	got := buf.String()
+	assert.Contains(t, got, "connection refused")
+	assert.Contains(t, got, `host=db1`)
+	assert.NotContains(t, got, "error=")
 }
 
 func TestEventJSON(t *testing.T) {

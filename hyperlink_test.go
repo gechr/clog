@@ -226,6 +226,7 @@ func TestSetHyperlinkDirFormat(t *testing.T) {
 func TestLoadHyperlinkFileAndDirFormatsFromEnv(t *testing.T) {
 	saveFormats(t)
 
+	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Setenv("CLOG_HYPERLINK_FILE_FORMAT", "vscode://file{path}")
 	t.Setenv("CLOG_HYPERLINK_DIR_FORMAT", "finder://{path}")
 
@@ -249,6 +250,7 @@ func TestLoadHyperlinkFileAndDirFormatsFromEnv(t *testing.T) {
 func TestLoadHyperlinkFormatsFromEnv(t *testing.T) {
 	saveFormats(t)
 
+	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "vscode://file{path}")
 	t.Setenv("CLOG_HYPERLINK_LINE_FORMAT", "vscode://file{path}:{line}")
 
@@ -272,6 +274,7 @@ func TestLoadHyperlinkFormatsFromEnv(t *testing.T) {
 func TestLoadHyperlinkFormatsFromEnvEmpty(t *testing.T) {
 	saveFormats(t)
 
+	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "")
 	t.Setenv("CLOG_HYPERLINK_LINE_FORMAT", "")
 
@@ -391,6 +394,7 @@ func TestSetHyperlinkColumnFormat(t *testing.T) {
 func TestLoadHyperlinkColumnFormatFromEnv(t *testing.T) {
 	saveFormats(t)
 
+	t.Setenv("CLOG_HYPERLINK_FORMAT", "")
 	t.Setenv("CLOG_HYPERLINK_COLUMN_FORMAT", "vscode://file{path}:{line}:{column}")
 
 	hyperlinkColumnFormat.Store(nil)
