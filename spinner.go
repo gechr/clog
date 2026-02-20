@@ -2,6 +2,7 @@ package clog
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -38,6 +39,40 @@ func (u *ProgressUpdate) Send() {
 	merged := mergeFields(u.base, u.fields)
 	u.fieldsPtr.Store(&merged)
 	u.fields = nil // reset for reuse
+}
+
+// Err adds an error field. If err is nil, no field is added.
+func (u *ProgressUpdate) Err(err error) *ProgressUpdate {
+	if err == nil {
+		return u
+	}
+	u.fields = append(u.fields, Field{Key: ErrorKey, Value: err})
+	return u
+}
+
+// Stringer adds a field by calling the value's String method. No-op if val is nil.
+func (u *ProgressUpdate) Stringer(key string, val fmt.Stringer) *ProgressUpdate {
+	if isNilStringer(val) {
+		return u
+	}
+
+	u.fields = append(u.fields, Field{Key: key, Value: val.String()})
+	return u
+}
+
+// Stringers adds a field with a slice of [fmt.Stringer] values.
+func (u *ProgressUpdate) Stringers(key string, vals []fmt.Stringer) *ProgressUpdate {
+	strs := make([]string, len(vals))
+	for i, v := range vals {
+		if isNilStringer(v) {
+			strs[i] = Nil
+		} else {
+			strs[i] = v.String()
+		}
+	}
+
+	u.fields = append(u.fields, Field{Key: key, Value: strs})
+	return u
 }
 
 // Task is a function executed by [SpinnerBuilder.Wait].
@@ -210,7 +245,6 @@ func (b *SpinnerBuilder) Progress(
 
 	title := *titlePtr.Load()
 	w := &WaitResult{
-		title:        title,
 		err:          err,
 		successLevel: InfoLevel,
 		successMsg:   title,
@@ -232,7 +266,6 @@ type WaitResult struct {
 	prefix       *string // nil = use default emoji for level
 	successLevel Level
 	successMsg   string
-	title        string
 }
 
 // Err returns the error, logging success at info level or failure at error

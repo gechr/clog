@@ -19,11 +19,16 @@ go get github.com/gechr/clog
 ```go
 package main
 
-import "github.com/gechr/clog"
+import (
+  "fmt"
+
+  "github.com/gechr/clog"
+)
 
 func main() {
   clog.Info().Str("port", "8080").Msg("Server started")
   clog.Warn().Str("path", "/old").Msg("Deprecated endpoint")
+  err := fmt.Errorf("connection refused")
   clog.Error().Err(err).Msg("Connection failed")
 }
 ```
@@ -309,7 +314,7 @@ err := clog.Spinner("Downloading").
   Msg("Downloaded")
 ```
 
-The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result.
+The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result. This is the `DefaultSpinner` type, which is used when no custom `Type` is set.
 
 ### Dynamic Status Updates
 
@@ -331,12 +336,14 @@ err := clog.Spinner("Processing").
 
 ### WaitResult Finalisers
 
-| Method      | Success behaviour          | Failure behaviour               |
-| ----------- | -------------------------- | ------------------------------- |
-| `.Msg(s)`   | Logs at `INF` with message | Logs at `ERR` with error string |
-| `.Err()`    | Logs at `INF` with title   | Logs at `ERR` with error string |
-| `.Send()`   | Logs at configured level   | Logs at configured level        |
-| `.Silent()` | Returns error, no logging  | Returns error, no logging       |
+| Method      | Success behaviour                       | Failure behaviour                        |
+| ----------- | --------------------------------------- | ---------------------------------------- |
+| `.Msg(s)`   | Logs at `INF` with message              | Logs at `ERR` with error string          |
+| `.Err()`    | Logs at `INF` with spinner title as msg | Logs at `ERR` with error string as msg   |
+| `.Send()`   | Logs at configured level                | Logs at configured level                 |
+| `.Silent()` | Returns error, no logging               | Returns error, no logging                |
+
+`.Err()` is equivalent to calling `.Send()` with default settings (no `OnSuccess`/`OnError` overrides).
 
 All finalisers return the `error` from the action. You can chain any field method (`.Str()`, `.Int()`, `.Bool()`, `.Duration()`, etc.) and `.Prefix()` on a `WaitResult` before finalising.
 
@@ -365,6 +372,29 @@ clog.Spinner("Loading").
 ```
 
 Available types from `github.com/charmbracelet/bubbles/spinner`: `Line`, `Dot`, `MiniDot`, `Jump`, `Pulse`, `Globe`, `Points`, `Meter`, `Hamburger`, `Moon`, `Ellipsis`.
+
+### Hyperlink Fields on Spinners
+
+The `SpinnerBuilder` supports the same clickable hyperlink field methods as events:
+
+```go
+clog.Spinner("Building").
+  Path("dir", "src/").
+  Line("config", "config.yaml", 42).
+  Column("loc", "main.go", 10, 5).
+  URL("docs", "https://example.com").
+  Link("help", "https://example.com", "docs").
+  Wait(ctx, action).
+  Msg("Built")
+```
+
+| Method   | Signature                                    | Description                          |
+| -------- | -------------------------------------------- | ------------------------------------ |
+| `Path`   | `Path(key, path string)`                     | Clickable file/directory hyperlink   |
+| `Line`   | `Line(key, path string, line int)`           | Clickable file:line hyperlink        |
+| `Column` | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink |
+| `URL`    | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text)|
+| `Link`   | `Link(key, url, text string)`                | Clickable URL hyperlink              |
 
 ### Pulse Animation
 
@@ -589,6 +619,7 @@ clog.SetOutput(out)              // change the output (accepts *Output)
 clog.SetOutputWriter(w)          // change the output writer (with ColorAuto)
 clog.SetExitFunc(fn)             // override os.Exit for Fatal (useful in tests)
 clog.SetHyperlinksEnabled(false) // disable all hyperlink rendering
+logger.Output()                  // returns the Logger's *Output
 ```
 
 ### Environment Variables
@@ -811,3 +842,5 @@ clog.SetStyles(styles)
 Use `DefaultMessageStyles()` to get the defaults (unstyled for all levels).
 
 Use `DefaultValueStyles()` to get the default value styles (`true`=green, `false`=red, `nil`=grey, `""`=grey).
+
+Use `DefaultPercentGradient()` to get the default red → yellow → green gradient stops used for `Percent` fields.

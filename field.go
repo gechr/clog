@@ -66,6 +66,12 @@ func (fb *fieldBuilder[T]) Int(key string, val int) *T {
 	return fb.self
 }
 
+// Int64 adds an int64 field.
+func (fb *fieldBuilder[T]) Int64(key string, val int64) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
 // Ints adds an int slice field.
 func (fb *fieldBuilder[T]) Ints(key string, vals []int) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
@@ -113,6 +119,12 @@ func (fb *fieldBuilder[T]) Strs(key string, vals []string) *T {
 
 // Time adds a [time.Time] field.
 func (fb *fieldBuilder[T]) Time(key string, val time.Time) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: val})
+	return fb.self
+}
+
+// Uint adds a uint field.
+func (fb *fieldBuilder[T]) Uint(key string, val uint) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})
 	return fb.self
 }

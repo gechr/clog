@@ -2,11 +2,19 @@ package clog
 
 import (
 	"fmt"
+	"os"
+	"strings"
 	"sync/atomic"
 )
 
-// noColorEnvSet is loaded once at init time from the NO_COLOR environment variable.
-var noColorEnvSet atomic.Bool
+// noColorEnvSet is loaded eagerly during package var init (before Default)
+// from the NO_COLOR environment variable.
+var noColorEnvSet = func() *atomic.Bool {
+	var b atomic.Bool
+	_, set := os.LookupEnv("NO_COLOR")
+	b.Store(set)
+	return &b
+}()
 
 // ColorsDisabled returns true if colours are disabled on the [Default] logger.
 func ColorsDisabled() bool {
@@ -20,7 +28,7 @@ func (m ColorMode) MarshalText() ([]byte, error) {
 
 // UnmarshalText implements [encoding.TextUnmarshaler].
 func (m *ColorMode) UnmarshalText(text []byte) error {
-	switch string(text) {
+	switch strings.ToLower(string(text)) {
 	case ColorAuto.String():
 		*m = ColorAuto
 	case ColorAlways.String():

@@ -24,7 +24,6 @@ var envPrefix atomic.Value // stores string; "" means no custom prefix
 
 func init() {
 	hyperlinksEnabled.Store(true)
-	loadNoColorFromEnv()
 	loadAllFromEnv()
 }
 
@@ -51,12 +50,13 @@ func getEnv(suffix string) string {
 }
 
 func loadAllFromEnv() {
+	loadNoColorFromEnv()
 	loadLogLevelFromEnv()
 	loadHyperlinkFormatsFromEnv()
 }
 
 func loadLogLevelFromEnv() {
-	level := getEnv(envLogLevel)
+	level := strings.TrimSpace(getEnv(envLogLevel))
 	if level == "" {
 		return
 	}

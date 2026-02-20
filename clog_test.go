@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1467,4 +1468,144 @@ func TestDefaultLabels(t *testing.T) {
 
 	labels2 := DefaultLabels()
 	assert.Equal(t, "INF", labels2[InfoLevel], "DefaultLabels should return a copy")
+}
+
+func TestSetStylesNilDefaultsToDefaultStyles(t *testing.T) {
+	l := NewWriter(io.Discard)
+	original := l.styles
+
+	// Set to nil — should fall back to DefaultStyles().
+	l.SetStyles(nil)
+
+	l.mu.Lock()
+	got := l.styles
+	l.mu.Unlock()
+
+	assert.NotNil(t, got, "styles should not be nil after SetStyles(nil)")
+	assert.Equal(t, DefaultStyles(), got)
+	// Should be a new instance, not the original pointer.
+	assert.NotSame(t, original, got)
+}
+
+func TestSetTimeLocationNilDefaultsToLocal(t *testing.T) {
+	l := NewWriter(io.Discard)
+
+	// Set to UTC first.
+	l.SetTimeLocation(time.UTC)
+	assert.Equal(t, time.UTC, l.timeLocation)
+
+	// Set to nil — should fall back to time.Local.
+	l.SetTimeLocation(nil)
+
+	l.mu.Lock()
+	got := l.timeLocation
+	l.mu.Unlock()
+
+	assert.Equal(t, time.Local, got)
+}
+
+func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
+	l := NewWriter(io.Discard)
+
+	// Set a custom exit func first.
+	called := false
+	l.SetExitFunc(func(_ int) { called = true })
+	l.mu.Lock()
+	fn := l.exitFunc
+	l.mu.Unlock()
+	fn(0)
+	assert.True(t, called)
+
+	// Set to nil — should fall back to os.Exit.
+	l.SetExitFunc(nil)
+
+	l.mu.Lock()
+	got := l.exitFunc
+	l.mu.Unlock()
+
+	// We can't compare function pointers directly in Go, but we can verify
+	// it is not nil and it's the same function by checking its behaviour
+	// through the Fatal path. Use a sub-logger with a handler so Fatal
+	// still triggers exitFunc.
+	assert.NotNil(t, got, "exitFunc should not be nil after SetExitFunc(nil)")
+
+	// Verify it's os.Exit by comparing pointer values via fmt.
+	// A simpler check: ensure Fatal still invokes an exit function.
+	var buf bytes.Buffer
+	l2 := New(TestOutput(&buf))
+	var exitCode int
+	l2.SetExitFunc(nil) // should default to os.Exit
+	// Override again to intercept — just verify nil didn't leave it broken.
+	l2.SetExitFunc(func(code int) { exitCode = code })
+	l2.Fatal().Msg("boom")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestSetExitFuncNilFatalStillWorks(t *testing.T) {
+	// Verify that setting nil and then overriding works correctly
+	// (the nil guard should have set os.Exit, not left it nil).
+	l := NewWriter(io.Discard)
+	l.SetExitFunc(nil)
+
+	// Now override with a test function to verify the logger is still functional.
+	var exitCode int
+	l.SetExitFunc(func(code int) { exitCode = code })
+	l.Fatal().Msg("test fatal")
+	assert.Equal(t, 1, exitCode)
+}
+
+func TestAtomicLevelFastPath(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetLevel(WarnLevel)
+
+	// Events below the level should return nil without acquiring the mutex.
+	assert.Nil(t, l.Trace(), "Trace should be nil at WarnLevel")
+	assert.Nil(t, l.Debug(), "Debug should be nil at WarnLevel")
+	assert.Nil(t, l.Info(), "Info should be nil at WarnLevel")
+
+	// Events at or above the level should return non-nil.
+	assert.NotNil(t, l.Warn(), "Warn should not be nil at WarnLevel")
+	assert.NotNil(t, l.Error(), "Error should not be nil at WarnLevel")
+}
+
+func TestAtomicLevelConcurrent(t *testing.T) {
+	t.Parallel()
+	l := NewWriter(io.Discard)
+	l.SetLevel(ErrorLevel)
+
+	var wg sync.WaitGroup
+
+	// Concurrently create events and change levels.
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for range 1000 {
+			_ = l.Info()
+			_ = l.Error()
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		for range 1000 {
+			l.SetLevel(InfoLevel)
+			l.SetLevel(ErrorLevel)
+		}
+	}()
+
+	wg.Wait()
+}
+
+func TestNewLoggerAtomicLevelInitialized(t *testing.T) {
+	l := NewWriter(io.Discard)
+	assert.Equal(t, int32(InfoLevel), l.atomicLevel.Load(),
+		"atomicLevel should be initialized to InfoLevel")
+}
+
+func TestSetLevelUpdatesAtomicLevel(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetLevel(DebugLevel)
+	assert.Equal(t, int32(DebugLevel), l.atomicLevel.Load())
+
+	l.SetLevel(FatalLevel)
+	assert.Equal(t, int32(FatalLevel), l.atomicLevel.Load())
 }

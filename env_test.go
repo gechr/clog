@@ -101,6 +101,55 @@ func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
 	assert.Equal(t, "MYAPP", got)
 }
 
+func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	saveEnvPrefix(t)
+
+	for _, tt := range []struct {
+		name  string
+		value string
+		want  Level
+	}{
+		{"leading space", " debug", DebugLevel},
+		{"trailing space", "debug ", DebugLevel},
+		{"both spaces", " debug ", DebugLevel},
+		{"tabs", "\tdebug\t", DebugLevel},
+		{"newline", "warn\n", WarnLevel},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			Default = NewWriter(io.Discard)
+			t.Setenv("CLOG_LOG_LEVEL", tt.value)
+			envPrefix.Store("")
+
+			loadLogLevelFromEnv()
+
+			assert.Equal(t, tt.want, Default.level)
+		})
+	}
+}
+
+func TestEnvLoadAllFromEnvReChecksNoColor(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	saveEnvPrefix(t)
+
+	Default = NewWriter(io.Discard)
+
+	// Start with NO_COLOR unset.
+	t.Setenv("NO_COLOR", "")
+	// Remove it so LookupEnv returns false.
+	// t.Setenv registers cleanup, but we need it unset now.
+	// We'll use a different approach: set it, call loadAllFromEnv, check.
+
+	// First: NO_COLOR is set -> should be true after loadAllFromEnv.
+	t.Setenv("NO_COLOR", "1")
+	loadAllFromEnv()
+	assert.True(t, noColorEnvSet.Load(), "noColorEnvSet should be true when NO_COLOR is set")
+}
+
 func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 	saveEnvPrefix(t)
 	saveFormats(t)

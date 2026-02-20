@@ -2,6 +2,7 @@ package clog
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"strconv"
 	"strings"
@@ -126,6 +127,10 @@ func formatValue(
 		return val, kindString
 	case int:
 		return strconv.Itoa(val), kindNumber
+	case int64:
+		return strconv.FormatInt(val, 10), kindNumber
+	case uint:
+		return strconv.FormatUint(uint64(val), 10), kindNumber
 	case uint64:
 		return strconv.FormatUint(val, 10), kindNumber
 	case float64:
@@ -916,7 +921,14 @@ func reflectValueKind(v any) valueKind {
 }
 
 // clampPercent restricts val to the 0–100 range.
+// NaN and negative infinity clamp to 0; positive infinity clamps to 100.
 func clampPercent(val float64) float64 {
+	if math.IsNaN(val) || math.IsInf(val, -1) {
+		return 0
+	}
+	if math.IsInf(val, 1) {
+		return percentMax
+	}
 	return max(0, min(percentMax, val))
 }
 

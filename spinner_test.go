@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -193,7 +194,7 @@ func TestSpinnerWaitSuccess(t *testing.T) {
 		})
 
 	require.NoError(t, result.err)
-	assert.Equal(t, "loading", result.title)
+	assert.Equal(t, "loading", result.successMsg)
 }
 
 func TestSpinnerWaitError(t *testing.T) {
@@ -257,13 +258,12 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 	})
 
 	require.NoError(t, result.err)
-	assert.Equal(t, "step 2", result.title)
+	assert.Equal(t, "step 2", result.successMsg)
 }
 
 // newTestWaitResult creates a WaitResult with initSelf called for test use.
 func newTestWaitResult(title string, err error) *WaitResult {
 	w := &WaitResult{
-		title:        title,
 		err:          err,
 		successLevel: InfoLevel,
 		successMsg:   title,
@@ -744,4 +744,136 @@ func TestRunSpinnerAnimationWithTimestamp(t *testing.T) {
 	got := buf.String()
 	// Animated output with timestamps should include time-like content.
 	assert.NotEmpty(t, got)
+}
+
+func TestProgressUpdateReuseAfterSend(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner("step 1").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			// First send with a field.
+			update.Title("step 2").Str("k", "v1").Send()
+
+			// After Send, fields should be reset. Add new fields and send again.
+			update.Title("step 3").Str("k", "v2").Int("n", 42).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+	assert.Equal(t, "step 3", result.successMsg)
+}
+
+func TestProgressUpdateErr(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	testErr := errors.New("progress error")
+
+	result := Spinner("loading").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			update.Err(testErr).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+
+	// The error field should have been stored.
+	fields := result.fields
+	require.NotEmpty(t, fields)
+
+	found := false
+	for _, f := range fields {
+		if f.Key == ErrorKey {
+			assert.Equal(t, testErr, f.Value)
+			found = true
+		}
+	}
+	assert.True(t, found, "expected error field in result fields")
+}
+
+func TestProgressUpdateErrNil(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner("loading").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			update.Err(nil).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+
+	// No error field should have been added.
+	for _, f := range result.fields {
+		assert.NotEqual(t, ErrorKey, f.Key, "nil error should not produce an error field")
+	}
+}
+
+func TestProgressUpdateStringer(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner("loading").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			update.Stringer("item", &testStringer{s: "hello"}).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+	require.NotEmpty(t, result.fields)
+	assert.Equal(t, "item", result.fields[0].Key)
+	assert.Equal(t, "hello", result.fields[0].Value)
+}
+
+func TestProgressUpdateStringerTypedNil(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner("loading").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			var s *testStringer // typed nil
+			update.Stringer("item", s).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+	// Typed nil should be skipped — no fields added.
+	for _, f := range result.fields {
+		assert.NotEqual(t, "item", f.Key, "typed nil stringer should not produce a field")
+	}
+}
+
+func TestProgressUpdateStringers(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner("loading").
+		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
+			var nilStringer *testStringer
+			update.Stringers("items", []fmt.Stringer{
+				&testStringer{s: "a"},
+				nil,
+				nilStringer,
+				&testStringer{s: "d"},
+			}).Send()
+			return nil
+		})
+
+	require.NoError(t, result.err)
+	require.NotEmpty(t, result.fields)
+	assert.Equal(t, "items", result.fields[0].Key)
+	assert.Equal(t, []string{"a", Nil, Nil, "d"}, result.fields[0].Value)
 }

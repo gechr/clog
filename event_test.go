@@ -55,6 +55,24 @@ func TestEventInts(t *testing.T) {
 	assert.Equal(t, "nums", e.fields[0].Key)
 }
 
+func TestEventInt64(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Int64("big", 9223372036854775807)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "big", e.fields[0].Key)
+	assert.Equal(t, int64(9223372036854775807), e.fields[0].Value)
+}
+
+func TestEventUint(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Uint("count", 42)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "count", e.fields[0].Key)
+	assert.Equal(t, uint(42), e.fields[0].Value)
+}
+
 func TestEventUint64(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Uint64("size", 999)
@@ -401,6 +419,8 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Strs("k", []string{"v"}))
 	assert.Nil(t, e.Int("k", 1))
 	assert.Nil(t, e.Ints("k", []int{1}))
+	assert.Nil(t, e.Int64("k", 1))
+	assert.Nil(t, e.Uint("k", 1))
 	assert.Nil(t, e.Uint64("k", 1))
 	assert.Nil(t, e.Uints64("k", []uint64{1}))
 	assert.Nil(t, e.Float64("k", 1.0))
@@ -621,6 +641,27 @@ func TestEventQuantitiesOutput(t *testing.T) {
 	l.Info().Quantities("sizes", []string{"10GB", "5MB"}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test sizes=[10GB, 5MB]\n", buf.String())
+}
+
+func TestEventDictPanicOnMsg(t *testing.T) {
+	assert.PanicsWithValue(t,
+		"clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead",
+		func() { Dict().Str("k", "v").Msg("boom") },
+	)
+}
+
+func TestEventDictPanicOnMsgf(t *testing.T) {
+	assert.PanicsWithValue(t,
+		"clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead",
+		func() { Dict().Str("k", "v").Msgf("boom %s", "arg") },
+	)
+}
+
+func TestEventDictPanicOnSend(t *testing.T) {
+	assert.PanicsWithValue(t,
+		"clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead",
+		func() { Dict().Str("k", "v").Send() },
+	)
 }
 
 func TestEventDictNilParam(t *testing.T) {

@@ -2,14 +2,19 @@ package clog
 
 import (
 	"context"
-	"fmt"
+	"io"
 	"math"
 	"strings"
 	"sync/atomic"
 	"time"
+	"unsafe"
 
 	"github.com/charmbracelet/bubbles/spinner"
 )
+
+// clearLine is the ANSI escape to erase the entire current line (EL2),
+// followed by a carriage return to reset the cursor to column 0.
+const clearLine = "\x1b[2K\r"
 
 //nolint:cyclop // animation loop has inherent complexity
 func runAnimation(
@@ -46,9 +51,11 @@ func runAnimation(
 	timeLoc := Default.timeLocation
 	Default.mu.Unlock()
 
-	// Don't animate if colours are disabled (CI, piped output, etc.).
-	// Print the initial title so the user knows something is in progress.
-	if noColor {
+	// buildParts assembles the display parts slice from the configured order.
+	// It takes dynamic values (timestamp, prefix, message, fieldsStr) that
+	// change per frame, while static values (label/levelPrefix) are captured
+	// in the closure.
+	buildParts := func(order []Part, reportTS bool, tsStr, levelStr, prefix, msg, fieldsStr string) string {
 		parts := make([]string, 0, len(order))
 		for _, p := range order {
 			var part string
@@ -57,30 +64,39 @@ func runAnimation(
 				if !reportTS {
 					continue
 				}
-				part = time.Now().In(timeLoc).Format(timeFmt)
+				part = tsStr
 			case PartLevel:
-				part = label
+				part = levelStr
 			case PartPrefix:
-				part = "⏳"
+				part = prefix
 			case PartMessage:
-				part = *title.Load()
+				part = msg
 			case PartFields:
-				part = strings.TrimLeft(
-					formatFields(*fields.Load(), formatFieldsOpts{
-						noColor:    true,
-						quoteClose: quoteClose,
-						quoteMode:  quoteMode,
-						quoteOpen:  quoteOpen,
-						timeFormat: fieldTimeFormat,
-					}), " ",
-				)
+				part = fieldsStr
 			}
 			if part != "" {
 				parts = append(parts, part)
 			}
 		}
+		return strings.Join(parts, " ")
+	}
 
-		_, _ = fmt.Fprintf(out, "%s\n", strings.Join(parts, " "))
+	// Don't animate if colours are disabled (CI, piped output, etc.).
+	// Print the initial title so the user knows something is in progress.
+	if noColor {
+		fieldsStr := strings.TrimLeft(
+			formatFields(*fields.Load(), formatFieldsOpts{
+				noColor:    true,
+				quoteClose: quoteClose,
+				quoteMode:  quoteMode,
+				quoteOpen:  quoteOpen,
+				timeFormat: fieldTimeFormat,
+			}), " ",
+		)
+		line := buildParts(order, reportTS,
+			time.Now().In(timeLoc).Format(timeFmt),
+			label, "⏳", *title.Load(), fieldsStr)
+		_, _ = io.WriteString(out, line+"\n")
 		return <-done
 	}
 
@@ -107,75 +123,77 @@ func runAnimation(
 		tickRate = pulseTickRate
 	}
 
+	// Pre-compute the shimmer LUT once — it's phase-independent.
+	var sLUT *shimmerLUT
+	if hasShimmer {
+		sLUT = buildShimmerLUT(shimmerStops)
+	}
+
+	// Cache formatted fields — only re-format when the atomic pointer changes.
+	var cachedFieldsPtr unsafe.Pointer
+	var cachedFieldsStr string
+	fieldOpts := formatFieldsOpts{
+		fieldStyleLevel: fieldStyleLevel,
+		styles:          styles,
+		level:           InfoLevel,
+		quoteMode:       quoteMode,
+		quoteOpen:       quoteOpen,
+		quoteClose:      quoteClose,
+		timeFormat:      fieldTimeFormat,
+	}
+
 	startTime := time.Now()
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
+	// Compose each frame into a single buffer to reduce syscalls.
+	var frameBuf strings.Builder
+
 	for {
 		select {
 		case err := <-done:
-			termOut.ClearLine()
-			_, _ = fmt.Fprint(out, "\r")
+			_, _ = io.WriteString(out, clearLine)
 			return err
 		case now := <-ticker.C:
 			elapsed := now.Sub(startTime)
 			frame := int(elapsed / s.FPS)
 			char := s.Frames[frame%len(s.Frames)]
 
-			parts := make([]string, 0, len(order))
+			msg := *title.Load()
+			if hasPulse {
+				half := 0.5
+				t := half * (1.0 + math.Sin(2*math.Pi*elapsed.Seconds()*pulseSpeed-math.Pi/2))
+				msg = pulseText(msg, t, pulseStops)
+			} else if hasShimmer {
+				phase := math.Mod(elapsed.Seconds()*shimmerSpeed, 1.0)
+				msg = shimmerText(msg, phase, shimmerDir, sLUT)
+			}
 
-			for _, p := range order {
-				var part string
+			// Only re-format fields when the pointer changes.
+			fp := fields.Load()
+			fpRaw := unsafe.Pointer(fp)
+			if fpRaw != cachedFieldsPtr {
+				cachedFieldsPtr = fpRaw
+				cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
+			}
 
-				switch p {
-				case PartTimestamp:
-					if !reportTS {
-						continue
-					}
-
-					ts := now.In(timeLoc).Format(timeFmt)
-					if styles.Timestamp != nil {
-						part = styles.Timestamp.Render(ts)
-					} else {
-						part = ts
-					}
-				case PartLevel:
-					part = levelPrefix
-				case PartPrefix:
-					part = char
-				case PartMessage:
-					msg := *title.Load()
-					if hasPulse {
-						half := 0.5
-						t := half * (1.0 + math.Sin(2*math.Pi*elapsed.Seconds()*pulseSpeed-math.Pi/2))
-						msg = pulseText(msg, t, pulseStops)
-					} else if hasShimmer {
-						phase := math.Mod(elapsed.Seconds()*shimmerSpeed, 1.0)
-						msg = shimmerText(msg, phase, shimmerStops, shimmerDir)
-					}
-					part = msg
-				case PartFields:
-					part = strings.TrimLeft(formatFields(*fields.Load(), formatFieldsOpts{
-						fieldStyleLevel: fieldStyleLevel,
-						styles:          styles,
-						level:           InfoLevel,
-						quoteMode:       quoteMode,
-						quoteOpen:       quoteOpen,
-						quoteClose:      quoteClose,
-						timeFormat:      fieldTimeFormat,
-					}), " ")
-				}
-
-				if part != "" {
-					parts = append(parts, part)
+			var tsStr string
+			if reportTS {
+				ts := now.In(timeLoc).Format(timeFmt)
+				if styles.Timestamp != nil {
+					tsStr = styles.Timestamp.Render(ts)
+				} else {
+					tsStr = ts
 				}
 			}
 
-			termOut.ClearLine()
-			_, _ = fmt.Fprintf(out, "\r%s", strings.Join(parts, " "))
+			line := buildParts(order, reportTS, tsStr, levelPrefix, char, msg, cachedFieldsStr)
+			frameBuf.Reset()
+			frameBuf.WriteString(clearLine)
+			frameBuf.WriteString(line)
+			_, _ = io.WriteString(out, frameBuf.String())
 		case <-ctx.Done():
-			termOut.ClearLine()
-			_, _ = fmt.Fprint(out, "\r")
+			_, _ = io.WriteString(out, clearLine)
 			return ctx.Err()
 		}
 	}

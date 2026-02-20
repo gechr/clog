@@ -1,9 +1,6 @@
 package clog
 
-import (
-	"fmt"
-	"reflect"
-)
+import "fmt"
 
 // Context builds a sub-logger with preset fields.
 // Created by [Logger.With]. Finalise with [Context.Logger].
@@ -134,13 +131,7 @@ func (c *Context) Prefix(prefix string) *Context {
 
 // Stringer adds a field by calling the value's String method. No-op if val is nil.
 func (c *Context) Stringer(key string, val fmt.Stringer) *Context {
-	if val == nil {
-		return c
-	}
-
-	// Detect typed nils (e.g. (*bytes.Buffer)(nil) passed as fmt.Stringer).
-	rv := reflect.ValueOf(val)
-	if rv.Kind() == reflect.Pointer && rv.IsNil() {
+	if isNilStringer(val) {
 		return c
 	}
 
@@ -152,7 +143,7 @@ func (c *Context) Stringer(key string, val fmt.Stringer) *Context {
 func (c *Context) Stringers(key string, vals []fmt.Stringer) *Context {
 	strs := make([]string, len(vals))
 	for i, v := range vals {
-		if v == nil {
+		if isNilStringer(v) {
 			strs[i] = Nil
 		} else {
 			strs[i] = v.String()

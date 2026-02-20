@@ -17,6 +17,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -156,7 +157,8 @@ const (
 type Logger struct {
 	mu *sync.Mutex
 
-	exitFunc        func(int) // called by Fatal-level events; defaults to os.Exit
+	atomicLevel     atomic.Int32 // lock-free level check for newEvent() hot path
+	exitFunc        func(int)    // called by Fatal-level events; defaults to os.Exit
 	fieldStyleLevel Level
 	fieldTimeFormat string
 	fields          []Field
@@ -181,7 +183,7 @@ type Logger struct {
 
 // New creates a new [Logger] that writes to the given [Output].
 func New(output *Output) *Logger {
-	return &Logger{
+	l := &Logger{
 		mu: &sync.Mutex{},
 
 		exitFunc:        os.Exit,
@@ -197,6 +199,8 @@ func New(output *Output) *Logger {
 		timeFormat:      "15:04:05.000",
 		timeLocation:    time.Local,
 	}
+	l.atomicLevel.Store(int32(InfoLevel))
+	return l
 }
 
 // NewWriter creates a new [Logger] that writes to w with [ColorAuto].
@@ -206,9 +210,13 @@ func NewWriter(w io.Writer) *Logger {
 
 // SetExitFunc sets the function called by Fatal-level events.
 // Defaults to [os.Exit]. This can be used in tests to intercept fatal exits.
+// If fn is nil, the default [os.Exit] is used.
 func (l *Logger) SetExitFunc(fn func(int)) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if fn == nil {
+		fn = os.Exit
+	}
 	l.exitFunc = fn
 }
 
@@ -242,6 +250,7 @@ func (l *Logger) SetLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.level = level
+	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (0-6)
 }
 
 // SetLevelAlign sets the alignment mode for level labels.
@@ -360,10 +369,13 @@ func (l *Logger) SetReportTimestamp(report bool) {
 	l.reportTimestamp = report
 }
 
-// SetStyles sets the display styles.
+// SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.
 func (l *Logger) SetStyles(styles *Styles) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if styles == nil {
+		styles = DefaultStyles()
+	}
 	l.styles = styles
 }
 
@@ -375,9 +387,13 @@ func (l *Logger) SetTimeFormat(format string) {
 }
 
 // SetTimeLocation sets the timezone for timestamps. Defaults to [time.Local].
+// If loc is nil, [time.Local] is used.
 func (l *Logger) SetTimeLocation(loc *time.Location) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	if loc == nil {
+		loc = time.Local
+	}
 	l.timeLocation = loc
 }
 
@@ -459,7 +475,26 @@ func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	// Merge logger context fields with event fields.
-	allFields := slices.Concat(l.fields, e.fields)
+	var allFields []Field
+	needsFilter := l.omitZero || l.omitEmpty
+	switch {
+	case len(l.fields) == 0 && len(e.fields) == 0:
+		// no fields
+	case len(l.fields) == 0:
+		if needsFilter {
+			allFields = slices.Clone(e.fields)
+		} else {
+			allFields = e.fields
+		}
+	case len(e.fields) == 0:
+		if needsFilter {
+			allFields = slices.Clone(l.fields)
+		} else {
+			allFields = l.fields
+		}
+	default:
+		allFields = slices.Concat(l.fields, e.fields)
+	}
 
 	if l.omitZero {
 		allFields = slices.DeleteFunc(allFields, func(f Field) bool {
@@ -568,9 +603,10 @@ func (l *Logger) maxLabelWidth() int {
 // Returns nil if the level is below the logger's minimum (all Event methods
 // are no-ops on nil).
 func (l *Logger) newEvent(level Level) *Event {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if level < l.level {
+	// Fast path: lock-free level check to skip disabled events without
+	// acquiring the mutex.
+	//nolint:gosec // Level values are small constants (0-6)
+	if int32(level) < l.atomicLevel.Load() {
 		return nil
 	}
 	return &Event{
@@ -678,9 +714,9 @@ func IsVerbose() bool {
 // its [Output] with the given mode.
 func SetColorMode(mode ColorMode) {
 	Default.mu.Lock()
+	defer Default.mu.Unlock()
 	w := Default.output.Writer()
-	Default.mu.Unlock()
-	Default.SetOutput(NewOutput(w, mode))
+	Default.output = NewOutput(w, mode)
 }
 
 // SetExitFunc sets the fatal-exit function on the [Default] logger.

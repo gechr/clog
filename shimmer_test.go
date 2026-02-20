@@ -45,17 +45,17 @@ func TestDefaultShimmerGradientSymmetric(t *testing.T) {
 }
 
 func TestShimmerTextEmpty(t *testing.T) {
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	got := shimmerText("", 0, stops, DirectionRight)
+	got := shimmerText("", 0, DirectionRight, lut)
 	assert.Empty(t, got)
 }
 
 func TestShimmerTextSpacesUnstyled(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	got := shimmerText("a b c", 0, stops, DirectionRight)
+	got := shimmerText("a b c", 0, DirectionRight, lut)
 
 	// Split on spaces — spaces themselves should not contain ANSI escapes.
 	parts := strings.SplitAfter(got, " ")
@@ -68,44 +68,44 @@ func TestShimmerTextSpacesUnstyled(t *testing.T) {
 
 func TestShimmerTextContainsANSI(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	got := shimmerText("hello", 0, stops, DirectionRight)
+	got := shimmerText("hello", 0, DirectionRight, lut)
 
 	assert.Contains(t, got, "\x1b", "output should contain ANSI escape sequences")
 }
 
 func TestShimmerTextDifferentPhases(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	a := shimmerText("hello world", 0.0, stops, DirectionRight)
-	b := shimmerText("hello world", 0.5, stops, DirectionRight)
+	a := shimmerText("hello world", 0.0, DirectionRight, lut)
+	b := shimmerText("hello world", 0.5, DirectionRight, lut)
 
 	assert.NotEqual(t, a, b, "different phases should produce different output")
 }
 
 func TestShimmerTextAllDirectionsProduce(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 	text := "hello world"
 
 	for _, dir := range []Direction{DirectionRight, DirectionLeft, DirectionMiddleIn, DirectionMiddleOut} {
-		got := shimmerText(text, 0.25, stops, dir)
+		got := shimmerText(text, 0.25, dir, lut)
 		assert.Contains(t, got, "\x1b", "direction %d should produce styled output", dir)
 	}
 }
 
 func TestShimmerTextDirectionsDiffer(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 	text := "hello world testing"
 	phase := 0.3
 
-	right := shimmerText(text, phase, stops, DirectionRight)
-	left := shimmerText(text, phase, stops, DirectionLeft)
-	middleIn := shimmerText(text, phase, stops, DirectionMiddleIn)
-	middleOut := shimmerText(text, phase, stops, DirectionMiddleOut)
+	right := shimmerText(text, phase, DirectionRight, lut)
+	left := shimmerText(text, phase, DirectionLeft, lut)
+	middleIn := shimmerText(text, phase, DirectionMiddleIn, lut)
+	middleOut := shimmerText(text, phase, DirectionMiddleOut, lut)
 
 	assert.NotEqual(t, right, left)
 	assert.NotEqual(t, right, middleIn)
@@ -124,24 +124,25 @@ func TestShimmerTextMiddleInSymmetric(t *testing.T) {
 		{Position: 0.5, Color: colorful.Color{R: 0, G: 0, B: 1}},
 		{Position: 1, Color: colorful.Color{R: 1, G: 0, B: 0}},
 	}
+	lut := buildShimmerLUT(stops)
 
 	text := "abcdefgh"
-	got := shimmerText(text, 0, stops, DirectionMiddleIn)
+	got := shimmerText(text, 0, DirectionMiddleIn, lut)
 
 	// Output should contain styled characters.
 	assert.Contains(t, got, "\x1b")
 
 	// MiddleIn should produce different output than DirectionRight.
-	gotRight := shimmerText(text, 0, stops, DirectionRight)
+	gotRight := shimmerText(text, 0, DirectionRight, lut)
 	assert.NotEqual(t, got, gotRight,
 		"MiddleIn should produce different output than DirectionRight")
 }
 
 func TestShimmerTextSingleChar(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	got := shimmerText("x", 0, stops, DirectionRight)
+	got := shimmerText("x", 0, DirectionRight, lut)
 
 	assert.Contains(t, got, "x")
 	assert.Contains(t, got, "\x1b")
@@ -149,9 +150,9 @@ func TestShimmerTextSingleChar(t *testing.T) {
 
 func TestShimmerTextUnicode(t *testing.T) {
 	withTrueColor(t)
-	stops := DefaultShimmerGradient()
+	lut := buildShimmerLUT(DefaultShimmerGradient())
 
-	got := shimmerText("héllo wörld", 0, stops, DirectionRight)
+	got := shimmerText("héllo wörld", 0, DirectionRight, lut)
 
 	// Should handle multi-byte runes without panicking.
 	assert.Contains(t, got, "\x1b")
@@ -183,4 +184,14 @@ func TestSpinnerBuilderShimmerDirectionDefault(t *testing.T) {
 	b := Spinner("test").Shimmer()
 
 	assert.Equal(t, DirectionRight, b.shimmerDir)
+}
+
+func BenchmarkShimmerText(b *testing.B) {
+	lut := buildShimmerLUT(DefaultShimmerGradient())
+	text := "hello world shimmer benchmark"
+
+	b.ResetTimer()
+	for b.Loop() {
+		shimmerText(text, 0.3, DirectionRight, lut)
+	}
 }

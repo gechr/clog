@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -327,4 +328,87 @@ func TestContextLoggerSharesMutex(t *testing.T) {
 	sub := l.With().Str("k", "v").Logger()
 
 	assert.Same(t, l.mu, sub.mu, "sub-logger should share parent's mutex")
+}
+
+// Nilable types that implement fmt.Stringer for typed-nil tests.
+type stringerMap map[string]string
+
+func (m stringerMap) String() string { return "map" }
+
+type stringerSlice []string
+
+func (s stringerSlice) String() string { return "slice" }
+
+type stringerChan chan struct{}
+
+func (c stringerChan) String() string { return "chan" }
+
+type stringerFunc func()
+
+func (f stringerFunc) String() string { return "func" }
+
+func TestContextStringerTypedNilPointer(t *testing.T) {
+	ctx := NewWriter(io.Discard).With()
+	var buf *bytes.Buffer // typed nil that implements fmt.Stringer
+
+	result := ctx.Stringer("key", buf)
+
+	assert.Same(t, ctx, result, "expected same context returned")
+	assert.Empty(t, ctx.fields, "typed nil pointer should not add a field")
+}
+
+func TestContextStringerTypedNilMap(t *testing.T) {
+	ctx := NewWriter(io.Discard).With()
+	var m stringerMap // typed nil map
+
+	result := ctx.Stringer("key", m)
+
+	assert.Same(t, ctx, result, "expected same context returned")
+	assert.Empty(t, ctx.fields, "typed nil map should not add a field")
+}
+
+func TestContextStringerTypedNilSlice(t *testing.T) {
+	ctx := NewWriter(io.Discard).With()
+	var s stringerSlice // typed nil slice
+
+	result := ctx.Stringer("key", s)
+
+	assert.Same(t, ctx, result, "expected same context returned")
+	assert.Empty(t, ctx.fields, "typed nil slice should not add a field")
+}
+
+func TestContextStringerTypedNilChan(t *testing.T) {
+	ctx := NewWriter(io.Discard).With()
+	var ch stringerChan // typed nil chan
+
+	result := ctx.Stringer("key", ch)
+
+	assert.Same(t, ctx, result, "expected same context returned")
+	assert.Empty(t, ctx.fields, "typed nil chan should not add a field")
+}
+
+func TestContextStringerTypedNilFunc(t *testing.T) {
+	ctx := NewWriter(io.Discard).With()
+	var fn stringerFunc // typed nil func
+
+	result := ctx.Stringer("key", fn)
+
+	assert.Same(t, ctx, result, "expected same context returned")
+	assert.Empty(t, ctx.fields, "typed nil func should not add a field")
+}
+
+func TestContextStringersTypedNils(t *testing.T) {
+	var m stringerMap
+	var s stringerSlice
+	var ch stringerChan
+	var fn stringerFunc
+
+	ctx := NewWriter(io.Discard).With().
+		Stringers("items", []fmt.Stringer{testStringer{s: "a"}, m, s, ch, fn, nil})
+
+	require.Len(t, ctx.fields, 1)
+
+	vals, ok := ctx.fields[0].Value.([]string)
+	require.True(t, ok, "expected []string value")
+	assert.Equal(t, []string{"a", "<nil>", "<nil>", "<nil>", "<nil>", "<nil>"}, vals)
 }

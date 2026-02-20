@@ -38,6 +38,29 @@ func TestColorModeUnmarshalText(t *testing.T) {
 	}
 }
 
+func TestColorModeUnmarshalTextCaseInsensitive(t *testing.T) {
+	for _, tt := range []struct {
+		text string
+		want ColorMode
+	}{
+		{"AUTO", ColorAuto},
+		{"Auto", ColorAuto},
+		{"auto", ColorAuto},
+		{"ALWAYS", ColorAlways},
+		{"Always", ColorAlways},
+		{"always", ColorAlways},
+		{"NEVER", ColorNever},
+		{"Never", ColorNever},
+		{"never", ColorNever},
+	} {
+		t.Run(tt.text, func(t *testing.T) {
+			var got ColorMode
+			require.NoError(t, got.UnmarshalText([]byte(tt.text)))
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestColorModeUnmarshalTextInvalid(t *testing.T) {
 	var m ColorMode
 	err := m.UnmarshalText([]byte("bogus"))

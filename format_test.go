@@ -2,6 +2,7 @@ package clog
 
 import (
 	"errors"
+	"math"
 	"testing"
 	"time"
 
@@ -71,6 +72,18 @@ func TestFormatValue(t *testing.T) {
 			value:    []int{},
 			wantStr:  "[]",
 			wantKind: kindSlice,
+		},
+		{
+			name:     "int64",
+			value:    int64(9223372036854775807),
+			wantStr:  "9223372036854775807",
+			wantKind: kindNumber,
+		},
+		{
+			name:     "uint",
+			value:    uint(12345),
+			wantStr:  "12345",
+			wantKind: kindNumber,
 		},
 		{
 			name:     "uint64",
@@ -1623,6 +1636,18 @@ func TestClampPercent(t *testing.T) {
 	assert.InDelta(t, 50.0, clampPercent(50), 0)
 	assert.InDelta(t, 100.0, clampPercent(100), 0)
 	assert.InDelta(t, 100.0, clampPercent(200), 0)
+}
+
+func TestClampPercentNaN(t *testing.T) {
+	assert.InDelta(t, 0.0, clampPercent(math.NaN()), 0)
+}
+
+func TestClampPercentPosInf(t *testing.T) {
+	assert.InDelta(t, 100.0, clampPercent(math.Inf(1)), 0)
+}
+
+func TestClampPercentNegInf(t *testing.T) {
+	assert.InDelta(t, 0.0, clampPercent(math.Inf(-1)), 0)
 }
 
 func TestInterpolateGradientEmpty(t *testing.T) {

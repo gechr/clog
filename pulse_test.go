@@ -71,7 +71,8 @@ func TestPulseTextUniformColor(t *testing.T) {
 
 	// With shimmer, different positions get different colors.
 	// With pulse, both characters should get the same style.
-	shimmerGot := shimmerText("ab", 0.5, stops, DirectionRight)
+	lut := buildShimmerLUT(stops)
+	shimmerGot := shimmerText("ab", 0.5, DirectionRight, lut)
 	assert.NotEqual(t, got, shimmerGot,
 		"pulse should differ from shimmer (uniform vs positional)")
 }

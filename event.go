@@ -72,9 +72,9 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 		column = 1
 	}
 
-	output := Default.output
+	output := Default.Output()
 	if e.logger != nil {
-		output = e.logger.output
+		output = e.logger.Output()
 	}
 
 	e.fields = append(
@@ -173,6 +173,16 @@ func (e *Event) Ints(key string, vals []int) *Event {
 	return e
 }
 
+// Int64 adds an int64 field.
+func (e *Event) Int64(key string, val int64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Line(key, path string, line int) *Event {
@@ -184,9 +194,9 @@ func (e *Event) Line(key, path string, line int) *Event {
 		line = 1
 	}
 
-	output := Default.output
+	output := Default.Output()
 	if e.logger != nil {
-		output = e.logger.output
+		output = e.logger.Output()
 	}
 
 	e.fields = append(
@@ -203,9 +213,9 @@ func (e *Event) Link(key, url, text string) *Event {
 		return e
 	}
 
-	output := Default.output
+	output := Default.Output()
 	if e.logger != nil {
-		output = e.logger.output
+		output = e.logger.Output()
 	}
 
 	e.fields = append(
@@ -220,6 +230,10 @@ func (e *Event) Link(key, url, text string) *Event {
 func (e *Event) Msg(msg string) {
 	if e == nil {
 		return
+	}
+
+	if e.logger == nil {
+		panic("clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead")
 	}
 
 	e.logger.log(e, msg)
@@ -257,9 +271,9 @@ func (e *Event) Path(key, path string) *Event {
 		return e
 	}
 
-	output := Default.output
+	output := Default.Output()
 	if e.logger != nil {
-		output = e.logger.output
+		output = e.logger.Output()
 	}
 
 	e.fields = append(
@@ -323,23 +337,8 @@ func (e *Event) Str(key, val string) *Event {
 
 // Stringer adds a field by calling the value's String method. No-op if val is nil.
 func (e *Event) Stringer(key string, val fmt.Stringer) *Event {
-	if e == nil || val == nil {
+	if e == nil || isNilStringer(val) {
 		return e
-	}
-
-	rv := reflect.ValueOf(val)
-	switch rv.Kind() {
-	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
-		if rv.IsNil() {
-			return e
-		}
-	case reflect.Invalid, reflect.Bool,
-		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-		reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
-		reflect.Array, reflect.String, reflect.Struct, reflect.UnsafePointer:
-		// Value types can't be nil.
-		break
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: val.String()})
@@ -354,29 +353,9 @@ func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
 
 	strs := make([]string, len(vals))
 	for i, v := range vals {
-		if v == nil {
+		if isNilStringer(v) {
 			strs[i] = Nil
 		} else {
-			rv := reflect.ValueOf(v)
-			switch rv.Kind() {
-			case reflect.Pointer,
-				reflect.Interface,
-				reflect.Map,
-				reflect.Slice,
-				reflect.Chan,
-				reflect.Func:
-				if rv.IsNil() {
-					strs[i] = Nil
-					continue
-				}
-			case reflect.Invalid, reflect.Bool,
-				reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-				reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64, reflect.Uintptr,
-				reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
-				reflect.Array, reflect.String, reflect.Struct, reflect.UnsafePointer:
-				// Value types can't be nil.
-				break
-			}
 			strs[i] = v.String()
 		}
 	}
@@ -397,6 +376,16 @@ func (e *Event) Strs(key string, vals []string) *Event {
 
 // Time adds a [time.Time] field.
 func (e *Event) Time(key string, val time.Time) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uint adds a uint field.
+func (e *Event) Uint(key string, val uint) *Event {
 	if e == nil {
 		return e
 	}
@@ -432,9 +421,9 @@ func (e *Event) URL(key, url string) *Event {
 		return e
 	}
 
-	output := Default.output
+	output := Default.Output()
 	if e.logger != nil {
-		output = e.logger.output
+		output = e.logger.Output()
 	}
 
 	e.fields = append(
@@ -462,4 +451,21 @@ func (e *Event) withPrefix(prefix string) *Event {
 
 	e.prefix = new(prefix)
 	return e
+}
+
+// isNilStringer reports whether val is nil, either as an untyped nil interface
+// or as a typed nil whose underlying kind supports IsNil.
+func isNilStringer(val fmt.Stringer) bool {
+	if val == nil {
+		return true
+	}
+
+	rv := reflect.ValueOf(val)
+	//nolint:exhaustive // only nilable kinds need checking
+	switch rv.Kind() {
+	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
+		return rv.IsNil()
+	default:
+		return false
+	}
 }
