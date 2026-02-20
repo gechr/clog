@@ -1,6 +1,8 @@
 package clog
 
 import (
+	"bytes"
+	"context"
 	"testing"
 
 	"github.com/lucasb-eyer/go-colorful"
@@ -11,7 +13,7 @@ import (
 func TestDefaultPulseGradient(t *testing.T) {
 	stops := DefaultPulseGradient()
 
-	require.Len(t, stops, 2)
+	require.Len(t, stops, 3)
 	assert.InDelta(t, 0.0, stops[0].Position, 1e-9)
 	assert.InDelta(t, 1.0, stops[len(stops)-1].Position, 1e-9)
 }
@@ -72,7 +74,7 @@ func TestPulseTextUniformColor(t *testing.T) {
 	// With shimmer, different positions get different colors.
 	// With pulse, both characters should get the same style.
 	lut := buildShimmerLUT(stops)
-	shimmerGot := shimmerText("ab", 0.5, DirectionRight, lut)
+	shimmerGot := shimmerText("ab", 0.5, DirectionRight, lut, nil)
 	assert.NotEqual(t, got, shimmerGot,
 		"pulse should differ from shimmer (uniform vs positional)")
 }
@@ -96,18 +98,66 @@ func TestPulseTextUnicode(t *testing.T) {
 	assert.Contains(t, got, "\x1b")
 }
 
-func TestSpinnerBuilderPulseDefault(t *testing.T) {
-	b := Spinner("test").Pulse()
+func TestPulseDefault(t *testing.T) {
+	b := Pulse("test")
 
 	assert.Equal(t, DefaultPulseGradient(), b.pulseStops)
 }
 
-func TestSpinnerBuilderPulseCustom(t *testing.T) {
+func TestPulseCustom(t *testing.T) {
 	custom := []ColorStop{
 		{Position: 0, Color: colorful.Color{R: 1, G: 0, B: 0}},
 		{Position: 1, Color: colorful.Color{R: 0, G: 0, B: 1}},
 	}
-	b := Spinner("test").Pulse(custom...)
+	b := Pulse("test", custom...)
 
 	assert.Equal(t, custom, b.pulseStops)
+}
+
+func TestPulseBuilderPrefix(t *testing.T) {
+	b := Pulse("test").Prefix("🔄")
+
+	assert.Equal(t, "🔄", b.prefix)
+}
+
+func TestPulseBuilderPrefixDefault(t *testing.T) {
+	b := Pulse("test")
+
+	assert.Empty(t, b.prefix)
+}
+
+func TestPulseDefaultPrefixInOutput(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	var buf bytes.Buffer
+
+	Default = New(TestOutput(&buf))
+
+	result := Pulse("loading").Wait(context.Background(), func(_ context.Context) error {
+		return nil
+	})
+
+	require.NoError(t, result.err)
+	assert.Contains(t, buf.String(), "⏳")
+}
+
+func TestPulseCustomPrefixInOutput(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	var buf bytes.Buffer
+
+	Default = New(TestOutput(&buf))
+
+	result := Pulse(
+		"loading",
+	).Prefix("🔄").
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		})
+
+	require.NoError(t, result.err)
+	assert.Contains(t, buf.String(), "🔄")
+	assert.NotContains(t, buf.String(), "⏳")
 }

@@ -581,7 +581,7 @@ func TestWaitResultEventLevelFiltered(_ *testing.T) {
 	_ = w.Msg("done")
 }
 
-func TestRunSpinnerAnimationDoneCase(t *testing.T) {
+func TestRunAnimationDoneCase(t *testing.T) {
 	origDefault := Default
 
 	defer func() {
@@ -616,7 +616,7 @@ func TestRunSpinnerAnimationDoneCase(t *testing.T) {
 	assert.NotEmpty(t, got, "expected some output from spinner animation")
 }
 
-func TestRunSpinnerAnimationContextCancel(t *testing.T) {
+func TestRunAnimationContextCancel(t *testing.T) {
 	origDefault := Default
 
 	defer func() {
@@ -651,7 +651,7 @@ func TestRunSpinnerAnimationContextCancel(t *testing.T) {
 	require.ErrorIs(t, result.err, context.Canceled)
 }
 
-func TestRunSpinnerAnimationError(t *testing.T) {
+func TestRunAnimationError(t *testing.T) {
 	origDefault := Default
 
 	defer func() {
@@ -680,7 +680,7 @@ func TestRunSpinnerAnimationError(t *testing.T) {
 	require.ErrorIs(t, result.err, testErr)
 }
 
-func TestRunSpinnerVerboseFastPath(t *testing.T) {
+func TestRunAnimationVerboseFastPath(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
@@ -695,7 +695,7 @@ func TestRunSpinnerVerboseFastPath(t *testing.T) {
 	require.NoError(t, result.err)
 }
 
-func TestRunSpinnerNoColorWithTimestamp(t *testing.T) {
+func TestRunAnimationNoColorWithTimestamp(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
@@ -716,7 +716,7 @@ func TestRunSpinnerNoColorWithTimestamp(t *testing.T) {
 	assert.Contains(t, got, "loading")
 }
 
-func TestRunSpinnerAnimationWithTimestamp(t *testing.T) {
+func TestRunAnimationWithTimestamp(t *testing.T) {
 	origDefault := Default
 
 	defer func() {

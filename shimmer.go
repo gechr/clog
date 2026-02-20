@@ -32,21 +32,20 @@ const (
 )
 
 // DefaultShimmerGradient returns a wave-shaped gradient for shimmer effects:
-// a muted blue-gray base with a narrow bright blue-white highlight band.
-// The gradient is symmetric so it wraps seamlessly.
+// a subtle red-to-green-to-blue cycle that wraps seamlessly.
 func DefaultShimmerGradient() []ColorStop {
-	baseR, baseG, baseB := 0.8, 0.2, 0.0
-	peakR, peakG, peakB := 1.0, 0.9, 0.2
-	rampStart, peakPos, rampEnd := 0.35, 0.5, 0.65
-
-	base := colorful.Color{R: baseR, G: baseG, B: baseB}
-	peak := colorful.Color{R: peakR, G: peakG, B: peakB}
+	rR, rG, rB := 1.0, 0.7, 0.7
+	gR, gG, gB := 0.7, 1.0, 0.75
+	bR, bG, bB := 0.7, 0.8, 1.0
+	third, twoThirds := 0.33, 0.67
+	red := colorful.Color{R: rR, G: rG, B: rB}
+	green := colorful.Color{R: gR, G: gG, B: gB}
+	blue := colorful.Color{R: bR, G: bG, B: bB}
 	return []ColorStop{
-		{Position: 0, Color: base},
-		{Position: rampStart, Color: base},
-		{Position: peakPos, Color: peak},
-		{Position: rampEnd, Color: base},
-		{Position: 1.0, Color: base},
+		{Position: 0, Color: red},
+		{Position: third, Color: green},
+		{Position: twoThirds, Color: blue},
+		{Position: 1.0, Color: red},
 	}
 }
 
@@ -54,6 +53,11 @@ const shimmerLUTSize = 64
 
 // shimmerLUT is a pre-computed gradient lookup table of hex color strings.
 type shimmerLUT [shimmerLUTSize]string
+
+// shimmerStyleLUT is a pre-computed lookup table of lipgloss styles, built
+// from a [shimmerLUT]. Reusing styles across frames eliminates per-frame
+// style allocations entirely.
+type shimmerStyleLUT [shimmerLUTSize]lipgloss.Style
 
 // buildShimmerLUT pre-computes a gradient lookup table of hex color strings
 // from the given color stops. The LUT is phase-independent and can be reused
@@ -63,20 +67,36 @@ func buildShimmerLUT(stops []ColorStop) *shimmerLUT {
 	for i := range lut {
 		t := float64(i) / float64(shimmerLUTSize-1)
 		//nolint:gosec // i is bounded by range lut
-		lut[i] = interpolateGradient(
-			t,
-			stops,
-		).Clamped().
-			Hex()
+		lut[i] = interpolateGradient(t, stops).Clamped().Hex()
 	}
 	return &lut
+}
+
+// buildShimmerStyleLUT pre-computes a lipgloss style for every entry in the
+// hex LUT. Call once after [buildShimmerLUT] and pass the result to
+// [shimmerText] to avoid style allocations in the render loop.
+func buildShimmerStyleLUT(lut *shimmerLUT) *shimmerStyleLUT {
+	var s shimmerStyleLUT
+	for i, hex := range lut {
+		//nolint:gosec // i is bounded by range lut
+		s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+	}
+	return &s
 }
 
 // shimmerText renders each character of text with a gradient-interpolated
 // foreground color, creating an animated shimmer when called with advancing
 // phase values. Spaces are passed through unstyled. The caller must supply a
-// pre-built LUT from buildShimmerLUT.
-func shimmerText(text string, phase float64, dir Direction, lut *shimmerLUT) string {
+// pre-built LUT from [buildShimmerLUT]. Passing a pre-built [shimmerStyleLUT]
+// from [buildShimmerStyleLUT] eliminates per-frame style allocations; pass
+// nil to create styles on the fly.
+func shimmerText(
+	text string,
+	phase float64,
+	dir Direction,
+	lut *shimmerLUT,
+	styleLUT *shimmerStyleLUT,
+) string {
 	runes := []rune(text)
 	n := len(runes)
 	if n == 0 {
@@ -84,10 +104,11 @@ func shimmerText(text string, phase float64, dir Direction, lut *shimmerLUT) str
 	}
 
 	// Map each character position to a LUT index, then batch adjacent
-	// characters that share the same hex color into a single style.Render
-	// call. This reduces style creations from ~N/frame to ~5-10/frame.
+	// characters that share the same index into a single style.Render call.
+	// This reduces style creations from ~N/frame to ~5-10/frame (or zero
+	// when a pre-built shimmerStyleLUT is supplied).
 	var buf strings.Builder
-	runHex := ""
+	runIdx := 0
 	runStart := 0
 	runIsSpace := runes[0] == ' '
 
@@ -96,13 +117,18 @@ func shimmerText(text string, phase float64, dir Direction, lut *shimmerLUT) str
 		if runIsSpace {
 			buf.WriteString(run)
 		} else {
-			style := lipgloss.NewStyle().Foreground(lipgloss.Color(runHex))
+			var style lipgloss.Style
+			if styleLUT != nil {
+				style = styleLUT[runIdx]
+			} else {
+				style = lipgloss.NewStyle().Foreground(lipgloss.Color(lut[runIdx]))
+			}
 			buf.WriteString(style.Render(run))
 		}
 	}
 
 	if !runIsSpace {
-		runHex = shimmerCharHex(0, n, phase, dir, lut)
+		runIdx = shimmerCharIdx(0, n, phase, dir)
 	}
 
 	for i := 1; i <= n; i++ {
@@ -114,27 +140,27 @@ func shimmerText(text string, phase float64, dir Direction, lut *shimmerLUT) str
 			break
 		}
 
-		var curHex string
+		var curIdx int
 		if !curIsSpace {
-			curHex = shimmerCharHex(i, n, phase, dir, lut)
+			curIdx = shimmerCharIdx(i, n, phase, dir)
 		}
 
 		// Start a new run when transitioning between space/non-space or
-		// when the quantized color changes.
-		if curIsSpace != runIsSpace || (!curIsSpace && curHex != runHex) {
+		// when the quantized LUT index changes.
+		if curIsSpace != runIsSpace || (!curIsSpace && curIdx != runIdx) {
 			flushRun(i)
 			runStart = i
 			runIsSpace = curIsSpace
-			runHex = curHex
+			runIdx = curIdx
 		}
 	}
 
 	return buf.String()
 }
 
-// shimmerCharHex returns the hex color string for character at index i of n
-// characters, given the animation phase and direction, using the pre-computed LUT.
-func shimmerCharHex(i, n int, phase float64, dir Direction, lut *shimmerLUT) string {
+// shimmerCharIdx returns the LUT index for character at position i of n,
+// given the animation phase and direction.
+func shimmerCharIdx(i, n int, phase float64, dir Direction) int {
 	pos := float64(i) / float64(n)
 
 	var t float64
@@ -158,6 +184,5 @@ func shimmerCharHex(i, n int, phase float64, dir Direction, lut *shimmerLUT) str
 	if idx < 0 {
 		idx = 0
 	}
-
-	return lut[idx]
+	return idx
 }

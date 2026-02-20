@@ -373,9 +373,9 @@ clog.Spinner("Loading").
 
 Available types from `github.com/charmbracelet/bubbles/spinner`: `Line`, `Dot`, `MiniDot`, `Jump`, `Pulse`, `Globe`, `Points`, `Meter`, `Hamburger`, `Moon`, `Ellipsis`.
 
-### Hyperlink Fields on Spinners
+### Hyperlink Fields on Animations
 
-The `SpinnerBuilder` supports the same clickable hyperlink field methods as events:
+The `AnimationBuilder` supports the same clickable hyperlink field methods as events:
 
 ```go
 clog.Spinner("Building").
@@ -398,22 +398,20 @@ clog.Spinner("Building").
 
 ### Pulse Animation
 
-Apply a pulsing colour effect to the spinner's message text. All characters fade uniformly between gradient colours.
+`Pulse` creates an independent animation where all characters in the title fade uniformly between gradient colours.
 
 ```go
 // Default gradient (blue-gray to cyan)
-clog.Spinner("Warming up").
-  Pulse().
+clog.Pulse("Warming up").
   Wait(ctx, action).
   Msg("Ready")
 
 // Custom gradient
-clog.Spinner("Replicating").
-  Pulse(
-    clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
-    clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
-    clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
-  ).
+clog.Pulse("Replicating",
+  clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+  clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
+  clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+).
   Wait(ctx, action).
   Msg("Replicated")
 ```
@@ -422,22 +420,20 @@ Use `DefaultPulseGradient()` to get the default gradient stops.
 
 ### Shimmer Animation
 
-Apply a sweeping gradient wave across the spinner's message text. Each character is coloured independently based on its position in the wave.
+`Shimmer` creates an independent animation where each character is coloured based on its position in a sweeping gradient wave.
 
 ```go
 // Default gradient
-clog.Spinner("Indexing documents").
-  Shimmer().
+clog.Shimmer("Indexing documents").
   Wait(ctx, action).
   Msg("Indexed")
 
 // Custom gradient with direction
-clog.Spinner("Synchronizing").
-  Shimmer(
-    clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-    clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
-    clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-  ).
+clog.Shimmer("Synchronizing",
+  clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+  clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+  clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+).
   ShimmerDirection(clog.DirectionMiddleIn).
   Wait(ctx, action).
   Msg("Synchronized")
@@ -463,7 +459,16 @@ type ColorStop struct {
 }
 ```
 
-Pulse and shimmer gracefully degrade alongside spinners: when colours are disabled, no animation is rendered.
+All three animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
+
+The icon displayed during `Pulse` and `Shimmer` animations defaults to ⏳ and can be changed with `.Prefix()` on the builder:
+
+```go
+clog.Pulse("Warming up").
+  Prefix("🔄").
+  Wait(ctx, action).
+  Msg("Ready")
+```
 
 ## Hyperlinks
 
