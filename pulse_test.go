@@ -161,3 +161,54 @@ func TestPulseCustomPrefixInOutput(t *testing.T) {
 	assert.Contains(t, buf.String(), "🔄")
 	assert.NotContains(t, buf.String(), "⏳")
 }
+
+func TestPulseTextCached(t *testing.T) {
+	withTrueColor(t)
+	stops := DefaultPulseGradient()
+
+	t.Run("non_empty_result", func(t *testing.T) {
+		cache := &pulseCache{}
+
+		got := pulseTextCached("hello", 0.5, stops, cache)
+
+		assert.NotEmpty(t, got)
+		assert.NotEmpty(t, cache.hex)
+	})
+
+	t.Run("cache_hit_same_phase", func(t *testing.T) {
+		cache := &pulseCache{}
+
+		first := pulseTextCached("hello", 0.5, stops, cache)
+		hexAfterFirst := cache.hex
+
+		second := pulseTextCached("hello", 0.5, stops, cache)
+
+		assert.Equal(t, first, second)
+		assert.Equal(t, hexAfterFirst, cache.hex, "cache hex should not change on same phase")
+	})
+
+	t.Run("empty_text", func(t *testing.T) {
+		cache := &pulseCache{}
+
+		got := pulseTextCached("", 0.5, stops, cache)
+
+		assert.Empty(t, got)
+	})
+
+	t.Run("cache_miss_different_phase", func(t *testing.T) {
+		cache := &pulseCache{}
+
+		pulseTextCached("hello", 0.0, stops, cache)
+		hexFirst := cache.hex
+
+		pulseTextCached("hello", 1.0, stops, cache)
+		hexSecond := cache.hex
+
+		assert.NotEqual(
+			t,
+			hexFirst,
+			hexSecond,
+			"different phases should produce different hex values",
+		)
+	})
+}

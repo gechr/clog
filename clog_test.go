@@ -436,7 +436,9 @@ func TestPackageLevelSetters(t *testing.T) {
 
 	var exitCode int
 
-	SetExitFunc(func(code int) { exitCode = code })
+	SetExitFunc(func(code int) {
+		exitCode = code
+	})
 
 	Default.mu.Lock()
 	fn := Default.exitFunc
@@ -982,7 +984,9 @@ func TestSetParts(t *testing.T) {
 
 	t.Run("empty_panics", func(t *testing.T) {
 		l := NewWriter(io.Discard)
-		assert.Panics(t, func() { l.SetParts() })
+		assert.Panics(t, func() {
+			l.SetParts()
+		})
 	})
 }
 
@@ -1509,7 +1513,9 @@ func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
 
 	// Set a custom exit func first.
 	called := false
-	l.SetExitFunc(func(_ int) { called = true })
+	l.SetExitFunc(func(_ int) {
+		called = true
+	})
 	l.mu.Lock()
 	fn := l.exitFunc
 	l.mu.Unlock()
@@ -1536,7 +1542,9 @@ func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
 	var exitCode int
 	l2.SetExitFunc(nil) // should default to os.Exit
 	// Override again to intercept — just verify nil didn't leave it broken.
-	l2.SetExitFunc(func(code int) { exitCode = code })
+	l2.SetExitFunc(func(code int) {
+		exitCode = code
+	})
 	l2.Fatal().Msg("boom")
 	assert.Equal(t, 1, exitCode)
 }
@@ -1549,7 +1557,9 @@ func TestSetExitFuncNilFatalStillWorks(t *testing.T) {
 
 	// Now override with a test function to verify the logger is still functional.
 	var exitCode int
-	l.SetExitFunc(func(code int) { exitCode = code })
+	l.SetExitFunc(func(code int) {
+		exitCode = code
+	})
 	l.Fatal().Msg("test fatal")
 	assert.Equal(t, 1, exitCode)
 }
@@ -1608,4 +1618,18 @@ func TestSetLevelUpdatesAtomicLevel(t *testing.T) {
 
 	l.SetLevel(FatalLevel)
 	assert.Equal(t, int32(FatalLevel), l.atomicLevel.Load())
+}
+
+func TestSetOutput(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	var buf bytes.Buffer
+
+	Default = NewWriter(io.Discard)
+	SetOutput(TestOutput(&buf))
+
+	Default.Info().Msg("test")
+
+	assert.Contains(t, buf.String(), "test")
 }

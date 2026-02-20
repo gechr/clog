@@ -73,35 +73,41 @@ Events and contexts support typed field methods. All methods are safe to call on
 
 ### Event Fields
 
-| Method       | Signature                                     | Description                           |
-| ------------ | --------------------------------------------- | ------------------------------------- |
-| `Any`        | `Any(key string, val any)`                    | Arbitrary value                       |
-| `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                 |
-| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                         |
-| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                   |
-| `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink  |
-| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys  |
-| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                        |
-| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                  |
-| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe) |
-| `Float64`    | `Float64(key string, val float64)`            | Float field                           |
-| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                     |
-| `Int`        | `Int(key string, val int)`                    | Integer field                         |
-| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                   |
-| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink         |
-| `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink               |
-| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink    |
-| `Percent`    | `Percent(key string, val float64)`            | Percentage with gradient colour       |
-| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                  |
-| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)        |
-| `Str`        | `Str(key, val string)`                        | String field                          |
-| `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)           |
-| `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values        |
-| `Strs`       | `Strs(key string, vals []string)`             | String slice field                    |
-| `Time`       | `Time(key string, val time.Time)`             | Time field                            |
-| `Uint64`     | `Uint64(key string, val uint64)`              | Unsigned integer field                |
-| `Uints64`    | `Uints64(key string, vals []uint64)`          | Unsigned integer slice field          |
-| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text) |
+| Method       | Signature                                     | Description                                                          |
+| ------------ | --------------------------------------------- | -------------------------------------------------------------------- |
+| `Any`        | `Any(key string, val any)`                    | Arbitrary value                                                      |
+| `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                                                |
+| `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                        |
+| `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                  |
+| `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink                                 |
+| `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys                                 |
+| `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                       |
+| `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                                                 |
+| `Err`        | `Err(err error)`                              | Error field (key `"error"`, nil-safe)                                |
+| `Float64`    | `Float64(key string, val float64)`            | Float field                                                          |
+| `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                                                    |
+| `Int`        | `Int(key string, val int)`                    | Integer field                                                        |
+| `Int64`      | `Int64(key string, val int64)`                | 64-bit integer field                                                 |
+| `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                                                  |
+| `Ints64`     | `Ints64(key string, vals []int64)`            | 64-bit integer slice field                                           |
+| `JSON`       | `JSON(key string, val any)`                   | Marshals val to JSON with syntax highlighting                        |
+| `Line`       | `Line(key, path string, line int)`            | Clickable file:line hyperlink                                        |
+| `Link`       | `Link(key, url, text string)`                 | Clickable URL hyperlink                                              |
+| `Path`       | `Path(key, path string)`                      | Clickable file/directory hyperlink                                   |
+| `Percent`    | `Percent(key string, val float64)`            | Percentage with gradient colour                                      |
+| `Quantities` | `Quantities(key string, vals []string)`       | Quantity slice field                                                 |
+| `Quantity`   | `Quantity(key, val string)`                   | Quantity field (e.g. `"10GB"`)                                       |
+| `RawJSON`    | `RawJSON(key string, val []byte)`             | Pre-serialized JSON bytes, emitted verbatim with syntax highlighting |
+| `Str`        | `Str(key, val string)`                        | String field                                                         |
+| `Stringer`   | `Stringer(key string, val fmt.Stringer)`      | Calls `String()` (nil-safe)                                          |
+| `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values                                       |
+| `Strs`       | `Strs(key string, vals []string)`             | String slice field                                                   |
+| `Time`       | `Time(key string, val time.Time)`             | Time field                                                           |
+| `Uint`       | `Uint(key string, val uint)`                  | Unsigned integer field                                               |
+| `Uint64`     | `Uint64(key string, val uint64)`              | 64-bit unsigned integer field                                        |
+| `Uints`      | `Uints(key string, vals []uint)`              | Unsigned integer slice field                                         |
+| `Uints64`    | `Uints64(key string, vals []uint64)`          | 64-bit unsigned integer slice field                                  |
+| `URL`        | `URL(key, url string)`                        | Clickable URL hyperlink (URL as text)                                |
 
 ### Finalising Events
 
@@ -336,12 +342,12 @@ err := clog.Spinner("Processing").
 
 ### WaitResult Finalisers
 
-| Method      | Success behaviour                       | Failure behaviour                        |
-| ----------- | --------------------------------------- | ---------------------------------------- |
-| `.Msg(s)`   | Logs at `INF` with message              | Logs at `ERR` with error string          |
-| `.Err()`    | Logs at `INF` with spinner title as msg | Logs at `ERR` with error string as msg   |
-| `.Send()`   | Logs at configured level                | Logs at configured level                 |
-| `.Silent()` | Returns error, no logging               | Returns error, no logging                |
+| Method      | Success behaviour                       | Failure behaviour                      |
+| ----------- | --------------------------------------- | -------------------------------------- |
+| `.Msg(s)`   | Logs at `INF` with message              | Logs at `ERR` with error string        |
+| `.Err()`    | Logs at `INF` with spinner title as msg | Logs at `ERR` with error string as msg |
+| `.Send()`   | Logs at configured level                | Logs at configured level               |
+| `.Silent()` | Returns error, no logging               | Returns error, no logging              |
 
 `.Err()` is equivalent to calling `.Send()` with default settings (no `OnSuccess`/`OnError` overrides).
 
@@ -388,13 +394,13 @@ clog.Spinner("Building").
   Msg("Built")
 ```
 
-| Method   | Signature                                    | Description                          |
-| -------- | -------------------------------------------- | ------------------------------------ |
-| `Path`   | `Path(key, path string)`                     | Clickable file/directory hyperlink   |
-| `Line`   | `Line(key, path string, line int)`           | Clickable file:line hyperlink        |
-| `Column` | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink |
-| `URL`    | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text)|
-| `Link`   | `Link(key, url, text string)`                | Clickable URL hyperlink              |
+| Method   | Signature                                    | Description                           |
+| -------- | -------------------------------------------- | ------------------------------------- |
+| `Path`   | `Path(key, path string)`                     | Clickable file/directory hyperlink    |
+| `Line`   | `Line(key, path string, line int)`           | Clickable file:line hyperlink         |
+| `Column` | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink  |
+| `URL`    | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text) |
+| `Link`   | `Link(key, url, text string)`                | Clickable URL hyperlink               |
 
 ### Pulse Animation
 
@@ -443,12 +449,12 @@ Use `DefaultShimmerGradient()` to get the default gradient stops.
 
 #### Shimmer Directions
 
-| Constant             | Description                               |
-| -------------------- | ----------------------------------------- |
-| `DirectionRight`     | Left to right (default)                   |
-| `DirectionLeft`      | Right to left                             |
-| `DirectionMiddleIn`  | Inward from both edges                    |
-| `DirectionMiddleOut` | Outward from the center                   |
+| Constant             | Description             |
+| -------------------- | ----------------------- |
+| `DirectionRight`     | Left to right (default) |
+| `DirectionLeft`      | Right to left           |
+| `DirectionMiddleIn`  | Inward from both edges  |
+| `DirectionMiddleOut` | Outward from the center |
 
 Both pulse and shimmer use `ColorStop` for gradient definitions:
 
@@ -631,14 +637,14 @@ logger.Output()                  // returns the Logger's *Output
 
 All env vars follow the pattern `{PREFIX}_{SUFFIX}`. The default prefix is `CLOG`.
 
-| Suffix                    | Default env var                   |
-| ------------------------- | --------------------------------- |
-| `LOG_LEVEL`               | `CLOG_LOG_LEVEL`                  |
-| `HYPERLINK_PATH_FORMAT`   | `CLOG_HYPERLINK_PATH_FORMAT`      |
-| `HYPERLINK_FILE_FORMAT`   | `CLOG_HYPERLINK_FILE_FORMAT`      |
-| `HYPERLINK_DIR_FORMAT`    | `CLOG_HYPERLINK_DIR_FORMAT`       |
-| `HYPERLINK_LINE_FORMAT`   | `CLOG_HYPERLINK_LINE_FORMAT`      |
-| `HYPERLINK_COLUMN_FORMAT` | `CLOG_HYPERLINK_COLUMN_FORMAT`    |
+| Suffix                    | Default env var                |
+| ------------------------- | ------------------------------ |
+| `LOG_LEVEL`               | `CLOG_LOG_LEVEL`               |
+| `HYPERLINK_PATH_FORMAT`   | `CLOG_HYPERLINK_PATH_FORMAT`   |
+| `HYPERLINK_FILE_FORMAT`   | `CLOG_HYPERLINK_FILE_FORMAT`   |
+| `HYPERLINK_DIR_FORMAT`    | `CLOG_HYPERLINK_DIR_FORMAT`    |
+| `HYPERLINK_LINE_FORMAT`   | `CLOG_HYPERLINK_LINE_FORMAT`   |
+| `HYPERLINK_COLUMN_FORMAT` | `CLOG_HYPERLINK_COLUMN_FORMAT` |
 
 `CLOG_LOG_LEVEL` is checked automatically at init.
 
@@ -689,6 +695,127 @@ l.Info().Line("file", "main.go", 42).Msg("Loaded")
 ```
 
 `ColorMode` implements `encoding.TextMarshaler` and `encoding.TextUnmarshaler`, so it works directly with `flag.TextVar` and most flag libraries.
+
+## JSON / RawJSON
+
+`JSON` marshals any Go value to JSON; `RawJSON` accepts pre-serialized bytes. Both emit the result with syntax highlighting.
+
+```go
+// Marshal a Go value
+clog.Info().JSON("user", userStruct).Msg("ok")
+clog.Info().JSON("config", map[string]any{"port": 8080, "debug": true}).Msg("started")
+
+// Pre-serialized bytes (no marshal overhead)
+clog.Error().
+  Str("batch", "1/1").
+  RawJSON("error", []byte(`{"status":"unprocessable_entity","detail":"validation failed","code":null}`)).
+  Msg("Batch failed")
+// ERR ❌ Batch failed batch=1/1 error={"status":"unprocessable_entity","detail":"validation failed","code":null}
+```
+
+Use `JSON` when you have a Go value to log; use `RawJSON` when you already have bytes (HTTP response bodies, `json.RawMessage`, database JSON columns) to avoid an unnecessary marshal/unmarshal round-trip. `JSON` logs the error string as the field value if marshalling fails.
+
+Pretty-printed JSON is automatically flattened to a single line. Highlighting uses a Dracula-inspired colour scheme by default (space after commas included). Disable or customise it via `FieldJSON` in `Styles`:
+
+```go
+// Disable highlighting
+styles := clog.DefaultStyles()
+styles.FieldJSON = nil
+clog.SetStyles(styles)
+
+// Custom colours
+custom := clog.DefaultJSONStyles()
+custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
+styles.FieldJSON = custom
+clog.SetStyles(styles)
+```
+
+`Number` is the base fallback for all numeric tokens. Five sub-styles allow finer control and fall back to `Number` when nil:
+
+| Field            | Applies to                                           |
+| ---------------- | ---------------------------------------------------- |
+| `NumberPositive` | Positive numbers (with or without explicit `+`)      |
+| `NumberNegative` | Negative numbers                                     |
+| `NumberZero`     | Zero (falls back to `NumberPositive`, then `Number`) |
+| `NumberFloat`    | Floating-point values                                |
+| `NumberInteger`  | Integer values                                       |
+
+```go
+custom := clog.DefaultJSONStyles()
+custom.NumberNegative = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
+custom.NumberZero = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))     // grey
+styles.FieldJSON = custom
+clog.SetStyles(styles)
+```
+
+### Rendering Modes
+
+Set `JSONStyles.Mode` to control how JSON structure is rendered:
+
+| Mode             | Description                                                      | Example                              |
+| ---------------- | ---------------------------------------------------------------- | ------------------------------------ |
+| `JSONModeJSON`   | Standard JSON (default)                                          | `{"status":"ok","count":42}`         |
+| `JSONModeHuman`  | Unquote keys and simple string values                            | `{status:ok, count:42}`              |
+| `JSONModeFlat`   | Flatten nested object keys with dot notation; arrays kept intact | `{status:ok, meta.region:us-east-1}` |
+
+**`JSONModeHuman`** — keys are unquoted unless they contain `,{}[]\s:#"'` or start with `//`/`/*`. String values are unquoted unless they start with a forbidden character, end with whitespace, are ambiguous as a JSON keyword (`true`, `false`, `null`), or look like a number. Empty strings always render as `""`.
+
+```go
+styles.FieldJSON = clog.DefaultJSONStyles()
+styles.FieldJSON.Mode = clog.JSONModeHuman
+
+clog.Info().
+  RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null}`)).
+  Msg("Fetched")
+// INF ℹ️ Fetched response={status:ok, count:42, active:true, deleted_at:null}
+```
+
+**`JSONModeFlat`** — nested objects are recursed into and their keys joined with `.`; arrays are kept intact as values:
+
+```go
+styles.FieldJSON.Mode = clog.JSONModeFlat
+
+clog.Info().
+  RawJSON("resp", []byte(`{"user":{"name":"alice","role":"admin"},"tags":["a","b"]}`)).
+  Msg("Auth")
+// INF ℹ️ Auth resp={user.name:alice, user.role:admin, tags:[a, b]}
+```
+
+### Spacing
+
+`JSONStyles.Spacing` is a bitmask controlling where spaces are inserted. The default (`DefaultJSONStyles`) adds a space after commas.
+
+| Flag                      | Effect                          | Example                             |
+| ------------------------- | ------------------------------- | ----------------------------------- |
+| `JSONSpacingAfterColon`   | Space after `:`                 | `{"key": "value"}`                  |
+| `JSONSpacingAfterComma`   | Space after `,`                 | `{"a":1, "b":2}`                    |
+| `JSONSpacingBeforeObject` | Space before a nested `{`       | `{"key": {"n":1}}`                  |
+| `JSONSpacingBeforeArray`  | Space before a nested `[`       | `{"tags": ["a","b"]}`               |
+| `JSONSpacingAll`          | All of the above                | `{"key": {"n": 1}, "tags": ["a"]}`  |
+
+```go
+// Fluent builder
+styles.FieldJSON = clog.DefaultJSONStyles().WithSpacing(clog.JSONSpacingAll)
+
+// Direct assignment
+styles.FieldJSON.Spacing = clog.JSONSpacingAfterComma | clog.JSONSpacingBeforeObject
+```
+
+`JSONSpacingAfterColon` and `JSONSpacingBeforeObject`/`JSONSpacingBeforeArray` are independent — combining them produces two spaces before a nested value.
+
+### Omitting Commas
+
+Set `OmitCommas: true` to drop the `,` separator. Combine with `JSONSpacingAfterComma` to keep a space in its place:
+
+```go
+styles.FieldJSON.OmitCommas = true
+styles.FieldJSON.Spacing |= clog.JSONSpacingAfterComma
+
+clog.Info().
+  RawJSON("r", []byte(`{"a":1,"b":2,"c":true}`)).
+  Msg("ok")
+// INF ℹ️ ok r={a:1 b:2 c:true}
+```
 
 ## Styles
 
@@ -747,32 +874,33 @@ clog.SetStyles(styles)
 
 ### Styles Reference
 
-| Field                     | Type                         | Alias           | Default                  |
-| ------------------------- | ---------------------------- | --------------- | ------------------------ |
-| `DurationThresholds`      | `map[string][]Threshold`     | `ThresholdMap`  | `{}`                     |
-| `DurationUnits`           | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
-| `FieldDurationNumber`     | `*lipgloss.Style`            |                 | magenta                  |
-| `FieldDurationUnit`       | `*lipgloss.Style`            |                 | magenta faint            |
-| `FieldError`              | `*lipgloss.Style`            |                 | red                      |
-| `FieldNumber`             | `*lipgloss.Style`            |                 | magenta                  |
-| `FieldPercent`            | `*lipgloss.Style`            |                 | `nil`                    |
-| `FieldQuantityNumber`     | `*lipgloss.Style`            |                 | magenta                  |
-| `FieldQuantityUnit`       | `*lipgloss.Style`            |                 | magenta faint            |
-| `FieldString`             | `*lipgloss.Style`            |                 | white                    |
-| `FieldTime`               | `*lipgloss.Style`            |                 | magenta                  |
-| `KeyDefault`              | `*lipgloss.Style`            |                 | blue                     |
-| `Keys`                    | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
-| `Levels`                  | `map[Level]*lipgloss.Style`  | `LevelStyleMap` | per-level bold colours   |
-| `Messages`                | `map[Level]*lipgloss.Style`  | `LevelStyleMap` | `DefaultMessageStyles()` |
-| `PercentGradient`         | `[]ColorStop`                |                 | red → yellow → green     |
-| `PercentPrecision`        | `int`                        |                 | `0`                      |
-| `QuantityThresholds`      | `map[string][]Threshold`     | `ThresholdMap`  | `{}`                     |
-| `QuantityUnits`           | `map[string]*lipgloss.Style` | `StyleMap`      | `{}`                     |
-| `QuantityUnitsIgnoreCase` | `bool`                       |                 | `true`                   |
-| `Separator`               | `*lipgloss.Style`            |                 | faint                    |
-| `SeparatorText`           | `string`                     |                 | `"="`                    |
-| `Timestamp`               | `*lipgloss.Style`            |                 | faint                    |
-| `Values`                  | `map[any]*lipgloss.Style`    | `ValueStyleMap` | `DefaultValueStyles()`   |
+| Field                     | Type                     | Alias           | Default                  |
+| ------------------------- | ------------------------ | --------------- | ------------------------ |
+| `DurationThresholds`      | `map[string][]Threshold` | `ThresholdMap`  | `{}`                     |
+| `DurationUnits`           | `map[string]Style`       | `StyleMap`      | `{}`                     |
+| `FieldDurationNumber`     | `Style`                  |                 | magenta                  |
+| `FieldDurationUnit`       | `Style`                  |                 | magenta faint            |
+| `FieldError`              | `Style`                  |                 | red                      |
+| `FieldJSON`               | `*JSONStyles`            |                 | `DefaultJSONStyles()`    |
+| `FieldNumber`             | `Style`                  |                 | magenta                  |
+| `FieldPercent`            | `Style`                  |                 | `nil`                    |
+| `FieldQuantityNumber`     | `Style`                  |                 | magenta                  |
+| `FieldQuantityUnit`       | `Style`                  |                 | magenta faint            |
+| `FieldString`             | `Style`                  |                 | white                    |
+| `FieldTime`               | `Style`                  |                 | magenta                  |
+| `KeyDefault`              | `Style`                  |                 | blue                     |
+| `Keys`                    | `map[string]Style`       | `StyleMap`      | `{}`                     |
+| `Levels`                  | `map[Level]Style`        | `LevelStyleMap` | per-level bold colours   |
+| `Messages`                | `map[Level]Style`        | `LevelStyleMap` | `DefaultMessageStyles()` |
+| `PercentGradient`         | `[]ColorStop`            |                 | red → yellow → green     |
+| `PercentPrecision`        | `int`                    |                 | `0`                      |
+| `QuantityThresholds`      | `map[string][]Threshold` | `ThresholdMap`  | `{}`                     |
+| `QuantityUnits`           | `map[string]Style`       | `StyleMap`      | `{}`                     |
+| `QuantityUnitsIgnoreCase` | `bool`                   |                 | `true`                   |
+| `Separator`               | `Style`                  |                 | faint                    |
+| `SeparatorText`           | `string`                 |                 | `"="`                    |
+| `Timestamp`               | `Style`                  |                 | faint                    |
+| `Values`                  | `map[any]Style`          | `ValueStyleMap` | `DefaultValueStyles()`   |
 
 | Field                     | Description                                                                         |
 | ------------------------- | ----------------------------------------------------------------------------------- |
@@ -781,6 +909,7 @@ clog.SetStyles(styles)
 | `FieldDurationNumber`     | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable |
 | `FieldDurationUnit`       | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable    |
 | `FieldError`              | Style for error field values, nil to disable                                        |
+| `FieldJSON`               | Per-token styles for JSON syntax highlighting; nil disables highlighting            |
 | `FieldNumber`             | Style for int/float field values, nil to disable                                    |
 | `FieldPercent`            | Base style for `Percent` fields (foreground overridden by gradient), nil to disable |
 | `FieldQuantityNumber`     | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable       |
@@ -805,8 +934,8 @@ Each `Threshold` pairs a minimum value with style overrides:
 
 ```go
 type ThresholdStyle struct {
-  Number *lipgloss.Style // Override for the number segment (nil = keep default).
-  Unit   *lipgloss.Style // Override for the unit segment (nil = keep default).
+  Number Style // Override for the number segment (nil = keep default).
+  Unit   Style // Override for the unit segment (nil = keep default).
 }
 
 type Threshold struct {

@@ -1,7 +1,5 @@
 package clog
 
-import "fmt"
-
 // Context builds a sub-logger with preset fields.
 // Created by [Logger.With]. Finalise with [Context.Logger].
 type Context struct {
@@ -44,16 +42,6 @@ func (c *Context) Dict(key string, dict *Event) *Context {
 	for _, f := range dict.fields {
 		c.fields = append(c.fields, Field{Key: key + "." + f.Key, Value: f.Value})
 	}
-	return c
-}
-
-// Err adds an error field with key "error" to the context. No-op if err is nil.
-func (c *Context) Err(err error) *Context {
-	if err == nil {
-		return c
-	}
-
-	c.fields = append(c.fields, Field{Key: ErrorKey, Value: err})
 	return c
 }
 
@@ -111,7 +99,9 @@ func (c *Context) Logger() *Logger {
 		timeFormat:      c.logger.timeFormat,
 		timeLocation:    c.logger.timeLocation,
 	}
-	l.atomicLevel.Store(int32(c.logger.level)) //nolint:gosec // Level values are small constants (0-6)
+	l.atomicLevel.Store(
+		int32(c.logger.level), //nolint:gosec // Level values are small constants (0-6)
+	)
 	return l
 }
 
@@ -128,31 +118,6 @@ func (c *Context) Path(key, path string) *Context {
 // Prefix sets a custom prefix for the sub-logger.
 func (c *Context) Prefix(prefix string) *Context {
 	c.prefix = new(prefix)
-	return c
-}
-
-// Stringer adds a field by calling the value's String method. No-op if val is nil.
-func (c *Context) Stringer(key string, val fmt.Stringer) *Context {
-	if isNilStringer(val) {
-		return c
-	}
-
-	c.fields = append(c.fields, Field{Key: key, Value: val.String()})
-	return c
-}
-
-// Stringers adds a field with a slice of [fmt.Stringer] values.
-func (c *Context) Stringers(key string, vals []fmt.Stringer) *Context {
-	strs := make([]string, len(vals))
-	for i, v := range vals {
-		if isNilStringer(v) {
-			strs[i] = Nil
-		} else {
-			strs[i] = v.String()
-		}
-	}
-
-	c.fields = append(c.fields, Field{Key: key, Value: strs})
 	return c
 }
 

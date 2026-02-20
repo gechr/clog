@@ -33,7 +33,7 @@ func main() {
 	_ = clog.Spinner("Loading demo").
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -57,7 +57,7 @@ func main() {
 		Str("host", "db.internal").
 		Int("port", 5432).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			return errors.New("connection refused")
 		}).
 		Msg("Connected")
@@ -66,11 +66,11 @@ func main() {
 		Str("env", "production").
 		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
 			update.Title("Building image").Send()
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			update.Title("Pushing image").Str("tag", "v1.2.3").Send()
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			update.Title("Starting containers").Send()
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			return nil
 		}).
 		Prefix("🚀").
@@ -80,7 +80,7 @@ func main() {
 	header("Pulse (default gradient)")
 	_ = clog.Pulse("Warming up inference engine").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -93,7 +93,7 @@ func main() {
 		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
 	).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -103,7 +103,7 @@ func main() {
 	header("Shimmer (default gradient)")
 	_ = clog.Shimmer("Indexing documents and rebuilding search catalogue").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -116,7 +116,7 @@ func main() {
 		clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
 	).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("🚀").
@@ -134,7 +134,7 @@ func main() {
 	).
 		ShimmerDirection(clog.DirectionMiddleIn).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -151,7 +151,7 @@ func main() {
 	).
 		ShimmerDirection(clog.DirectionMiddleOut).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -465,6 +465,65 @@ func main() {
 		Msg("French-style guillemets")
 	clog.SetQuoteChars(0, 0) // reset to default
 
+	// --- JSON Highlighting ---
+	header("RawJSON (default)")
+	clog.Error().
+		Str("batch", "1/1").
+		Uint("retries", 1).
+		RawJSON("error", []byte(`{"errors":[{"status":"unprocessable_entity","detail":"API rate limit exceeded, retry after 30s","code":null}]}`)).
+		Msg("Batch failed")
+
+	// All JSON value types: string, int, float, bool (true/false), null, array, nested object
+	clog.Info().
+		Str("endpoint", "/api/resources").
+		RawJSON("response", []byte(`{"id":"abc123","count":42,"ratio":0.875,"active":true,"archived":false,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
+		Msg("Resource fetched")
+
+	header("RawJSON (custom styles)")
+	customStyles := clog.DefaultJSONStyles()
+	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))             // green keys
+	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true)) // red dim null
+	customStyleSet := clog.DefaultStyles()
+	customStyleSet.FieldJSON = customStyles
+	clog.SetStyles(customStyleSet)
+	clog.Info().
+		RawJSON("payload", []byte(`{"id":"abc123","count":42,"ratio":0.875,"active":true,"archived":false,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
+		Msg("Resource fetched")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
+	header("RawJSON (human mode)")
+	humanStyles := clog.DefaultStyles()
+	humanStyles.FieldJSON = clog.DefaultJSONStyles()
+	humanStyles.FieldJSON.Mode = clog.JSONModeHuman
+	clog.SetStyles(humanStyles)
+	clog.Info().
+		RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
+		Msg("Resource fetched")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
+	header("RawJSON (flat mode)")
+	flatStyles := clog.DefaultStyles()
+	flatStyles.FieldJSON = clog.DefaultJSONStyles()
+	flatStyles.FieldJSON.Mode = clog.JSONModeFlat
+	clog.SetStyles(flatStyles)
+	clog.Error().
+		Str("batch", "1/1").
+		RawJSON("error", []byte(`{"errors":[{"status":"unprocessable_entity","detail":"API rate limit exceeded, retry after 30s","code":null}],"meta":{"region":"us-east-1","request_id":"abc123"}}`)).
+		Msg("Batch failed")
+	clog.Info().
+		RawJSON("response", []byte(`{"user":{"name":"alice","role":"admin"},"session":{"token":"abc","expires_in":3600},"tags":["production","staging"]}`)).
+		Msg("Authenticated")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
+	header("RawJSON (no highlighting)")
+	noHighlightStyles := clog.DefaultStyles()
+	noHighlightStyles.FieldJSON = nil
+	clog.SetStyles(noHighlightStyles)
+	clog.Info().
+		RawJSON("payload", []byte(`{"id":"abc123","count":42,"ratio":0.875,"active":true,"archived":false,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
+		Msg("Resource fetched")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
 	// --- Handler ---
 	header("Custom Handler")
 	logger := clog.New(nil)
@@ -488,7 +547,7 @@ func demo() {
 		ShimmerDirection(clog.DirectionMiddleIn).
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(1500 * time.Millisecond)
 			return nil
 		}).
 		Prefix("✅").
@@ -497,7 +556,7 @@ func demo() {
 	_ = clog.Spinner("Validating config").
 		Str("file", "app.toml").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			return errors.New("missing required field: port")
 		}).
 		Err()
@@ -506,11 +565,11 @@ func demo() {
 		Str("env", "production").
 		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
 			update.Title("Building image").Send()
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			update.Title("Pushing image").Str("tag", "v1.2.3").Send()
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			update.Title("Starting containers").Send()
-			time.Sleep(1 * time.Second)
+			time.Sleep(400 * time.Millisecond)
 			return nil
 		}).
 		Prefix("🚀").
@@ -534,7 +593,7 @@ func demo() {
 		Type(spinner.Dot).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(2 * time.Second)
+			time.Sleep(800 * time.Millisecond)
 			return nil
 		}).
 		Prefix("📦").
@@ -544,7 +603,7 @@ func demo() {
 		Str("host", "db.internal").
 		Int("port", 5432).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(2 * time.Second)
+			time.Sleep(800 * time.Millisecond)
 			return errors.New("connection refused")
 		}).
 		OnErrorLevel(clog.FatalLevel).

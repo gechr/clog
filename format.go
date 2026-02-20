@@ -21,6 +21,10 @@ type percent float64
 // "5.1km", "100MB") so [formatValue] can identify it for quantity styling.
 type quantity string
 
+// rawJSON wraps pre-serialized JSON bytes so [formatValue] can emit them
+// verbatim without quoting or escaping.
+type rawJSON []byte
+
 // formatFieldsOpts configures field formatting behaviour.
 type formatFieldsOpts struct {
 	fieldStyleLevel Level
@@ -41,6 +45,7 @@ const (
 	kindBool
 	kindDuration
 	kindError
+	kindJSON
 	kindNumber
 	kindPercent
 	kindQuantity
@@ -123,6 +128,8 @@ func formatValue(
 	switch val := v.(type) {
 	case error:
 		return val.Error(), kindError
+	case rawJSON:
+		return string(val), kindJSON
 	case string:
 		return val, kindString
 	case int:
@@ -156,6 +163,10 @@ func formatValue(
 		return formatStringSlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
 		return formatIntSlice(val, nil), kindSlice
+	case []int64:
+		return formatInt64Slice(val, nil), kindSlice
+	case []uint:
+		return formatUintSlice(val, nil), kindSlice
 	case []uint64:
 		return formatUint64Slice(val, nil), kindSlice
 	case []float64:
@@ -211,9 +222,15 @@ func formatAnySlice(
 	return buf.String()
 }
 
-// formatBoolSlice formats a bool slice with comma separation.
-// When styles is non-nil, individual elements are styled via ValueStyles.
-func formatBoolSlice(vals []bool, styles *Styles) string {
+// formatSlice formats any slice with comma separation and optional per-element styling.
+// stringify converts each element to its string representation.
+// stylize returns a styled string, or "" to fall back to the plain string.
+func formatSlice[T any](
+	vals []T,
+	styles *Styles,
+	stringify func(T) string,
+	stylize func(T, string, *Styles) string,
+) string {
 	var buf strings.Builder
 
 	buf.WriteByte(sliceOpen)
@@ -223,124 +240,111 @@ func formatBoolSlice(vals []bool, styles *Styles) string {
 			buf.WriteString(sliceSep)
 		}
 
-		s := strconv.FormatBool(v)
-		if styles != nil {
-			if style := styles.Values[v]; style != nil {
-				buf.WriteString(style.Render(s))
-
-				continue
-			}
+		s := stringify(v)
+		if styled := stylize(v, s, styles); styled != "" {
+			buf.WriteString(styled)
+		} else {
+			buf.WriteString(s)
 		}
-
-		buf.WriteString(s)
 	}
 
 	buf.WriteByte(sliceClose)
 	return buf.String()
+}
+
+// numberSliceStyle is a stylize function for numeric slice elements.
+// It applies Styles.FieldNumber when set.
+func numberSliceStyle[T any](_ T, s string, styles *Styles) string {
+	if styles != nil && styles.FieldNumber != nil {
+		return styles.FieldNumber.Render(s)
+	}
+	return ""
+}
+
+// formatBoolSlice formats a bool slice with comma separation.
+// When styles is non-nil, individual elements are styled via ValueStyles.
+func formatBoolSlice(vals []bool, styles *Styles) string {
+	return formatSlice(vals, styles, strconv.FormatBool, func(v bool, s string, st *Styles) string {
+		if st != nil {
+			if style := st.Values[v]; style != nil {
+				return style.Render(s)
+			}
+		}
+		return ""
+	})
 }
 
 // formatDurationSlice formats a [time.Duration] slice with comma separation.
 // When styles is non-nil, individual elements are styled via [styleDuration].
 func formatDurationSlice(vals []time.Duration, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte(sliceOpen)
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(sliceSep)
-		}
-
-		s := v.String()
-		if styles != nil {
-			if styled := styleDuration(s, styles); styled != "" {
-				buf.WriteString(styled)
-
-				continue
+	return formatSlice(
+		vals,
+		styles,
+		time.Duration.String,
+		func(_ time.Duration, s string, st *Styles) string {
+			if st == nil {
+				return ""
 			}
-		}
-
-		buf.WriteString(s)
-	}
-
-	buf.WriteByte(sliceClose)
-	return buf.String()
+			return styleDuration(s, st)
+		},
+	)
 }
 
 // formatFloat64Slice formats a float64 slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
+// When styles is non-nil, individual elements are styled via FieldNumber.
 func formatFloat64Slice(vals []float64, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte(sliceOpen)
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(sliceSep)
-		}
-
-		s := strconv.FormatFloat(v, 'f', -1, 64)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(sliceClose)
-	return buf.String()
+	return formatSlice(vals, styles,
+		func(v float64) string {
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		},
+		numberSliceStyle[float64],
+	)
 }
 
 // formatIntSlice formats an int slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
+// When styles is non-nil, individual elements are styled via FieldNumber.
 func formatIntSlice(vals []int, styles *Styles) string {
-	var buf strings.Builder
+	return formatSlice(vals, styles, strconv.Itoa, numberSliceStyle[int])
+}
 
-	buf.WriteByte(sliceOpen)
+// formatInt64Slice formats an int64 slice with comma separation.
+// When styles is non-nil, individual elements are styled via FieldNumber.
+func formatInt64Slice(vals []int64, styles *Styles) string {
+	return formatSlice(vals, styles,
+		func(v int64) string {
+			return strconv.FormatInt(v, 10)
+		},
+		numberSliceStyle[int64],
+	)
+}
 
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(sliceSep)
-		}
-
-		s := strconv.Itoa(v)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(sliceClose)
-	return buf.String()
+// formatUintSlice formats a uint slice with comma separation.
+// When styles is non-nil, individual elements are styled via FieldNumber.
+func formatUintSlice(vals []uint, styles *Styles) string {
+	return formatSlice(vals, styles,
+		func(v uint) string {
+			return strconv.FormatUint(uint64(v), 10)
+		},
+		numberSliceStyle[uint],
+	)
 }
 
 // formatQuantitySlice formats a quantity slice with comma separation.
 // When styles is non-nil, individual elements are styled via [styleQuantity].
 func formatQuantitySlice(vals []quantity, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte(sliceOpen)
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(sliceSep)
-		}
-
-		s := string(v)
-		if styles != nil {
-			if styled := styleQuantity(s, styles); styled != "" {
-				buf.WriteString(styled)
-
-				continue
+	return formatSlice(
+		vals,
+		styles,
+		func(v quantity) string {
+			return string(v)
+		},
+		func(_ quantity, s string, st *Styles) string {
+			if st == nil {
+				return ""
 			}
-		}
-
-		buf.WriteString(s)
-	}
-
-	buf.WriteByte(sliceClose)
-	return buf.String()
+			return styleQuantity(s, st)
+		},
+	)
 }
 
 // formatStringSlice formats a string slice with comma separation and per-element quoting.
@@ -387,27 +391,14 @@ func formatStringSlice(
 }
 
 // formatUint64Slice formats a uint64 slice with comma separation.
-// When styles is non-nil, individual elements are styled via Number style.
+// When styles is non-nil, individual elements are styled via FieldNumber.
 func formatUint64Slice(vals []uint64, styles *Styles) string {
-	var buf strings.Builder
-
-	buf.WriteByte(sliceOpen)
-
-	for i, v := range vals {
-		if i > 0 {
-			buf.WriteString(sliceSep)
-		}
-
-		s := strconv.FormatUint(v, 10)
-		if styles != nil && styles.FieldNumber != nil {
-			buf.WriteString(styles.FieldNumber.Render(s))
-		} else {
-			buf.WriteString(s)
-		}
-	}
-
-	buf.WriteByte(sliceClose)
-	return buf.String()
+	return formatSlice(vals, styles,
+		func(v uint64) string {
+			return strconv.FormatUint(v, 10)
+		},
+		numberSliceStyle[uint64],
+	)
 }
 
 // styleAnyElement applies the appropriate style to a single element in a []any slice.
@@ -452,7 +443,7 @@ func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles
 		if styles.FieldTime != nil {
 			return styles.FieldTime.Render(s)
 		}
-	case kindBool, kindDefault:
+	case kindBool, kindDefault, kindJSON:
 		// No type-based style for these.
 	}
 	return ""
@@ -504,6 +495,10 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 		return formatQuantitySlice(vals, styles)
 	case []int:
 		return formatIntSlice(vals, styles)
+	case []int64:
+		return formatInt64Slice(vals, styles)
+	case []uint:
+		return formatUintSlice(vals, styles)
 	case []uint64:
 		return formatUint64Slice(vals, styles)
 	case []float64:
@@ -526,7 +521,7 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 // apply, or the string is not a valid quantity pattern.
 func styleNumberUnit(
 	s string,
-	numStyle, unitStyle *lipgloss.Style,
+	numStyle, unitStyle Style,
 	unitOverrides StyleMap,
 	thresholds ThresholdMap,
 	ignoreCase bool,
@@ -738,6 +733,8 @@ func styleValue(
 		if styles.FieldTime != nil {
 			return styles.FieldTime.Render(valStr)
 		}
+	case kindJSON:
+		return highlightJSON(valStr, styles.FieldJSON)
 	case kindBool, kindSlice, kindDefault:
 		// No type-based style for these.
 	}
@@ -971,7 +968,7 @@ func interpolateGradient(t float64, stops []ColorStop) colorful.Color {
 
 // lookupValueStyle safely looks up a typed value in the Values map.
 // Returns nil for unhashable types (slices, maps, functions) that would panic.
-func lookupValueStyle(v any, values ValueStyleMap) *lipgloss.Style {
+func lookupValueStyle(v any, values ValueStyleMap) Style {
 	if len(values) == 0 {
 		return nil
 	}
@@ -987,11 +984,11 @@ func lookupValueStyle(v any, values ValueStyleMap) *lipgloss.Style {
 // meets or exceeds a configured threshold.
 func resolveSegmentStyles(
 	num, unit string,
-	numStyle, unitStyle *lipgloss.Style,
+	numStyle, unitStyle Style,
 	unitOverrides StyleMap,
 	thresholds ThresholdMap,
 	ignoreCase bool,
-) (*lipgloss.Style, *lipgloss.Style) {
+) (Style, Style) {
 	effNumStyle := numStyle
 
 	effUnitStyle := unitOverrideStyle(unit, unitOverrides, ignoreCase)
@@ -1026,7 +1023,7 @@ func resolveSegmentStyles(
 
 // renderPendingNum renders a buffered number segment with optional trailing
 // spaces. This is a no-op when num is empty.
-func renderPendingNum(buf *strings.Builder, num, spaces string, style *lipgloss.Style) {
+func renderPendingNum(buf *strings.Builder, num, spaces string, style Style) {
 	if num == "" {
 		return
 	}
@@ -1040,54 +1037,49 @@ func renderPendingNum(buf *strings.Builder, num, spaces string, style *lipgloss.
 	buf.WriteString(spaces)
 }
 
-// thresholdForUnit looks up quantity thresholds for a unit string.
-// When ignoreCase is true, keys are matched case-insensitively.
-func thresholdForUnit(
-	unit string,
-	thresholds ThresholdMap,
-	ignoreCase bool,
-) []Threshold {
-	if len(thresholds) == 0 {
-		return nil
-	}
-
-	if ts := thresholds[unit]; len(ts) > 0 {
-		return ts
+// lookupMapKey returns the value for key in m when valid(value) is true.
+// When ignoreCase is true and the direct lookup fails, a case-insensitive
+// scan of all keys is tried. Returns the zero value of V when no match is found.
+func lookupMapKey[V any](key string, m map[string]V, ignoreCase bool, valid func(V) bool) V {
+	if v := m[key]; valid(v) {
+		return v
 	}
 
 	if ignoreCase {
-		lower := strings.ToLower(unit)
-		for k, ts := range thresholds {
+		lower := strings.ToLower(key)
+		for k, v := range m {
 			if strings.ToLower(k) == lower {
-				return ts
+				return v
 			}
 		}
 	}
-	return nil
+
+	var zero V
+	return zero
+}
+
+// thresholdForUnit looks up quantity thresholds for a unit string.
+// When ignoreCase is true, keys are matched case-insensitively.
+func thresholdForUnit(unit string, thresholds ThresholdMap, ignoreCase bool) []Threshold {
+	return lookupMapKey(
+		unit,
+		thresholds,
+		ignoreCase,
+		func(ts []Threshold) bool {
+			return len(ts) > 0
+		},
+	)
 }
 
 // unitOverrideStyle looks up a per-unit style from the given overrides map.
 // When ignoreCase is true, keys are matched case-insensitively.
-func unitOverrideStyle(
-	unit string,
-	overrides StyleMap,
-	ignoreCase bool,
-) *lipgloss.Style {
-	if len(overrides) == 0 {
-		return nil
-	}
-
-	if style := overrides[unit]; style != nil {
-		return style
-	}
-
-	if ignoreCase {
-		lower := strings.ToLower(unit)
-		for k, style := range overrides {
-			if strings.ToLower(k) == lower {
-				return style
-			}
-		}
-	}
-	return nil
+func unitOverrideStyle(unit string, overrides StyleMap, ignoreCase bool) Style {
+	return lookupMapKey(
+		unit,
+		overrides,
+		ignoreCase,
+		func(s Style) bool {
+			return s != nil
+		},
+	)
 }

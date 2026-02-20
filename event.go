@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -183,6 +184,16 @@ func (e *Event) Int64(key string, val int64) *Event {
 	return e
 }
 
+// Ints64 adds an int64 slice field.
+func (e *Event) Ints64(key string, vals []int64) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Line(key, path string, line int) *Event {
@@ -280,6 +291,34 @@ func (e *Event) Path(key, path string) *Event {
 		e.fields,
 		Field{Key: key, Value: output.pathLink(path, 0, 0)},
 	)
+	return e
+}
+
+// RawJSON adds a field with pre-serialized JSON bytes, emitted verbatim
+// without quoting or escaping. The bytes must be valid JSON.
+func (e *Event) RawJSON(key string, val []byte) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: rawJSON(val)})
+	return e
+}
+
+// JSON marshals val to JSON and adds it as a highlighted field.
+// On marshal error the field value is the error string.
+func (e *Event) JSON(key string, val any) *Event {
+	if e == nil {
+		return e
+	}
+
+	b, err := json.Marshal(val)
+	if err != nil {
+		e.fields = append(e.fields, Field{Key: key, Value: err.Error()})
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: rawJSON(b)})
 	return e
 }
 
@@ -384,6 +423,16 @@ func (e *Event) Time(key string, val time.Time) *Event {
 	return e
 }
 
+// Times adds a [time.Time] slice field.
+func (e *Event) Times(key string, vals []time.Time) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
 // Uint adds a uint field.
 func (e *Event) Uint(key string, val uint) *Event {
 	if e == nil {
@@ -401,6 +450,16 @@ func (e *Event) Uint64(key string, val uint64) *Event {
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uints adds a uint slice field.
+func (e *Event) Uints(key string, vals []uint) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 

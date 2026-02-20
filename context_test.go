@@ -14,28 +14,17 @@ import (
 
 func TestContextStr(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Str("key", "val")
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "key", ctx.fields[0].Key)
-	assert.Equal(t, "val", ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "key", "val")
 }
 
 func TestContextStrs(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Strs("keys", []string{"a", "b"})
-
-	require.Len(t, ctx.fields, 1)
-
-	vals, ok := ctx.fields[0].Value.([]string)
-	require.True(t, ok, "expected []string value")
-	assert.Equal(t, []string{"a", "b"}, vals)
+	assertSliceField(t, ctx.fields, []string{"a", "b"})
 }
 
 func TestContextInt(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Int("n", 42)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "n", ctx.fields[0].Key)
-	assert.Equal(t, 42, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "n", 42)
 }
 
 func TestContextInts(t *testing.T) {
@@ -47,10 +36,7 @@ func TestContextInts(t *testing.T) {
 
 func TestContextUint64(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Uint64("size", 999)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "size", ctx.fields[0].Key)
-	assert.Equal(t, uint64(999), ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "size", uint64(999))
 }
 
 func TestContextUints64(t *testing.T) {
@@ -70,10 +56,7 @@ func TestContextFloat64(t *testing.T) {
 
 func TestContextFloats64(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Floats64("vals", []float64{1.1, 2.2})
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "vals", ctx.fields[0].Key)
-	assert.Equal(t, []float64{1.1, 2.2}, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "vals", []float64{1.1, 2.2})
 }
 
 func TestContextLink(t *testing.T) {
@@ -94,55 +77,34 @@ func TestContextURL(t *testing.T) {
 
 func TestContextBool(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Bool("ok", true)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "ok", ctx.fields[0].Key)
-	assert.Equal(t, true, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "ok", true)
 }
 
 func TestContextBools(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Bools("flags", []bool{true, false})
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "flags", ctx.fields[0].Key)
-	assert.Equal(t, []bool{true, false}, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "flags", []bool{true, false})
 }
 
 func TestContextDur(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Duration("elapsed", time.Second)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "elapsed", ctx.fields[0].Key)
-	assert.Equal(t, time.Second, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "elapsed", time.Second)
 }
 
 func TestContextTime(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 	ctx := NewWriter(io.Discard).With().Time("created", ts)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "created", ctx.fields[0].Key)
-	assert.Equal(t, ts, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "created", ts)
 }
 
 func TestContextAny(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Any("data", 123)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "data", ctx.fields[0].Key)
-	assert.Equal(t, 123, ctx.fields[0].Value)
+	assertSingleField(t, ctx.fields, "data", 123)
 }
 
 func TestContextAnys(t *testing.T) {
 	vals := []any{"hello", 42, true}
 	ctx := NewWriter(io.Discard).With().Anys("mixed", vals)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "mixed", ctx.fields[0].Key)
-
-	got, ok := ctx.fields[0].Value.([]any)
-	require.True(t, ok, "expected []any value")
-	assert.Equal(t, vals, got)
+	assertSliceField(t, ctx.fields, vals)
 }
 
 func TestContextDict(t *testing.T) {
@@ -256,13 +218,7 @@ func TestContextStringersWithNil(t *testing.T) {
 func TestContextDurations(t *testing.T) {
 	vals := []time.Duration{time.Second, 2 * time.Millisecond}
 	ctx := NewWriter(io.Discard).With().Durations("timings", vals)
-
-	require.Len(t, ctx.fields, 1)
-	assert.Equal(t, "timings", ctx.fields[0].Key)
-
-	got, ok := ctx.fields[0].Value.([]time.Duration)
-	require.True(t, ok, "expected []time.Duration value")
-	assert.Equal(t, vals, got)
+	assertSliceField(t, ctx.fields, vals)
 }
 
 func TestContextQuantity(t *testing.T) {
@@ -429,4 +385,18 @@ func TestContextStringersTypedNils(t *testing.T) {
 	vals, ok := ctx.fields[0].Value.([]string)
 	require.True(t, ok, "expected []string value")
 	assert.Equal(t, []string{"a", "<nil>", "<nil>", "<nil>", "<nil>", "<nil>"}, vals)
+}
+
+func TestContextDictNil(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	sub := l.With().Dict("key", nil).Logger()
+
+	// Should not panic and should produce output without extra fields.
+	sub.Info().Msg("test")
+
+	got := buf.String()
+	assert.Contains(t, got, "test")
+	assert.NotContains(t, got, "key")
 }

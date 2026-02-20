@@ -3,6 +3,7 @@ package clog
 import (
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -180,6 +181,18 @@ func TestFormatValue(t *testing.T) {
 			value:    errors.New("boom"),
 			wantStr:  "boom",
 			wantKind: kindError,
+		},
+		{
+			name:     "raw_json_object",
+			value:    rawJSON(`{"status":"unprocessable_entity","detail":"something went wrong"}`),
+			wantStr:  `{"status":"unprocessable_entity","detail":"something went wrong"}`,
+			wantKind: kindJSON,
+		},
+		{
+			name:     "raw_json_array",
+			value:    rawJSON(`[1,2,3]`),
+			wantStr:  `[1,2,3]`,
+			wantKind: kindJSON,
 		},
 	}
 
@@ -401,6 +414,14 @@ func TestFormatFields(t *testing.T) {
 				Key:   "k",
 				Value: "",
 			}}, want: " k=",
+		},
+		{
+			name: "raw_json_not_quoted",
+			fields: []Field{{
+				Key:   "error",
+				Value: rawJSON(`{"status":"unprocessable_entity","detail":"something went wrong"}`),
+			}},
+			want: ` error={"status":"unprocessable_entity","detail":"something went wrong"}`,
 		},
 	}
 
@@ -1771,4 +1792,191 @@ func TestStyleAnyElementPercent(t *testing.T) {
 	got := styleAnyElement("75%", percent(75), kindPercent, styles)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
+}
+
+func TestRenderPendingNum(t *testing.T) {
+	tests := []struct {
+		name   string
+		num    string
+		spaces string
+		style  Style
+		want   string
+	}{
+		{
+			name: "empty_num_noop",
+			num:  "",
+			want: "",
+		},
+		{
+			name: "non_empty_nil_style",
+			num:  "42",
+			want: "42",
+		},
+		{
+			name:  "non_empty_with_style",
+			num:   "42",
+			style: new(lipgloss.NewStyle()),
+			want:  lipgloss.NewStyle().Render("42"),
+		},
+		{
+			name:   "non_empty_with_spaces",
+			num:    "42",
+			spaces: "  ",
+			want:   "42  ",
+		},
+		{
+			name:   "styled_with_spaces",
+			num:    "7",
+			spaces: " ",
+			style:  new(lipgloss.NewStyle()),
+			want:   lipgloss.NewStyle().Render("7") + " ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf strings.Builder
+			renderPendingNum(&buf, tt.num, tt.spaces, tt.style)
+			assert.Equal(t, tt.want, buf.String())
+		})
+	}
+}
+
+func TestStyleNumberUnit(t *testing.T) {
+	noop := new(lipgloss.NewStyle())
+
+	tests := []struct {
+		name   string
+		input  string
+		num    Style
+		unit   Style
+		overr  StyleMap
+		thresh ThresholdMap
+		ignore bool
+		want   string
+	}{
+		{
+			name:  "all_nil_styles_returns_empty",
+			input: "5m",
+			want:  "",
+		},
+		{
+			name:  "non_quantity_returns_empty",
+			input: "hello",
+			num:   noop,
+			want:  "",
+		},
+		{
+			name:  "space_separated_quantity",
+			input: "5 MB",
+			num:   noop,
+			unit:  noop,
+			want:  lipgloss.NewStyle().Render("5") + " " + lipgloss.NewStyle().Render("MB"),
+		},
+		{
+			name:  "non_quantity_trailing_number",
+			input: "5m2",
+			num:   noop,
+			want:  "",
+		},
+		{
+			name:   "unit_override_applied",
+			input:  "100MB",
+			num:    noop,
+			unit:   noop,
+			overr:  StyleMap{"MB": noop},
+			ignore: false,
+			want:   lipgloss.NewStyle().Render("100") + lipgloss.NewStyle().Render("MB"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := styleNumberUnit(tt.input, tt.num, tt.unit, tt.overr, tt.thresh, tt.ignore)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestInterpolateGradientThreeStops(t *testing.T) {
+	red := colorful.Color{R: 1, G: 0, B: 0}
+	yellow := colorful.Color{R: 1, G: 1, B: 0}
+	green := colorful.Color{R: 0, G: 1, B: 0}
+
+	stops := []ColorStop{
+		{Position: 0.0, Color: red},
+		{Position: 0.5, Color: yellow},
+		{Position: 1.0, Color: green},
+	}
+
+	// At 0.25 (between red and yellow), R should still be high.
+	c := interpolateGradient(0.25, stops)
+	assert.Greater(t, c.R, 0.8, "R at 0.25 should be high")
+
+	// At 0.75 (between yellow and green), G should be high and R should be dropping.
+	c = interpolateGradient(0.75, stops)
+	assert.Greater(t, c.G, 0.7, "G at 0.75 should be high")
+}
+
+func TestLookupValueStyle(t *testing.T) {
+	style := new(lipgloss.NewStyle())
+
+	tests := []struct {
+		name   string
+		value  any
+		values ValueStyleMap
+		want   Style
+	}{
+		{
+			name:   "empty_map_returns_nil",
+			value:  "anything",
+			values: ValueStyleMap{},
+			want:   nil,
+		},
+		{
+			name:   "nil_map_returns_nil",
+			value:  "anything",
+			values: nil,
+			want:   nil,
+		},
+		{
+			name:   "hashable_value_present",
+			value:  "ok",
+			values: ValueStyleMap{"ok": style},
+			want:   style,
+		},
+		{
+			name:   "hashable_value_missing",
+			value:  "missing",
+			values: ValueStyleMap{"ok": style},
+			want:   nil,
+		},
+		{
+			name:   "unhashable_value_slice_no_panic",
+			value:  []int{1, 2, 3},
+			values: ValueStyleMap{"ok": style},
+			want:   nil,
+		},
+		{
+			name:   "nil_value",
+			value:  nil,
+			values: ValueStyleMap{nil: style},
+			want:   style,
+		},
+		{
+			name:   "nil_value_not_in_map",
+			value:  nil,
+			values: ValueStyleMap{"ok": style},
+			want:   nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.NotPanics(t, func() {
+				got := lookupValueStyle(tt.value, tt.values)
+				assert.Equal(t, tt.want, got)
+			})
+		})
+	}
 }

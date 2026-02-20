@@ -236,6 +236,13 @@ func TestShimmerCustomPrefixInOutput(t *testing.T) {
 	assert.NotContains(t, buf.String(), "⏳")
 }
 
+func TestBuildShimmerStyleLUT(t *testing.T) {
+	lut := buildShimmerLUT(DefaultShimmerGradient())
+	styleLUT := buildShimmerStyleLUT(lut)
+
+	assert.NotNil(t, styleLUT)
+}
+
 func BenchmarkShimmerText(b *testing.B) {
 	lut := buildShimmerLUT(DefaultShimmerGradient())
 	styleLUT := buildShimmerStyleLUT(lut)
