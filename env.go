@@ -13,6 +13,7 @@ const DefaultEnvPrefix = "CLOG"
 // Env var suffixes (appended to prefix + "_").
 const (
 	envLogLevel              = "LOG_LEVEL"
+	envHyperlinkFormat       = "HYPERLINK_FORMAT"
 	envHyperlinkPathFormat   = "HYPERLINK_PATH_FORMAT"
 	envHyperlinkFileFormat   = "HYPERLINK_FILE_FORMAT"
 	envHyperlinkDirFormat    = "HYPERLINK_DIR_FORMAT"
@@ -89,24 +90,35 @@ func loadLogLevelFromEnv() {
 }
 
 func loadHyperlinkFormatsFromEnv() {
+	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
+	if v := getEnv(envHyperlinkFormat); v != "" {
+		if err := SetHyperlinkPreset(v); err != nil {
+			envVar := DefaultEnvPrefix + "_" + envHyperlinkFormat
+			if p, ok := envPrefix.Load().(string); ok && p != "" {
+				envVar = p + "_" + envHyperlinkFormat
+			}
+			fmt.Fprintf(os.Stderr, "clog: unrecognised hyperlink preset %q in %s\n", v, envVar)
+		}
+	}
+
 	if v := getEnv(envHyperlinkPathFormat); v != "" {
-		hyperlinkPathFormat.Store(&v)
+		SetHyperlinkPathFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkFileFormat); v != "" {
-		hyperlinkFileFormat.Store(&v)
+		SetHyperlinkFileFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkDirFormat); v != "" {
-		hyperlinkDirFormat.Store(&v)
+		SetHyperlinkDirFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkLineFormat); v != "" {
-		hyperlinkLineFormat.Store(&v)
+		SetHyperlinkLineFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkColumnFormat); v != "" {
-		hyperlinkColumnFormat.Store(&v)
+		SetHyperlinkColumnFormat(v)
 	}
 }
 
