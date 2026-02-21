@@ -49,7 +49,7 @@ func main() {
 		// --- Bar ---
 		header("Bar")
 		_ = clog.Bar("Downloading", 1000).
-			BarStyle(clog.BarGradient).
+			Style(clog.BarGradient).
 			Str("file", "release.tar.gz").
 			Elapsed("elapsed").
 			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
@@ -627,7 +627,7 @@ func main() {
 func spinners(filter string) {
 	type entry struct {
 		name    string
-		spinner clog.SpinnerType
+		spinner clog.SpinnerStyle
 	}
 
 	all := []entry{
@@ -752,7 +752,7 @@ func spinners(filter string) {
 		dur := max(min(cycle*2, 3*time.Second), 1*time.Second)
 
 		_ = clog.Spinner(e.name).
-			Type(e.spinner).
+			Style(e.spinner).
 			Duration("cycle", cycle).
 			Wait(ctx, func(_ context.Context) error {
 				time.Sleep(dur)
@@ -819,7 +819,7 @@ func demo() {
 		Msg("Migrations applied")
 
 	_ = clog.Spinner("Downloading artifacts").
-		Type(clog.SpinnerDot).
+		Style(clog.SpinnerDot).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)

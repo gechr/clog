@@ -107,7 +107,7 @@ type AnimationBuilder struct {
 	pulseStops     []ColorStop
 	shimmerDir     Direction
 	shimmerStops   []ColorStop
-	spinner        SpinnerType
+	spinner        SpinnerStyle
 }
 
 // resolveLogger returns the builder's logger, falling back to [Default].
@@ -139,7 +139,7 @@ func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 		mode:       animationPulse,
 		msg:        msg,
 		pulseStops: stops,
-		spinner:    DefaultSpinner,
+		spinner:    DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)
 	return b
@@ -168,7 +168,7 @@ func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 		mode:         animationShimmer,
 		msg:          msg,
 		shimmerStops: stops,
-		spinner:      DefaultSpinner,
+		spinner:      DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)
 	return b
@@ -191,10 +191,16 @@ func (b *AnimationBuilder) Prefix(prefix string) *AnimationBuilder {
 	return b
 }
 
-// Type sets the spinner animation type.
-// Only meaningful when the builder was created with [Spinner].
-func (b *AnimationBuilder) Type(s SpinnerType) *AnimationBuilder {
-	b.spinner = s
+// AnimationStyle is an animation style that can be passed to [AnimationBuilder.Style].
+// Valid implementations are [SpinnerStyle] and [BarStyle].
+type AnimationStyle interface {
+	applyAnimation(*AnimationBuilder)
+}
+
+// Style sets the animation style.
+// Pass a [SpinnerStyle] for spinner animations or a [BarStyle] for bar animations.
+func (b *AnimationBuilder) Style(s AnimationStyle) *AnimationBuilder {
+	s.applyAnimation(b)
 	return b
 }
 
@@ -613,12 +619,12 @@ func runAnimation(
 		timeFormat:              fieldTimeFormat,
 	}
 
-	// Guard against invalid SpinnerType values that would cause panics.
+	// Guard against invalid SpinnerStyle values that would cause panics.
 	if b.mode == animationSpinner && len(b.spinner.Frames) == 0 {
-		b.spinner.Frames = DefaultSpinner.Frames
+		b.spinner.Frames = DefaultSpinnerStyle().Frames
 	}
 	if tickRate <= 0 {
-		tickRate = DefaultSpinner.FPS
+		tickRate = DefaultSpinnerStyle().FPS
 	}
 
 	ticker := time.NewTicker(tickRate)

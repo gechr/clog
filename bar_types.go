@@ -1,7 +1,7 @@
 package clog
 
 // Predefined bar styles for common visual appearances.
-// Pass any of these to [AnimationBuilder.BarStyle] to change the bar's look.
+// Pass any of these to [AnimationBuilder.Style] to change the bar's look.
 var (
 	// BarASCII uses only ASCII characters for maximum terminal compatibility.
 	//

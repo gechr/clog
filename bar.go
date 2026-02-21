@@ -62,18 +62,13 @@ func (l *Logger) Bar(msg string, total int) *AnimationBuilder {
 		barStyle:       DefaultBarStyle(),
 		barProgressPtr: progressPtr,
 		barTotalPtr:    totalPtr,
-		spinner:        DefaultSpinner,
+		spinner:        DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)
 	return b
 }
 
-// BarStyle sets the visual style for the progress bar.
-// Only meaningful when the builder was created with [Bar].
-func (b *AnimationBuilder) BarStyle(style BarStyle) *AnimationBuilder {
-	b.barStyle = style
-	return b
-}
+func (s BarStyle) applyAnimation(b *AnimationBuilder) { b.barStyle = s }
 
 // renderBar renders the visual bar string for the given progress values.
 // termWidth is the terminal column count (0 = fall back to auto-sizing from style).

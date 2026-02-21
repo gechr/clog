@@ -17,12 +17,12 @@ func TestSpinnerConstructor(t *testing.T) {
 	b := Spinner("loading")
 
 	assert.Equal(t, "loading", b.msg)
-	assert.Equal(t, DefaultSpinner.FPS, b.spinner.FPS)
+	assert.Equal(t, DefaultSpinnerStyle().FPS, b.spinner.FPS)
 	assert.Empty(t, b.fields)
 }
 
 func TestSpinnerBuilderType(t *testing.T) {
-	b := Spinner("test").Type(SpinnerDot)
+	b := Spinner("test").Style(SpinnerDot)
 
 	assert.Equal(t, SpinnerDot.FPS, b.spinner.FPS)
 }
@@ -637,14 +637,14 @@ func TestRunAnimationDoneCase(t *testing.T) {
 	Default.SetLevel(InfoLevel) // ensure not verbose
 
 	// Use a very fast spinner so tick fires quickly.
-	fastSpinner := SpinnerType{
+	fastSpinner := SpinnerStyle{
 		Frames: []string{"A", "B"},
 		FPS:    time.Millisecond,
 	}
 
 	result := Spinner(
 		"loading",
-	).Type(fastSpinner).
+	).Style(fastSpinner).
 		Wait(context.Background(), func(_ context.Context) error {
 			// Wait long enough for at least one spinner frame to render.
 			time.Sleep(20 * time.Millisecond)
@@ -671,7 +671,7 @@ func TestRunAnimationContextCancel(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
 
-	fastSpinner := SpinnerType{
+	fastSpinner := SpinnerStyle{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}
@@ -685,7 +685,7 @@ func TestRunAnimationContextCancel(t *testing.T) {
 		cancel()
 	}()
 
-	result := Spinner("loading").Type(fastSpinner).Wait(ctx, func(_ context.Context) error {
+	result := Spinner("loading").Style(fastSpinner).Wait(ctx, func(_ context.Context) error {
 		// Block much longer than the cancel delay.
 		time.Sleep(10 * time.Second)
 		return nil
@@ -706,7 +706,7 @@ func TestRunAnimationError(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
 
-	fastSpinner := SpinnerType{
+	fastSpinner := SpinnerStyle{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}
@@ -714,7 +714,7 @@ func TestRunAnimationError(t *testing.T) {
 	testErr := errors.New("action failed")
 	result := Spinner(
 		"loading",
-	).Type(fastSpinner).
+	).Style(fastSpinner).
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(10 * time.Millisecond)
 			return testErr
@@ -771,12 +771,12 @@ func TestRunAnimationWithTimestamp(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetReportTimestamp(true)
 
-	fastSpinner := SpinnerType{
+	fastSpinner := SpinnerStyle{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}
 
-	result := Spinner("loading").Type(fastSpinner).
+	result := Spinner("loading").Style(fastSpinner).
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(20 * time.Millisecond)
 			return nil

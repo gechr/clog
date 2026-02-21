@@ -338,7 +338,7 @@ err := clog.Spinner("Downloading").
   Msg("Downloaded")
 ```
 
-The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result. This is the `DefaultSpinner` type, which is used when no custom `Type` is set.
+The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result. This is the `DefaultSpinnerStyle`, which is used when no custom `Style` is set.
 
 ### Dynamic Status Updates
 
@@ -388,11 +388,11 @@ When `OnErrorMessage` is set, the custom message becomes the log message and the
 
 All animations gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
 
-### Custom Spinner Type
+### Custom Spinner Style
 
 ```go
 clog.Spinner("Loading").
-  Type(clog.SpinnerDot).
+  Style(clog.SpinnerDot).
   Wait(ctx, action).
   Msg("Done")
 ```
@@ -545,7 +545,7 @@ p.SetProgress(50).SetTotal(200).Msg("Processing").Send()
 
 #### Bar Styles
 
-Five pre-built styles are available in [`bar_types.go`](bar_types.go). Pass any of them to `.BarStyle()`:
+Five pre-built styles are available in [`bar_types.go`](bar_types.go). Pass any of them to `.Style()`:
 
 | Preset        | Characters     | Description                                     |
 | ------------- | -------------- | ----------------------------------------------- |
@@ -557,7 +557,7 @@ Five pre-built styles are available in [`bar_types.go`](bar_types.go). Pass any 
 
 ```go
 clog.Bar("Uploading", total).
-  BarStyle(clog.BarSmooth).
+  Style(clog.BarSmooth).
   Progress(ctx, task).
   Msg("Done")
 ```
@@ -570,7 +570,7 @@ Build a fully custom style by passing a `BarStyle` struct:
 
 ```go
 clog.Bar("Uploading", total).
-  BarStyle(clog.BarStyle{
+  Style(clog.BarStyle{
     FilledChar:  '=',
     EmptyChar:   '-',
     HeadChar:    '>',    // decorative head at leading edge (0 = disabled)

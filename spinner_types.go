@@ -3,9 +3,9 @@ package clog
 import "time"
 
 // Predefined spinner frame sets adapted from https://github.com/sindresorhus/cli-spinners
-// Pass any of these to [AnimationBuilder.Type] to change the animation style.
+// Pass any of these to [AnimationBuilder.Style] to change the animation style.
 var (
-	SpinnerAesthetic = SpinnerType{
+	SpinnerAesthetic = SpinnerStyle{
 		Frames: []string{
 			"▰▱▱▱▱▱▱",
 			"▰▰▱▱▱▱▱",
@@ -18,27 +18,27 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerArc = SpinnerType{
+	SpinnerArc = SpinnerStyle{
 		Frames: []string{"◜", "◠", "◝", "◞", "◡", "◟"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerArrow2 = SpinnerType{
+	SpinnerArrow2 = SpinnerStyle{
 		Frames: []string{"⬆️ ", "↗️ ", "➡️ ", "↘️ ", "⬇️ ", "↙️ ", "⬅️ ", "↖️ "},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerArrow3 = SpinnerType{
+	SpinnerArrow3 = SpinnerStyle{
 		Frames: []string{"▹▹▹▹▹", "▸▹▹▹▹", "▹▸▹▹▹", "▹▹▸▹▹", "▹▹▹▸▹", "▹▹▹▹▸"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBalloon = SpinnerType{
+	SpinnerBalloon = SpinnerStyle{
 		Frames: []string{" ", ".", "o", "O", "@", "*", " "},
 		FPS:    140 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBalloon2 = SpinnerType{
+	SpinnerBalloon2 = SpinnerStyle{
 		Frames: []string{".", "o", "O", "°", "O", "o", "."},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBetaWave = SpinnerType{
+	SpinnerBetaWave = SpinnerStyle{
 		Frames: []string{
 			"ρββββββ",
 			"βρβββββ",
@@ -50,7 +50,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBinary = SpinnerType{
+	SpinnerBinary = SpinnerStyle{
 		Frames: []string{
 			"010010",
 			"001100",
@@ -65,11 +65,11 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBluePulse = SpinnerType{
+	SpinnerBluePulse = SpinnerStyle{
 		Frames: []string{"🔹 ", "🔷 ", "🔵 ", "🔵 ", "🔷 "},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBouncingBall = SpinnerType{
+	SpinnerBouncingBall = SpinnerStyle{
 		Frames: []string{
 			"( ●    )",
 			"(  ●   )",
@@ -84,43 +84,43 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBoxBounce = SpinnerType{
+	SpinnerBoxBounce = SpinnerStyle{
 		Frames: []string{"▖", "▘", "▝", "▗"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerBoxBounce2 = SpinnerType{
+	SpinnerBoxBounce2 = SpinnerStyle{
 		Frames: []string{"▌", "▀", "▐", "▄"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerChristmas = SpinnerType{
+	SpinnerChristmas = SpinnerStyle{
 		Frames: []string{"🌲", "🎄"},
 		FPS:    400 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerCircle = SpinnerType{
+	SpinnerCircle = SpinnerStyle{
 		Frames: []string{"◡", "⊙", "◠"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerCircleHalves = SpinnerType{
+	SpinnerCircleHalves = SpinnerStyle{
 		Frames: []string{"◐", "◓", "◑", "◒"},
 		FPS:    50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerCircleQuarters = SpinnerType{
+	SpinnerCircleQuarters = SpinnerStyle{
 		Frames: []string{"◴", "◷", "◶", "◵"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDot = SpinnerType{
+	SpinnerDot = SpinnerStyle{
 		Frames: []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots = SpinnerType{
+	SpinnerDots = SpinnerStyle{
 		Frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots11 = SpinnerType{
+	SpinnerDots11 = SpinnerStyle{
 		Frames: []string{"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots12 = SpinnerType{
+	SpinnerDots12 = SpinnerStyle{
 		Frames: []string{
 			"⢀⠀",
 			"⡀⠀",
@@ -181,11 +181,11 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots13 = SpinnerType{
+	SpinnerDots13 = SpinnerStyle{
 		Frames: []string{"⣼", "⣹", "⢻", "⠿", "⡟", "⣏", "⣧", "⣶"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots14 = SpinnerType{
+	SpinnerDots14 = SpinnerStyle{
 		Frames: []string{
 			"⠉⠉",
 			"⠈⠙",
@@ -202,11 +202,11 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots3 = SpinnerType{
+	SpinnerDots3 = SpinnerStyle{
 		Frames: []string{"⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots4 = SpinnerType{
+	SpinnerDots4 = SpinnerStyle{
 		Frames: []string{
 			"⠄",
 			"⠆",
@@ -225,7 +225,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots5 = SpinnerType{
+	SpinnerDots5 = SpinnerStyle{
 		Frames: []string{
 			"⠋",
 			"⠙",
@@ -247,7 +247,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots6 = SpinnerType{
+	SpinnerDots6 = SpinnerStyle{
 		Frames: []string{
 			"⠁",
 			"⠉",
@@ -276,7 +276,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots7 = SpinnerType{
+	SpinnerDots7 = SpinnerStyle{
 		Frames: []string{
 			"⠈",
 			"⠉",
@@ -305,7 +305,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots8 = SpinnerType{
+	SpinnerDots8 = SpinnerStyle{
 		Frames: []string{
 			"⠁",
 			"⠁",
@@ -339,7 +339,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots8Bit = SpinnerType{
+	SpinnerDots8Bit = SpinnerStyle{
 		Frames: []string{
 			"⠀",
 			"⠁",
@@ -600,19 +600,19 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDots9 = SpinnerType{
+	SpinnerDots9 = SpinnerStyle{
 		Frames: []string{"⢹", "⢺", "⢼", "⣸", "⣇", "⡧", "⡗", "⡏"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDotsCircle = SpinnerType{
+	SpinnerDotsCircle = SpinnerStyle{
 		Frames: []string{"⢎ ", "⠎⠁", "⠊⠑", "⠈⠱", " ⡱", "⢀⡰", "⢄⡠", "⢆⡀"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDqpb = SpinnerType{
+	SpinnerDqpb = SpinnerStyle{
 		Frames: []string{"d", "q", "p", "b"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerDwarfFortress = SpinnerType{
+	SpinnerDwarfFortress = SpinnerStyle{
 		Frames: []string{
 			" ██████£££  ",
 			"☺██████£££  ",
@@ -750,15 +750,15 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerEllipsis = SpinnerType{
+	SpinnerEllipsis = SpinnerStyle{
 		Frames: []string{"", ".", "..", "..."},
 		FPS:    333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerFingerDance = SpinnerType{
+	SpinnerFingerDance = SpinnerStyle{
 		Frames: []string{"🤘 ", "🤟 ", "🖖 ", "✋ ", "🤚 ", "👆 "},
 		FPS:    160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerFish = SpinnerType{
+	SpinnerFish = SpinnerStyle{
 		Frames: []string{
 			"~~~~~~~~~~~~~~~~~~~~",
 			"> ~~~~~~~~~~~~~~~~~~",
@@ -790,7 +790,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerFistBump = SpinnerType{
+	SpinnerFistBump = SpinnerStyle{
 		Frames: []string{
 			"🤜\u3000\u3000\u3000\u3000🤛 ",
 			"🤜\u3000\u3000\u3000\u3000🤛 ",
@@ -802,7 +802,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerFlip = SpinnerType{
+	SpinnerFlip = SpinnerStyle{
 		Frames: []string{
 			"_",
 			"_",
@@ -819,11 +819,11 @@ var (
 		},
 		FPS: 70 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerGlobe = SpinnerType{
+	SpinnerGlobe = SpinnerStyle{
 		Frames: []string{"🌍", "🌎", "🌏"},
 		FPS:    250 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerGrenade = SpinnerType{
+	SpinnerGrenade = SpinnerStyle{
 		Frames: []string{
 			"،  ",
 			"′  ",
@@ -842,7 +842,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerGrowHorizontal = SpinnerType{
+	SpinnerGrowHorizontal = SpinnerStyle{
 		Frames: []string{
 			"▏",
 			"▎",
@@ -859,31 +859,31 @@ var (
 		},
 		FPS: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerGrowVertical = SpinnerType{
+	SpinnerGrowVertical = SpinnerStyle{
 		Frames: []string{"▁", "▃", "▄", "▅", "▆", "▇", "▆", "▅", "▄", "▃"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerHamburger = SpinnerType{
+	SpinnerHamburger = SpinnerStyle{
 		Frames: []string{"☱", "☲", "☴", "☲"},
 		FPS:    333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerJump = SpinnerType{
+	SpinnerJump = SpinnerStyle{
 		Frames: []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerLayer = SpinnerType{
+	SpinnerLayer = SpinnerStyle{
 		Frames: []string{"-", "=", "≡"},
 		FPS:    150 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerLine = SpinnerType{
+	SpinnerLine = SpinnerStyle{
 		Frames: []string{"|", "/", "-", "\\"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerLine2 = SpinnerType{
+	SpinnerLine2 = SpinnerStyle{
 		Frames: []string{"⠂", "-", "–", "—", "–", "-"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMaterial = SpinnerType{
+	SpinnerMaterial = SpinnerStyle{
 		Frames: []string{
 			"█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
 			"██▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
@@ -980,11 +980,11 @@ var (
 		},
 		FPS: 17 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMeter = SpinnerType{
+	SpinnerMeter = SpinnerStyle{
 		Frames: []string{"▱▱▱", "▰▱▱", "▰▰▱", "▰▰▰", "▰▰▱", "▰▱▱", "▱▱▱"},
 		FPS:    143 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMindblown = SpinnerType{
+	SpinnerMindblown = SpinnerStyle{
 		Frames: []string{
 			"😐 ",
 			"😐 ",
@@ -1003,43 +1003,43 @@ var (
 		},
 		FPS: 160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMiniDot = SpinnerType{
+	SpinnerMiniDot = SpinnerStyle{
 		Frames: []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		FPS:    83 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMonkey = SpinnerType{
+	SpinnerMonkey = SpinnerStyle{
 		Frames: []string{"🙈", "🙉", "🙊"},
 		FPS:    333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerMoon = SpinnerType{
+	SpinnerMoon = SpinnerStyle{
 		Frames: []string{"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
 		FPS:    125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerNoise = SpinnerType{
+	SpinnerNoise = SpinnerStyle{
 		Frames: []string{"▓", "▒", "░"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerOrangeBluePulse = SpinnerType{
+	SpinnerOrangeBluePulse = SpinnerStyle{
 		Frames: []string{"🔸 ", "🔶 ", "🟠 ", "🟠 ", "🔶 ", "🔹 ", "🔷 ", "🔵 ", "🔵 ", "🔷 "},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerOrangePulse = SpinnerType{
+	SpinnerOrangePulse = SpinnerStyle{
 		Frames: []string{"🔸 ", "🔶 ", "🟠 ", "🟠 ", "🔶 "},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerPipe = SpinnerType{
+	SpinnerPipe = SpinnerStyle{
 		Frames: []string{"┤", "┘", "┴", "└", "├", "┌", "┬", "┐"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerPoint = SpinnerType{
+	SpinnerPoint = SpinnerStyle{
 		Frames: []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"},
 		FPS:    125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerPoints = SpinnerType{
+	SpinnerPoints = SpinnerStyle{
 		Frames: []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"},
 		FPS:    143 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerPong = SpinnerType{
+	SpinnerPong = SpinnerStyle{
 		Frames: []string{
 			"▐⠂       ▌",
 			"▐⠈       ▌",
@@ -1074,19 +1074,19 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerPulse = SpinnerType{
+	SpinnerPulse = SpinnerStyle{
 		Frames: []string{"█", "▓", "▒", "░"},
 		FPS:    125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerRollingLine = SpinnerType{
+	SpinnerRollingLine = SpinnerStyle{
 		Frames: []string{"/  ", " - ", " \\ ", "  |", "  |", " \\ ", " - ", "/  "},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerRunner = SpinnerType{
+	SpinnerRunner = SpinnerStyle{
 		Frames: []string{"🚶 ", "🏃 "},
 		FPS:    140 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSand = SpinnerType{
+	SpinnerSand = SpinnerStyle{
 		Frames: []string{
 			"⠁",
 			"⠂",
@@ -1126,7 +1126,7 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerShark = SpinnerType{
+	SpinnerShark = SpinnerStyle{
 		Frames: []string{
 			"▐|\\____________▌",
 			"▐_|\\___________▌",
@@ -1157,19 +1157,19 @@ var (
 		},
 		FPS: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSimpleDots = SpinnerType{
+	SpinnerSimpleDots = SpinnerStyle{
 		Frames: []string{".  ", ".. ", "...", "   "},
 		FPS:    400 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSimpleDotsScrolling = SpinnerType{
+	SpinnerSimpleDotsScrolling = SpinnerStyle{
 		Frames: []string{".  ", ".. ", "...", " ..", "  .", "   "},
 		FPS:    200 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSmiley = SpinnerType{
+	SpinnerSmiley = SpinnerStyle{
 		Frames: []string{"😄 ", "😝 "},
 		FPS:    200 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSoccerHeader = SpinnerType{
+	SpinnerSoccerHeader = SpinnerStyle{
 		Frames: []string{
 			" 🧑⚽️       🧑 ",
 			"🧑  ⚽️      🧑 ",
@@ -1186,23 +1186,23 @@ var (
 		},
 		FPS: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSpeaker = SpinnerType{
+	SpinnerSpeaker = SpinnerStyle{
 		Frames: []string{"🔈 ", "🔉 ", "🔊 ", "🔉 "},
 		FPS:    160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSquareCorners = SpinnerType{
+	SpinnerSquareCorners = SpinnerStyle{
 		Frames: []string{"◰", "◳", "◲", "◱"},
 		FPS:    180 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerSquish = SpinnerType{
+	SpinnerSquish = SpinnerStyle{
 		Frames: []string{"╫", "╪"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerStar2 = SpinnerType{
+	SpinnerStar2 = SpinnerStyle{
 		Frames: []string{"+", "x", "*"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerTimeTravel = SpinnerType{
+	SpinnerTimeTravel = SpinnerStyle{
 		Frames: []string{
 			"🕛 ",
 			"🕚 ",
@@ -1219,63 +1219,63 @@ var (
 		},
 		FPS: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle = SpinnerType{
+	SpinnerToggle = SpinnerStyle{
 		Frames: []string{"⊶", "⊷"},
 		FPS:    250 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle10 = SpinnerType{
+	SpinnerToggle10 = SpinnerStyle{
 		Frames: []string{"㊂", "㊀", "㊁"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle11 = SpinnerType{
+	SpinnerToggle11 = SpinnerStyle{
 		Frames: []string{"⧇", "⧆"},
 		FPS:    50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle12 = SpinnerType{
+	SpinnerToggle12 = SpinnerStyle{
 		Frames: []string{"☗", "☖"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle13 = SpinnerType{
+	SpinnerToggle13 = SpinnerStyle{
 		Frames: []string{"=", "*", "-"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle2 = SpinnerType{
+	SpinnerToggle2 = SpinnerStyle{
 		Frames: []string{"▫", "▪"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle3 = SpinnerType{
+	SpinnerToggle3 = SpinnerStyle{
 		Frames: []string{"□", "■"},
 		FPS:    120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle4 = SpinnerType{
+	SpinnerToggle4 = SpinnerStyle{
 		Frames: []string{"■", "□", "▪", "▫"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle5 = SpinnerType{
+	SpinnerToggle5 = SpinnerStyle{
 		Frames: []string{"▮", "▯"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle6 = SpinnerType{
+	SpinnerToggle6 = SpinnerStyle{
 		Frames: []string{"ဝ", "၀"},
 		FPS:    300 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle7 = SpinnerType{
+	SpinnerToggle7 = SpinnerStyle{
 		Frames: []string{"⦾", "⦿"},
 		FPS:    80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle8 = SpinnerType{
+	SpinnerToggle8 = SpinnerStyle{
 		Frames: []string{"◍", "◌"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerToggle9 = SpinnerType{
+	SpinnerToggle9 = SpinnerStyle{
 		Frames: []string{"◉", "◎"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerTriangle = SpinnerType{
+	SpinnerTriangle = SpinnerStyle{
 		Frames: []string{"◢", "◣", "◤", "◥"},
 		FPS:    50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SpinnerWeather = SpinnerType{
+	SpinnerWeather = SpinnerStyle{
 		Frames: []string{
 			"☀️ ",
 			"☀️ ",

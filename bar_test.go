@@ -316,7 +316,7 @@ func TestBarStyleMethod(t *testing.T) {
 		RightCap:   "|",
 		Width:      20,
 	}
-	b := Bar("test", 100).BarStyle(custom)
+	b := Bar("test", 100).Style(custom)
 	assert.Equal(t, custom, b.barStyle)
 }
 

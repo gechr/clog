@@ -2,19 +2,24 @@ package clog
 
 import "time"
 
-// SpinnerType is a set of frames used in animating the spinner.
+// SpinnerStyle is a set of frames used in animating the spinner.
 // Set Reverse to true to play the frames in reverse order.
-type SpinnerType struct {
+type SpinnerStyle struct {
 	Frames  []string
 	FPS     time.Duration
 	Reverse bool
 }
 
-// DefaultSpinner is the default spinner animation.
-var DefaultSpinner = SpinnerType{
-	Frames:  SpinnerMoon.Frames,
-	FPS:     SpinnerMoon.FPS,
-	Reverse: true,
+func (s SpinnerStyle) applyAnimation(b *AnimationBuilder) { b.spinner = s }
+
+// DefaultSpinnerStyle returns the default [SpinnerStyle].
+// It uses [SpinnerMoon] in reverse.
+func DefaultSpinnerStyle() SpinnerStyle {
+	return SpinnerStyle{
+		Frames:  SpinnerMoon.Frames,
+		FPS:     SpinnerMoon.FPS,
+		Reverse: true,
+	}
 }
 
 // Spinner creates a new [AnimationBuilder] using the [Default] logger with a
@@ -28,7 +33,7 @@ func (l *Logger) Spinner(msg string) *AnimationBuilder {
 		logger:  l,
 		mode:    animationSpinner,
 		msg:     msg,
-		spinner: DefaultSpinner,
+		spinner: DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)
 	return b
