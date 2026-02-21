@@ -733,7 +733,7 @@ func spinners(filter string) {
 	ctx := context.Background()
 	for _, e := range all {
 		cycle := e.spinner.FPS * time.Duration(len(e.spinner.Frames))
-		dur := cycle * 2
+		dur := max(min(cycle*2, 3*time.Second), 1*time.Second)
 
 		_ = clog.Spinner(e.name).
 			Type(e.spinner).
