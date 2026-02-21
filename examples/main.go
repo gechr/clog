@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog"
 	"github.com/lucasb-eyer/go-colorful"
@@ -605,7 +605,7 @@ func demo() {
 		Msg("Migrations applied")
 
 	_ = clog.Spinner("Downloading artifacts").
-		Type(spinner.Dot).
+		Type(clog.SpinnerDot).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)

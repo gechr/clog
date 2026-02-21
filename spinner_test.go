@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,9 +22,9 @@ func TestSpinnerConstructor(t *testing.T) {
 }
 
 func TestSpinnerBuilderType(t *testing.T) {
-	b := Spinner("test").Type(spinner.Dot)
+	b := Spinner("test").Type(SpinnerDot)
 
-	assert.Equal(t, spinner.Dot.FPS, b.spinner.FPS)
+	assert.Equal(t, SpinnerDot.FPS, b.spinner.FPS)
 }
 
 func TestSpinnerBuilderStr(t *testing.T) {
@@ -594,7 +593,7 @@ func TestRunAnimationDoneCase(t *testing.T) {
 	Default.SetLevel(InfoLevel) // ensure not verbose
 
 	// Use a very fast spinner so tick fires quickly.
-	fastSpinner := spinner.Spinner{
+	fastSpinner := SpinnerType{
 		Frames: []string{"A", "B"},
 		FPS:    time.Millisecond,
 	}
@@ -628,7 +627,7 @@ func TestRunAnimationContextCancel(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
 
-	fastSpinner := spinner.Spinner{
+	fastSpinner := SpinnerType{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}
@@ -663,7 +662,7 @@ func TestRunAnimationError(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetLevel(InfoLevel)
 
-	fastSpinner := spinner.Spinner{
+	fastSpinner := SpinnerType{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}
@@ -728,7 +727,7 @@ func TestRunAnimationWithTimestamp(t *testing.T) {
 	Default = New(NewOutput(&buf, ColorAlways))
 	Default.SetReportTimestamp(true)
 
-	fastSpinner := spinner.Spinner{
+	fastSpinner := SpinnerType{
 		Frames: []string{"A"},
 		FPS:    time.Millisecond,
 	}

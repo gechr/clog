@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/charmbracelet/bubbles/spinner"
 )
 
 // clearLine is the ANSI escape to erase the entire current line (EL2),
@@ -69,7 +67,7 @@ type AnimationBuilder struct {
 	pulseStops   []ColorStop
 	shimmerDir   Direction
 	shimmerStops []ColorStop
-	spinner      spinner.Spinner
+	spinner      SpinnerType
 	title        string
 }
 
@@ -119,7 +117,7 @@ func (b *AnimationBuilder) Prefix(prefix string) *AnimationBuilder {
 
 // Type sets the spinner animation type.
 // Only meaningful when the builder was created with [Spinner].
-func (b *AnimationBuilder) Type(s spinner.Spinner) *AnimationBuilder {
+func (b *AnimationBuilder) Type(s SpinnerType) *AnimationBuilder {
 	b.spinner = s
 	return b
 }
@@ -474,7 +472,12 @@ func runAnimation(
 
 			switch b.mode {
 			case animModeSpinner:
-				char = b.spinner.Frames[frame%len(b.spinner.Frames)]
+				n := len(b.spinner.Frames)
+				i := frame % n
+				if b.spinner.Reverse {
+					i = n - 1 - i
+				}
+				char = b.spinner.Frames[i]
 				frame++
 			case animModePulse:
 				char = prefix

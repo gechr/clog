@@ -45,13 +45,13 @@ ERR ❌ Connection failed error=connection refused
 
 | Level   | Label | Prefix | Description                                          |
 | ------- | ----- | ------ | ---------------------------------------------------- |
-| `Trace` | `TRC` | 🔍     | Finest-grained output, hidden by default             |
-| `Debug` | `DBG` | 🐞     | Verbose output, hidden by default                    |
-| `Info`  | `INF` | ℹ️     | General operational messages (default minimum level) |
-| `Dry`   | `DRY` | 🚧     | Dry-run indicators                                   |
-| `Warn`  | `WRN` | ⚠️     | Warnings that don't prevent operation                |
-| `Error` | `ERR` | ❌     | Errors that need attention                           |
-| `Fatal` | `FTL` | 💥     | Fatal errors - calls `os.Exit(1)` after logging      |
+| `Trace` | `TRC` | 🔍      | Finest-grained output, hidden by default             |
+| `Debug` | `DBG` | 🐞      | Verbose output, hidden by default                    |
+| `Info`  | `INF` | ℹ️      | General operational messages (default minimum level) |
+| `Dry`   | `DRY` | 🚧      | Dry-run indicators                                   |
+| `Warn`  | `WRN` | ⚠️      | Warnings that don't prevent operation                |
+| `Error` | `ERR` | ❌      | Errors that need attention                           |
+| `Fatal` | `FTL` | 💥      | Fatal errors - calls `os.Exit(1)` after logging      |
 
 ### Setting the Level
 
@@ -379,12 +379,12 @@ Spinners gracefully degrade: when colours are disabled (CI, piped output), the a
 
 ```go
 clog.Spinner("Loading").
-  Type(spinner.Dot).
+  Type(clog.SpinnerDot).
   Wait(ctx, action).
   Msg("Done")
 ```
 
-Available types from `github.com/charmbracelet/bubbles/spinner`: `Line`, `Dot`, `MiniDot`, `Jump`, `Pulse`, `Globe`, `Points`, `Meter`, `Hamburger`, `Moon`, `Ellipsis`.
+See [`spinner_types.go`](spinner_types.go) for the full list of available spinner types.
 
 ### Hyperlink Fields on Animations
 
