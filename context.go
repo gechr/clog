@@ -82,6 +82,7 @@ func (c *Context) Logger() *Logger {
 		fieldTimeFormat: c.logger.fieldTimeFormat,
 		fields:          c.fields,
 		handler:         c.logger.handler,
+		labelWidth:      c.logger.labelWidth,
 		labels:          c.logger.labels,
 		level:           c.logger.level,
 		levelAlign:      c.logger.levelAlign,

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unsafe"
 )
 
 // clearLine is the ANSI escape to erase the entire current line (EL2),
@@ -486,7 +485,7 @@ func runAnimation(
 	}
 
 	// Cache formatted fields — only re-format when the atomic pointer changes.
-	var cachedFieldsPtr unsafe.Pointer
+	var cachedFieldsPtr *[]Field
 	var cachedFieldsStr string
 	fieldOpts := formatFieldsOpts{
 		elapsedFormatFunc:       elapsedFormatFunc,
@@ -550,7 +549,6 @@ func runAnimation(
 			// Re-format fields when the pointer changes, or every tick if
 			// an elapsed field is present (its value changes each tick).
 			fp := fields.Load()
-			fpRaw := unsafe.Pointer(fp)
 			if b.elapsedKey != "" {
 				clone := slices.Clone(*fp)
 				for i := range clone {
@@ -560,10 +558,10 @@ func runAnimation(
 					}
 				}
 				cachedFieldsStr = strings.TrimLeft(formatFields(clone, fieldOpts), " ")
-			} else if fpRaw != cachedFieldsPtr {
+			} else if fp != cachedFieldsPtr {
 				cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
 			}
-			cachedFieldsPtr = fpRaw
+			cachedFieldsPtr = fp
 
 			var tsStr string
 			if reportTS {

@@ -79,15 +79,18 @@ func applyPulseStyle(text string, style lipgloss.Style) string {
 	// small number of runs.
 	var buf strings.Builder
 	runStart := 0
-	runes := []rune(text)
-	isSpace := unicode.IsSpace(runes[0])
+	isSpace := false
+	first := true
 
-	for i := 1; i <= len(runes); i++ {
-		atEnd := i == len(runes)
-		curIsSpace := !atEnd && unicode.IsSpace(runes[i])
-
-		if atEnd || curIsSpace != isSpace {
-			run := string(runes[runStart:i])
+	for i, r := range text {
+		curIsSpace := unicode.IsSpace(r)
+		if first {
+			isSpace = curIsSpace
+			first = false
+			continue
+		}
+		if curIsSpace != isSpace {
+			run := text[runStart:i]
 			if isSpace {
 				buf.WriteString(run)
 			} else {
@@ -96,6 +99,12 @@ func applyPulseStyle(text string, style lipgloss.Style) string {
 			runStart = i
 			isSpace = curIsSpace
 		}
+	}
+	// Flush final run.
+	if run := text[runStart:]; isSpace {
+		buf.WriteString(run)
+	} else {
+		buf.WriteString(style.Render(run))
 	}
 
 	return buf.String()

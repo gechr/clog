@@ -231,8 +231,8 @@ type Styles struct {
 	Separator Style
 	// Style for the timestamp prefix.
 	Timestamp Style
-	// Values maps typed values to styles. Keys use Go equality
-	// Allows diffentiating between e.g. `true` (bool) and "true" (string)
+	// Values maps typed values to styles. Keys use Go equality.
+	// Allows differentiating between e.g. `true` (bool) and "true" (string).
 	Values ValueStyleMap
 }
 

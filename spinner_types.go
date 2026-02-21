@@ -2,7 +2,8 @@ package clog
 
 import "time"
 
-// Source: https://github.com/sindresorhus/cli-spinners
+// Predefined spinner frame sets adapted from https://github.com/sindresorhus/cli-spinners
+// Pass any of these to [AnimationBuilder.Type] to change the animation style.
 var (
 	SpinnerAesthetic = SpinnerType{
 		Frames: []string{

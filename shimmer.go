@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 	"unicode"
+	"unicode/utf8"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
@@ -98,8 +99,7 @@ func shimmerText(
 	lut *shimmerLUT,
 	styleLUT *shimmerStyleLUT,
 ) string {
-	runes := []rune(text)
-	n := len(runes)
+	n := utf8.RuneCountInString(text)
 	if n == 0 {
 		return text
 	}
@@ -109,12 +109,15 @@ func shimmerText(
 	// This reduces style creations from ~N/frame to ~5-10/frame (or zero
 	// when a pre-built shimmerStyleLUT is supplied).
 	var buf strings.Builder
-	runIdx := 0
-	runStart := 0
-	runIsSpace := unicode.IsSpace(runes[0])
+	var (
+		runByteStart int
+		runIdx       int
+		runIsSpace   bool
+		charPos      int
+	)
 
-	flushRun := func(end int) {
-		run := string(runes[runStart:end])
+	flushRun := func(byteEnd int) {
+		run := text[runByteStart:byteEnd]
 		if runIsSpace {
 			buf.WriteString(run)
 		} else {
@@ -128,33 +131,28 @@ func shimmerText(
 		}
 	}
 
-	if !runIsSpace {
-		runIdx = shimmerCharIdx(0, n, phase, dir)
-	}
-
-	for i := 1; i <= n; i++ {
-		atEnd := i == n
-		curIsSpace := !atEnd && unicode.IsSpace(runes[i])
-
-		if atEnd {
-			flushRun(i)
-			break
-		}
-
+	for byteIdx, r := range text {
+		curIsSpace := unicode.IsSpace(r)
 		var curIdx int
 		if !curIsSpace {
-			curIdx = shimmerCharIdx(i, n, phase, dir)
+			curIdx = shimmerCharIdx(charPos, n, phase, dir)
 		}
 
-		// Start a new run when transitioning between space/non-space or
-		// when the quantized LUT index changes.
-		if curIsSpace != runIsSpace || (!curIsSpace && curIdx != runIdx) {
-			flushRun(i)
-			runStart = i
+		if charPos == 0 {
+			runIsSpace = curIsSpace
+			runIdx = curIdx
+		} else if curIsSpace != runIsSpace || (!curIsSpace && curIdx != runIdx) {
+			// Start a new run when transitioning between space/non-space or
+			// when the quantized LUT index changes.
+			flushRun(byteIdx)
+			runByteStart = byteIdx
 			runIsSpace = curIsSpace
 			runIdx = curIdx
 		}
+		charPos++
 	}
+	// Flush final run.
+	flushRun(len(text))
 
 	return buf.String()
 }

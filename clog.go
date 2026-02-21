@@ -225,6 +225,7 @@ type Logger struct {
 	fieldTimeFormat         string
 	fields                  []Field
 	handler                 Handler
+	labelWidth              int
 	labels                  LevelMap
 	level                   Level
 	levelAlign              LevelAlign
@@ -270,6 +271,7 @@ func New(output *Output) *Logger {
 		timeLocation:            time.Local,
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
+	l.labelWidth = computeLabelWidth(l.labels)
 	return l
 }
 
@@ -380,6 +382,7 @@ func (l *Logger) SetLevelLabels(labels LevelMap) {
 	merged := DefaultLabels()
 	maps.Copy(merged, labels)
 	l.labels = merged
+	l.labelWidth = computeLabelWidth(merged)
 }
 
 // SetOmitEmpty enables or disables omitting fields with empty values.
@@ -737,13 +740,26 @@ func (l *Logger) log(e *Event, msg string) {
 		}
 	}
 
-	_, _ = io.WriteString(l.output.Writer(), strings.Join(parts, " ")+"\n")
+	var lineBuf strings.Builder
+	for i, p := range parts {
+		if i > 0 {
+			lineBuf.WriteByte(' ')
+		}
+		lineBuf.WriteString(p)
+	}
+	lineBuf.WriteByte('\n')
+	_, _ = io.WriteString(l.output.Writer(), lineBuf.String())
 }
 
-// maxLabelWidth returns the length of the longest configured label.
+// maxLabelWidth returns the cached length of the longest configured label.
 func (l *Logger) maxLabelWidth() int {
+	return l.labelWidth
+}
+
+// computeLabelWidth returns the length of the longest label in the map.
+func computeLabelWidth(labels LevelMap) int {
 	maxWidth := 0
-	for _, lbl := range l.labels {
+	for _, lbl := range labels {
 		if len(lbl) > maxWidth {
 			maxWidth = len(lbl)
 		}
@@ -847,11 +863,16 @@ func DefaultPrefixes() LevelMap {
 	return maps.Clone(defaultPrefixes)
 }
 
+// Level returns the current minimum log level.
+func (l *Logger) Level() Level {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.level
+}
+
 // GetLevel returns the current log level of the [Default] logger.
 func GetLevel() Level {
-	Default.mu.Lock()
-	defer Default.mu.Unlock()
-	return Default.level
+	return Default.Level()
 }
 
 // IsVerbose returns true if verbose/debug mode is enabled on the [Default] logger.
