@@ -62,8 +62,9 @@ func (u *ProgressUpdate) Send() {
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
-	elapsedKey   string // when set, a formatted elapsed-time field is injected each tick
-	level        Level  // log level used during animation rendering (default: InfoLevel)
+	delay        time.Duration // when set, suppresses animation until this duration elapses
+	elapsedKey   string        // when set, a formatted elapsed-time field is injected each tick
+	level        Level         // log level used during animation rendering (default: InfoLevel)
 	logger       *Logger
 	mode         animation
 	msg          string
@@ -135,6 +136,15 @@ func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 		spinner:      DefaultSpinner,
 	}
 	b.initSelf(b)
+	return b
+}
+
+// After sets a delay before the animation becomes visible. If the task
+// completes before the delay elapses, no animation is shown at all.
+// This is useful for operations that are usually fast but occasionally slow —
+// the animation only appears when needed, avoiding visual noise.
+func (b *AnimationBuilder) After(d time.Duration) *AnimationBuilder {
+	b.delay = d
 	return b
 }
 
@@ -403,6 +413,21 @@ func runAnimation(
 	go func() {
 		done <- task(ctx)
 	}()
+
+	// If a delay is configured, wait for it to elapse before showing
+	// any animation. If the task completes first, return immediately.
+	if b.delay > 0 {
+		timer := time.NewTimer(b.delay)
+		select {
+		case err := <-done:
+			timer.Stop()
+			return err
+		case <-ctx.Done():
+			timer.Stop()
+			return ctx.Err()
+		case <-timer.C:
+		}
+	}
 
 	// Snapshot the logger's settings under the mutex to avoid data races.
 	l := b.resolveLogger()

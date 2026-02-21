@@ -440,6 +440,19 @@ The elapsed field respects its position relative to other field methods — it a
 
 The display format uses `SetElapsedPrecision` (default 0 decimal places), rounds to `SetElapsedRound` (default 1s), hides values below `SetElapsedMinimum` (default 1s), and can be fully overridden with `SetElapsedFormatFunc`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
 
+### Delayed Animation
+
+Use `.After(d)` to suppress the animation for an initial duration. If the task finishes before the delay, no animation is shown at all — useful for operations that are usually fast but occasionally slow:
+
+```go
+err := clog.Spinner("Fetching config").
+  After(time.Second).
+  Wait(ctx, fetchConfig).
+  Msg("Config loaded")
+```
+
+If `fetchConfig` completes in under 1 second, the user sees nothing until the final "Config loaded" message. If it takes longer, the spinner appears after 1 second.
+
 ### Pulse Animation
 
 `Pulse` creates an independent animation where all characters in the message fade uniformly between gradient colours.
