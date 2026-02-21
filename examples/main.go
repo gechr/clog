@@ -242,6 +242,12 @@ func main() {
 			Msg("Batch processed")
 	}
 
+	// --- Context propagation ---
+	header("Context Propagation")
+	ctxLogger := clog.With().Str("request_id", "abc-123").Logger()
+	ctx := ctxLogger.WithContext(context.Background())
+	handleRequest(ctx)
+
 	// --- Basic levels ---
 	header("Levels")
 	clog.Trace().Msg("Trace message")
@@ -744,6 +750,11 @@ func spinners(filter string) {
 	for i, e := range all {
 		results[i].Prefix(check).Msg(e.name)
 	}
+}
+
+func handleRequest(ctx context.Context) {
+	clog.Ctx(ctx).Info().Str("step", "validate").Msg("Handling request")
+	clog.Ctx(ctx).Info().Str("step", "process").Msg("Processing request")
 }
 
 func demo() {

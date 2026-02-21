@@ -10,6 +10,7 @@
 package clog
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"maps"
@@ -46,6 +47,9 @@ const Nil = "<nil>"
 
 // Default is the default logger instance.
 var Default = New(Stdout(ColorAuto))
+
+// ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
+type ctxKey struct{}
 
 // Default emoji prefixes for each level.
 var defaultPrefixes = LevelMap{
@@ -578,6 +582,11 @@ func (l *Logger) With() *Context {
 	return c
 }
 
+// WithContext returns a copy of ctx with the logger stored as a value.
+func (l *Logger) WithContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, l)
+}
+
 // Trace returns a new [Event] at trace level, or nil if trace is disabled.
 func (l *Logger) Trace() *Event { return l.newEvent(TraceLevel) }
 
@@ -1015,6 +1024,23 @@ func SetTimeFormat(format string) { Default.SetTimeFormat(format) }
 
 // SetTimeLocation sets the timestamp timezone on the [Default] logger.
 func SetTimeLocation(loc *time.Location) { Default.SetTimeLocation(loc) }
+
+// Ctx retrieves the logger from ctx. Returns [Default] if ctx is nil
+// or contains no logger.
+func Ctx(ctx context.Context) *Logger {
+	if ctx == nil {
+		return Default
+	}
+	if l, ok := ctx.Value(ctxKey{}).(*Logger); ok {
+		return l
+	}
+	return Default
+}
+
+// WithContext stores the [Default] logger in ctx.
+func WithContext(ctx context.Context) context.Context {
+	return Default.WithContext(ctx)
+}
 
 // With returns a [Context] for building a sub-logger from the [Default] logger.
 func With() *Context { return Default.With() }

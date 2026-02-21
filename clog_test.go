@@ -2,6 +2,7 @@ package clog
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"strconv"
 	"strings"
@@ -2115,4 +2116,75 @@ func TestColorModeStringBoundary(t *testing.T) {
 
 	// Out-of-range positive value.
 	assert.Equal(t, "ColorMode(99)", ColorMode(99).String())
+}
+
+func TestWithContextAndCtx(t *testing.T) {
+	t.Run("store_and_retrieve", func(t *testing.T) {
+		l := NewWriter(io.Discard)
+		ctx := l.WithContext(context.Background())
+
+		got := Ctx(ctx)
+		assert.Same(t, l, got)
+	})
+
+	t.Run("nil_ctx_returns_default", func(t *testing.T) {
+		origDefault := Default
+		defer func() { Default = origDefault }()
+
+		Default = NewWriter(io.Discard)
+
+		got := Ctx(nil) //nolint:staticcheck // intentionally testing nil context
+		assert.Same(t, Default, got)
+	})
+
+	t.Run("no_logger_in_ctx_returns_default", func(t *testing.T) {
+		origDefault := Default
+		defer func() { Default = origDefault }()
+
+		Default = NewWriter(io.Discard)
+
+		got := Ctx(context.Background())
+		assert.Same(t, Default, got)
+	})
+
+	t.Run("retrieved_logger_retains_fields", func(t *testing.T) {
+		var got Entry
+
+		l := NewWriter(io.Discard)
+		l.SetHandler(HandlerFunc(func(e Entry) {
+			got = e
+		}))
+
+		sub := l.With().Str("component", "auth").Logger()
+		ctx := sub.WithContext(context.Background())
+
+		Ctx(ctx).Info().Msg("test")
+
+		assert.Equal(t, "test", got.Message)
+		require.Len(t, got.Fields, 1)
+		assert.Equal(t, "component", got.Fields[0].Key)
+		assert.Equal(t, "auth", got.Fields[0].Value)
+	})
+
+	t.Run("overwrite_logger_in_ctx", func(t *testing.T) {
+		l1 := NewWriter(io.Discard)
+		l2 := NewWriter(io.Discard)
+
+		ctx := l1.WithContext(context.Background())
+		assert.Same(t, l1, Ctx(ctx))
+
+		ctx = l2.WithContext(ctx)
+		assert.Same(t, l2, Ctx(ctx))
+	})
+
+	t.Run("package_level_WithContext_stores_default", func(t *testing.T) {
+		origDefault := Default
+		defer func() { Default = origDefault }()
+
+		Default = NewWriter(io.Discard)
+		ctx := WithContext(context.Background())
+
+		got := Ctx(ctx)
+		assert.Same(t, Default, got)
+	})
 }
