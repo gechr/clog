@@ -1,5 +1,7 @@
 package clog
 
+import "sync"
+
 // Context builds a sub-logger with preset fields.
 // Created by [Logger.With]. Finalise with [Context.Logger].
 type Context struct {
@@ -7,6 +9,48 @@ type Context struct {
 
 	logger *Logger
 	prefix *string // nil = inherit from parent logger
+}
+
+// clone returns a shallow copy of the Logger with all fields duplicated.
+// The caller must hold l.mu. The returned Logger has its own mutex;
+// callers that want to share the parent mutex should reassign l.mu after cloning.
+func (l *Logger) clone() *Logger {
+	return &Logger{
+		mu: &sync.Mutex{}, // placeholder; callers typically override
+
+		elapsedFormatFunc:       l.elapsedFormatFunc,
+		elapsedMinimum:          l.elapsedMinimum,
+		elapsedPrecision:        l.elapsedPrecision,
+		elapsedRound:            l.elapsedRound,
+		exitFunc:                l.exitFunc,
+		fieldSort:               l.fieldSort,
+		fieldStyleLevel:         l.fieldStyleLevel,
+		fieldTimeFormat:         l.fieldTimeFormat,
+		fields:                  l.fields,
+		handler:                 l.handler,
+		labelWidth:              l.labelWidth,
+		labels:                  l.labels,
+		level:                   l.level,
+		levelAlign:              l.levelAlign,
+		omitEmpty:               l.omitEmpty,
+		omitZero:                l.omitZero,
+		output:                  l.output,
+		labelsPadded:            l.labelsPadded,
+		parts:                   l.parts,
+		percentFormatFunc:       l.percentFormatFunc,
+		percentPrecision:        l.percentPrecision,
+		prefix:                  l.prefix,
+		prefixes:                l.prefixes,
+		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
+		quoteClose:              l.quoteClose,
+		quoteMode:               l.quoteMode,
+		quoteOpen:               l.quoteOpen,
+		reportTimestamp:         l.reportTimestamp,
+		separatorText:           l.separatorText,
+		styles:                  l.styles,
+		timeFormat:              l.timeFormat,
+		timeLocation:            l.timeLocation,
+	}
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
@@ -22,7 +66,7 @@ func (c *Context) Column(key, path string, line, column int) *Context {
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: c.logger.output.pathLink(path, line, column)},
+		Field{Key: key, Value: c.logger.Output().pathLink(path, line, column)},
 	)
 	return c
 }
@@ -54,7 +98,7 @@ func (c *Context) Line(key, path string, line int) *Context {
 
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: c.logger.output.pathLink(path, line, 0)},
+		Field{Key: key, Value: c.logger.Output().pathLink(path, line, 0)},
 	)
 	return c
 }
@@ -64,7 +108,7 @@ func (c *Context) Line(key, path string, line int) *Context {
 func (c *Context) Link(key, url, text string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: c.logger.output.hyperlink(url, text)},
+		Field{Key: key, Value: c.logger.Output().hyperlink(url, text)},
 	)
 	return c
 }
@@ -74,35 +118,11 @@ func (c *Context) Link(key, url, text string) *Context {
 func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
-	l := &Logger{
-		mu: c.logger.mu,
-
-		exitFunc:        c.logger.exitFunc,
-		fieldStyleLevel: c.logger.fieldStyleLevel,
-		fieldTimeFormat: c.logger.fieldTimeFormat,
-		fields:          c.fields,
-		handler:         c.logger.handler,
-		labelWidth:      c.logger.labelWidth,
-		labels:          c.logger.labels,
-		level:           c.logger.level,
-		levelAlign:      c.logger.levelAlign,
-		omitEmpty:       c.logger.omitEmpty,
-		omitZero:        c.logger.omitZero,
-		output:          c.logger.output,
-		parts:           c.logger.parts,
-		prefix:          c.prefix,
-		prefixes:        c.logger.prefixes,
-		quoteClose:      c.logger.quoteClose,
-		quoteMode:       c.logger.quoteMode,
-		quoteOpen:       c.logger.quoteOpen,
-		reportTimestamp: c.logger.reportTimestamp,
-		styles:          c.logger.styles,
-		timeFormat:      c.logger.timeFormat,
-		timeLocation:    c.logger.timeLocation,
-	}
-	l.atomicLevel.Store(
-		int32(c.logger.level), //nolint:gosec // Level values are small constants (0-6)
-	)
+	l := c.logger.clone()
+	l.mu = c.logger.mu                  // share mutex
+	l.fields = c.fields                 // override with context fields
+	l.prefix = c.prefix                 // override with context prefix
+	l.atomicLevel.Store(int32(l.level)) //nolint:gosec // Level values are small constants (0-6)
 	return l
 }
 
@@ -111,7 +131,7 @@ func (c *Context) Logger() *Logger {
 func (c *Context) Path(key, path string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: c.logger.output.pathLink(path, 0, 0)},
+		Field{Key: key, Value: c.logger.Output().pathLink(path, 0, 0)},
 	)
 	return c
 }
@@ -127,7 +147,7 @@ func (c *Context) Prefix(prefix string) *Context {
 func (c *Context) URL(key, url string) *Context {
 	c.fields = append(
 		c.fields,
-		Field{Key: key, Value: c.logger.output.hyperlink(url, url)},
+		Field{Key: key, Value: c.logger.Output().hyperlink(url, url)},
 	)
 	return c
 }

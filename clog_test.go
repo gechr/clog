@@ -708,7 +708,7 @@ func TestFormatLabelAlignCenter(t *testing.T) {
 
 func TestFormatLabelUnknownAlign(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.levelAlign = LevelAlign(99) // invalid value
+	l.levelAlign = Align(99) // invalid value
 
 	assert.Equal(t, "INF", l.formatLabel(InfoLevel))
 }

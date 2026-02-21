@@ -19,6 +19,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Check for existing tags on this commit
+        run: |
+          COMMIT=$(git rev-list -n1 "$TAG")
+          OTHER_TAGS=$(git tag --points-at "$COMMIT" | grep -v "^${TAG}$" | grep '^v[0-9]' || true)
+          if [ -n "$OTHER_TAGS" ]; then
+            echo "::error::Commit $COMMIT already has version tag(s): $OTHER_TAGS"
+            exit 1
+          fi
+        env:
+          TAG: ${{ github.ref_name }}
+
       - name: Release
         run: |
           PREV_TAG=$(git tag --sort=-version:refname | grep -A1 "^${TAG}$" | tail -1)

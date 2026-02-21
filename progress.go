@@ -14,13 +14,13 @@ import (
 // followed by a carriage return to reset the cursor to column 0.
 const clearLine = "\x1b[2K\r"
 
-// animMode is the animation rendering mode for an [AnimationBuilder].
-type animMode int
+// animation is the animation rendering mode for an [AnimationBuilder].
+type animation int
 
 const (
-	animModeSpinner animMode = iota
-	animModePulse
-	animModeShimmer
+	animationSpinner animation = iota
+	animationPulse
+	animationShimmer
 )
 
 // Task is a function executed by [AnimationBuilder.Wait].
@@ -58,13 +58,14 @@ func (u *ProgressUpdate) Send() {
 }
 
 // AnimationBuilder configures an animation before execution.
-// Create one with [Spinner], [Pulse], or [Shimmer].
+// Create one with [Spinner], [Pulse], or [Shimmer], or their [Logger] method equivalents.
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
 	elapsedKey   string // when set, a formatted elapsed-time field is injected each tick
 	level        Level  // log level used during animation rendering (default: InfoLevel)
-	mode         animMode
+	logger       *Logger
+	mode         animation
 	msg          string
 	prefix       string // icon shown during animation; defaults to "⏳" for pulse/shimmer
 	pulseStops   []ColorStop
@@ -73,17 +74,33 @@ type AnimationBuilder struct {
 	spinner      SpinnerType
 }
 
+// resolveLogger returns the builder's logger, falling back to [Default].
+func (b *AnimationBuilder) resolveLogger() *Logger {
+	if b.logger != nil {
+		return b.logger
+	}
+	return Default
+}
+
+// Pulse creates a new [AnimationBuilder] using the [Default] logger with an
+// animated color pulse on the message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func Pulse(msg string, stops ...ColorStop) *AnimationBuilder { return Default.Pulse(msg, stops...) }
+
 // Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
 // All characters fade uniformly between colors in the gradient.
 // With no arguments, the default pulse gradient is used. Custom gradient
 // stops can be passed to override the default.
-func Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
+func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 	if len(stops) == 0 {
 		stops = DefaultPulseGradient()
 	}
 	b := &AnimationBuilder{
 		level:      InfoLevel,
-		mode:       animModePulse,
+		logger:     l,
+		mode:       animationPulse,
 		msg:        msg,
 		pulseStops: stops,
 		spinner:    DefaultSpinner,
@@ -92,17 +109,27 @@ func Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 	return b
 }
 
-// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the message text.
+// Shimmer creates a new [AnimationBuilder] using the [Default] logger with an
+// animated gradient shimmer on the message text.
 // Each character is coloured independently based on its position in the wave.
 // With no arguments, the default shimmer gradient is used. Custom gradient
 // stops can be passed to override the default.
 func Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
+	return Default.Shimmer(msg, stops...)
+}
+
+// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the message text.
+// Each character is coloured independently based on its position in the wave.
+// With no arguments, the default shimmer gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 	if len(stops) == 0 {
 		stops = DefaultShimmerGradient()
 	}
 	b := &AnimationBuilder{
 		level:        InfoLevel,
-		mode:         animModeShimmer,
+		logger:       l,
+		mode:         animationShimmer,
 		msg:          msg,
 		shimmerStops: stops,
 		spinner:      DefaultSpinner,
@@ -149,17 +176,17 @@ func (b *AnimationBuilder) Elapsed(key string) *AnimationBuilder {
 }
 
 // Path adds a file path field as a clickable terminal hyperlink.
-// Uses the [Default] logger's [Output] setting.
+// Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) Path(key, path string) *AnimationBuilder {
-	output := Default.Output()
+	output := b.resolveLogger().Output()
 	b.fields = append(b.fields, Field{Key: key, Value: output.pathLink(path, 0, 0)})
 	return b
 }
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Uses the [Default] logger's [Output] setting.
+// Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) Line(key, path string, line int) *AnimationBuilder {
-	output := Default.Output()
+	output := b.resolveLogger().Output()
 
 	if line < 1 {
 		line = 1
@@ -170,9 +197,9 @@ func (b *AnimationBuilder) Line(key, path string, line int) *AnimationBuilder {
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
-// Uses the [Default] logger's [Output] setting.
+// Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) Column(key, path string, line, column int) *AnimationBuilder {
-	output := Default.Output()
+	output := b.resolveLogger().Output()
 
 	if line < 1 {
 		line = 1
@@ -190,17 +217,17 @@ func (b *AnimationBuilder) Column(key, path string, line, column int) *Animation
 }
 
 // URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
-// Uses the [Default] logger's [Output] setting.
+// Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) URL(key, url string) *AnimationBuilder {
-	output := Default.Output()
+	output := b.resolveLogger().Output()
 	b.fields = append(b.fields, Field{Key: key, Value: output.hyperlink(url, url)})
 	return b
 }
 
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
-// Uses the [Default] logger's [Output] setting.
+// Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) Link(key, url, text string) *AnimationBuilder {
-	output := Default.Output()
+	output := b.resolveLogger().Output()
 	b.fields = append(b.fields, Field{Key: key, Value: output.hyperlink(url, text)})
 	return b
 }
@@ -244,6 +271,7 @@ func (b *AnimationBuilder) Progress(
 	msg := *msgPtr.Load()
 	w := &WaitResult{
 		err:          err,
+		logger:       b.logger,
 		successLevel: b.level,
 		successMsg:   msg,
 		errorLevel:   ErrorLevel,
@@ -270,6 +298,7 @@ type WaitResult struct {
 	err          error
 	errorLevel   Level
 	errorMsg     *string // nil = use error string
+	logger       *Logger // nil = Default
 	prefix       *string // nil = use default emoji for level
 	successLevel Level
 	successMsg   string
@@ -282,7 +311,11 @@ func (w *WaitResult) Err() error {
 }
 
 func (w *WaitResult) event(level Level) *Event {
-	e := Default.newEvent(level)
+	l := w.logger
+	if l == nil {
+		l = Default
+	}
+	e := l.newEvent(level)
 	if e == nil {
 		return nil
 	}
@@ -370,32 +403,33 @@ func runAnimation(
 		done <- task(ctx)
 	}()
 
-	// Snapshot Default's settings under the mutex to avoid data races.
-	Default.mu.Lock()
-	elapsedFormatFunc := Default.elapsedFormatFunc
-	elapsedMinimum := Default.elapsedMinimum
-	elapsedPrecision := Default.elapsedPrecision
-	elapsedRound := Default.elapsedRound
-	fieldSort := Default.fieldSort
-	fieldStyleLevel := Default.fieldStyleLevel
-	fieldTimeFormat := Default.fieldTimeFormat
-	label := Default.formatLabel(b.level)
-	noColor := Default.output.ColorsDisabled()
-	order := Default.parts
-	out := Default.output.Writer()
-	percentFormatFunc := Default.percentFormatFunc
-	percentPrecision := Default.percentPrecision
-	quantityUnitsIgnoreCase := Default.quantityUnitsIgnoreCase
-	termOut := Default.output.Renderer().Output()
-	quoteClose := Default.quoteClose
-	quoteMode := Default.quoteMode
-	quoteOpen := Default.quoteOpen
-	reportTS := Default.reportTimestamp
-	separatorText := Default.separatorText
-	styles := Default.styles
-	timeFmt := Default.timeFormat
-	timeLoc := Default.timeLocation
-	Default.mu.Unlock()
+	// Snapshot the logger's settings under the mutex to avoid data races.
+	l := b.resolveLogger()
+	l.mu.Lock()
+	elapsedFormatFunc := l.elapsedFormatFunc
+	elapsedMinimum := l.elapsedMinimum
+	elapsedPrecision := l.elapsedPrecision
+	elapsedRound := l.elapsedRound
+	fieldSort := l.fieldSort
+	fieldStyleLevel := l.fieldStyleLevel
+	fieldTimeFormat := l.fieldTimeFormat
+	label := l.formatLabel(b.level)
+	noColor := l.output.ColorsDisabled()
+	order := l.parts
+	out := l.output.Writer()
+	percentFormatFunc := l.percentFormatFunc
+	percentPrecision := l.percentPrecision
+	quantityUnitsIgnoreCase := l.quantityUnitsIgnoreCase
+	termOut := l.output.Renderer().Output()
+	quoteClose := l.quoteClose
+	quoteMode := l.quoteMode
+	quoteOpen := l.quoteOpen
+	reportTS := l.reportTimestamp
+	separatorText := l.separatorText
+	styles := l.styles
+	timeFmt := l.timeFormat
+	timeLoc := l.timeLocation
+	l.mu.Unlock()
 
 	// buildParts assembles the display parts slice from the configured order.
 	buildParts := func(order []Part, reportTS bool, tsStr, levelStr, prefix, msg, fieldsStr string) string {
@@ -455,7 +489,12 @@ func runAnimation(
 			time.Now().In(timeLoc).Format(timeFmt),
 			label, prefix, *msgPtr.Load(), fieldsStr)
 		_, _ = io.WriteString(out, line+"\n")
-		return <-done
+		select {
+		case err := <-done:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
 	}
 
 	// Hide cursor during animation.
@@ -474,11 +513,11 @@ func runAnimation(
 	var hexLUT *shimmerLUT
 	var styleLUT *shimmerStyleLUT
 	switch b.mode {
-	case animModeSpinner:
+	case animationSpinner:
 		tickRate = b.spinner.FPS
-	case animModePulse:
+	case animationPulse:
 		tickRate = pulseTickRate
-	case animModeShimmer:
+	case animationShimmer:
 		tickRate = shimmerTickRate
 		hexLUT = buildShimmerLUT(b.shimmerStops)
 		styleLUT = buildShimmerStyleLUT(hexLUT)
@@ -506,6 +545,14 @@ func runAnimation(
 		timeFormat:              fieldTimeFormat,
 	}
 
+	// Guard against invalid SpinnerType values that would cause panics.
+	if b.mode == animationSpinner && len(b.spinner.Frames) == 0 {
+		b.spinner.Frames = DefaultSpinner.Frames
+	}
+	if tickRate <= 0 {
+		tickRate = DefaultSpinner.FPS
+	}
+
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
@@ -525,7 +572,7 @@ func runAnimation(
 			var char string
 
 			switch b.mode {
-			case animModeSpinner:
+			case animationSpinner:
 				n := len(b.spinner.Frames)
 				i := frame % n
 				if b.spinner.Reverse {
@@ -536,11 +583,11 @@ func runAnimation(
 				if msgStyle := styles.Messages[b.level]; msgStyle != nil {
 					msg = msgStyle.Render(msg)
 				}
-			case animModePulse:
+			case animationPulse:
 				char = prefix
 				t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 				msg = pulseTextCached(msg, t, b.pulseStops, &pCache)
-			case animModeShimmer:
+			case animationShimmer:
 				char = prefix
 				phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
 				msg = shimmerText(msg, phase, b.shimmerDir, hexLUT, styleLUT)

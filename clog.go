@@ -150,17 +150,17 @@ func ParseLevel(s string) (Level, error) {
 // LevelMap maps levels to strings (used for labels, prefixes, etc.).
 type LevelMap map[Level]string
 
-// LevelAlign controls how level labels are aligned when they have different widths.
-type LevelAlign int
+// Align controls how text is aligned within a fixed-width column.
+type Align int
 
 const (
 	// AlignNone disables alignment padding.
-	AlignNone LevelAlign = iota
-	// AlignLeft left-aligns labels (pads with trailing spaces).
+	AlignNone Align = iota
+	// AlignLeft left-aligns text (pads with trailing spaces).
 	AlignLeft
-	// AlignRight right-aligns labels (pads with leading spaces). This is the default.
+	// AlignRight right-aligns text (pads with leading spaces).
 	AlignRight
-	// AlignCenter center-aligns labels (pads with leading and trailing spaces).
+	// AlignCenter center-aligns text (pads with leading and trailing spaces).
 	AlignCenter
 )
 
@@ -227,8 +227,9 @@ type Logger struct {
 	handler                 Handler
 	labelWidth              int
 	labels                  LevelMap
+	labelsPadded            LevelMap
 	level                   Level
-	levelAlign              LevelAlign
+	levelAlign              Align
 	omitEmpty               bool
 	omitZero                bool
 	output                  *Output
@@ -272,6 +273,7 @@ func New(output *Output) *Logger {
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
 	l.labelWidth = computeLabelWidth(l.labels)
+	l.recomputePaddedLabels()
 	return l
 }
 
@@ -367,10 +369,23 @@ func (l *Logger) SetLevel(level Level) {
 }
 
 // SetLevelAlign sets the alignment mode for level labels.
-func (l *Logger) SetLevelAlign(align LevelAlign) {
+func (l *Logger) SetLevelAlign(align Align) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.levelAlign = align
+	l.recomputePaddedLabels()
+}
+
+// SetLabelWidth sets an explicit minimum width for level labels.
+// If width is 0, the width is computed automatically from the current labels.
+func (l *Logger) SetLabelWidth(width int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if width <= 0 {
+		width = computeLabelWidth(l.labels)
+	}
+	l.labelWidth = width
+	l.recomputePaddedLabels()
 }
 
 // SetLevelLabels sets the level labels used in log output.
@@ -383,6 +398,7 @@ func (l *Logger) SetLevelLabels(labels LevelMap) {
 	maps.Copy(merged, labels)
 	l.labels = merged
 	l.labelWidth = computeLabelWidth(merged)
+	l.recomputePaddedLabels()
 }
 
 // SetOmitEmpty enables or disables omitting fields with empty values.
@@ -597,23 +613,42 @@ func (l *Logger) exit(code int) {
 	fn(code)
 }
 
-// formatLabel returns the level label, padded according to the logger's alignment setting.
+// formatLabel returns the pre-computed padded level label.
 func (l *Logger) formatLabel(level Level) string {
-	label := l.labels[level]
-
-	maxW := l.maxLabelWidth()
-
-	switch l.levelAlign {
-	case AlignNone:
-		return label
-	case AlignLeft:
-		return fmt.Sprintf("%-*s", maxW, label)
-	case AlignRight:
-		return fmt.Sprintf("%*s", maxW, label)
-	case AlignCenter:
-		return centerPad(label, maxW)
+	if l.labelsPadded == nil {
+		l.recomputePaddedLabels()
 	}
-	return label
+	return l.labelsPadded[level]
+}
+
+// recomputePaddedLabels rebuilds the labelsPadded cache from the current
+// labels, labelWidth, and levelAlign settings. Must be called with l.mu held.
+func (l *Logger) recomputePaddedLabels() {
+	m := make(LevelMap, len(l.labels))
+	maxW := l.labelWidth
+	for lvl, label := range l.labels {
+		switch l.levelAlign {
+		case AlignLeft:
+			pad := maxW - len(label)
+			if pad > 0 {
+				m[lvl] = label + strings.Repeat(" ", pad)
+			} else {
+				m[lvl] = label
+			}
+		case AlignRight:
+			pad := maxW - len(label)
+			if pad > 0 {
+				m[lvl] = strings.Repeat(" ", pad) + label
+			} else {
+				m[lvl] = label
+			}
+		case AlignCenter:
+			m[lvl] = centerPad(label, maxW)
+		case AlignNone:
+			m[lvl] = label
+		}
+	}
+	l.labelsPadded = m
 }
 
 // log writes a log entry using either the custom handler or the built-in pretty formatter.
@@ -673,7 +708,8 @@ func (l *Logger) log(e *Event, msg string) {
 	// Built-in pretty formatter.
 	noColor := l.colorsDisabled()
 
-	parts := make([]string, 0, len(l.parts))
+	var partsArr [8]string
+	parts := partsArr[:0]
 
 	for _, p := range l.parts {
 		var s string
@@ -749,11 +785,6 @@ func (l *Logger) log(e *Event, msg string) {
 	}
 	lineBuf.WriteByte('\n')
 	_, _ = io.WriteString(l.output.Writer(), lineBuf.String())
-}
-
-// maxLabelWidth returns the cached length of the longest configured label.
-func (l *Logger) maxLabelWidth() int {
-	return l.labelWidth
 }
 
 // computeLabelWidth returns the length of the longest label in the map.
@@ -883,13 +914,19 @@ func IsVerbose() bool {
 
 // Package-level convenience functions that use the [Default] logger.
 
+// SetColorMode sets the colour mode by recreating the logger's [Output]
+// with the given mode.
+func (l *Logger) SetColorMode(mode ColorMode) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	w := l.output.Writer()
+	l.output = NewOutput(w, mode)
+}
+
 // SetColorMode sets the colour mode on the [Default] logger by recreating
 // its [Output] with the given mode.
 func SetColorMode(mode ColorMode) {
-	Default.mu.Lock()
-	defer Default.mu.Unlock()
-	w := Default.output.Writer()
-	Default.output = NewOutput(w, mode)
+	Default.SetColorMode(mode)
 }
 
 // SetElapsedFormatFunc sets the elapsed format function on the [Default] logger.
@@ -923,7 +960,7 @@ func SetHandler(h Handler) { Default.SetHandler(h) }
 func SetLevel(level Level) { Default.SetLevel(level) }
 
 // SetLevelAlign sets the level-label alignment on the [Default] logger.
-func SetLevelAlign(align LevelAlign) { Default.SetLevelAlign(align) }
+func SetLevelAlign(align Align) { Default.SetLevelAlign(align) }
 
 // SetLevelLabels sets the level labels on the [Default] logger.
 func SetLevelLabels(labels LevelMap) { Default.SetLevelLabels(labels) }

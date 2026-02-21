@@ -219,6 +219,12 @@ func (fb *fieldBuilder[T]) Time(key string, val time.Time) *T {
 	return fb.self
 }
 
+// Times adds a [time.Time] slice field.
+func (fb *fieldBuilder[T]) Times(key string, vals []time.Time) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
+	return fb.self
+}
+
 // Uint adds a uint field.
 func (fb *fieldBuilder[T]) Uint(key string, val uint) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})

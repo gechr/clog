@@ -4,6 +4,7 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -170,4 +171,12 @@ func TestFieldBuilderInts64(t *testing.T) {
 func TestFieldBuilderUints(t *testing.T) {
 	b := Spinner("test").Uints("counts", []uint{10, 20, 30})
 	assertSliceField(t, b.fields, []uint{10, 20, 30})
+}
+
+func TestFieldBuilderTimes(t *testing.T) {
+	t1 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	t2 := time.Date(2025, 6, 15, 12, 30, 0, 0, time.UTC)
+	vals := []time.Time{t1, t2}
+	b := Spinner("test").Times("timestamps", vals)
+	assertSliceField(t, b.fields, vals)
 }

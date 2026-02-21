@@ -18,7 +18,7 @@ var noColorEnvSet = func() *atomic.Bool {
 
 // ColorsDisabled returns true if colours are disabled on the [Default] logger.
 func ColorsDisabled() bool {
-	return Default.output.ColorsDisabled()
+	return Default.Output().ColorsDisabled()
 }
 
 // MarshalText implements [encoding.TextMarshaler].

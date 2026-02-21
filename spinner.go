@@ -17,11 +17,16 @@ var DefaultSpinner = SpinnerType{
 	Reverse: true,
 }
 
+// Spinner creates a new [AnimationBuilder] using the [Default] logger with a
+// rotating spinner animation.
+func Spinner(msg string) *AnimationBuilder { return Default.Spinner(msg) }
+
 // Spinner creates a new [AnimationBuilder] with a rotating spinner animation.
-func Spinner(msg string) *AnimationBuilder {
+func (l *Logger) Spinner(msg string) *AnimationBuilder {
 	b := &AnimationBuilder{
 		level:   InfoLevel,
-		mode:    animModeSpinner,
+		logger:  l,
+		mode:    animationSpinner,
 		msg:     msg,
 		spinner: DefaultSpinner,
 	}
