@@ -5,6 +5,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 const (
@@ -16,27 +18,64 @@ const (
 	barWidthDivisor       = 4  // terminal width fraction used for auto-sizing
 )
 
+// BarAlign controls the horizontal placement of the progress bar within the terminal line.
+type BarAlign int
+
+const (
+	// BarAlignRightPad pushes the bar to the right edge of the terminal (default).
+	BarAlignRightPad BarAlign = iota
+	// BarAlignLeftPad places the bar before the message, padding the message to the right edge.
+	BarAlignLeftPad
+	// BarAlignInline places the bar immediately after the message with no gap.
+	BarAlignInline
+	// BarAlignLeft places the bar before the message with no padding.
+	BarAlignLeft
+	// BarAlignRight places the bar after the message with no padding.
+	BarAlignRight
+)
+
+// PercentPosition controls which side of the bar the percentage label appears on.
+type PercentPosition int
+
+const (
+	// PercentRight places the percentage after the bar (default): [━━━╺──] 50%
+	PercentRight PercentPosition = iota
+	// PercentLeft places the percentage before the bar: 50% [━━━╺──]
+	PercentLeft
+)
+
 // BarStyle configures the visual appearance of a determinate progress bar.
 type BarStyle struct {
-	FilledChar   rune   // full filled cell; default '━'
-	EmptyChar    rune   // full empty cell; default '─'
-	HeadChar     rune   // decorative head at leading edge (1x resolution); 0 = disabled; ignored when HalfFilled is set
-	HalfFilled   rune   // half-cell at leading edge of filled (enables 2x resolution); 0 = disabled
-	HalfEmpty    rune   // half-cell at start of empty when HalfFilled is not shown; 0 = disabled
-	FillGradient []rune // sub-cell fill chars, least→most filled; enables Nx resolution (N = len+1); overrides HalfFilled/HeadChar
-	LeftCap      string // left bracket; default "["
-	RightCap     string // right bracket; default "]"
-	Separator    string // separator between message, bar, and percentage; default " "
-	Width        int    // fixed inner width; 0 = auto-size
-	MinWidth     int    // minimum auto-sized width; default 10
-	MaxWidth     int    // maximum auto-sized width; default 40
-	FilledStyle  Style  // lipgloss style for filled cells; nil = plain text
-	EmptyStyle   Style  // lipgloss style for empty cells; nil = plain text
+	Align            BarAlign        // horizontal bar placement; default BarAlignRightPad
+	CapStyle         Style           // lipgloss style for left/right caps; nil = plain text
+	EmptyChar        rune            // full empty cell; default '─'
+	EmptyStyle       Style           // lipgloss style for empty cells; nil = plain text
+	FilledChar       rune            // full filled cell; default '━'
+	FilledStyle      Style           // lipgloss style for filled cells; nil = plain text
+	FillGradient     []rune          // sub-cell fill chars, least→most filled; enables Nx resolution (N = len+1); overrides HalfFilled/HeadChar
+	HalfEmpty        rune            // half-cell at start of empty when HalfFilled is not shown; 0 = disabled
+	HalfFilled       rune            // half-cell at leading edge of filled (enables 2x resolution); 0 = disabled
+	HeadChar         rune            // decorative head at leading edge (1x resolution); 0 = disabled; ignored when HalfFilled is set
+	HidePercent      bool            // when true, the percentage label is not shown
+	LeftCap          string          // left bracket; default "["
+	MaxWidth         int             // maximum auto-sized width; default 40
+	MinWidth         int             // minimum auto-sized width; default 10
+	PadPercent       *bool           // right-align percentage to fixed width to prevent jumping; nil or true = enabled (default)
+	PercentPosition  PercentPosition // which side of the bar the percentage appears on; default PercentRight
+	PercentPrecision int             // decimal places for the percentage label; default 0 (e.g. 0 → "50%", 1 → "50.0%")
+	ProgressGradient []ColorStop     // when set, colors filled cells based on progress; overrides FilledStyle foreground
+	RightCap         string          // right bracket; default "]"
+	Separator        string          // separator between message, bar, and percentage; default " "
+	Width            int             // fixed inner width; 0 = auto-size
 }
 
 // DefaultBarStyle returns the default [BarStyle].
 // It uses box-drawing characters with half-cell resolution for smooth progress.
 func DefaultBarStyle() BarStyle { return BarThin }
+
+// DefaultBarGradient returns the default red → yellow → green gradient
+// used for [BarStyle.ProgressGradient].
+func DefaultBarGradient() []ColorStop { return DefaultPercentGradient() }
 
 // Bar creates a new [AnimationBuilder] using the [Default] logger with a
 // determinate progress bar animation.
@@ -141,13 +180,23 @@ func renderBar(current, total int, style BarStyle, termWidth int) string {
 	filledStr := strings.Repeat(string(filledChar), filledCount)
 	emptyStr := strings.Repeat(string(emptyChar), emptyCount)
 
+	// When ProgressGradient is set, compute a single color from the gradient
+	// at the current progress position and use it for filled cells.
+	filledStyle := style.FilledStyle
+	if len(style.ProgressGradient) > 0 {
+		progress := float64(current) / float64(total)
+		c := interpolateGradient(progress, style.ProgressGradient)
+		s := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+		filledStyle = &s
+	}
+
 	var buf strings.Builder
-	buf.WriteString(style.LeftCap)
-	barWriteStyled(&buf, filledStr, style.FilledStyle)
-	barWriteStyled(&buf, headStr, style.FilledStyle)
+	barWriteStyled(&buf, style.LeftCap, style.CapStyle)
+	barWriteStyled(&buf, filledStr, filledStyle)
+	barWriteStyled(&buf, headStr, filledStyle)
 	barWriteStyled(&buf, trailStr, style.EmptyStyle)
 	barWriteStyled(&buf, emptyStr, style.EmptyStyle)
-	buf.WriteString(style.RightCap)
+	barWriteStyled(&buf, style.RightCap, style.CapStyle)
 	return buf.String()
 }
 
@@ -164,15 +213,24 @@ func barWriteStyled(buf *strings.Builder, s string, style Style) {
 }
 
 // barPercent formats the percentage string for display alongside the bar.
-func barPercent(current, total int) string {
-	if total <= 0 {
-		return "0%"
+// precision controls decimal places (0 → "50%", 1 → "50.0%").
+// When pad is true the result is right-aligned to a fixed width so the string
+// width stays constant and the bar doesn't jump (e.g. "  0%", " 50%", "100%").
+func barPercent(current, total, precision int, pad bool) string {
+	var pct float64
+	if total > 0 {
+		pct = float64(current) / float64(total) * percentMax
+		if pct > percentMax {
+			pct = percentMax
+		}
 	}
-	pct := float64(current) / float64(total) * percentMax
-	if pct > percentMax {
-		pct = percentMax
+	s := fmt.Sprintf("%.*f%%", precision, pct)
+	if pad {
+		// "100%" with the given precision is the widest possible string.
+		w := len(fmt.Sprintf("%.*f%%", precision, percentMax))
+		return fmt.Sprintf("%*s", w, s)
 	}
-	return fmt.Sprintf("%.0f%%", pct)
+	return s
 }
 
 // resolveBarWidth computes the inner cell count for the bar from the style

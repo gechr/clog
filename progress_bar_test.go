@@ -3,10 +3,13 @@ package clog
 import (
 	"context"
 	"io"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,9 +32,9 @@ func TestRenderBarBlock(t *testing.T) {
 	style := BarBlock
 	style.Width = 10
 
-	assert.Equal(t, "[█████░░░░░]", renderBar(5, 10, style, 0))
-	assert.Equal(t, "[░░░░░░░░░░]", renderBar(0, 10, style, 0))
-	assert.Equal(t, "[██████████]", renderBar(10, 10, style, 0))
+	assert.Equal(t, "│█████░░░░░│", renderBar(5, 10, style, 0))
+	assert.Equal(t, "│░░░░░░░░░░│", renderBar(0, 10, style, 0))
+	assert.Equal(t, "│██████████│", renderBar(10, 10, style, 0))
 }
 
 func TestRenderBarSmooth(t *testing.T) {
@@ -39,17 +42,17 @@ func TestRenderBarSmooth(t *testing.T) {
 	style.Width = 10
 
 	// 45%: odd halves → ▌ head, no trail (HalfEmpty is 0)
-	assert.Equal(t, "[████▌     ]", renderBar(9, 20, style, 0))
+	assert.Equal(t, "│████▌     │", renderBar(9, 20, style, 0))
 	// 50%: even halves, no HalfEmpty → no trail
-	assert.Equal(t, "[█████     ]", renderBar(5, 10, style, 0))
+	assert.Equal(t, "│█████     │", renderBar(5, 10, style, 0))
 	// 0%
-	assert.Equal(t, "[          ]", renderBar(0, 10, style, 0))
+	assert.Equal(t, "│          │", renderBar(0, 10, style, 0))
 	// 100%
-	assert.Equal(t, "[██████████]", renderBar(10, 10, style, 0))
+	assert.Equal(t, "│██████████│", renderBar(10, 10, style, 0))
 }
 
-func TestRenderBarASCII(t *testing.T) {
-	style := BarASCII
+func TestRenderBarBasic(t *testing.T) {
+	style := BarBasic
 	style.Width = 10
 
 	// HeadChar '>' at leading edge
@@ -63,15 +66,15 @@ func TestRenderBarGradient(t *testing.T) {
 	style.Width = 10
 
 	// 0%: all empty
-	assert.Equal(t, "[          ]", renderBar(0, 100, style, 0))
+	assert.Equal(t, "│          │", renderBar(0, 100, style, 0))
 	// 100%: all filled
-	assert.Equal(t, "[██████████]", renderBar(100, 100, style, 0))
+	assert.Equal(t, "│██████████│", renderBar(100, 100, style, 0))
 	// 50%: 5 full cells, no remainder
-	assert.Equal(t, "[█████     ]", renderBar(50, 100, style, 0))
+	assert.Equal(t, "│█████     │", renderBar(50, 100, style, 0))
 	// 25%: 2 full cells + remainder 4 of 8 → '▌' (index 3)
-	assert.Equal(t, "[██▌       ]", renderBar(25, 100, style, 0))
+	assert.Equal(t, "│██▌       │", renderBar(25, 100, style, 0))
 	// 1/80 of 10 cells = 1 sub-unit → '▏' (index 0)
-	assert.Equal(t, "[▏         ]", renderBar(1, 80, style, 0))
+	assert.Equal(t, "│▏         │", renderBar(1, 80, style, 0))
 }
 
 func TestRenderBarGradientCustom(t *testing.T) {
@@ -150,13 +153,13 @@ func TestRenderBarHeadChar(t *testing.T) {
 	style.HeadChar = '>'
 
 	// at 50%: 5 filled, head takes one slot → 4 filled + head + 5 empty
-	assert.Equal(t, "[████>░░░░░]", renderBar(5, 10, style, 0))
+	assert.Equal(t, "│████>░░░░░│", renderBar(5, 10, style, 0))
 
 	// at 0%: no head when filled == 0
-	assert.Equal(t, "[░░░░░░░░░░]", renderBar(0, 10, style, 0))
+	assert.Equal(t, "│░░░░░░░░░░│", renderBar(0, 10, style, 0))
 
 	// at 100%: no head when filled == innerWidth
-	assert.Equal(t, "[██████████]", renderBar(10, 10, style, 0))
+	assert.Equal(t, "│██████████│", renderBar(10, 10, style, 0))
 }
 
 func TestRenderBarAutoWidth(t *testing.T) {
@@ -184,11 +187,32 @@ func TestRenderBarNoCaps(t *testing.T) {
 }
 
 func TestBarPercent(t *testing.T) {
-	assert.Equal(t, "0%", barPercent(0, 100))
-	assert.Equal(t, "50%", barPercent(50, 100))
-	assert.Equal(t, "100%", barPercent(100, 100))
-	assert.Equal(t, "0%", barPercent(0, 0)) // total=0 edge case
-	assert.Equal(t, "100%", barPercent(200, 100))
+	assert.Equal(t, "0%", barPercent(0, 100, 0, false))
+	assert.Equal(t, "50%", barPercent(50, 100, 0, false))
+	assert.Equal(t, "100%", barPercent(100, 100, 0, false))
+	assert.Equal(t, "0%", barPercent(0, 0, 0, false)) // total=0 edge case
+	assert.Equal(t, "100%", barPercent(200, 100, 0, false))
+}
+
+func TestBarPercentPadded(t *testing.T) {
+	assert.Equal(t, "  0%", barPercent(0, 100, 0, true))
+	assert.Equal(t, " 50%", barPercent(50, 100, 0, true))
+	assert.Equal(t, "100%", barPercent(100, 100, 0, true))
+	assert.Equal(t, "  0%", barPercent(0, 0, 0, true))
+	assert.Equal(t, "100%", barPercent(200, 100, 0, true))
+}
+
+func TestBarPercentPrecision(t *testing.T) {
+	assert.Equal(t, "0.0%", barPercent(0, 100, 1, false))
+	assert.Equal(t, "50.0%", barPercent(50, 100, 1, false))
+	assert.Equal(t, "100.0%", barPercent(100, 100, 1, false))
+	assert.Equal(t, "33.33%", barPercent(1, 3, 2, false))
+}
+
+func TestBarPercentPrecisionPadded(t *testing.T) {
+	assert.Equal(t, "  0.0%", barPercent(0, 100, 1, true))
+	assert.Equal(t, " 50.0%", barPercent(50, 100, 1, true))
+	assert.Equal(t, "100.0%", barPercent(100, 100, 1, true))
 }
 
 func TestBarBuilderMode(t *testing.T) {
@@ -329,14 +353,182 @@ func TestBarPresets(t *testing.T) {
 	// Verify all presets have sensible defaults.
 	for name, style := range map[string]BarStyle{
 		"BarThin":     BarThin,
+		"BarBasic":    BarBasic,
 		"BarBlock":    BarBlock,
+		"BarDash":     BarDash,
 		"BarGradient": BarGradient,
 		"BarSmooth":   BarSmooth,
-		"BarASCII":    BarASCII,
 	} {
 		assert.NotZero(t, style.FilledChar, "%s: FilledChar", name)
 		assert.NotZero(t, style.MinWidth, "%s: MinWidth", name)
 		assert.NotZero(t, style.MaxWidth, "%s: MaxWidth", name)
 		assert.NotEmpty(t, style.Separator, "%s: Separator", name)
 	}
+}
+
+func TestBarAlignZeroValue(t *testing.T) {
+	// BarAlignRightPad must be the zero value so presets default to right-padded.
+	assert.Equal(t, BarAlignRightPad, BarAlign(0))
+	assert.Equal(t, BarAlignRightPad, BarStyle{}.Align)
+	assert.Equal(t, BarAlignRightPad, DefaultBarStyle().Align)
+}
+
+func TestAlignBarLineInline(t *testing.T) {
+	// BarAlignInline: alignBarLine returns msgParts unchanged (bar already in msg).
+	got := alignBarLine(
+		"INF ⏳ Downloading [====>     ] 50%",
+		"[====>     ] 50%",
+		" ",
+		BarAlignInline,
+		80,
+	)
+	assert.Equal(t, "INF ⏳ Downloading [====>     ] 50%", got)
+}
+
+func TestAlignBarLineRightPad(t *testing.T) {
+	msg := "INF Downloading"  // 15 visible chars
+	bar := "[====      ] 50%" // 16 visible chars
+	tw := 50
+
+	got := alignBarLine(msg, bar, " ", BarAlignRightPad, tw)
+	// gap = 50 - 15 - 16 = 19 spaces
+	expected := msg + strings.Repeat(" ", 19) + bar
+	assert.Equal(t, expected, got)
+	assert.Len(t, got, 50) // total width matches terminal
+}
+
+func TestAlignBarLineLeftPad(t *testing.T) {
+	msg := "INF Downloading"  // 15 visible chars
+	bar := "[====      ] 50%" // 16 visible chars
+	tw := 50
+
+	got := alignBarLine(msg, bar, " ", BarAlignLeftPad, tw)
+	// gap = 50 - 16 - 15 = 19 spaces
+	expected := bar + strings.Repeat(" ", 19) + msg
+	assert.Equal(t, expected, got)
+	assert.Len(t, got, 50)
+}
+
+func TestAlignBarLineRightPadNarrow(t *testing.T) {
+	// When terminal is too narrow, fall back to separator.
+	msg := "INF Downloading"
+	bar := "[====      ] 50%"
+	tw := 20 // narrower than msg+bar
+
+	got := alignBarLine(msg, bar, " ", BarAlignRightPad, tw)
+	assert.Equal(t, msg+" "+bar, got)
+}
+
+func TestAlignBarLineLeftPadNarrow(t *testing.T) {
+	msg := "INF Downloading"
+	bar := "[====      ] 50%"
+	tw := 20
+
+	got := alignBarLine(msg, bar, " ", BarAlignLeftPad, tw)
+	assert.Equal(t, bar+" "+msg, got)
+}
+
+func TestAlignBarLineRight(t *testing.T) {
+	// BarAlignRight: bar after message, no padding.
+	msg := "INF Downloading"
+	bar := "[====      ] 50%"
+
+	got := alignBarLine(msg, bar, " ", BarAlignRight, 80)
+	assert.Equal(t, msg+" "+bar, got)
+}
+
+func TestAlignBarLineLeft(t *testing.T) {
+	// BarAlignLeft: bar before message, no padding.
+	msg := "INF Downloading"
+	bar := "[====      ] 50%"
+
+	got := alignBarLine(msg, bar, " ", BarAlignLeft, 80)
+	assert.Equal(t, bar+" "+msg, got)
+}
+
+func TestAlignBarLineCustomSeparator(t *testing.T) {
+	// Narrow fallback uses the provided separator.
+	msg := "INF Downloading"
+	bar := "[====      ] 50%"
+
+	got := alignBarLine(msg, bar, " | ", BarAlignRightPad, 10)
+	assert.Equal(t, msg+" | "+bar, got)
+}
+
+func TestAlignBarLineExactFit(t *testing.T) {
+	// gap == 0: no padding, fall back to separator.
+	msg := "AB"  // 2 chars
+	bar := "CDE" // 3 chars
+	tw := 5      // exactly msg+bar, gap=0
+
+	got := alignBarLine(msg, bar, " ", BarAlignRightPad, tw)
+	assert.Equal(t, "AB CDE", got) // separator used, total > tw
+}
+
+func TestRenderBarProgressGradient(t *testing.T) {
+	// Force TrueColor so lipgloss emits ANSI escapes in the test runner.
+	r := lipgloss.DefaultRenderer()
+	old := r.ColorProfile()
+	r.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { r.SetColorProfile(old) })
+
+	gradient := DefaultBarGradient()
+	style := BarStyle{
+		FilledChar:       '█',
+		EmptyChar:        ' ',
+		LeftCap:          "[",
+		RightCap:         "]",
+		Width:            10,
+		ProgressGradient: gradient,
+	}
+
+	// 0%: no filled cells, so no ANSI escape sequences
+	result0 := renderBar(0, 100, style, 0)
+	assert.Equal(t, "[          ]", result0)
+
+	// 50%: filled cells present, gradient should produce ANSI colored output
+	result50 := renderBar(50, 100, style, 0)
+	assert.Contains(t, result50, "\x1b[", "50%% bar should contain ANSI escape sequences")
+	assert.Contains(t, result50, "█", "50%% bar should contain filled characters")
+
+	// 100%: all filled, gradient should produce ANSI colored output
+	result100 := renderBar(100, 100, style, 0)
+	assert.Contains(t, result100, "\x1b[", "100%% bar should contain ANSI escape sequences")
+
+	// Verify the colors differ between 10% and 90% progress.
+	// At low progress the gradient is red; at high progress it's green.
+	result10 := renderBar(10, 100, style, 0)
+	result90 := renderBar(90, 100, style, 0)
+	assert.NotEqual(
+		t,
+		result10,
+		result90,
+		"different progress values should produce different colors",
+	)
+}
+
+func TestRenderBarWithoutProgressGradient(t *testing.T) {
+	// Verify that bars without ProgressGradient remain unchanged (no ANSI).
+	style := BarStyle{
+		FilledChar: '█',
+		EmptyChar:  ' ',
+		LeftCap:    "[",
+		RightCap:   "]",
+		Width:      10,
+	}
+
+	result := renderBar(50, 100, style, 0)
+	assert.Equal(t, "[█████     ]", result)
+	assert.NotContains(
+		t,
+		result,
+		"\x1b[",
+		"bar without ProgressGradient should not contain ANSI escapes",
+	)
+}
+
+func TestDefaultBarGradient(t *testing.T) {
+	gradient := DefaultBarGradient()
+	assert.Equal(t, DefaultPercentGradient(), gradient)
+	assert.Len(t, gradient, 3)
 }

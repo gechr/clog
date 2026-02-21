@@ -397,7 +397,7 @@ clog.Spinner("Loading").
   Msg("Done")
 ```
 
-See [`spinner_types.go`](spinner_types.go) for the full list of available spinner types.
+See [`progress_spinner_presets.go`](progress_spinner_presets.go) for the full list of available spinner types.
 
 ### Hyperlink Fields on Animations
 
@@ -545,15 +545,16 @@ p.SetProgress(50).SetTotal(200).Msg("Processing").Send()
 
 #### Bar Styles
 
-Five pre-built styles are available in [`bar_types.go`](bar_types.go). Pass any of them to `.Style()`:
+Five pre-built styles are available in [`progress_bar_presets.go`](progress_bar_presets.go). Pass any of them to `.Style()`:
 
 | Preset        | Characters     | Description                                     |
 | ------------- | -------------- | ----------------------------------------------- |
-| `BarThin`     | `[━━━╺──────]` | Box-drawing with half-cell resolution (default) |
+| `BarBasic`    | `[=====>    ]` | ASCII-only for maximum compatibility            |
+| `BarDash`     | `[-----     ]` | Simple dash fill                                |
 | `BarBlock`    | `[█████░░░░░]` | Solid block characters                          |
 | `BarGradient` | `[██████▍   ]` | Block elements with 8x sub-cell resolution      |
 | `BarSmooth`   | `[████▌     ]` | Block characters with half-block leading edge   |
-| `BarASCII`    | `[=====>    ]` | ASCII-only for maximum compatibility            |
+| `BarThin`     | `[━━━╺──────]` | Box-drawing with half-cell resolution (default) |
 
 ```go
 clog.Bar("Uploading", total).
@@ -571,25 +572,93 @@ Build a fully custom style by passing a `BarStyle` struct:
 ```go
 clog.Bar("Uploading", total).
   Style(clog.BarStyle{
-    FilledChar:  '=',
-    EmptyChar:   '-',
-    HeadChar:    '>',    // decorative head at leading edge (0 = disabled)
-    HalfFilled:  0,      // half-cell leading edge for 2x resolution (0 = disabled)
-    HalfEmpty:   0,      // half-cell trailing edge for 2x resolution (0 = disabled)
-    LeftCap:     "|",
-    RightCap:    "|",
-    Separator:   " ",    // separator between message, bar, and percentage
-    Width:       30,     // fixed inner width (0 = auto-size from terminal)
-    MinWidth:    10,     // auto-size minimum (default 10)
-    MaxWidth:    40,     // auto-size maximum (default 40)
-    FilledStyle: new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),  // green
-    EmptyStyle:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),  // grey
+    Align:           clog.BarAlignInline, // inline with message (default: BarAlignRightPad)
+    CapStyle:        new(lipgloss.NewStyle().Bold(true)),  // style for [ ] caps (default: bold white)
+    EmptyChar:       '-',
+    EmptyStyle:      new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),  // grey
+    FilledChar:      '=',
+    FilledStyle:     new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),  // green
+    HalfEmpty:       0,      // half-cell trailing edge for 2x resolution (0 = disabled)
+    HalfFilled:      0,      // half-cell leading edge for 2x resolution (0 = disabled)
+    HeadChar:        '>',    // decorative head at leading edge (0 = disabled)
+    HidePercent:     true,   // hide the inline percentage label (default: false)
+    LeftCap:         "|",
+    MaxWidth:        40,     // auto-size maximum (default 40)
+    MinWidth:        10,     // auto-size minimum (default 10)
+    PercentPosition:  clog.PercentLeft, // percentage before bar (default: PercentRight)
+    PercentPrecision: 1,               // decimal places for percentage (default: 0 → "50%", 1 → "50.0%")
+    RightCap:         "|",
+    Separator:        " ",    // separator between message, bar, and percentage
+    Width:            30,     // fixed inner width (0 = auto-size from terminal)
   }).
   Progress(ctx, task).
   Msg("Done")
 ```
 
 When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clamped to `[MinWidth, MaxWidth]`.
+
+`PadPercent` controls fixed-width padding on the percentage label (e.g. `" 0%"`, `" 50%"`, `"100%"`) to prevent the bar from jumping as digits change. It defaults to enabled (`nil` = true). To disable:
+
+```go
+style.PadPercent = new(true)
+```
+
+All presets include bold white `CapStyle` for the `[` `]` brackets. Set `CapStyle` to `nil` for unstyled caps.
+
+#### Progress Gradient
+
+Color the bar fill based on progress using `ProgressGradient`. The filled portion shifts through the gradient as progress advances (e.g. red at 0%, yellow at 50%, green at 100%):
+
+```go
+style := clog.BarBlock
+style.ProgressGradient = clog.DefaultBarGradient() // red → yellow → green
+
+clog.Bar("Building", 100).
+  Style(style).
+  Progress(ctx, task).
+  Msg("Built")
+```
+
+Custom gradients work the same as other gradient fields:
+
+```go
+style.ProgressGradient = []clog.ColorStop{
+  {Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 1}},   // blue
+  {Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},     // white
+  {Position: 1, Color: colorful.Color{R: 0.3, G: 1, B: 0.3}},   // green
+}
+```
+
+When set, `ProgressGradient` overrides the `FilledStyle` foreground color. Use `DefaultBarGradient()` to get the default red → yellow → green stops.
+
+#### Bar Alignment
+
+The `Align` field on `BarStyle` controls where the bar appears on the line:
+
+| Constant           | Layout                                                                 |
+| ------------------ | ---------------------------------------------------------------------- |
+| `BarAlignRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
+| `BarAlignLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
+| `BarAlignInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `BarAlignRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `BarAlignLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
+
+The padded variants (`BarAlignRightPad`, `BarAlignLeftPad`) fill the gap between message and bar with spaces to span the terminal width. When the terminal is too narrow, they fall back to the `Separator` between parts.
+
+#### Bar Percentage as a Field
+
+By default the percentage is displayed inline beside the bar. Use `.BarPercent(key)` to move it into the structured fields instead — the inline percentage is automatically hidden:
+
+```go
+clog.Bar("Installing", 100).
+  BarPercent("progress").
+  Elapsed("elapsed").
+  Progress(ctx, task).
+  Msg("Installed")
+// INF ⏳ Installing          [━━━━━╸╺──────] progress=45% elapsed=1.2s
+```
+
+You can also hide the percentage entirely with `HidePercent: true` on the `BarStyle` without adding it as a field.
 
 All animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
 

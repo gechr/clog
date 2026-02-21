@@ -1720,7 +1720,7 @@ func TestClampPercentNaN(t *testing.T) {
 	assert.InDelta(t, 0.0, clampPercent(math.NaN()), 0)
 }
 
-func TestClampPercentPosInf(t *testing.T) {
+func TestClampPercentPositionInf(t *testing.T) {
 	assert.InDelta(t, 100.0, clampPercent(math.Inf(1)), 0)
 }
 

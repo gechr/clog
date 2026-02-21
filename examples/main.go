@@ -47,9 +47,69 @@ func main() {
 
 	if !*quickFlag {
 		// --- Bar ---
-		header("Bar")
+		header("Bar (default thin)")
 		_ = clog.Bar("Downloading", 1000).
-			Style(clog.BarGradient).
+			Str("file", "release.tar.gz").
+			Elapsed("elapsed").
+			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+				for i := range 1001 {
+					p.SetProgress(i).Msg("Downloading").Send()
+					time.Sleep(3 * time.Millisecond)
+				}
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Download complete")
+
+		header("Bar (thin)")
+		thinColored := clog.BarThin
+		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
+		thinColored.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		_ = clog.Bar("Installing", 1000).
+			Style(thinColored).
+			Str("pkg", "clog").
+			BarPercent("progress").
+			Elapsed("elapsed").
+			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+				for i := range 1001 {
+					p.SetProgress(i).Msg("Installing").Send()
+					time.Sleep(3 * time.Millisecond)
+				}
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Installed")
+
+		header("Bar (gradient)")
+		gradientBar := clog.BarSmooth
+		gradientBar.ProgressGradient = clog.DefaultBarGradient()
+		_ = clog.Bar("Building", 1000).
+			Style(gradientBar).
+			Str("target", "release").
+			Elapsed("elapsed").
+			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+				for i := range 1001 {
+					p.SetProgress(i).Msg("Building").Send()
+					time.Sleep(3 * time.Millisecond)
+				}
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Build complete")
+
+		header("Bar (inline)")
+		_ = clog.Bar("Downloading", 1000).
+			Style(clog.BarStyle{
+				FilledChar:   '█',
+				EmptyChar:    ' ',
+				FillGradient: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
+				LeftCap:      "│",
+				RightCap:     "│",
+				Separator:    " ",
+				MinWidth:     10,
+				MaxWidth:     40,
+				Align:        clog.BarAlignInline,
+			}).
 			Str("file", "release.tar.gz").
 			Elapsed("elapsed").
 			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {

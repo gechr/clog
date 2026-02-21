@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 // clearLine is the ANSI escape to erase the entire current line (EL2),
@@ -94,6 +96,7 @@ func (p *ProgressUpdate) Send() {
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
+	barPercentKey  string        // when set, a formatted percent field is injected each tick
 	barProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
 	barStyle       BarStyle      // bar mode: visual style
 	barTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
@@ -158,6 +161,19 @@ func (b *AnimationBuilder) Style(s AnimationStyle) *AnimationBuilder {
 func (b *AnimationBuilder) Elapsed(key string) *AnimationBuilder {
 	b.elapsedKey = key
 	b.fields = append(b.fields, Field{Key: key, Value: elapsed(0)})
+	return b
+}
+
+// BarPercent enables an auto-updating percentage field that is injected on
+// each animation tick for [Bar] animations. The key parameter is the field
+// name (e.g. "progress"). This is useful with [BarStyle.HidePercent] to move
+// the percentage from beside the bar into the structured fields.
+//
+// The field respects the position where BarPercent is called relative to other
+// field methods (e.g. Str, Int) on the builder. No-op for non-bar animations.
+func (b *AnimationBuilder) BarPercent(key string) *AnimationBuilder {
+	b.barPercentKey = key
+	b.fields = append(b.fields, Field{Key: key, Value: percent(0)})
 	return b
 }
 
@@ -267,12 +283,17 @@ func (b *AnimationBuilder) Progress(
 		errorLevel:   ErrorLevel,
 	}
 	w.fields = *fieldsPtr.Load()
-	if b.elapsedKey != "" {
+	if b.elapsedKey != "" || b.barPercentKey != "" {
 		w.fields = slices.Clone(w.fields)
 		for i := range w.fields {
-			if w.fields[i].Key == b.elapsedKey {
+			switch w.fields[i].Key {
+			case b.elapsedKey:
 				w.fields[i].Value = elapsed(time.Since(startTime))
-				break
+			case b.barPercentKey:
+				cur := int(b.barProgressPtr.Load())
+				tot := int(b.barTotalPtr.Load())
+				pct := float64(cur) / float64(max(tot, 1)) * percentMax
+				w.fields[i].Value = percent(min(pct, percentMax))
 			}
 		}
 	}
@@ -569,9 +590,98 @@ func runAnimation(
 	var pCache pulseCache // reused across pulse frames to avoid style re-creation
 	var frameBuf strings.Builder
 
+	// writeFrame renders a single animation frame to the terminal.
+	// char is the prefix character (spinner frame or static prefix), msg is the
+	// styled message (possibly with inline bar), and barPart/barSep/barAlign
+	// control bar positioning for non-inline alignments.
+	writeFrame := func(dur time.Duration, char, msg, barPart, barSep string, barAlign BarAlign) {
+		fp := fields.Load()
+		if b.elapsedKey != "" || b.barPercentKey != "" {
+			clone := slices.Clone(*fp)
+			for i := range clone {
+				switch clone[i].Key {
+				case b.elapsedKey:
+					clone[i].Value = elapsed(dur)
+				case b.barPercentKey:
+					cur := int(b.barProgressPtr.Load())
+					tot := int(b.barTotalPtr.Load())
+					pct := float64(cur) / float64(max(tot, 1)) * percentMax
+					clone[i].Value = percent(min(pct, percentMax))
+				}
+			}
+			cachedFieldsStr = strings.TrimLeft(formatFields(clone, fieldOpts), " ")
+		} else if fp != cachedFieldsPtr {
+			cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
+		}
+		cachedFieldsPtr = fp
+
+		now := time.Now()
+		var tsStr string
+		if reportTS {
+			ts := now.In(timeLoc).Format(timeFmt)
+			if styles.Timestamp != nil {
+				tsStr = styles.Timestamp.Render(ts)
+			} else {
+				tsStr = ts
+			}
+		}
+
+		parts := buildParts(order, reportTS, tsStr, levelPrefix, char, msg, cachedFieldsStr)
+		var line string
+		if barPart != "" {
+			line = alignBarLine(parts, barPart, barSep, barAlign, output.Width())
+		} else {
+			line = parts
+		}
+		frameBuf.Reset()
+		frameBuf.WriteString(clearLine)
+		frameBuf.WriteString(line)
+		_, _ = io.WriteString(out, frameBuf.String())
+	}
+
+	// buildBarFrame prepares the bar-specific variables (msg, barPart, barSep,
+	// barAlign) for a single frame, then calls writeFrame.
+	buildBarFrame := func(dur time.Duration) {
+		msg := *msgPtr.Load()
+		if msgStyle := styles.Messages[b.level]; msgStyle != nil {
+			msg = msgStyle.Render(msg)
+		}
+		current := int(b.barProgressPtr.Load())
+		total := int(b.barTotalPtr.Load())
+		barStr := renderBar(current, total, b.barStyle, output.Width())
+		sep := b.barStyle.Separator
+		if sep == "" {
+			sep = " "
+		}
+		barFull := barStr
+		if !b.barStyle.HidePercent && b.barPercentKey == "" {
+			pct := barPercent(
+				current,
+				total,
+				b.barStyle.PercentPrecision,
+				b.barStyle.PadPercent == nil || *b.barStyle.PadPercent,
+			)
+			if b.barStyle.PercentPosition == PercentLeft {
+				barFull = pct + sep + barStr
+			} else {
+				barFull = barStr + sep + pct
+			}
+		}
+		if b.barStyle.Align == BarAlignInline {
+			writeFrame(dur, prefix, msg+sep+barFull, "", "", b.barStyle.Align)
+		} else {
+			writeFrame(dur, prefix, msg, barFull, sep, b.barStyle.Align)
+		}
+	}
+
 	for {
 		select {
 		case err := <-done:
+			// For bar animations, render one final frame so 100% is visible
+			// before the line is cleared and replaced with the completion message.
+			if b.mode == animationBar && err == nil {
+				buildBarFrame(time.Since(startTime))
+			}
 			_, _ = io.WriteString(out, clearLine)
 			return err
 		case now := <-ticker.C:
@@ -579,6 +689,9 @@ func runAnimation(
 
 			msg := *msgPtr.Load()
 			var char string
+			var barPart string    // bar + sep + pct, kept separate for non-inline alignment
+			var barAlign BarAlign // alignment mode (only set for animationBar)
+			var barSep string     // resolved separator for bar mode
 
 			switch b.mode {
 			case animationSpinner:
@@ -601,56 +714,42 @@ func runAnimation(
 				phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
 				msg = shimmerText(msg, phase, b.shimmerDir, hexLUT, styleLUT)
 			case animationBar:
-				char = prefix
-				if msgStyle := styles.Messages[b.level]; msgStyle != nil {
-					msg = msgStyle.Render(msg)
-				}
-				current := int(b.barProgressPtr.Load())
-				total := int(b.barTotalPtr.Load())
-				barStr := renderBar(current, total, b.barStyle, output.Width())
-				pctStr := barPercent(current, total)
-				sep := b.barStyle.Separator
-				if sep == "" {
-					sep = " "
-				}
-				msg = msg + sep + barStr + sep + pctStr
+				buildBarFrame(dur)
+				continue
 			}
 
-			// Re-format fields when the pointer changes, or every tick if
-			// an elapsed field is present (its value changes each tick).
-			fp := fields.Load()
-			if b.elapsedKey != "" {
-				clone := slices.Clone(*fp)
-				for i := range clone {
-					if clone[i].Key == b.elapsedKey {
-						clone[i].Value = elapsed(dur)
-						break
-					}
-				}
-				cachedFieldsStr = strings.TrimLeft(formatFields(clone, fieldOpts), " ")
-			} else if fp != cachedFieldsPtr {
-				cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
-			}
-			cachedFieldsPtr = fp
-
-			var tsStr string
-			if reportTS {
-				ts := now.In(timeLoc).Format(timeFmt)
-				if styles.Timestamp != nil {
-					tsStr = styles.Timestamp.Render(ts)
-				} else {
-					tsStr = ts
-				}
-			}
-
-			line := buildParts(order, reportTS, tsStr, levelPrefix, char, msg, cachedFieldsStr)
-			frameBuf.Reset()
-			frameBuf.WriteString(clearLine)
-			frameBuf.WriteString(line)
-			_, _ = io.WriteString(out, frameBuf.String())
+			writeFrame(dur, char, msg, barPart, barSep, barAlign)
 		case <-ctx.Done():
 			_, _ = io.WriteString(out, clearLine)
 			return ctx.Err()
 		}
+	}
+}
+
+// alignBarLine positions barPart relative to msgParts according to the
+// alignment mode and terminal width. sep is the fallback separator used
+// when the terminal is too narrow for padding.
+func alignBarLine(msgParts, barPart, sep string, align BarAlign, tw int) string {
+	switch align {
+	case BarAlignRightPad:
+		gap := tw - lipgloss.Width(msgParts) - lipgloss.Width(barPart)
+		if gap > 0 {
+			return msgParts + strings.Repeat(" ", gap) + barPart
+		}
+		return msgParts + sep + barPart
+	case BarAlignLeftPad:
+		gap := tw - lipgloss.Width(barPart) - lipgloss.Width(msgParts)
+		if gap > 0 {
+			return barPart + strings.Repeat(" ", gap) + msgParts
+		}
+		return barPart + sep + msgParts
+	case BarAlignRight:
+		return msgParts + sep + barPart
+	case BarAlignLeft:
+		return barPart + sep + msgParts
+	case BarAlignInline:
+		return msgParts
+	default:
+		return msgParts
 	}
 }
