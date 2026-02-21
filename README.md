@@ -77,6 +77,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | ------------ | --------------------------------------------- | ------------------------------------------------------------------------- |
 | `Any`        | `Any(key string, val any)`                    | Arbitrary value                                                           |
 | `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                                                     |
+| `Base64`     | `Base64(key string, val []byte)`              | Byte slice as base64 string                                               |
 | `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                             |
 | `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                       |
 | `Bytes`      | `Bytes(key string, val []byte)`               | Byte slice as string                                                      |
@@ -87,6 +88,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Err`        | `Err(err error)`                              | Attach error; `Send` uses it as message, `Msg`/`Msgf` add `"error"` field |
 | `Float64`    | `Float64(key string, val float64)`            | Float field                                                               |
 | `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                                                         |
+| `Hex`        | `Hex(key string, val []byte)`                 | Byte slice as hex string                                                  |
 | `Int`        | `Int(key string, val int)`                    | Integer field                                                             |
 | `Int64`      | `Int64(key string, val int64)`                | 64-bit integer field                                                      |
 | `Ints`       | `Ints(key string, vals []int)`                | Integer slice field                                                       |

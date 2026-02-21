@@ -1,6 +1,8 @@
 package clog
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -38,6 +40,12 @@ func (fb *fieldBuilder[T]) Bools(key string, vals []bool) *T {
 	return fb.self
 }
 
+// Base64 adds a []byte field encoded as a base64 string.
+func (fb *fieldBuilder[T]) Base64(key string, val []byte) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: base64.StdEncoding.EncodeToString(val)})
+	return fb.self
+}
+
 // Bytes adds a []byte field. If val is valid JSON it is stored as [RawJSON]
 // with syntax highlighting; otherwise it is stored as a plain string.
 func (fb *fieldBuilder[T]) Bytes(key string, val []byte) *T {
@@ -70,6 +78,12 @@ func (fb *fieldBuilder[T]) Err(err error) *T {
 		return fb.self
 	}
 	fb.fields = append(fb.fields, Field{Key: ErrorKey, Value: err})
+	return fb.self
+}
+
+// Hex adds a []byte field encoded as a hex string.
+func (fb *fieldBuilder[T]) Hex(key string, val []byte) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: hex.EncodeToString(val)})
 	return fb.self
 }
 

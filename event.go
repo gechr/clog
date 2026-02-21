@@ -1,6 +1,8 @@
 package clog
 
 import (
+	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"reflect"
@@ -36,6 +38,16 @@ func (e *Event) Anys(key string, vals []any) *Event {
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Base64 adds a []byte field encoded as a base64 string.
+func (e *Event) Base64(key string, val []byte) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: base64.StdEncoding.EncodeToString(val)})
 	return e
 }
 
@@ -171,6 +183,16 @@ func (e *Event) Floats64(key string, vals []float64) *Event {
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Hex adds a []byte field encoded as a hex string.
+func (e *Event) Hex(key string, val []byte) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: hex.EncodeToString(val)})
 	return e
 }
 

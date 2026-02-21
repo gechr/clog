@@ -11,11 +11,10 @@ Set MarginFill "#674EFF"
 Set BorderRadius 10
 
 Env COLORTERM "truecolor"
-Env DEMO "1"
 Env PS1 "\[\e[38;5;208m\]$\[\e[0m\] "
 
 Hide
-Type "go run ./examples"
+Type "go run ./examples -demo"
 Show
 Sleep 100ms
 Enter

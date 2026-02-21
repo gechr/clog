@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
@@ -14,10 +14,14 @@ import (
 )
 
 func main() {
+	demoFlag := flag.Bool("demo", false, "run the demo")
+	quickFlag := flag.Bool("quick", false, "skip animations")
+	flag.Parse()
+
 	clog.SetLevel(clog.TraceLevel)
 	clog.SetReportTimestamp(true)
 
-	if os.Getenv("DEMO") == "1" {
+	if *demoFlag {
 		demo()
 		return
 	}
@@ -28,134 +32,136 @@ func main() {
 		fmt.Println(style.Render(h))
 	}
 
-	// --- Spinner ---
-	header("Spinner")
-	_ = clog.Spinner("Loading demo").
-		Str("eta", "Soon™").
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(400 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Demo loaded")
+	if !*quickFlag {
+		// --- Spinner ---
+		header("Spinner")
+		_ = clog.Spinner("Loading demo").
+			Str("eta", "Soon™").
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(1 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Demo loaded")
 
-	_ = clog.Spinner("Running migrations").
-		Str("db", "postgres").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
-			hundred := 100
-			for i := range hundred {
-				progress := min(i+1, hundred)
-				update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
-				time.Sleep(30 * time.Millisecond)
-			}
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Migrations applied")
+		_ = clog.Spinner("Running migrations").
+			Str("db", "postgres").
+			Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+				hundred := 100
+				for i := range hundred {
+					progress := min(i+1, hundred)
+					update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
+					time.Sleep(30 * time.Millisecond)
+				}
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Migrations applied")
 
-	_ = clog.Spinner("Connecting to database").
-		Str("host", "db.internal").
-		Int("port", 5432).
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(400 * time.Millisecond)
-			return errors.New("connection refused")
-		}).
-		Msg("Connected")
+		_ = clog.Spinner("Connecting to database").
+			Str("host", "db.internal").
+			Int("port", 5432).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(1 * time.Second)
+				return errors.New("connection refused")
+			}).
+			Msg("Connected")
 
-	_ = clog.Spinner("Deploying").
-		Str("env", "production").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
-			update.Title("Building image").Send()
-			time.Sleep(200 * time.Millisecond)
-			update.Title("Pushing image").Str("tag", "v1.2.3").Send()
-			time.Sleep(200 * time.Millisecond)
-			update.Title("Starting containers").Send()
-			time.Sleep(200 * time.Millisecond)
-			return nil
-		}).
-		Prefix("🚀").
-		Msg("Deployed")
+		_ = clog.Spinner("Deploying").
+			Str("env", "production").
+			Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+				update.Title("Building image").Send()
+				time.Sleep(500 * time.Millisecond)
+				update.Title("Pushing image").Str("tag", "v1.2.3").Send()
+				time.Sleep(500 * time.Millisecond)
+				update.Title("Starting containers").Send()
+				time.Sleep(500 * time.Millisecond)
+				return nil
+			}).
+			Prefix("🚀").
+			Msg("Deployed")
 
-	// --- Pulse ---
-	header("Pulse (default gradient)")
-	_ = clog.Pulse("Warming up inference engine").
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Inference engine ready")
+		// --- Pulse ---
+		header("Pulse (default gradient)")
+		_ = clog.Pulse("Warming up inference engine").
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Inference engine ready")
 
-	header("Pulse (custom gradient)")
-	_ = clog.Pulse("Replicating data across regions",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
-	).
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Data replicated")
+		header("Pulse (custom gradient)")
+		_ = clog.Pulse("Replicating data across regions",
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+		).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Data replicated")
 
-	// --- Shimmer ---
-	header("Shimmer (default gradient)")
-	_ = clog.Shimmer("Indexing documents and rebuilding search catalogue").
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Search catalogue rebuilt")
+		// --- Shimmer ---
+		header("Shimmer (default gradient)")
+		_ = clog.Shimmer("Indexing documents and rebuilding search catalogue").
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Search catalogue rebuilt")
 
-	header("Shimmer (custom gradient)")
-	_ = clog.Shimmer("Deploying service to production cluster and running health checks",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-	).
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("🚀").
-		Msg("Service deployed and health checks passed")
+		header("Shimmer (custom gradient)")
+		_ = clog.Shimmer("Deploying service to production cluster and running health checks",
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+		).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("🚀").
+			Msg("Service deployed and health checks passed")
 
-	header("Shimmer (middle direction, rainbow)")
-	_ = clog.Shimmer("Synchronizing upstream dependencies and rebuilding artifacts",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-		clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-		clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-		clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-	).
-		ShimmerDirection(clog.DirectionMiddleIn).
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Dependencies synced and artifacts rebuilt")
+		header("Shimmer (middle direction, rainbow)")
+		_ = clog.Shimmer("Synchronizing upstream dependencies and rebuilding artifacts",
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		).
+			ShimmerDirection(clog.DirectionMiddleIn).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Dependencies synced and artifacts rebuilt")
 
-	_ = clog.Shimmer("Broadcasting configuration changes to all edge nodes",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-		clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-		clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-		clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-	).
-		ShimmerDirection(clog.DirectionMiddleOut).
-		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
-			return nil
-		}).
-		Prefix("✅").
-		Msg("Configuration broadcast complete")
+		_ = clog.Shimmer("Broadcasting configuration changes to all edge nodes",
+			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		).
+			ShimmerDirection(clog.DirectionMiddleOut).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Configuration broadcast complete")
+	}
 
 	// --- Basic levels ---
 	header("Levels")
@@ -465,6 +471,15 @@ func main() {
 		Msg("French-style guillemets")
 	clog.SetQuoteChars(0, 0) // reset to default
 
+	// --- Bytes ---
+	header("Bytes")
+	clog.Info().
+		Bytes("body", []byte(`{"status":"ok","count":42}`)).
+		Msg("JSON bytes get syntax highlighting")
+	clog.Info().
+		Bytes("raw", []byte("plain text content")).
+		Msg("Non-JSON bytes stored as string")
+
 	// --- JSON Highlighting ---
 	header("RawJSON (default)")
 	clog.Error().
@@ -547,7 +562,7 @@ func demo() {
 		ShimmerDirection(clog.DirectionMiddleIn).
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(1500 * time.Millisecond)
+			time.Sleep(3 * time.Second)
 			return nil
 		}).
 		Prefix("✅").
@@ -556,7 +571,7 @@ func demo() {
 	_ = clog.Spinner("Validating config").
 		Str("file", "app.toml").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			return errors.New("missing required field: port")
 		}).
 		Err()
@@ -565,11 +580,11 @@ func demo() {
 		Str("env", "production").
 		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
 			update.Title("Building image").Send()
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			update.Title("Pushing image").Str("tag", "v1.2.3").Send()
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			update.Title("Starting containers").Send()
-			time.Sleep(400 * time.Millisecond)
+			time.Sleep(1 * time.Second)
 			return nil
 		}).
 		Prefix("🚀").
@@ -593,7 +608,7 @@ func demo() {
 		Type(spinner.Dot).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(800 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 			return nil
 		}).
 		Prefix("📦").
@@ -603,7 +618,7 @@ func demo() {
 		Str("host", "db.internal").
 		Int("port", 5432).
 		Wait(context.Background(), func(_ context.Context) error {
-			time.Sleep(800 * time.Millisecond)
+			time.Sleep(2 * time.Second)
 			return errors.New("connection refused")
 		}).
 		OnErrorLevel(clog.FatalLevel).

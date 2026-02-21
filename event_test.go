@@ -32,6 +32,12 @@ func TestEventStrs(t *testing.T) {
 	assertSliceField(t, e.fields, []string{"a", "b"})
 }
 
+func TestEventBase64(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Base64("data", []byte("hello"))
+	assertSingleField(t, e.fields, "data", "aGVsbG8=")
+}
+
 func TestEventBytes(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Bytes("data", []byte("hello"))
@@ -46,6 +52,12 @@ func TestEventBytesJSON(t *testing.T) {
 	assert.Equal(t, "body", e.fields[0].Key)
 	_, ok := e.fields[0].Value.(rawJSON)
 	assert.True(t, ok, "valid JSON bytes should be stored as rawJSON")
+}
+
+func TestEventHex(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Hex("id", []byte{0xde, 0xad, 0xbe, 0xef})
+	assertSingleField(t, e.fields, "id", "deadbeef")
 }
 
 func TestEventInt(t *testing.T) {
@@ -860,6 +872,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	// All field methods should return nil without panic.
 	assert.Nil(t, e.Any("k", "v"))
 	assert.Nil(t, e.Anys("k", []any{"v"}))
+	assert.Nil(t, e.Base64("k", []byte("v")))
 	assert.Nil(t, e.Bool("k", true))
 	assert.Nil(t, e.Bools("k", []bool{true}))
 	assert.Nil(t, e.Bytes("k", []byte("v")))
@@ -870,6 +883,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Err(errors.New("x")))
 	assert.Nil(t, e.Float64("k", 1.0))
 	assert.Nil(t, e.Floats64("k", []float64{1.0}))
+	assert.Nil(t, e.Hex("k", []byte{0xab}))
 	assert.Nil(t, e.Int("k", 1))
 	assert.Nil(t, e.Int64("k", 1))
 	assert.Nil(t, e.Ints("k", []int{1}))
