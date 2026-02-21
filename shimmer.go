@@ -4,6 +4,7 @@ import (
 	"math"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
@@ -110,7 +111,7 @@ func shimmerText(
 	var buf strings.Builder
 	runIdx := 0
 	runStart := 0
-	runIsSpace := runes[0] == ' '
+	runIsSpace := unicode.IsSpace(runes[0])
 
 	flushRun := func(end int) {
 		run := string(runes[runStart:end])
@@ -133,7 +134,7 @@ func shimmerText(
 
 	for i := 1; i <= n; i++ {
 		atEnd := i == n
-		curIsSpace := !atEnd && runes[i] == ' '
+		curIsSpace := !atEnd && unicode.IsSpace(runes[i])
 
 		if atEnd {
 			flushRun(i)

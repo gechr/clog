@@ -3,6 +3,7 @@ package clog
 import (
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
@@ -79,11 +80,11 @@ func applyPulseStyle(text string, style lipgloss.Style) string {
 	var buf strings.Builder
 	runStart := 0
 	runes := []rune(text)
-	isSpace := runes[0] == ' '
+	isSpace := unicode.IsSpace(runes[0])
 
 	for i := 1; i <= len(runes); i++ {
 		atEnd := i == len(runes)
-		curIsSpace := !atEnd && runes[i] == ' '
+		curIsSpace := !atEnd && unicode.IsSpace(runes[i])
 
 		if atEnd || curIsSpace != isSpace {
 			run := string(runes[runStart:i])
