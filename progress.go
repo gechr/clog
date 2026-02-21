@@ -176,6 +176,41 @@ func (b *AnimationBuilder) BarPercent(key string) *AnimationBuilder {
 	return b
 }
 
+// barPercentValue returns the current progress as a percent value.
+func (b *AnimationBuilder) barPercentValue() percent {
+	cur := int(b.barProgressPtr.Load())
+	tot := int(b.barTotalPtr.Load())
+	pct := float64(cur) / float64(max(tot, 1)) * percentMax
+	return percent(min(pct, percentMax))
+}
+
+// resolveDynamicFields clones fields and injects elapsed/percent values
+// for any dynamic field keys configured on the builder. Returns the
+// original slice unmodified when no dynamic keys are configured.
+func (b *AnimationBuilder) resolveDynamicFields(fields []Field, dur time.Duration) []Field {
+	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
+		!b.barStyle.HidePercent
+	if b.elapsedKey == "" && b.barPercentKey == "" && !stylePercent {
+		return fields
+	}
+	fields = slices.Clone(fields)
+	for i := range fields {
+		switch fields[i].Key {
+		case b.elapsedKey:
+			fields[i].Value = elapsed(dur)
+		case b.barPercentKey:
+			fields[i].Value = b.barPercentValue()
+		}
+	}
+	if stylePercent {
+		fields = append(fields, Field{
+			Key:   b.barStyle.percentFieldKey(),
+			Value: b.barPercentValue(),
+		})
+	}
+	return fields
+}
+
 // Path adds a file path field as a clickable terminal hyperlink.
 // Uses the builder's logger's [Output] setting.
 func (b *AnimationBuilder) Path(key, path string) *AnimationBuilder {
@@ -281,32 +316,7 @@ func (b *AnimationBuilder) Progress(
 		successMsg:   msg,
 		errorLevel:   ErrorLevel,
 	}
-	w.fields = *fieldsPtr.Load()
-	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
-		!b.barStyle.HidePercent
-	if b.elapsedKey != "" || b.barPercentKey != "" || stylePercent {
-		w.fields = slices.Clone(w.fields)
-		for i := range w.fields {
-			switch w.fields[i].Key {
-			case b.elapsedKey:
-				w.fields[i].Value = elapsed(time.Since(startTime))
-			case b.barPercentKey:
-				cur := int(b.barProgressPtr.Load())
-				tot := int(b.barTotalPtr.Load())
-				pct := float64(cur) / float64(max(tot, 1)) * percentMax
-				w.fields[i].Value = percent(min(pct, percentMax))
-			}
-		}
-		if stylePercent {
-			cur := int(b.barProgressPtr.Load())
-			tot := int(b.barTotalPtr.Load())
-			pct := float64(cur) / float64(max(tot, 1)) * percentMax
-			w.fields = append(
-				w.fields,
-				Field{Key: b.barStyle.percentFieldKey(), Value: percent(min(pct, percentMax))},
-			)
-		}
-	}
+	w.fields = b.resolveDynamicFields(*fieldsPtr.Load(), time.Since(startTime))
 	w.initSelf(w)
 	return w
 }
@@ -443,9 +453,9 @@ func runAnimation(
 	slot := &groupSlot{builder: b, msgPtr: msgPtr, fieldsPtr: fields, startTime: startTime}
 	captureSlotConfig(slot)
 
-	// Don't animate if colours are disabled (CI, piped output, etc.).
+	// Don't animate if not a TTY (CI, piped output, etc.).
 	// Print the initial message so the user knows something is in progress.
-	if slot.cfg.noColor {
+	if !slot.cfg.isTTY {
 		fieldsStr := strings.TrimLeft(
 			formatFields(*fields.Load(), slot.fieldOpts), " ",
 		)

@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/muesli/termenv"
 )
 
@@ -19,31 +19,18 @@ import (
 // logger's mutex. It stores exactly the fields needed for per-tick rendering
 // so the animation loop never touches the logger after the initial capture.
 type slotConfig struct {
-	elapsedFormatFunc       func(time.Duration) string
-	elapsedMinimum          time.Duration
-	elapsedPrecision        int
-	elapsedRound            time.Duration
-	fieldSort               Sort
-	fieldStyleLevel         Level
-	fieldTimeFormat         string
-	label                   string    // pre-computed padded label
-	levelPrefix             string    // styled label (via styles.Levels[level])
-	noColor                 bool      // output.ColorsDisabled()
-	order                   []Part    // l.parts
-	out                     io.Writer // output.Writer()
-	output                  *Output   // for Width() in bar mode
-	percentFormatFunc       func(float64) string
-	percentPrecision        int
-	quantityUnitsIgnoreCase bool
-	termOut                 *termenv.Output // output.Renderer().Output()
-	quoteClose              rune
-	quoteMode               QuoteMode
-	quoteOpen               rune
-	reportTS                bool
-	separatorText           string
-	styles                  *Styles
-	timeFmt                 string
-	timeLoc                 *time.Location
+	isTTY       bool      // output.IsTTY()
+	label       string    // pre-computed padded label
+	levelPrefix string    // styled label (via styles.Levels[level])
+	noColor     bool      // output.ColorsDisabled()
+	order       []Part    // l.parts
+	out         io.Writer // output.Writer()
+	output      *Output   // for Width() in bar mode
+	reportTS    bool
+	styles      *Styles
+	termOut     *termenv.Output // output.Renderer().Output()
+	timeFmt     string
+	timeLoc     *time.Location
 }
 
 // groupSlot holds per-animation mutable state for both the single-animation
@@ -66,6 +53,11 @@ type groupSlot struct {
 	cachedFieldsPtr *[]Field         // dedup: last-formatted fields pointer
 	cachedFieldsStr string           // dedup: last-formatted fields string
 	fieldOpts       formatFieldsOpts // pre-built from slotConfig
+
+	// gradient cache (bar mode with ProgressGradient only)
+	gradientProgress float64
+	gradientStyle    lipgloss.Style
+	gradientValid    bool
 }
 
 // captureSlotConfig locks the builder's logger, snapshots all fields into
@@ -76,30 +68,36 @@ func captureSlotConfig(s *groupSlot) {
 	l := b.resolveLogger()
 	l.mu.Lock()
 	s.cfg = slotConfig{
+		isTTY:    l.output.IsTTY(),
+		label:    l.formatLabel(b.level),
+		noColor:  l.output.ColorsDisabled(),
+		order:    l.parts,
+		out:      l.output.Writer(),
+		output:   l.output,
+		reportTS: l.reportTimestamp,
+		styles:   l.styles,
+		termOut:  l.output.Renderer().Output(),
+		timeFmt:  l.timeFormat,
+		timeLoc:  l.timeLocation,
+	}
+	s.fieldOpts = formatFieldsOpts{
 		elapsedFormatFunc:       l.elapsedFormatFunc,
 		elapsedMinimum:          l.elapsedMinimum,
 		elapsedPrecision:        l.elapsedPrecision,
 		elapsedRound:            l.elapsedRound,
 		fieldSort:               l.fieldSort,
 		fieldStyleLevel:         l.fieldStyleLevel,
-		fieldTimeFormat:         l.fieldTimeFormat,
-		label:                   l.formatLabel(b.level),
+		level:                   b.level,
 		noColor:                 l.output.ColorsDisabled(),
-		order:                   l.parts,
-		out:                     l.output.Writer(),
-		output:                  l.output,
 		percentFormatFunc:       l.percentFormatFunc,
 		percentPrecision:        l.percentPrecision,
 		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
-		termOut:                 l.output.Renderer().Output(),
 		quoteClose:              l.quoteClose,
 		quoteMode:               l.quoteMode,
 		quoteOpen:               l.quoteOpen,
-		reportTS:                l.reportTimestamp,
 		separatorText:           l.separatorText,
 		styles:                  l.styles,
-		timeFmt:                 l.timeFormat,
-		timeLoc:                 l.timeLocation,
+		timeFormat:              l.fieldTimeFormat,
 	}
 	l.mu.Unlock()
 
@@ -137,29 +135,6 @@ func captureSlotConfig(s *groupSlot) {
 	if s.tickRate <= 0 {
 		s.tickRate = DefaultSpinnerStyle().FPS
 	}
-
-	// Pre-build the field formatting options.
-	s.fieldOpts = formatFieldsOpts{
-		elapsedFormatFunc:       s.cfg.elapsedFormatFunc,
-		elapsedMinimum:          s.cfg.elapsedMinimum,
-		elapsedPrecision:        s.cfg.elapsedPrecision,
-		elapsedRound:            s.cfg.elapsedRound,
-		fieldSort:               s.cfg.fieldSort,
-		fieldStyleLevel:         s.cfg.fieldStyleLevel,
-		level:                   b.level,
-		percentFormatFunc:       s.cfg.percentFormatFunc,
-		percentPrecision:        s.cfg.percentPrecision,
-		quantityUnitsIgnoreCase: s.cfg.quantityUnitsIgnoreCase,
-		quoteClose:              s.cfg.quoteClose,
-		quoteMode:               s.cfg.quoteMode,
-		quoteOpen:               s.cfg.quoteOpen,
-		separatorText:           s.cfg.separatorText,
-		styles:                  s.cfg.styles,
-		timeFormat:              s.cfg.fieldTimeFormat,
-	}
-	if s.cfg.noColor {
-		s.fieldOpts.noColor = true
-	}
 }
 
 // buildLine assembles a log line from the configured parts order.
@@ -189,36 +164,23 @@ func buildLine(order []Part, reportTS bool, tsStr, levelStr, prefix, msg, fields
 	return strings.Join(parts, " ")
 }
 
+// styledMsg applies the message style for the given level, if any.
+func styledMsg(msg string, level Level, styles *Styles, noColor bool) string {
+	if s := styles.Messages[level]; s != nil && !noColor {
+		return s.Render(msg)
+	}
+	return msg
+}
+
 // renderSlotFields formats the fields for a slot, caching the result when
 // the atomic pointer has not changed.
 func renderSlotFields(s *groupSlot, dur time.Duration) string {
 	b := s.builder
 	fp := s.fieldsPtr.Load()
-	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
-		!b.barStyle.HidePercent
-	if b.elapsedKey != "" || b.barPercentKey != "" || stylePercent {
-		clone := slices.Clone(*fp)
-		for i := range clone {
-			switch clone[i].Key {
-			case b.elapsedKey:
-				clone[i].Value = elapsed(dur)
-			case b.barPercentKey:
-				cur := int(b.barProgressPtr.Load())
-				tot := int(b.barTotalPtr.Load())
-				pct := float64(cur) / float64(max(tot, 1)) * percentMax
-				clone[i].Value = percent(min(pct, percentMax))
-			}
-		}
-		if stylePercent {
-			cur := int(b.barProgressPtr.Load())
-			tot := int(b.barTotalPtr.Load())
-			pct := float64(cur) / float64(max(tot, 1)) * percentMax
-			clone = append(
-				clone,
-				Field{Key: b.barStyle.percentFieldKey(), Value: percent(min(pct, percentMax))},
-			)
-		}
-		s.cachedFieldsStr = strings.TrimLeft(formatFields(clone, s.fieldOpts), " ")
+	if b.elapsedKey != "" || b.barPercentKey != "" ||
+		(b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" && !b.barStyle.HidePercent) {
+		resolved := b.resolveDynamicFields(*fp, dur)
+		s.cachedFieldsStr = strings.TrimLeft(formatFields(resolved, s.fieldOpts), " ")
 	} else if fp != s.cachedFieldsPtr {
 		s.cachedFieldsStr = strings.TrimLeft(formatFields(*fp, s.fieldOpts), " ")
 	}
@@ -250,10 +212,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 	if isDone {
 		// Show the frozen final line with the level's default prefix.
-		msg := *s.msgPtr.Load()
-		if msgStyle := s.cfg.styles.Messages[b.level]; msgStyle != nil && !s.cfg.noColor {
-			msg = msgStyle.Render(msg)
-		}
+		msg := styledMsg(*s.msgPtr.Load(), b.level, s.cfg.styles, s.cfg.noColor)
 		levelPrefix := s.cfg.levelPrefix
 		// Use a checkmark or the builder prefix for completed items.
 		donePrefix := s.prefix
@@ -270,7 +229,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 	// Bar mode has its own rendering path.
 	if b.mode == animationBar {
-		return renderSlotBarLine(s, dur, fieldsStr, tsStr)
+		return renderSlotBarLine(s, fieldsStr, tsStr)
 	}
 
 	msg := *s.msgPtr.Load()
@@ -284,9 +243,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 			i = n - 1 - i
 		}
 		char = b.spinner.Frames[i]
-		if msgStyle := s.cfg.styles.Messages[b.level]; msgStyle != nil && !s.cfg.noColor {
-			msg = msgStyle.Render(msg)
-		}
+		msg = styledMsg(msg, b.level, s.cfg.styles, s.cfg.noColor)
 	case animationPulse:
 		char = s.prefix
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
@@ -302,16 +259,27 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 // renderSlotBarLine renders a bar-animation frame for a slot. Factored out to
 // keep renderSlotLine focused.
-func renderSlotBarLine(s *groupSlot, _ time.Duration, fieldsStr, tsStr string) string {
+func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string) string {
 	b := s.builder
-	msg := *s.msgPtr.Load()
-	if msgStyle := s.cfg.styles.Messages[b.level]; msgStyle != nil && !s.cfg.noColor {
-		msg = msgStyle.Render(msg)
-	}
+	msg := styledMsg(*s.msgPtr.Load(), b.level, s.cfg.styles, s.cfg.noColor)
 
 	current := int(b.barProgressPtr.Load())
 	total := int(b.barTotalPtr.Load())
-	barStr := renderBar(current, total, b.barStyle, s.cfg.output.Width())
+
+	// Cache the gradient style to avoid lipgloss.NewStyle() per frame.
+	barStyle := b.barStyle
+	if len(barStyle.ProgressGradient) > 0 {
+		progress := float64(current) / float64(max(total, 1))
+		if !s.gradientValid || s.gradientProgress != progress {
+			c := interpolateGradient(progress, barStyle.ProgressGradient)
+			s.gradientStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+			s.gradientProgress = progress
+			s.gradientValid = true
+		}
+		barStyle.FilledStyle = &s.gradientStyle
+		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
+	}
+	barStr := renderBar(current, total, barStyle, s.cfg.output.Width())
 	sep := b.barStyle.Separator
 	if sep == "" {
 		sep = " "
@@ -509,6 +477,53 @@ func (r *SlotResult) Prefix(prefix string) *SlotResult {
 	return r
 }
 
+// sendResult logs a success or error event and returns the error.
+func sendResult(
+	l *Logger,
+	fields []Field,
+	prefix *string,
+	successLevel, errorLevel Level,
+	successMsg string,
+	errorMsg *string,
+	err error,
+) error {
+	if l == nil {
+		l = Default
+	}
+
+	var level Level
+	var msg string
+	var errField error
+
+	switch {
+	case err == nil:
+		level = successLevel
+		msg = successMsg
+	case errorMsg != nil:
+		level = errorLevel
+		msg = *errorMsg
+		errField = err
+	default:
+		level = errorLevel
+		msg = err.Error()
+	}
+
+	e := l.newEvent(level)
+	if e == nil {
+		return err
+	}
+	e = e.withFields(fields)
+	if prefix != nil {
+		e = e.withPrefix(*prefix)
+	}
+	if errField != nil {
+		e.Err(errField).Msg(msg)
+	} else {
+		e.Msg(msg)
+	}
+	return err
+}
+
 // Send finalises the result, logging at the configured success or error level.
 func (r *SlotResult) Send() error {
 	s := r.slot
@@ -521,76 +536,21 @@ func (r *SlotResult) Send() error {
 	}
 
 	// Resolve final fields: animation fields + any fields added to the SlotResult.
-	finalFields := *s.fieldsPtr.Load()
-	b := s.builder
-	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
-		!b.barStyle.HidePercent
-	if b.elapsedKey != "" || b.barPercentKey != "" || stylePercent {
-		finalFields = slices.Clone(finalFields)
-		for i := range finalFields {
-			switch finalFields[i].Key {
-			case b.elapsedKey:
-				finalFields[i].Value = elapsed(time.Since(s.startTime))
-			case b.barPercentKey:
-				cur := int(b.barProgressPtr.Load())
-				tot := int(b.barTotalPtr.Load())
-				pct := float64(cur) / float64(max(tot, 1)) * percentMax
-				finalFields[i].Value = percent(min(pct, percentMax))
-			}
-		}
-		if stylePercent {
-			cur := int(b.barProgressPtr.Load())
-			tot := int(b.barTotalPtr.Load())
-			pct := float64(cur) / float64(max(tot, 1)) * percentMax
-			finalFields = append(
-				finalFields,
-				Field{Key: b.barStyle.percentFieldKey(), Value: percent(min(pct, percentMax))},
-			)
-		}
-	}
+	finalFields := s.builder.resolveDynamicFields(*s.fieldsPtr.Load(), time.Since(s.startTime))
 	if len(r.fields) > 0 {
 		finalFields = mergeFields(finalFields, r.fields)
 	}
 
-	l := r.logger
-	if l == nil {
-		l = Default
-	}
-
-	switch {
-	case err == nil:
-		e := l.newEvent(r.successLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(finalFields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Msg(msg)
-	case r.errorMsg != nil:
-		e := l.newEvent(r.errorLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(finalFields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Err(err).Msg(*r.errorMsg)
-	default:
-		e := l.newEvent(r.errorLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(finalFields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Msg(err.Error())
-	}
-
-	return err
+	return sendResult(
+		r.logger,
+		finalFields,
+		r.prefix,
+		r.successLevel,
+		r.errorLevel,
+		msg,
+		r.errorMsg,
+		err,
+	)
 }
 
 // Silent returns just the error without logging anything.
@@ -659,48 +619,16 @@ func (r *GroupResult) Prefix(prefix string) *GroupResult {
 // The error is the [errors.Join] of all slot errors (nil when all succeeded).
 func (r *GroupResult) Send() error {
 	err := r.joinErrors()
-
-	l := r.logger
-	if l == nil {
-		l = Default
-	}
-
-	msg := r.successMsg
-
-	switch {
-	case err == nil:
-		e := l.newEvent(r.successLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(r.fields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Msg(msg)
-	case r.errorMsg != nil:
-		e := l.newEvent(r.errorLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(r.fields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Err(err).Msg(*r.errorMsg)
-	default:
-		e := l.newEvent(r.errorLevel)
-		if e == nil {
-			break
-		}
-		e = e.withFields(r.fields)
-		if r.prefix != nil {
-			e = e.withPrefix(*r.prefix)
-		}
-		e.Msg(err.Error())
-	}
-
-	return err
+	return sendResult(
+		r.logger,
+		r.fields,
+		r.prefix,
+		r.successLevel,
+		r.errorLevel,
+		r.successMsg,
+		r.errorMsg,
+		err,
+	)
 }
 
 // Silent returns the joined error without logging anything.
@@ -741,7 +669,7 @@ func (g *Group) Wait() *GroupResult {
 	}
 
 	// Non-TTY: print each slot's initial line, then block on all results.
-	if slots[0].cfg.noColor {
+	if !slots[0].cfg.isTTY {
 		for _, s := range slots {
 			fieldsStr := strings.TrimLeft(
 				formatFields(*s.fieldsPtr.Load(), s.fieldOpts), " ",
@@ -752,7 +680,20 @@ func (g *Group) Wait() *GroupResult {
 			_, _ = io.WriteString(s.cfg.out, line+"\n")
 		}
 		for _, s := range slots {
-			s.err = <-s.doneErr
+			select {
+			case s.err = <-s.doneErr:
+			case <-g.ctx.Done():
+				for _, s2 := range slots {
+					if s2.err == nil {
+						select {
+						case s2.err = <-s2.doneErr:
+						default:
+							s2.err = g.ctx.Err()
+						}
+					}
+				}
+				return result
+			}
 		}
 		return result
 	}
@@ -774,6 +715,7 @@ func (g *Group) Wait() *GroupResult {
 	numLines := 0
 	done := make([]bool, len(slots))
 	remaining := len(slots)
+	var frameBuf strings.Builder
 
 	for remaining > 0 {
 		select {
@@ -800,15 +742,16 @@ func (g *Group) Wait() *GroupResult {
 				default:
 				}
 			}
-			// Move cursor up to overwrite the previous block.
+			// Batch all writes into a single string.
+			frameBuf.Reset()
 			if numLines > 0 {
-				fmt.Fprintf(out, "\x1b[%dA", numLines)
+				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines)
 			}
-			// Render each slot's line.
 			for i, s := range slots {
 				line := renderSlotLine(s, done[i], now)
-				fmt.Fprintf(out, "\x1b[2K\r%s\n", line)
+				fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
 			}
+			_, _ = io.WriteString(out, frameBuf.String())
 			numLines = len(slots)
 			// If all done, break out after one final render.
 			if remaining == 0 {
@@ -826,9 +769,11 @@ func clearBlock(out io.Writer, n int) {
 	if n == 0 {
 		return
 	}
-	fmt.Fprintf(out, "\x1b[%dA", n)
+	var buf strings.Builder
+	fmt.Fprintf(&buf, "\x1b[%dA", n)
 	for range n {
-		fmt.Fprint(out, "\x1b[2K\r\n")
+		buf.WriteString("\x1b[2K\r\n")
 	}
-	fmt.Fprintf(out, "\x1b[%dA", n)
+	fmt.Fprintf(&buf, "\x1b[%dA", n)
+	_, _ = io.WriteString(out, buf.String())
 }

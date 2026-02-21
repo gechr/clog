@@ -426,7 +426,6 @@ func TestClearBlock(t *testing.T) {
 	buf.Reset()
 	clearBlock(&buf, 2)
 	out := buf.String()
-	// Should move up, clear lines, then move up again.
-	assert.Contains(t, out, "\x1b[2A")
-	assert.Contains(t, out, "\x1b[2K\r\n")
+	// Single write: move up, clear lines, then move up again.
+	assert.Equal(t, "\x1b[2A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }

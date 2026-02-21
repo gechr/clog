@@ -135,9 +135,40 @@ clog.Error().Err(err).Send()              // Log with error as message (no error
 clog.Error().Err(err).Msg("failed")       // Log with message + error= field
 ```
 
-## Omitting Empty / Zero Fields
+## Sub-loggers
 
-Suppress fields with empty or zero values to reduce noise in log output.
+Create sub-loggers with preset fields using the `With()` context builder:
+
+```go
+logger := clog.With().Str("component", "auth").Logger()
+logger.Info().Str("user", "john").Msg("Authenticated")
+// INF ℹ️ Authenticated component=auth user=john
+```
+
+Context fields support the same typed methods as events.
+
+## Context Propagation
+
+Store a logger in a `context.Context` and retrieve it deeper in the call stack:
+
+```go
+logger := clog.With().Str("request_id", "abc-123").Logger()
+ctx := logger.WithContext(ctx)
+
+// later, in any function that receives ctx:
+clog.Ctx(ctx).Info().Msg("Handling request")
+// INF ℹ️ Handling request request_id=abc-123
+```
+
+`Ctx` returns `clog.Default` when the context is `nil` or contains no logger, so it is always safe to call.
+
+A package-level `WithContext` convenience stores `clog.Default`:
+
+```go
+ctx := clog.WithContext(ctx) // stores clog.Default
+```
+
+## Omitting Empty / Zero Fields
 
 **OmitEmpty** omits fields that are semantically "nothing": `nil`, empty strings `""`, and nil or empty slices and maps.
 
@@ -223,18 +254,6 @@ clog.Info().Str("msg", "hello world").Msg("test")
 
 Quoting applies to individual field values and to elements within string and `[]any` slices. All quoting settings are inherited by sub-loggers. Pass `0` to reset to the default (`strconv.Quote`).
 
-## Sub-loggers
-
-Create sub-loggers with preset fields using the `With()` context builder:
-
-```go
-logger := clog.With().Str("component", "auth").Logger()
-logger.Info().Str("user", "john").Msg("Authenticated")
-// INF ℹ️ Authenticated component=auth user=john
-```
-
-Context fields support the same typed methods as events.
-
 ## Dict (Nested Fields)
 
 Group related fields under a common key prefix using dot notation:
@@ -294,12 +313,9 @@ clog.SetLevelLabels(clog.LevelMap{
 
 Missing levels fall back to the defaults. Use `DefaultLabels()` to get a copy of the default label map.
 
-## Level Alignment
-
-Control how level labels are aligned when they have different widths:
+When custom labels have different widths, control alignment with `SetLevelAlign`:
 
 ```go
-// Alignment is visible when labels have different widths (e.g. via SetLevelLabels)
 clog.SetLevelAlign(clog.AlignRight)   // default: "   INFO", "WARNING", "  ERROR"
 clog.SetLevelAlign(clog.AlignLeft)    //          "INFO   ", "WARNING", "ERROR  "
 clog.SetLevelAlign(clog.AlignCenter)  //          " INFO  ", "WARNING", " ERROR "
@@ -386,8 +402,6 @@ err := clog.Spinner("Connecting to database").
 
 When `OnErrorMessage` is set, the custom message becomes the log message and the original error is included as an `error=` field. Without it, the error string is used directly as the message with no extra field.
 
-All animations gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
-
 ### Custom Spinner Style
 
 ```go
@@ -413,14 +427,6 @@ clog.Spinner("Building").
   Wait(ctx, action).
   Msg("Built")
 ```
-
-| Method   | Signature                                    | Description                           |
-| -------- | -------------------------------------------- | ------------------------------------- |
-| `Path`   | `Path(key, path string)`                     | Clickable file/directory hyperlink    |
-| `Line`   | `Line(key, path string, line int)`           | Clickable file:line hyperlink         |
-| `Column` | `Column(key, path string, line, column int)` | Clickable file:line:column hyperlink  |
-| `URL`    | `URL(key, url string)`                       | Clickable URL hyperlink (URL as text) |
-| `Link`   | `Link(key, url, text string)`                | Clickable URL hyperlink               |
 
 ### Elapsed Timer
 
@@ -800,14 +806,8 @@ export CLOG_HYPERLINK_COLUMN_FORMAT="vscode://{path}:{line}:{column}"
 
 ### Named Presets
 
-Use `SetHyperlinkPreset` or `CLOG_HYPERLINK_FORMAT` to configure all hyperlink format slots at once:
-
 ```go
-clog.SetHyperlinkPreset("vscode")
-```
-
-```sh
-export CLOG_HYPERLINK_FORMAT=vscode
+clog.SetHyperlinkPreset("vscode") // or CLOG_HYPERLINK_FORMAT=vscode
 ```
 
 | Preset            | Scheme                 |
@@ -850,6 +850,52 @@ Example output:
 ```
 
 `Level` serializes as a human-readable string (e.g. `"info"`, `"error"`). `Time` is omitted when timestamps are disabled. `Fields` and `Prefix` are omitted when empty.
+
+## `log/slog` Integration
+
+Use `NewSlogHandler` to create a [`slog.Handler`](https://pkg.go.dev/log/slog#Handler) backed by a clog logger. This lets any code that accepts `slog.Handler` or `*slog.Logger` produce clog-formatted output.
+
+```go
+h := clog.NewSlogHandler(clog.Default, nil)
+logger := slog.New(h)
+
+logger.Info("request handled", "method", "GET", "status", 200)
+// INF ℹ️ request handled method=GET status=200
+```
+
+### Options
+
+```go
+h := clog.NewSlogHandler(clog.Default, &clog.SlogOptions{
+  AddSource: true,           // include source file:line in each entry
+  Level:     slog.LevelWarn, // override minimum level (nil = use logger's level)
+})
+```
+
+### Level Mapping
+
+| slog level         | clog level   |
+| ------------------ | ------------ |
+| < `LevelDebug`     | `TraceLevel` |
+| `LevelDebug`       | `DebugLevel` |
+| `LevelInfo`        | `InfoLevel`  |
+| `LevelWarn`        | `WarnLevel`  |
+| `LevelError`       | `ErrorLevel` |
+| > `LevelError`     | `FatalLevel` |
+
+Records mapped to `FatalLevel` are logged but do **not** call `os.Exit` — only clog's own `Fatal().Msg()` does that.
+
+### Groups and Attrs
+
+`WithGroup` and `WithAttrs` work as expected. Groups use dot-notation keys matching clog's `Dict()` pattern:
+
+```go
+h := clog.NewSlogHandler(clog.Default, nil)
+logger := slog.New(h).WithGroup("req")
+
+logger.Info("handled", "method", "GET", "status", 200)
+// INF ℹ️ handled req.method=GET req.status=200
+```
 
 ## Configuration
 
@@ -938,8 +984,6 @@ All env vars follow the pattern `{PREFIX}_{SUFFIX}`. The default prefix is `CLOG
 | `HYPERLINK_DIR_FORMAT`    | `CLOG_HYPERLINK_DIR_FORMAT`    |
 | `HYPERLINK_LINE_FORMAT`   | `CLOG_HYPERLINK_LINE_FORMAT`   |
 | `HYPERLINK_COLUMN_FORMAT` | `CLOG_HYPERLINK_COLUMN_FORMAT` |
-
-`CLOG_LOG_LEVEL` is checked automatically at init.
 
 ```sh
 CLOG_LOG_LEVEL=debug ./some-app  # enables debug logging + timestamps
