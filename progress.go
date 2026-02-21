@@ -118,62 +118,6 @@ func (b *AnimationBuilder) resolveLogger() *Logger {
 	return Default
 }
 
-// Pulse creates a new [AnimationBuilder] using the [Default] logger with an
-// animated color pulse on the message text.
-// All characters fade uniformly between colors in the gradient.
-// With no arguments, the default pulse gradient is used. Custom gradient
-// stops can be passed to override the default.
-func Pulse(msg string, stops ...ColorStop) *AnimationBuilder { return Default.Pulse(msg, stops...) }
-
-// Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
-// All characters fade uniformly between colors in the gradient.
-// With no arguments, the default pulse gradient is used. Custom gradient
-// stops can be passed to override the default.
-func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
-	if len(stops) == 0 {
-		stops = DefaultPulseGradient()
-	}
-	b := &AnimationBuilder{
-		level:      InfoLevel,
-		logger:     l,
-		mode:       animationPulse,
-		msg:        msg,
-		pulseStops: stops,
-		spinner:    DefaultSpinnerStyle(),
-	}
-	b.initSelf(b)
-	return b
-}
-
-// Shimmer creates a new [AnimationBuilder] using the [Default] logger with an
-// animated gradient shimmer on the message text.
-// Each character is coloured independently based on its position in the wave.
-// With no arguments, the default shimmer gradient is used. Custom gradient
-// stops can be passed to override the default.
-func Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
-	return Default.Shimmer(msg, stops...)
-}
-
-// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the message text.
-// Each character is coloured independently based on its position in the wave.
-// With no arguments, the default shimmer gradient is used. Custom gradient
-// stops can be passed to override the default.
-func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
-	if len(stops) == 0 {
-		stops = DefaultShimmerGradient()
-	}
-	b := &AnimationBuilder{
-		level:        InfoLevel,
-		logger:       l,
-		mode:         animationShimmer,
-		msg:          msg,
-		shimmerStops: stops,
-		spinner:      DefaultSpinnerStyle(),
-	}
-	b.initSelf(b)
-	return b
-}
-
 // After sets a delay before the animation becomes visible. If the task
 // completes before the delay elapses, no animation is shown at all.
 // This is useful for operations that are usually fast but occasionally slow —
@@ -201,15 +145,6 @@ type AnimationStyle interface {
 // Pass a [SpinnerStyle] for spinner animations or a [BarStyle] for bar animations.
 func (b *AnimationBuilder) Style(s AnimationStyle) *AnimationBuilder {
 	s.applyAnimation(b)
-	return b
-}
-
-// ShimmerDirection sets the direction the shimmer wave travels.
-// Defaults to [DirectionRight]. Use [DirectionLeft] to reverse
-// or [DirectionMiddleIn] for a wave entering from both edges.
-// Only meaningful when the builder was created with [Shimmer].
-func (b *AnimationBuilder) ShimmerDirection(d Direction) *AnimationBuilder {
-	b.shimmerDir = d
 	return b
 }
 

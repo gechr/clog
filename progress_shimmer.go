@@ -185,3 +185,41 @@ func shimmerCharIdx(i, n int, phase float64, dir Direction) int {
 	}
 	return idx
 }
+
+// Shimmer creates a new [AnimationBuilder] using the [Default] logger with an
+// animated gradient shimmer on the message text.
+// Each character is coloured independently based on its position in the wave.
+// With no arguments, the default shimmer gradient is used. Custom gradient
+// stops can be passed to override the default.
+func Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
+	return Default.Shimmer(msg, stops...)
+}
+
+// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the message text.
+// Each character is coloured independently based on its position in the wave.
+// With no arguments, the default shimmer gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
+	if len(stops) == 0 {
+		stops = DefaultShimmerGradient()
+	}
+	b := &AnimationBuilder{
+		level:        InfoLevel,
+		logger:       l,
+		mode:         animationShimmer,
+		msg:          msg,
+		shimmerStops: stops,
+		spinner:      DefaultSpinnerStyle(),
+	}
+	b.initSelf(b)
+	return b
+}
+
+// ShimmerDirection sets the direction the shimmer wave travels.
+// Defaults to [DirectionRight]. Use [DirectionLeft] to reverse
+// or [DirectionMiddleIn] for a wave entering from both edges.
+// Only meaningful when the builder was created with [Shimmer].
+func (b *AnimationBuilder) ShimmerDirection(d Direction) *AnimationBuilder {
+	b.shimmerDir = d
+	return b
+}

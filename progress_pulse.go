@@ -109,3 +109,30 @@ func applyPulseStyle(text string, style lipgloss.Style) string {
 
 	return buf.String()
 }
+
+// Pulse creates a new [AnimationBuilder] using the [Default] logger with an
+// animated color pulse on the message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func Pulse(msg string, stops ...ColorStop) *AnimationBuilder { return Default.Pulse(msg, stops...) }
+
+// Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
+	if len(stops) == 0 {
+		stops = DefaultPulseGradient()
+	}
+	b := &AnimationBuilder{
+		level:      InfoLevel,
+		logger:     l,
+		mode:       animationPulse,
+		msg:        msg,
+		pulseStops: stops,
+		spinner:    DefaultSpinnerStyle(),
+	}
+	b.initSelf(b)
+	return b
+}
