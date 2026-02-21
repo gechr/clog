@@ -5,8 +5,8 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"strings"
 	"time"
-
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog"
@@ -16,10 +16,23 @@ import (
 func main() {
 	demoFlag := flag.Bool("demo", false, "run the demo")
 	quickFlag := flag.Bool("quick", false, "skip animations")
+	spinnersFlag := flag.String("spinners", "", "demo spinners (comma-separated names, empty for all)")
 	flag.Parse()
+
+	spinnersSet := false
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "spinners" {
+			spinnersSet = true
+		}
+	})
 
 	clog.SetLevel(clog.TraceLevel)
 	clog.SetReportTimestamp(true)
+
+	if spinnersSet {
+		spinners(*spinnersFlag)
+		return
+	}
 
 	if *demoFlag {
 		demo()
@@ -50,7 +63,7 @@ func main() {
 				hundred := 100
 				for i := range hundred {
 					progress := min(i+1, hundred)
-					update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
+					update.Msg("Applying migrations").Percent("progress", float64(progress)).Send()
 					time.Sleep(30 * time.Millisecond)
 				}
 				return nil
@@ -70,11 +83,11 @@ func main() {
 		_ = clog.Spinner("Deploying").
 			Str("env", "production").
 			Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
-				update.Title("Building image").Send()
+				update.Msg("Building image").Send()
 				time.Sleep(500 * time.Millisecond)
-				update.Title("Pushing image").Str("tag", "v1.2.3").Send()
+				update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
 				time.Sleep(500 * time.Millisecond)
-				update.Title("Starting containers").Send()
+				update.Msg("Starting containers").Send()
 				time.Sleep(500 * time.Millisecond)
 				return nil
 			}).
@@ -496,7 +509,7 @@ func main() {
 
 	header("RawJSON (custom styles)")
 	customStyles := clog.DefaultJSONStyles()
-	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))             // green keys
+	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))              // green keys
 	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true)) // red dim null
 	customStyleSet := clog.DefaultStyles()
 	customStyleSet.FieldJSON = customStyles
@@ -549,6 +562,145 @@ func main() {
 	logger.Error().Err(errors.New("boom")).Msg("error via handler")
 }
 
+func spinners(filter string) {
+	type entry struct {
+		name    string
+		spinner clog.SpinnerType
+	}
+
+	all := []entry{
+		{"Aesthetic", clog.SpinnerAesthetic},
+		{"Arc", clog.SpinnerArc},
+		{"Arrow2", clog.SpinnerArrow2},
+		{"Arrow3", clog.SpinnerArrow3},
+		{"Balloon", clog.SpinnerBalloon},
+		{"Balloon2", clog.SpinnerBalloon2},
+		{"BetaWave", clog.SpinnerBetaWave},
+		{"Binary", clog.SpinnerBinary},
+		{"BluePulse", clog.SpinnerBluePulse},
+		{"BouncingBall", clog.SpinnerBouncingBall},
+		{"BoxBounce", clog.SpinnerBoxBounce},
+		{"BoxBounce2", clog.SpinnerBoxBounce2},
+		{"Christmas", clog.SpinnerChristmas},
+		{"Circle", clog.SpinnerCircle},
+		{"CircleHalves", clog.SpinnerCircleHalves},
+		{"CircleQuarters", clog.SpinnerCircleQuarters},
+		{"Dot", clog.SpinnerDot},
+		{"Dots", clog.SpinnerDots},
+		{"Dots3", clog.SpinnerDots3},
+		{"Dots4", clog.SpinnerDots4},
+		{"Dots5", clog.SpinnerDots5},
+		{"Dots6", clog.SpinnerDots6},
+		{"Dots7", clog.SpinnerDots7},
+		{"Dots8", clog.SpinnerDots8},
+		{"Dots8Bit", clog.SpinnerDots8Bit},
+		{"Dots9", clog.SpinnerDots9},
+		{"Dots11", clog.SpinnerDots11},
+		{"Dots12", clog.SpinnerDots12},
+		{"Dots13", clog.SpinnerDots13},
+		{"Dots14", clog.SpinnerDots14},
+		{"DotsCircle", clog.SpinnerDotsCircle},
+		{"Dqpb", clog.SpinnerDqpb},
+		{"DwarfFortress", clog.SpinnerDwarfFortress},
+		{"Ellipsis", clog.SpinnerEllipsis},
+		{"FingerDance", clog.SpinnerFingerDance},
+		{"Fish", clog.SpinnerFish},
+		{"FistBump", clog.SpinnerFistBump},
+		{"Flip", clog.SpinnerFlip},
+		{"Globe", clog.SpinnerGlobe},
+		{"Grenade", clog.SpinnerGrenade},
+		{"GrowHorizontal", clog.SpinnerGrowHorizontal},
+		{"GrowVertical", clog.SpinnerGrowVertical},
+		{"Hamburger", clog.SpinnerHamburger},
+		{"Jump", clog.SpinnerJump},
+		{"Layer", clog.SpinnerLayer},
+		{"Line", clog.SpinnerLine},
+		{"Line2", clog.SpinnerLine2},
+		{"Material", clog.SpinnerMaterial},
+		{"Meter", clog.SpinnerMeter},
+		{"Mindblown", clog.SpinnerMindblown},
+		{"MiniDot", clog.SpinnerMiniDot},
+		{"Monkey", clog.SpinnerMonkey},
+		{"Moon", clog.SpinnerMoon},
+		{"Noise", clog.SpinnerNoise},
+		{"OrangeBluePulse", clog.SpinnerOrangeBluePulse},
+		{"OrangePulse", clog.SpinnerOrangePulse},
+		{"Pipe", clog.SpinnerPipe},
+		{"Point", clog.SpinnerPoint},
+		{"Points", clog.SpinnerPoints},
+		{"Pong", clog.SpinnerPong},
+		{"Pulse", clog.SpinnerPulse},
+		{"RollingLine", clog.SpinnerRollingLine},
+		{"Runner", clog.SpinnerRunner},
+		{"Sand", clog.SpinnerSand},
+		{"Shark", clog.SpinnerShark},
+		{"SimpleDots", clog.SpinnerSimpleDots},
+		{"SimpleDotsScrolling", clog.SpinnerSimpleDotsScrolling},
+		{"Smiley", clog.SpinnerSmiley},
+		{"SoccerHeader", clog.SpinnerSoccerHeader},
+		{"Speaker", clog.SpinnerSpeaker},
+		{"SquareCorners", clog.SpinnerSquareCorners},
+		{"Squish", clog.SpinnerSquish},
+		{"Star2", clog.SpinnerStar2},
+		{"TimeTravel", clog.SpinnerTimeTravel},
+		{"Toggle", clog.SpinnerToggle},
+		{"Toggle2", clog.SpinnerToggle2},
+		{"Toggle3", clog.SpinnerToggle3},
+		{"Toggle4", clog.SpinnerToggle4},
+		{"Toggle5", clog.SpinnerToggle5},
+		{"Toggle6", clog.SpinnerToggle6},
+		{"Toggle7", clog.SpinnerToggle7},
+		{"Toggle8", clog.SpinnerToggle8},
+		{"Toggle9", clog.SpinnerToggle9},
+		{"Toggle10", clog.SpinnerToggle10},
+		{"Toggle11", clog.SpinnerToggle11},
+		{"Toggle12", clog.SpinnerToggle12},
+		{"Toggle13", clog.SpinnerToggle13},
+		{"Triangle", clog.SpinnerTriangle},
+		{"Weather", clog.SpinnerWeather},
+	}
+
+	if filter != "" {
+		names := make(map[string]bool)
+		for n := range strings.SplitSeq(filter, ",") {
+			names[strings.ToLower(strings.TrimSpace(n))] = true
+		}
+		filtered := make([]entry, 0, len(names))
+		for _, e := range all {
+			if names[strings.ToLower(e.name)] {
+				filtered = append(filtered, e)
+			}
+		}
+		all = filtered
+	}
+
+	clog.SetReportTimestamp(false)
+	clog.SetParts(clog.PartPrefix, clog.PartMessage, clog.PartFields)
+	styles := clog.DefaultStyles()
+	orange := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
+	styles.Messages[clog.InfoLevel] = &orange
+	clog.SetStyles(styles)
+
+	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	check := green.Render("✓")
+
+	ctx := context.Background()
+	for _, e := range all {
+		cycle := e.spinner.FPS * time.Duration(len(e.spinner.Frames))
+		dur := cycle * 2
+
+		_ = clog.Spinner(e.name).
+			Type(e.spinner).
+			Duration("cycle", cycle).
+			Wait(ctx, func(_ context.Context) error {
+				time.Sleep(dur)
+				return nil
+			}).
+			Prefix(check).
+			Msg(e.name)
+	}
+}
+
 func demo() {
 	_ = clog.Shimmer("Initializing environment and loading configuration modules",
 		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
@@ -579,11 +731,11 @@ func demo() {
 	_ = clog.Spinner("Deploying").
 		Str("env", "production").
 		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
-			update.Title("Building image").Send()
+			update.Msg("Building image").Send()
 			time.Sleep(1 * time.Second)
-			update.Title("Pushing image").Str("tag", "v1.2.3").Send()
+			update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
 			time.Sleep(1 * time.Second)
-			update.Title("Starting containers").Send()
+			update.Msg("Starting containers").Send()
 			time.Sleep(1 * time.Second)
 			return nil
 		}).
@@ -596,7 +748,7 @@ func demo() {
 			hundred := 100
 			for i := range hundred {
 				progress := min(i+1, hundred)
-				update.Title("Applying migrations").Percent("progress", float64(progress)).Send()
+				update.Msg("Applying migrations").Percent("progress", float64(progress)).Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil

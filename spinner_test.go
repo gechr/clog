@@ -16,7 +16,7 @@ import (
 func TestSpinnerConstructor(t *testing.T) {
 	b := Spinner("loading")
 
-	assert.Equal(t, "loading", b.title)
+	assert.Equal(t, "loading", b.msg)
 	assert.Equal(t, DefaultSpinner.FPS, b.spinner.FPS)
 	assert.Empty(t, b.fields)
 }
@@ -219,7 +219,7 @@ func TestSpinnerProgressSuccess(t *testing.T) {
 	result := Spinner("step 1").
 		Str("file", "a.go").
 		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
-			update.Title("step 2").Str("file", "b.go").Send()
+			update.Msg("step 2").Str("file", "b.go").Send()
 			return nil
 		})
 
@@ -242,7 +242,7 @@ func TestSpinnerProgressError(t *testing.T) {
 	require.ErrorIs(t, result.err, testErr)
 }
 
-func TestSpinnerProgressTitleOnly(t *testing.T) {
+func TestSpinnerProgressMsgOnly(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
@@ -251,8 +251,8 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 	result := Spinner(
 		"step 1",
 	).Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
-		// Update title without additional fields.
-		update.Title("step 2").Send()
+		// Update message without additional fields.
+		update.Msg("step 2").Send()
 		return nil
 	})
 
@@ -261,11 +261,11 @@ func TestSpinnerProgressTitleOnly(t *testing.T) {
 }
 
 // newTestWaitResult creates a WaitResult with initSelf called for test use.
-func newTestWaitResult(title string, err error) *WaitResult {
+func newTestWaitResult(msg string, err error) *WaitResult {
 	w := &WaitResult{
 		err:          err,
 		successLevel: InfoLevel,
-		successMsg:   title,
+		successMsg:   msg,
 		errorLevel:   ErrorLevel,
 	}
 	w.initSelf(w)
@@ -710,7 +710,7 @@ func TestRunAnimationNoColorWithTimestamp(t *testing.T) {
 	require.NoError(t, result.err)
 
 	got := buf.String()
-	// Should contain the timestamp and the title with hourglass emoji.
+	// Should contain the timestamp and the message with hourglass emoji.
 	assert.Contains(t, got, "⏳")
 	assert.Contains(t, got, "loading")
 }
@@ -754,10 +754,10 @@ func TestProgressUpdateReuseAfterSend(t *testing.T) {
 	result := Spinner("step 1").
 		Progress(context.Background(), func(_ context.Context, update *ProgressUpdate) error {
 			// First send with a field.
-			update.Title("step 2").Str("k", "v1").Send()
+			update.Msg("step 2").Str("k", "v1").Send()
 
 			// After Send, fields should be reset. Add new fields and send again.
-			update.Title("step 3").Str("k", "v2").Int("n", 42).Send()
+			update.Msg("step 3").Str("k", "v2").Int("n", 42).Send()
 			return nil
 		})
 

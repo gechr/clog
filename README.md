@@ -45,13 +45,13 @@ ERR ❌ Connection failed error=connection refused
 
 | Level   | Label | Prefix | Description                                          |
 | ------- | ----- | ------ | ---------------------------------------------------- |
-| `Trace` | `TRC` | 🔍      | Finest-grained output, hidden by default             |
-| `Debug` | `DBG` | 🐞      | Verbose output, hidden by default                    |
-| `Info`  | `INF` | ℹ️      | General operational messages (default minimum level) |
-| `Dry`   | `DRY` | 🚧      | Dry-run indicators                                   |
-| `Warn`  | `WRN` | ⚠️      | Warnings that don't prevent operation                |
-| `Error` | `ERR` | ❌      | Errors that need attention                           |
-| `Fatal` | `FTL` | 💥      | Fatal errors - calls `os.Exit(1)` after logging      |
+| `Trace` | `TRC` | 🔍     | Finest-grained output, hidden by default             |
+| `Debug` | `DBG` | 🐞     | Verbose output, hidden by default                    |
+| `Info`  | `INF` | ℹ️     | General operational messages (default minimum level) |
+| `Dry`   | `DRY` | 🚧     | Dry-run indicators                                   |
+| `Warn`  | `WRN` | ⚠️     | Warnings that don't prevent operation                |
+| `Error` | `ERR` | ❌     | Errors that need attention                           |
+| `Fatal` | `FTL` | 💥     | Fatal errors - calls `os.Exit(1)` after logging      |
 
 ### Setting the Level
 
@@ -331,13 +331,13 @@ The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) w
 
 ### Dynamic Status Updates
 
-Use `Progress` to update the spinner title and fields during execution:
+Use `Progress` to update the spinner message and fields during execution:
 
 ```go
 err := clog.Spinner("Processing").
   Progress(ctx, func(ctx context.Context, update *clog.ProgressUpdate) error {
     for i, item := range items {
-      update.Title("Processing").Str("progress", fmt.Sprintf("%d/%d", i+1, len(items))).Send()
+      update.Msg("Processing").Str("progress", fmt.Sprintf("%d/%d", i+1, len(items))).Send()
       if err := process(ctx, item); err != nil {
         return err
       }
@@ -352,7 +352,7 @@ err := clog.Spinner("Processing").
 | Method      | Success behaviour                       | Failure behaviour                      |
 | ----------- | --------------------------------------- | -------------------------------------- |
 | `.Msg(s)`   | Logs at `INF` with message              | Logs at `ERR` with error string        |
-| `.Err()`    | Logs at `INF` with spinner title as msg | Logs at `ERR` with error string as msg |
+| `.Err()`    | Logs at `INF` with spinner message      | Logs at `ERR` with error string as msg |
 | `.Send()`   | Logs at configured level                | Logs at configured level               |
 | `.Silent()` | Returns error, no logging               | Returns error, no logging              |
 
@@ -411,7 +411,7 @@ clog.Spinner("Building").
 
 ### Pulse Animation
 
-`Pulse` creates an independent animation where all characters in the title fade uniformly between gradient colours.
+`Pulse` creates an independent animation where all characters in the message fade uniformly between gradient colours.
 
 ```go
 // Default gradient (blue-gray to cyan)

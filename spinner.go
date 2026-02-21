@@ -18,11 +18,11 @@ var DefaultSpinner = SpinnerType{
 }
 
 // Spinner creates a new [AnimationBuilder] with a rotating spinner animation.
-func Spinner(title string) *AnimationBuilder {
+func Spinner(msg string) *AnimationBuilder {
 	b := &AnimationBuilder{
 		mode:    animModeSpinner,
+		msg:     msg,
 		spinner: DefaultSpinner,
-		title:   title,
 	}
 	b.initSelf(b)
 	return b

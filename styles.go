@@ -233,7 +233,7 @@ func DefaultStyles() *Styles {
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
 		FieldDurationUnit: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Faint(true), // magenta dim
+			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
 		FieldError: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
@@ -246,7 +246,7 @@ func DefaultStyles() *Styles {
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
 		FieldQuantityUnit: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")).Faint(true), // magenta dim
+			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
 		FieldString: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("15")), // white

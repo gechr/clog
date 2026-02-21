@@ -27,6 +27,10 @@ gen:
 lint:
 	@$(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint run
 
+.PHONY: spinners
+spinners:
+	@$(GO) run ./examples -spinners="$(SPINNERS)"
+
 .PHONY: test
 test:
 	@$(GO) test -timeout 2m -race ./...

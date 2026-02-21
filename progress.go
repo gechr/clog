@@ -27,31 +27,31 @@ const (
 type Task func(context.Context) error
 
 // ProgressTask is a function executed by [AnimationBuilder.Progress].
-// The [ProgressUpdate] allows updating the animation's title and fields.
+// The [ProgressUpdate] allows updating the animation's message and fields.
 type ProgressTask func(context.Context, *ProgressUpdate) error
 
-// ProgressUpdate is a fluent builder for updating an animation's title and fields
-// during a [ProgressTask]. Call [ProgressUpdate.Title] and field methods to
+// ProgressUpdate is a fluent builder for updating an animation's message and fields
+// during a [ProgressTask]. Call [ProgressUpdate.Msg] and field methods to
 // build the update, then [ProgressUpdate.Send] to apply it atomically.
 type ProgressUpdate struct {
 	fieldBuilder[ProgressUpdate]
 
 	base      []Field
 	fieldsPtr *atomic.Pointer[[]Field]
-	title     string
-	titlePtr  *atomic.Pointer[string]
+	msg       string
+	msgPtr    *atomic.Pointer[string]
 }
 
-// Title sets the animation's displayed title.
-func (u *ProgressUpdate) Title(title string) *ProgressUpdate {
-	u.title = title
+// Msg sets the animation's displayed message.
+func (u *ProgressUpdate) Msg(msg string) *ProgressUpdate {
+	u.msg = msg
 	return u
 }
 
-// Send applies the accumulated title and field changes to the animation atomically.
+// Send applies the accumulated message and field changes to the animation atomically.
 func (u *ProgressUpdate) Send() {
-	title := u.title
-	u.titlePtr.Store(&title)
+	msg := u.msg
+	u.msgPtr.Store(&msg)
 	merged := mergeFields(u.base, u.fields)
 	u.fieldsPtr.Store(&merged)
 	u.fields = nil // reset for reuse
@@ -63,51 +63,51 @@ type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
 	mode         animMode
+	msg          string
 	prefix       string // icon shown during animation; defaults to "⏳" for pulse/shimmer
 	pulseStops   []ColorStop
 	shimmerDir   Direction
 	shimmerStops []ColorStop
 	spinner      SpinnerType
-	title        string
 }
 
-// Pulse creates a new [AnimationBuilder] with an animated color pulse on the title text.
+// Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
 // All characters fade uniformly between colors in the gradient.
 // With no arguments, the default pulse gradient is used. Custom gradient
 // stops can be passed to override the default.
-func Pulse(title string, stops ...ColorStop) *AnimationBuilder {
+func Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 	if len(stops) == 0 {
 		stops = DefaultPulseGradient()
 	}
 	b := &AnimationBuilder{
 		mode:       animModePulse,
+		msg:        msg,
 		pulseStops: stops,
 		spinner:    DefaultSpinner,
-		title:      title,
 	}
 	b.initSelf(b)
 	return b
 }
 
-// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the title text.
+// Shimmer creates a new [AnimationBuilder] with an animated gradient shimmer on the message text.
 // Each character is coloured independently based on its position in the wave.
 // With no arguments, the default shimmer gradient is used. Custom gradient
 // stops can be passed to override the default.
-func Shimmer(title string, stops ...ColorStop) *AnimationBuilder {
+func Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 	if len(stops) == 0 {
 		stops = DefaultShimmerGradient()
 	}
 	b := &AnimationBuilder{
 		mode:         animModeShimmer,
+		msg:          msg,
 		shimmerStops: stops,
 		spinner:      DefaultSpinner,
-		title:        title,
 	}
 	b.initSelf(b)
 	return b
 }
 
-// Prefix sets the icon displayed beside the title during animation.
+// Prefix sets the icon displayed beside the message during animation.
 // For [Pulse] and [Shimmer] this defaults to "⏳".
 // For [Spinner] the prefix is the current spinner frame and this setting is ignored.
 func (b *AnimationBuilder) Prefix(prefix string) *AnimationBuilder {
@@ -189,29 +189,29 @@ func (b *AnimationBuilder) Link(key, url, text string) *AnimationBuilder {
 }
 
 // Wait executes the task with the animation and returns a [WaitResult] for chaining.
-// The animation displays as: <level> <icon> <title> <fields>.
+// The animation displays as: <level> <icon> <message> <fields>.
 func (b *AnimationBuilder) Wait(ctx context.Context, task Task) *WaitResult {
 	return b.Progress(ctx, func(ctx context.Context, _ *ProgressUpdate) error {
 		return task(ctx)
 	})
 }
 
-// Progress executes the task with the animation whose title and fields
+// Progress executes the task with the animation whose message and fields
 // can be updated via the [ProgressUpdate] builder. This is useful for multi-step
 // operations where the animation should reflect the current step.
 func (b *AnimationBuilder) Progress(
 	ctx context.Context,
 	task ProgressTask,
 ) *WaitResult {
-	var titlePtr atomic.Pointer[string]
+	var msgPtr atomic.Pointer[string]
 	var fieldsPtr atomic.Pointer[[]Field]
 
-	titlePtr.Store(&b.title)
+	msgPtr.Store(&b.msg)
 	fieldsPtr.Store(&b.fields)
 
 	update := &ProgressUpdate{
-		title:     b.title,
-		titlePtr:  &titlePtr,
+		msg:       b.msg,
+		msgPtr:    &msgPtr,
 		fieldsPtr: &fieldsPtr,
 		base:      b.fields,
 	}
@@ -221,13 +221,13 @@ func (b *AnimationBuilder) Progress(
 		return task(ctx, update)
 	}
 
-	err := runAnimation(ctx, &titlePtr, &fieldsPtr, b, wrapped)
+	err := runAnimation(ctx, &msgPtr, &fieldsPtr, b, wrapped)
 
-	title := *titlePtr.Load()
+	msg := *msgPtr.Load()
 	w := &WaitResult{
 		err:          err,
 		successLevel: InfoLevel,
-		successMsg:   title,
+		successMsg:   msg,
 		errorLevel:   ErrorLevel,
 	}
 	w.fields = *fieldsPtr.Load()
@@ -249,7 +249,7 @@ type WaitResult struct {
 }
 
 // Err returns the error, logging success at info level or failure at error
-// level using the original animation title.
+// level using the original animation message.
 func (w *WaitResult) Err() error {
 	return w.Send()
 }
@@ -269,7 +269,7 @@ func (w *WaitResult) event(level Level) *Event {
 }
 
 // Msg logs at info level with the given message on success, or at error
-// level with the original animation title on failure. Returns the error.
+// level with the error string on failure. Returns the error.
 func (w *WaitResult) Msg(msg string) error {
 	w.successMsg = msg
 	return w.Send()
@@ -295,7 +295,7 @@ func (w *WaitResult) OnSuccessLevel(level Level) *WaitResult {
 }
 
 // OnSuccessMessage sets the message for the success case. Defaults to the
-// original animation title.
+// original animation message.
 func (w *WaitResult) OnSuccessMessage(msg string) *WaitResult {
 	w.successMsg = msg
 	return w
@@ -331,7 +331,7 @@ func (w *WaitResult) Silent() error {
 //nolint:cyclop // animation loop has inherent complexity
 func runAnimation(
 	ctx context.Context,
-	title *atomic.Pointer[string],
+	msgPtr *atomic.Pointer[string],
 	fields *atomic.Pointer[[]Field],
 	b *AnimationBuilder,
 	task Task,
@@ -394,7 +394,7 @@ func runAnimation(
 	}
 
 	// Don't animate if colours are disabled (CI, piped output, etc.).
-	// Print the initial title so the user knows something is in progress.
+	// Print the initial message so the user knows something is in progress.
 	if noColor {
 		fieldsStr := strings.TrimLeft(
 			formatFields(*fields.Load(), formatFieldsOpts{
@@ -407,7 +407,7 @@ func runAnimation(
 		)
 		line := buildParts(order, reportTS,
 			time.Now().In(timeLoc).Format(timeFmt),
-			label, prefix, *title.Load(), fieldsStr)
+			label, prefix, *msgPtr.Load(), fieldsStr)
 		_, _ = io.WriteString(out, line+"\n")
 		return <-done
 	}
@@ -467,7 +467,7 @@ func runAnimation(
 		case now := <-ticker.C:
 			elapsed := now.Sub(startTime)
 
-			msg := *title.Load()
+			msg := *msgPtr.Load()
 			var char string
 
 			switch b.mode {
@@ -479,6 +479,9 @@ func runAnimation(
 				}
 				char = b.spinner.Frames[i]
 				frame++
+				if msgStyle := styles.Messages[InfoLevel]; msgStyle != nil {
+					msg = msgStyle.Render(msg)
+				}
 			case animModePulse:
 				char = prefix
 				t := (1.0 + math.Sin(2*math.Pi*elapsed.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
