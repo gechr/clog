@@ -576,41 +576,36 @@ func main() {
 
 	// --- Format hooks ---
 	header("Format Hooks")
-	hookStyles := clog.DefaultStyles()
-	hookStyles.ElapsedFormatFunc = func(d time.Duration) string {
+	clog.SetElapsedFormatFunc(func(d time.Duration) string {
 		return d.Truncate(time.Second).String()
-	}
-	hookStyles.PercentFormatFunc = func(v float64) string {
+	})
+	clog.SetPercentFormatFunc(func(v float64) string {
 		return fmt.Sprintf("%.0f/100", v)
-	}
-	clog.SetStyles(hookStyles)
+	})
 	clog.Info().
 		Percent("progress", 75).
 		Msg("Custom format hooks")
-	clog.SetStyles(clog.DefaultStyles()) // reset
+	clog.SetElapsedFormatFunc(nil) // reset
+	clog.SetPercentFormatFunc(nil) // reset
 
 	// --- Field sort order ---
 	header("Field Sort Order (Ascending)")
-	sortStyles := clog.DefaultStyles()
-	sortStyles.FieldSort = clog.SortAscending
-	clog.SetStyles(sortStyles)
+	clog.SetFieldSort(clog.SortAscending)
 	clog.Info().
 		Str("zoo", "animals").
 		Int("count", 42).
 		Str("alpha", "first").
 		Msg("Fields sorted A→Z")
-	clog.SetStyles(clog.DefaultStyles()) // reset
+	clog.SetFieldSort(clog.SortNone) // reset
 
 	header("Field Sort Order (Descending)")
-	sortStyles = clog.DefaultStyles()
-	sortStyles.FieldSort = clog.SortDescending
-	clog.SetStyles(sortStyles)
+	clog.SetFieldSort(clog.SortDescending)
 	clog.Info().
 		Str("alpha", "first").
 		Int("count", 42).
 		Str("zoo", "animals").
 		Msg("Fields sorted Z→A")
-	clog.SetStyles(clog.DefaultStyles()) // reset
+	clog.SetFieldSort(clog.SortNone) // reset
 }
 
 func spinners(filter string) {

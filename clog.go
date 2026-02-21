@@ -157,28 +157,37 @@ const (
 type Logger struct {
 	mu *sync.Mutex
 
-	atomicLevel     atomic.Int32 // lock-free level check for newEvent() hot path
-	exitFunc        func(int)    // called by Fatal-level events; defaults to os.Exit
-	fieldStyleLevel Level
-	fieldTimeFormat string
-	fields          []Field
-	handler         Handler
-	labels          LevelMap
-	level           Level
-	levelAlign      LevelAlign
-	omitEmpty       bool
-	omitZero        bool
-	output          *Output
-	parts           []Part
-	prefix          *string // nil = use default emoji for level
-	prefixes        LevelMap
-	quoteClose      rune // 0 means same as quoteOpen (or default)
-	quoteMode       QuoteMode
-	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
-	reportTimestamp bool
-	styles          *Styles
-	timeFormat      string
-	timeLocation    *time.Location
+	atomicLevel             atomic.Int32 // lock-free level check for newEvent() hot path
+	elapsedFormatFunc       func(time.Duration) string
+	elapsedMinimum          time.Duration
+	elapsedPrecision        int
+	elapsedRound            time.Duration
+	exitFunc                func(int) // called by Fatal-level events; defaults to os.Exit
+	fieldSort               Sort
+	fieldStyleLevel         Level
+	fieldTimeFormat         string
+	fields                  []Field
+	handler                 Handler
+	labels                  LevelMap
+	level                   Level
+	levelAlign              LevelAlign
+	omitEmpty               bool
+	omitZero                bool
+	output                  *Output
+	parts                   []Part
+	percentFormatFunc       func(float64) string
+	percentPrecision        int
+	prefix                  *string // nil = use default emoji for level
+	prefixes                LevelMap
+	quantityUnitsIgnoreCase bool
+	quoteClose              rune // 0 means same as quoteOpen (or default)
+	quoteMode               QuoteMode
+	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
+	reportTimestamp         bool
+	separatorText           string
+	styles                  *Styles
+	timeFormat              string
+	timeLocation            *time.Location
 }
 
 // New creates a new [Logger] that writes to the given [Output].
@@ -186,18 +195,22 @@ func New(output *Output) *Logger {
 	l := &Logger{
 		mu: &sync.Mutex{},
 
-		exitFunc:        os.Exit,
-		fieldStyleLevel: InfoLevel,
-		fieldTimeFormat: time.RFC3339,
-		labels:          DefaultLabels(),
-		level:           InfoLevel,
-		levelAlign:      AlignRight,
-		output:          output,
-		parts:           DefaultParts(),
-		prefixes:        DefaultPrefixes(),
-		styles:          DefaultStyles(),
-		timeFormat:      "15:04:05.000",
-		timeLocation:    time.Local,
+		elapsedMinimum:          time.Second,
+		elapsedRound:            time.Second,
+		exitFunc:                os.Exit,
+		fieldStyleLevel:         InfoLevel,
+		fieldTimeFormat:         time.RFC3339,
+		labels:                  DefaultLabels(),
+		level:                   InfoLevel,
+		levelAlign:              AlignRight,
+		output:                  output,
+		parts:                   DefaultParts(),
+		prefixes:                DefaultPrefixes(),
+		quantityUnitsIgnoreCase: true,
+		separatorText:           "=",
+		styles:                  DefaultStyles(),
+		timeFormat:              "15:04:05.000",
+		timeLocation:            time.Local,
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
 	return l
@@ -206,6 +219,39 @@ func New(output *Output) *Logger {
 // NewWriter creates a new [Logger] that writes to w with [ColorAuto].
 func NewWriter(w io.Writer) *Logger {
 	return New(NewOutput(w, ColorAuto))
+}
+
+// SetElapsedFormatFunc sets a custom format function for Elapsed fields.
+// When set to nil (the default), the built-in [formatElapsed] is used.
+func (l *Logger) SetElapsedFormatFunc(fn func(time.Duration) string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.elapsedFormatFunc = fn
+}
+
+// SetElapsedMinimum sets the minimum duration for Elapsed fields to be displayed.
+// Elapsed values below this threshold are hidden. Defaults to [time.Second].
+// Set to 0 to show all values.
+func (l *Logger) SetElapsedMinimum(d time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.elapsedMinimum = d
+}
+
+// SetElapsedPrecision sets the number of decimal places for Elapsed display.
+// For example, 0 = "3s", 1 = "3.2s", 2 = "3.21s". Defaults to 0.
+func (l *Logger) SetElapsedPrecision(precision int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.elapsedPrecision = precision
+}
+
+// SetElapsedRound sets the rounding granularity for Elapsed values.
+// Defaults to [time.Second]. Set to 0 to disable rounding.
+func (l *Logger) SetElapsedRound(d time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.elapsedRound = d
 }
 
 // SetExitFunc sets the function called by Fatal-level events.
@@ -218,6 +264,14 @@ func (l *Logger) SetExitFunc(fn func(int)) {
 		fn = os.Exit
 	}
 	l.exitFunc = fn
+}
+
+// SetFieldSort sets the sort order for fields in log output.
+// Default [SortNone] preserves insertion order.
+func (l *Logger) SetFieldSort(sort Sort) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.fieldSort = sort
 }
 
 // SetFieldStyleLevel sets the minimum log level at which field values are
@@ -320,6 +374,22 @@ func (l *Logger) SetParts(parts ...Part) {
 	l.parts = parts
 }
 
+// SetPercentFormatFunc sets a custom format function for Percent fields.
+// When set to nil (the default), the built-in format is used.
+func (l *Logger) SetPercentFormatFunc(fn func(float64) string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.percentFormatFunc = fn
+}
+
+// SetPercentPrecision sets the number of decimal places for Percent display.
+// For example, 0 = "75%", 1 = "75.0%". Defaults to 0.
+func (l *Logger) SetPercentPrecision(precision int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.percentPrecision = precision
+}
+
 // SetPrefixes sets the emoji prefixes used for each level.
 // Pass a map from [Level] to prefix string. Missing levels fall back to the defaults.
 func (l *Logger) SetPrefixes(prefixes LevelMap) {
@@ -329,6 +399,14 @@ func (l *Logger) SetPrefixes(prefixes LevelMap) {
 	maps.Copy(merged, prefixes)
 
 	l.prefixes = merged
+}
+
+// SetQuantityUnitsIgnoreCase sets whether quantity unit matching is
+// case-insensitive. Defaults to true.
+func (l *Logger) SetQuantityUnitsIgnoreCase(ignoreCase bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.quantityUnitsIgnoreCase = ignoreCase
 }
 
 // SetQuoteChar sets the character used to quote field values that contain
@@ -367,6 +445,14 @@ func (l *Logger) SetReportTimestamp(report bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.reportTimestamp = report
+}
+
+// SetSeparatorText sets the separator between field keys and values.
+// Defaults to "=".
+func (l *Logger) SetSeparatorText(sep string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.separatorText = sep
 }
 
 // SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.
@@ -569,14 +655,23 @@ func (l *Logger) log(e *Event, msg string) {
 			}
 		case PartFields:
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
-				fieldStyleLevel: l.fieldStyleLevel,
-				level:           e.level,
-				noColor:         noColor,
-				quoteClose:      l.quoteClose,
-				quoteMode:       l.quoteMode,
-				quoteOpen:       l.quoteOpen,
-				styles:          l.styles,
-				timeFormat:      l.fieldTimeFormat,
+				elapsedFormatFunc:       l.elapsedFormatFunc,
+				elapsedMinimum:          l.elapsedMinimum,
+				elapsedPrecision:        l.elapsedPrecision,
+				elapsedRound:            l.elapsedRound,
+				fieldSort:               l.fieldSort,
+				fieldStyleLevel:         l.fieldStyleLevel,
+				level:                   e.level,
+				noColor:                 noColor,
+				percentFormatFunc:       l.percentFormatFunc,
+				percentPrecision:        l.percentPrecision,
+				quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
+				quoteClose:              l.quoteClose,
+				quoteMode:               l.quoteMode,
+				quoteOpen:               l.quoteOpen,
+				separatorText:           l.separatorText,
+				styles:                  l.styles,
+				timeFormat:              l.fieldTimeFormat,
 			}), " ")
 		}
 
@@ -719,8 +814,23 @@ func SetColorMode(mode ColorMode) {
 	Default.output = NewOutput(w, mode)
 }
 
+// SetElapsedFormatFunc sets the elapsed format function on the [Default] logger.
+func SetElapsedFormatFunc(fn func(time.Duration) string) { Default.SetElapsedFormatFunc(fn) }
+
+// SetElapsedMinimum sets the elapsed minimum threshold on the [Default] logger.
+func SetElapsedMinimum(d time.Duration) { Default.SetElapsedMinimum(d) }
+
+// SetElapsedPrecision sets the elapsed precision on the [Default] logger.
+func SetElapsedPrecision(precision int) { Default.SetElapsedPrecision(precision) }
+
+// SetElapsedRound sets the elapsed rounding granularity on the [Default] logger.
+func SetElapsedRound(d time.Duration) { Default.SetElapsedRound(d) }
+
 // SetExitFunc sets the fatal-exit function on the [Default] logger.
 func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
+
+// SetFieldSort sets the field sort order on the [Default] logger.
+func SetFieldSort(sort Sort) { Default.SetFieldSort(sort) }
 
 // SetFieldStyleLevel sets the minimum level for styled fields on the [Default] logger.
 func SetFieldStyleLevel(level Level) { Default.SetFieldStyleLevel(level) }
@@ -755,8 +865,17 @@ func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 // SetParts sets the log-line part order on the [Default] logger.
 func SetParts(order ...Part) { Default.SetParts(order...) }
 
+// SetPercentFormatFunc sets the percent format function on the [Default] logger.
+func SetPercentFormatFunc(fn func(float64) string) { Default.SetPercentFormatFunc(fn) }
+
+// SetPercentPrecision sets the percent precision on the [Default] logger.
+func SetPercentPrecision(precision int) { Default.SetPercentPrecision(precision) }
+
 // SetPrefixes sets the level prefixes on the [Default] logger.
 func SetPrefixes(prefixes LevelMap) { Default.SetPrefixes(prefixes) }
+
+// SetQuantityUnitsIgnoreCase sets case-insensitive quantity unit matching on the [Default] logger.
+func SetQuantityUnitsIgnoreCase(ignoreCase bool) { Default.SetQuantityUnitsIgnoreCase(ignoreCase) }
 
 // SetQuoteChar sets the quote character on the [Default] logger.
 func SetQuoteChar(char rune) { Default.SetQuoteChar(char) }
@@ -769,6 +888,9 @@ func SetQuoteMode(mode QuoteMode) { Default.SetQuoteMode(mode) }
 
 // SetReportTimestamp enables or disables timestamps on the [Default] logger.
 func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
+
+// SetSeparatorText sets the key/value separator on the [Default] logger.
+func SetSeparatorText(sep string) { Default.SetSeparatorText(sep) }
 
 // SetStyles sets the display styles on the [Default] logger.
 func SetStyles(styles *Styles) { Default.SetStyles(styles) }

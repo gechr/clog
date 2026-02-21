@@ -373,17 +373,26 @@ func runAnimation(
 
 	// Snapshot Default's settings under the mutex to avoid data races.
 	Default.mu.Lock()
+	elapsedFormatFunc := Default.elapsedFormatFunc
+	elapsedMinimum := Default.elapsedMinimum
+	elapsedPrecision := Default.elapsedPrecision
+	elapsedRound := Default.elapsedRound
+	fieldSort := Default.fieldSort
 	fieldStyleLevel := Default.fieldStyleLevel
 	fieldTimeFormat := Default.fieldTimeFormat
 	label := Default.formatLabel(b.level)
 	noColor := Default.output.ColorsDisabled()
 	order := Default.parts
 	out := Default.output.Writer()
+	percentFormatFunc := Default.percentFormatFunc
+	percentPrecision := Default.percentPrecision
+	quantityUnitsIgnoreCase := Default.quantityUnitsIgnoreCase
 	termOut := Default.output.Renderer().Output()
 	quoteClose := Default.quoteClose
 	quoteMode := Default.quoteMode
 	quoteOpen := Default.quoteOpen
 	reportTS := Default.reportTimestamp
+	separatorText := Default.separatorText
 	styles := Default.styles
 	timeFmt := Default.timeFormat
 	timeLoc := Default.timeLocation
@@ -427,11 +436,20 @@ func runAnimation(
 	if noColor {
 		fieldsStr := strings.TrimLeft(
 			formatFields(*fields.Load(), formatFieldsOpts{
-				noColor:    true,
-				quoteClose: quoteClose,
-				quoteMode:  quoteMode,
-				quoteOpen:  quoteOpen,
-				timeFormat: fieldTimeFormat,
+				elapsedFormatFunc:       elapsedFormatFunc,
+				elapsedMinimum:          elapsedMinimum,
+				elapsedPrecision:        elapsedPrecision,
+				elapsedRound:            elapsedRound,
+				fieldSort:               fieldSort,
+				noColor:                 true,
+				percentFormatFunc:       percentFormatFunc,
+				percentPrecision:        percentPrecision,
+				quantityUnitsIgnoreCase: quantityUnitsIgnoreCase,
+				quoteClose:              quoteClose,
+				quoteMode:               quoteMode,
+				quoteOpen:               quoteOpen,
+				separatorText:           separatorText,
+				timeFormat:              fieldTimeFormat,
 			}), " ",
 		)
 		line := buildParts(order, reportTS,
@@ -471,13 +489,22 @@ func runAnimation(
 	var cachedFieldsPtr unsafe.Pointer
 	var cachedFieldsStr string
 	fieldOpts := formatFieldsOpts{
-		fieldStyleLevel: fieldStyleLevel,
-		styles:          styles,
-		level:           b.level,
-		quoteMode:       quoteMode,
-		quoteOpen:       quoteOpen,
-		quoteClose:      quoteClose,
-		timeFormat:      fieldTimeFormat,
+		elapsedFormatFunc:       elapsedFormatFunc,
+		elapsedMinimum:          elapsedMinimum,
+		elapsedPrecision:        elapsedPrecision,
+		elapsedRound:            elapsedRound,
+		fieldSort:               fieldSort,
+		fieldStyleLevel:         fieldStyleLevel,
+		level:                   b.level,
+		percentFormatFunc:       percentFormatFunc,
+		percentPrecision:        percentPrecision,
+		quantityUnitsIgnoreCase: quantityUnitsIgnoreCase,
+		quoteClose:              quoteClose,
+		quoteMode:               quoteMode,
+		quoteOpen:               quoteOpen,
+		separatorText:           separatorText,
+		styles:                  styles,
+		timeFormat:              fieldTimeFormat,
 	}
 
 	ticker := time.NewTicker(tickRate)

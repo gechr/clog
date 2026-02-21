@@ -1,8 +1,6 @@
 package clog
 
 import (
-	"time"
-
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 )
@@ -190,10 +188,6 @@ type Styles struct {
 	DurationThresholds ThresholdMap
 	// Duration unit -> style override (e.g. "s" -> yellow).
 	DurationUnits StyleMap
-	// Custom format function for Elapsed fields. nil uses the built-in [formatElapsed].
-	ElapsedFormatFunc func(time.Duration) string
-	// Decimal places for Elapsed display (default 1 = "3.2s"; 0 = "3s").
-	ElapsedPrecision int
 	// Style for the numeric segments of duration values (e.g. "1" in "1m30s") [nil = plain text]
 	FieldDurationNumber Style
 	// Style for the unit segments of duration values (e.g. "m" in "1m30s") [nil = plain text]
@@ -215,8 +209,6 @@ type Styles struct {
 	FieldQuantityNumber Style
 	// Style for the unit part of quantity values (e.g. "km" in "5km") [nil = plain text]
 	FieldQuantityUnit Style
-	// Sort order for fields. Default [SortNone] preserves insertion order.
-	FieldSort Sort
 	// Style for string field values [nil = plain text]
 	FieldString Style
 	// Style for time.Time field values [nil = plain text]
@@ -229,22 +221,14 @@ type Styles struct {
 	Levels LevelStyleMap
 	// Message text style per level.
 	Messages LevelStyleMap
-	// Custom format function for Percent fields. nil uses the built-in format.
-	PercentFormatFunc func(float64) string
 	// Gradient stops for Percent fields (default: red → yellow → green).
 	PercentGradient []ColorStop
-	// Decimal places for Percent display (default 0 = "75%", 1 -> "75.0%", etc).
-	PercentPrecision int
 	// Quantity unit -> thresholds (evaluated high->low).
 	QuantityThresholds ThresholdMap
 	// Unit string -> style override (e.g. "km" -> green).
 	QuantityUnits StyleMap
-	// Case-insensitive quantity unit matching (default true).
-	QuantityUnitsIgnoreCase bool
-	// Style for key/value [SeparatorText].
+	// Style for key/value separator.
 	Separator Style
-	// Separator between key and value (default "=").
-	SeparatorText string
 	// Style for the timestamp prefix.
 	Timestamp Style
 	// Values maps typed values to styles. Keys use Go equality
@@ -308,18 +292,15 @@ func DefaultStyles() *Styles {
 				Bold(true).
 				Foreground(lipgloss.Color("1"))), // red
 		},
-		DurationThresholds:      make(ThresholdMap),
-		DurationUnits:           make(StyleMap),
-		ElapsedPrecision:        1,
-		Messages:                DefaultMessageStyles(),
-		PercentGradient:         DefaultPercentGradient(),
-		QuantityThresholds:      make(ThresholdMap),
-		QuantityUnits:           make(StyleMap),
-		QuantityUnitsIgnoreCase: true,
-		Separator:               new(lipgloss.NewStyle().Faint(true)),
-		SeparatorText:           "=",
-		Timestamp:               new(lipgloss.NewStyle().Faint(true)),
-		Values:                  DefaultValueStyles(),
+		DurationThresholds: make(ThresholdMap),
+		DurationUnits:      make(StyleMap),
+		Messages:           DefaultMessageStyles(),
+		PercentGradient:    DefaultPercentGradient(),
+		QuantityThresholds: make(ThresholdMap),
+		QuantityUnits:      make(StyleMap),
+		Separator:          new(lipgloss.NewStyle().Faint(true)),
+		Timestamp:          new(lipgloss.NewStyle().Faint(true)),
+		Values:             DefaultValueStyles(),
 	}
 }
 

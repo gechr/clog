@@ -33,14 +33,23 @@ type rawJSON []byte
 
 // formatFieldsOpts configures field formatting behaviour.
 type formatFieldsOpts struct {
-	fieldStyleLevel Level
-	level           Level
-	noColor         bool
-	quoteClose      rune // 0 means same as quoteOpen (or default)
-	quoteMode       QuoteMode
-	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
-	styles          *Styles
-	timeFormat      string
+	elapsedFormatFunc       func(time.Duration) string
+	elapsedMinimum          time.Duration
+	elapsedPrecision        int
+	elapsedRound            time.Duration
+	fieldSort               Sort
+	fieldStyleLevel         Level
+	level                   Level
+	noColor                 bool
+	percentFormatFunc       func(float64) string
+	percentPrecision        int
+	quantityUnitsIgnoreCase bool
+	quoteClose              rune // 0 means same as quoteOpen (or default)
+	quoteMode               QuoteMode
+	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
+	separatorText           string
+	styles                  *Styles
+	timeFormat              string
 }
 
 // valueKind classifies a formatted value for type-based styling.
@@ -76,11 +85,11 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		return ""
 	}
 
-	if opts.styles != nil && opts.styles.FieldSort != SortNone {
+	if opts.fieldSort != SortNone {
 		fields = slices.Clone(fields)
 		slices.SortFunc(fields, func(a, b Field) int {
 			cmp := strings.Compare(a.Key, b.Key)
-			if opts.styles.FieldSort == SortDescending {
+			if opts.fieldSort == SortDescending {
 				return -cmp
 			}
 			return cmp
@@ -89,50 +98,58 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 	var buf strings.Builder
 
-	for _, f := range fields {
-		buf.WriteString(" ")
+	for i := range fields {
+		f := fields[i]
 
-		sep := "="
-		if opts.styles != nil && opts.styles.SeparatorText != "" {
-			sep = opts.styles.SeparatorText
+		// Elapsed pre-processing: round, apply minimum threshold, update value.
+		if val, ok := f.Value.(elapsed); ok {
+			d := time.Duration(val)
+			if opts.elapsedRound > 0 {
+				d = d.Round(opts.elapsedRound)
+			}
+			if d < opts.elapsedMinimum {
+				continue
+			}
+			f.Value = elapsed(d)
 		}
 
-		if !opts.noColor && opts.styles.KeyDefault != nil {
+		buf.WriteString(" ")
+
+		sep := opts.separatorText
+		if sep == "" {
+			sep = "="
+		}
+
+		if !opts.noColor && opts.styles != nil && opts.styles.KeyDefault != nil {
 			buf.WriteString(opts.styles.KeyDefault.Render(f.Key))
 		} else {
 			buf.WriteString(f.Key)
 		}
 
-		if !opts.noColor && opts.styles.Separator != nil {
+		if !opts.noColor && opts.styles != nil && opts.styles.Separator != nil {
 			buf.WriteString(opts.styles.Separator.Render(sep))
 		} else {
 			buf.WriteString(sep)
 		}
 
-		percentPrecision := 0
-		elapsedPrecision := 1
-		if opts.styles != nil {
-			percentPrecision = opts.styles.PercentPrecision
-			elapsedPrecision = opts.styles.ElapsedPrecision
-		}
+		percentPrecision := opts.percentPrecision
+		elapsedPrecision := opts.elapsedPrecision
 
 		var valStr string
 		var kind valueKind
 		var customFormatted bool
-		if opts.styles != nil {
-			switch val := f.Value.(type) {
-			case elapsed:
-				if opts.styles.ElapsedFormatFunc != nil {
-					valStr = opts.styles.ElapsedFormatFunc(time.Duration(val))
-					kind = kindElapsed
-					customFormatted = true
-				}
-			case percent:
-				if opts.styles.PercentFormatFunc != nil {
-					valStr = opts.styles.PercentFormatFunc(float64(val))
-					kind = kindPercent
-					customFormatted = true
-				}
+		switch val := f.Value.(type) {
+		case elapsed:
+			if opts.elapsedFormatFunc != nil {
+				valStr = opts.elapsedFormatFunc(time.Duration(val))
+				kind = kindElapsed
+				customFormatted = true
+			}
+		case percent:
+			if opts.percentFormatFunc != nil {
+				valStr = opts.percentFormatFunc(float64(val))
+				kind = kindPercent
+				customFormatted = true
 			}
 		}
 		if !customFormatted {
@@ -203,7 +220,7 @@ func formatValue(
 	case []time.Duration:
 		return formatDurationSlice(val, nil), kindSlice
 	case []quantity:
-		return formatQuantitySlice(val, nil), kindSlice
+		return formatQuantitySlice(val, nil, false), kindSlice
 	case []string:
 		return formatStringSlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
@@ -219,7 +236,7 @@ func formatValue(
 	case []bool:
 		return formatBoolSlice(val, nil), kindSlice
 	case []any:
-		return formatAnySlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
+		return formatAnySlice(val, nil, false, quoteMode, quoteOpen, quoteClose), kindSlice
 	default:
 		return fmt.Sprintf("%v", v), kindDefault
 	}
@@ -230,6 +247,7 @@ func formatValue(
 func formatAnySlice(
 	vals []any,
 	styles *Styles,
+	ignoreCase bool,
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
 ) string {
@@ -252,7 +270,7 @@ func formatAnySlice(
 		}
 
 		if styles != nil {
-			styled := styleAnyElement(s, v, kind, styles)
+			styled := styleAnyElement(s, v, kind, styles, ignoreCase)
 			if styled != "" {
 				buf.WriteString(styled)
 
@@ -335,38 +353,55 @@ func formatDurationSlice(vals []time.Duration, styles *Styles) string {
 	)
 }
 
-// formatElapsed formats a duration using the largest unit where the value is
-// >= 1. The result uses the given decimal precision and trims trailing zeros
-// (e.g. precision=1: 3.2s → "3.2s", 3.0s → "3s", 61s → "1m").
+// formatElapsed formats a duration for display. For durations >= 1 hour it
+// uses composite "XhYm" format (omitting Ym when Y=0). For durations >= 1
+// minute it uses "XmYs" (omitting Ys when Y=0). For shorter durations it
+// picks the largest unit where the value is >= 1 and formats with the given
+// decimal precision (no trailing zero trimming).
 func formatElapsed(d time.Duration, precision int) string {
+	if d < 0 {
+		d = -d
+	}
+
+	// Composite format for >= 1h: "XhYm"
+	if d >= time.Hour {
+		h := int(d / time.Hour)
+		remainder := d - time.Duration(h)*time.Hour
+		m := int(remainder / time.Minute)
+		if m == 0 {
+			return strconv.Itoa(h) + "h"
+		}
+		return strconv.Itoa(h) + "h" + strconv.Itoa(m) + "m"
+	}
+
+	// Composite format for >= 1m: "XmYs"
+	if d >= time.Minute {
+		m := int(d / time.Minute)
+		remainder := d - time.Duration(m)*time.Minute
+		s := int(remainder / time.Second)
+		if s == 0 {
+			return strconv.Itoa(m) + "m"
+		}
+		return strconv.Itoa(m) + "m" + strconv.Itoa(s) + "s"
+	}
+
+	// Single unit with precision, no trailing zero trimming.
 	type unit struct {
 		suffix string
 		div    time.Duration
 	}
 
 	units := [...]unit{
-		{"h", time.Hour},
-		{"m", time.Minute},
 		{"s", time.Second},
 		{"ms", time.Millisecond},
 		{"µs", time.Microsecond},
 		{"ns", time.Nanosecond},
 	}
 
-	if d < 0 {
-		d = -d
-	}
-
 	for _, u := range units {
 		if d >= u.div {
 			val := float64(d) / float64(u.div)
-			s := strconv.FormatFloat(val, 'f', precision, 64)
-			// Trim trailing zeros after the decimal point.
-			if strings.Contains(s, ".") {
-				s = strings.TrimRight(s, "0")
-				s = strings.TrimRight(s, ".")
-			}
-			return s + u.suffix
+			return strconv.FormatFloat(val, 'f', precision, 64) + u.suffix
 		}
 	}
 	return "0s"
@@ -413,7 +448,7 @@ func formatUintSlice(vals []uint, styles *Styles) string {
 
 // formatQuantitySlice formats a quantity slice with comma separation.
 // When styles is non-nil, individual elements are styled via [styleQuantity].
-func formatQuantitySlice(vals []quantity, styles *Styles) string {
+func formatQuantitySlice(vals []quantity, styles *Styles, ignoreCase bool) string {
 	return formatSlice(
 		vals,
 		styles,
@@ -424,7 +459,7 @@ func formatQuantitySlice(vals []quantity, styles *Styles) string {
 			if st == nil {
 				return ""
 			}
-			return styleQuantity(s, st)
+			return styleQuantity(s, st, ignoreCase)
 		},
 	)
 }
@@ -485,7 +520,13 @@ func formatUint64Slice(vals []uint64, styles *Styles) string {
 
 // styleAnyElement applies the appropriate style to a single element in a []any slice.
 // originalValue is the pre-format typed value for typed Values map lookups.
-func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles) string {
+func styleAnyElement(
+	s string,
+	originalValue any,
+	kind valueKind,
+	styles *Styles,
+	ignoreCase bool,
+) string {
 	// Per-value styling (typed key lookup — bool true ≠ string "true").
 	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
 		return style.Render(s)
@@ -517,7 +558,7 @@ func styleAnyElement(s string, originalValue any, kind valueKind, styles *Styles
 			return styled
 		}
 	case kindQuantity:
-		if styled := styleQuantity(s, styles); styled != "" {
+		if styled := styleQuantity(s, styles, ignoreCase); styled != "" {
 			return styled
 		}
 
@@ -586,24 +627,44 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		if style := opts.styles.Keys[f.Key]; style != nil {
 			return style.Render(valStr)
 		}
-		return styledSlice(f.Value, opts.styles, opts.quoteMode, opts.quoteOpen, opts.quoteClose)
+		return styledSlice(
+			f.Value,
+			opts.styles,
+			opts.quantityUnitsIgnoreCase,
+			opts.quoteMode,
+			opts.quoteOpen,
+			opts.quoteClose,
+		)
 	}
 
-	if styled := styleValue(valStr, f.Value, f.Key, kind, opts.styles); styled != "" {
+	if styled := styleValue(
+		valStr,
+		f.Value,
+		f.Key,
+		kind,
+		opts.styles,
+		opts.quantityUnitsIgnoreCase,
+	); styled != "" {
 		return styled
 	}
 	return valStr
 }
 
 // styledSlice re-formats a slice value with per-element styling.
-func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClose rune) string {
+func styledSlice(
+	v any,
+	styles *Styles,
+	ignoreCase bool,
+	quoteMode QuoteMode,
+	quoteOpen, quoteClose rune,
+) string {
 	switch vals := v.(type) {
 	case []bool:
 		return formatBoolSlice(vals, styles)
 	case []time.Duration:
 		return formatDurationSlice(vals, styles)
 	case []quantity:
-		return formatQuantitySlice(vals, styles)
+		return formatQuantitySlice(vals, styles, ignoreCase)
 	case []int:
 		return formatIntSlice(vals, styles)
 	case []int64:
@@ -617,7 +678,7 @@ func styledSlice(v any, styles *Styles, quoteMode QuoteMode, quoteOpen, quoteClo
 	case []string:
 		return formatStringSlice(vals, styles, quoteMode, quoteOpen, quoteClose)
 	case []any:
-		return formatAnySlice(vals, styles, quoteMode, quoteOpen, quoteClose)
+		return formatAnySlice(vals, styles, ignoreCase, quoteMode, quoteOpen, quoteClose)
 	default:
 		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "", 0, 1)
 		return s
@@ -778,14 +839,14 @@ func stylePercent(valStr string, originalValue any, styles *Styles) string {
 // Per-unit overrides in [Styles.QuantityUnits] take priority over [Styles.FieldQuantityUnit].
 // Returns "" when both default styles are nil and no unit overrides match,
 // or the string is not a valid quantity pattern.
-func styleQuantity(s string, styles *Styles) string {
+func styleQuantity(s string, styles *Styles, ignoreCase bool) string {
 	return styleNumberUnit(
 		s,
 		styles.FieldQuantityNumber,
 		styles.FieldQuantityUnit,
 		styles.QuantityUnits,
 		styles.QuantityThresholds,
-		styles.QuantityUnitsIgnoreCase,
+		ignoreCase,
 	)
 }
 
@@ -798,6 +859,7 @@ func styleValue(
 	key string,
 	kind valueKind,
 	styles *Styles,
+	ignoreCase bool,
 ) string {
 	// Per-key styling takes priority.
 	if style := styles.Keys[key]; style != nil {
@@ -836,7 +898,7 @@ func styleValue(
 			return styled
 		}
 	case kindQuantity:
-		if styled := styleQuantity(valStr, styles); styled != "" {
+		if styled := styleQuantity(valStr, styles, ignoreCase); styled != "" {
 			return styled
 		}
 
