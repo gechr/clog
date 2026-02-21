@@ -20,6 +20,7 @@ var DefaultSpinner = SpinnerType{
 // Spinner creates a new [AnimationBuilder] with a rotating spinner animation.
 func Spinner(msg string) *AnimationBuilder {
 	b := &AnimationBuilder{
+		level:   InfoLevel,
 		mode:    animModeSpinner,
 		msg:     msg,
 		spinner: DefaultSpinner,

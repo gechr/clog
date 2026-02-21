@@ -62,6 +62,7 @@ func (u *ProgressUpdate) Send() {
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
+	level        Level // log level used during animation rendering (default: InfoLevel)
 	mode         animMode
 	msg          string
 	prefix       string // icon shown during animation; defaults to "⏳" for pulse/shimmer
@@ -80,6 +81,7 @@ func Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 		stops = DefaultPulseGradient()
 	}
 	b := &AnimationBuilder{
+		level:      InfoLevel,
 		mode:       animModePulse,
 		msg:        msg,
 		pulseStops: stops,
@@ -98,6 +100,7 @@ func Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 		stops = DefaultShimmerGradient()
 	}
 	b := &AnimationBuilder{
+		level:        InfoLevel,
 		mode:         animModeShimmer,
 		msg:          msg,
 		shimmerStops: stops,
@@ -226,7 +229,7 @@ func (b *AnimationBuilder) Progress(
 	msg := *msgPtr.Load()
 	w := &WaitResult{
 		err:          err,
-		successLevel: InfoLevel,
+		successLevel: b.level,
 		successMsg:   msg,
 		errorLevel:   ErrorLevel,
 	}
@@ -346,7 +349,7 @@ func runAnimation(
 	Default.mu.Lock()
 	fieldStyleLevel := Default.fieldStyleLevel
 	fieldTimeFormat := Default.fieldTimeFormat
-	label := Default.formatLabel(InfoLevel)
+	label := Default.formatLabel(b.level)
 	noColor := Default.output.ColorsDisabled()
 	order := Default.parts
 	out := Default.output.Writer()
@@ -417,7 +420,7 @@ func runAnimation(
 	defer termOut.ShowCursor()
 
 	var levelPrefix string
-	if style := styles.Levels[InfoLevel]; style != nil {
+	if style := styles.Levels[b.level]; style != nil {
 		levelPrefix = style.Render(label)
 	} else {
 		levelPrefix = label
@@ -444,7 +447,7 @@ func runAnimation(
 	fieldOpts := formatFieldsOpts{
 		fieldStyleLevel: fieldStyleLevel,
 		styles:          styles,
-		level:           InfoLevel,
+		level:           b.level,
 		quoteMode:       quoteMode,
 		quoteOpen:       quoteOpen,
 		quoteClose:      quoteClose,
@@ -479,7 +482,7 @@ func runAnimation(
 				}
 				char = b.spinner.Frames[i]
 				frame++
-				if msgStyle := styles.Messages[InfoLevel]; msgStyle != nil {
+				if msgStyle := styles.Messages[b.level]; msgStyle != nil {
 					msg = msgStyle.Render(msg)
 				}
 			case animModePulse:
