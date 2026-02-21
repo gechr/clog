@@ -62,30 +62,19 @@ func loadLogLevelFromEnv() {
 		return
 	}
 
-	switch strings.ToLower(level) {
-	case LevelTrace:
-		Default.SetLevel(TraceLevel)
-		Default.SetReportTimestamp(true)
-	case LevelDebug:
-		Default.SetLevel(DebugLevel)
-		Default.SetReportTimestamp(true)
-	case LevelInfo:
-		Default.SetLevel(InfoLevel)
-	case LevelDry:
-		Default.SetLevel(DryLevel)
-	case LevelWarn, "warning":
-		Default.SetLevel(WarnLevel)
-	case LevelError:
-		Default.SetLevel(ErrorLevel)
-	case LevelFatal, "critical":
-		Default.SetLevel(FatalLevel)
-	default:
-		// Build the env var name for the error message.
+	parsed, err := ParseLevel(level)
+	if err != nil {
 		envVar := DefaultEnvPrefix + "_" + envLogLevel
 		if p, ok := envPrefix.Load().(string); ok && p != "" {
 			envVar = p + "_" + envLogLevel
 		}
 		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", level, envVar)
+		return
+	}
+
+	Default.SetLevel(parsed)
+	if parsed <= DebugLevel {
+		Default.SetReportTimestamp(true)
 	}
 }
 

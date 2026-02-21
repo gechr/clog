@@ -135,3 +135,39 @@ func TestFieldBuilderJSON(t *testing.T) {
 		assert.True(t, isStr, "expected error string value")
 	})
 }
+
+func TestFieldBuilderBase64(t *testing.T) {
+	b := Spinner("test").Base64("data", []byte("hello"))
+	assertSingleField(t, b.fields, "data", "aGVsbG8=")
+}
+
+func TestFieldBuilderBytes(t *testing.T) {
+	t.Run("plain bytes", func(t *testing.T) {
+		b := Spinner("test").Bytes("data", []byte("hello"))
+		assertSingleField(t, b.fields, "data", "hello")
+	})
+
+	t.Run("valid JSON bytes", func(t *testing.T) {
+		b := Spinner("test").Bytes("body", []byte(`{"status":"ok"}`))
+
+		require.Len(t, b.fields, 1)
+		assert.Equal(t, "body", b.fields[0].Key)
+		_, ok := b.fields[0].Value.(rawJSON)
+		assert.True(t, ok, "valid JSON bytes should be stored as rawJSON")
+	})
+}
+
+func TestFieldBuilderHex(t *testing.T) {
+	b := Spinner("test").Hex("id", []byte{0xde, 0xad, 0xbe, 0xef})
+	assertSingleField(t, b.fields, "id", "deadbeef")
+}
+
+func TestFieldBuilderInts64(t *testing.T) {
+	b := Spinner("test").Ints64("nums", []int64{1, 2, 3})
+	assertSliceField(t, b.fields, []int64{1, 2, 3})
+}
+
+func TestFieldBuilderUints(t *testing.T) {
+	b := Spinner("test").Uints("counts", []uint{10, 20, 30})
+	assertSliceField(t, b.fields, []uint{10, 20, 30})
+}

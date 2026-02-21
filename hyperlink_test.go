@@ -467,6 +467,71 @@ func TestOutputHyperlinkAlways(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestExpandPreset(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		slot  string
+		want  string
+	}{
+		{
+			name:  "vscode_path_slot",
+			value: "vscode",
+			slot:  "path",
+			want:  "vscode://file{path}",
+		},
+		{
+			name:  "vscode_line_slot",
+			value: "vscode",
+			slot:  "line",
+			want:  "vscode://file{path}:{line}",
+		},
+		{
+			name:  "vscode_column_slot",
+			value: "vscode",
+			slot:  "column",
+			want:  "vscode://file{path}:{line}:{column}",
+		},
+		{
+			name:  "vscode_default_slot",
+			value: "vscode",
+			slot:  "",
+			want:  "vscode://file{path}",
+		},
+		{
+			name:  "cursor_line_slot",
+			value: "cursor",
+			slot:  "line",
+			want:  "cursor://file{path}:{line}",
+		},
+		{
+			name:  "unknown_preset_returns_unchanged",
+			value: "unknown-editor",
+			slot:  "path",
+			want:  "unknown-editor",
+		},
+		{
+			name:  "full_format_string_passes_through",
+			value: "vscode://file{path}:{line}",
+			slot:  "line",
+			want:  "vscode://file{path}:{line}",
+		},
+		{
+			name:  "case_insensitive_lookup",
+			value: "  VSCode  ",
+			slot:  "path",
+			want:  "vscode://file{path}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := expandPreset(tt.value, tt.slot)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestBuildPathURL(t *testing.T) {
 	clearFormats(t)
 

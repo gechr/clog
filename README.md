@@ -67,6 +67,16 @@ Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `dry`, `warn`, `wa
 
 Setting `trace` or `debug` also enables timestamps.
 
+### Parsing Levels
+
+`ParseLevel` converts a string to a `Level` value (case-insensitive):
+
+```go
+level, err := clog.ParseLevel("debug")
+```
+
+`Level` implements `encoding.TextMarshaler` and `encoding.TextUnmarshaler`, so it works directly with `flag.TextVar` and most flag libraries.
+
 ## Structured Fields
 
 Events and contexts support typed field methods. All methods are safe to call on a nil receiver (disabled events are no-ops).
@@ -80,7 +90,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Base64`     | `Base64(key string, val []byte)`              | Byte slice as base64 string                                               |
 | `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                             |
 | `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                       |
-| `Bytes`      | `Bytes(key string, val []byte)`               | Byte slice as string                                                      |
+| `Bytes`      | `Bytes(key string, val []byte)`               | Byte slice — auto-detected as JSON with highlighting, otherwise string    |
 | `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink                                      |
 | `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys                                      |
 | `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                            |
@@ -108,6 +118,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Stringers`  | `Stringers(key string, vals []fmt.Stringer)`  | Slice of `fmt.Stringer` values                                            |
 | `Strs`       | `Strs(key string, vals []string)`             | String slice field                                                        |
 | `Time`       | `Time(key string, val time.Time)`             | Time field                                                                |
+| `Times`      | `Times(key string, vals []time.Time)`         | Time slice field                                                          |
 | `Uint`       | `Uint(key string, val uint)`                  | Unsigned integer field                                                    |
 | `Uint64`     | `Uint64(key string, val uint64)`              | 64-bit unsigned integer field                                             |
 | `Uints`      | `Uints(key string, vals []uint)`              | Unsigned integer slice field                                              |
@@ -609,6 +620,14 @@ clog.SetHandler(clog.HandlerFunc(func(e clog.Entry) {
   fmt.Println(string(data))
 }))
 ```
+
+Example output:
+
+```json
+{"fields":[{"key":"port","value":"8080"}],"level":"info","message":"Server started"}
+```
+
+`Level` serializes as a human-readable string (e.g. `"info"`, `"error"`). `Time` is omitted when timestamps are disabled. `Fields` and `Prefix` are omitted when empty.
 
 ## Configuration
 

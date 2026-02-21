@@ -2181,3 +2181,123 @@ func TestElapsedRound(t *testing.T) {
 	// 2.6s rounds to 3s.
 	assert.Equal(t, " took=3s", got)
 }
+
+func TestFormatInt64SlicePlain(t *testing.T) {
+	tests := []struct {
+		name string
+		vals []int64
+		want string
+	}{
+		{name: "multiple", vals: []int64{10, 20, 30}, want: "[10, 20, 30]"},
+		{name: "single", vals: []int64{42}, want: "[42]"},
+		{name: "empty", vals: []int64{}, want: "[]"},
+		{
+			name: "large_values",
+			vals: []int64{9223372036854775807, -9223372036854775808},
+			want: "[9223372036854775807, -9223372036854775808]",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatInt64Slice(tt.vals, nil)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFormatInt64SliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	n := styles.FieldNumber.Render
+
+	got := formatInt64Slice([]int64{10, 20}, styles)
+	want := "[" + n("10") + ", " + n("20") + "]"
+	assert.Equal(t, want, got)
+}
+
+func TestFormatUintSlicePlain(t *testing.T) {
+	tests := []struct {
+		name string
+		vals []uint
+		want string
+	}{
+		{name: "multiple", vals: []uint{10, 20, 30}, want: "[10, 20, 30]"},
+		{name: "single", vals: []uint{42}, want: "[42]"},
+		{name: "empty", vals: []uint{}, want: "[]"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatUintSlice(tt.vals, nil)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFormatUintSliceStyled(t *testing.T) {
+	styles := DefaultStyles()
+	n := styles.FieldNumber.Render
+
+	got := formatUintSlice([]uint{10, 20}, styles)
+	want := "[" + n("10") + ", " + n("20") + "]"
+	assert.Equal(t, want, got)
+}
+
+func TestStyleElapsed(t *testing.T) {
+	t.Run("elapsed_styles_applied", func(t *testing.T) {
+		styles := DefaultStyles()
+		elapsedNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+		elapsedUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+		styles.FieldElapsedNumber = new(elapsedNum)
+		styles.FieldElapsedUnit = new(elapsedUnit)
+
+		got := styleElapsed("5s", styles)
+		want := elapsedNum.Render("5") + elapsedUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("fallback_to_duration_styles", func(t *testing.T) {
+		styles := DefaultStyles()
+		// FieldElapsedNumber and FieldElapsedUnit are nil by default,
+		// so it should fall back to FieldDurationNumber and FieldDurationUnit.
+		styles.FieldElapsedNumber = nil
+		styles.FieldElapsedUnit = nil
+
+		got := styleElapsed("5s", styles)
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("partial_fallback_number_only", func(t *testing.T) {
+		styles := DefaultStyles()
+		elapsedNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+		styles.FieldElapsedNumber = new(elapsedNum)
+		styles.FieldElapsedUnit = nil // falls back to FieldDurationUnit
+
+		got := styleElapsed("5s", styles)
+		want := elapsedNum.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("partial_fallback_unit_only", func(t *testing.T) {
+		styles := DefaultStyles()
+		elapsedUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+		styles.FieldElapsedNumber = nil // falls back to FieldDurationNumber
+		styles.FieldElapsedUnit = new(elapsedUnit)
+
+		got := styleElapsed("5s", styles)
+		want := styles.FieldDurationNumber.Render("5") + elapsedUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("all_nil_returns_empty", func(t *testing.T) {
+		styles := DefaultStyles()
+		styles.FieldElapsedNumber = nil
+		styles.FieldElapsedUnit = nil
+		styles.FieldDurationNumber = nil
+		styles.FieldDurationUnit = nil
+
+		got := styleElapsed("5s", styles)
+		assert.Empty(t, got)
+	})
+}

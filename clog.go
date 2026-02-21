@@ -70,6 +70,9 @@ var levelLabels = LevelMap{
 }
 
 // Level represents a log level.
+//
+// Level implements [encoding.TextMarshaler] and [encoding.TextUnmarshaler],
+// so it works directly with [flag.TextVar] and most flag libraries.
 type Level int
 
 const (
@@ -82,12 +85,66 @@ const (
 	FatalLevel
 )
 
+// levelNames maps Level constants to their canonical lowercase names.
+var levelNames = map[Level]string{
+	TraceLevel: LevelTrace,
+	DebugLevel: LevelDebug,
+	InfoLevel:  LevelInfo,
+	DryLevel:   LevelDry,
+	WarnLevel:  LevelWarn,
+	ErrorLevel: LevelError,
+	FatalLevel: LevelFatal,
+}
+
 // String returns the short label for the level (e.g. "INF", "ERR").
 func (l Level) String() string {
 	if s, ok := levelLabels[l]; ok {
 		return s
 	}
 	return fmt.Sprintf("LVL(%d)", int(l))
+}
+
+// MarshalText implements [encoding.TextMarshaler].
+func (l Level) MarshalText() ([]byte, error) {
+	if name, ok := levelNames[l]; ok {
+		return []byte(name), nil
+	}
+	return nil, fmt.Errorf("unknown level: %d", int(l))
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (l *Level) UnmarshalText(text []byte) error {
+	parsed, err := ParseLevel(string(text))
+	if err != nil {
+		return err
+	}
+	*l = parsed
+	return nil
+}
+
+// ParseLevel maps a level name string to a [Level] value.
+// It accepts the canonical names ("trace", "debug", "info", "dry", "warn",
+// "error", "fatal") plus aliases ("warning" → Warn, "critical" → Fatal).
+// Matching is case-insensitive.
+func ParseLevel(s string) (Level, error) {
+	switch strings.ToLower(s) {
+	case LevelTrace:
+		return TraceLevel, nil
+	case LevelDebug:
+		return DebugLevel, nil
+	case LevelInfo:
+		return InfoLevel, nil
+	case LevelDry:
+		return DryLevel, nil
+	case LevelWarn, "warning":
+		return WarnLevel, nil
+	case LevelError:
+		return ErrorLevel, nil
+	case LevelFatal, "critical":
+		return FatalLevel, nil
+	default:
+		return 0, fmt.Errorf("unknown level: %q", s)
+	}
 }
 
 // LevelMap maps levels to strings (used for labels, prefixes, etc.).

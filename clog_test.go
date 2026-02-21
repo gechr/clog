@@ -3,6 +3,7 @@ package clog
 import (
 	"bytes"
 	"io"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -1632,4 +1633,486 @@ func TestSetOutput(t *testing.T) {
 	Default.Info().Msg("test")
 
 	assert.Contains(t, buf.String(), "test")
+}
+
+func TestParseLevel(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Level
+	}{
+		{"trace", TraceLevel},
+		{"debug", DebugLevel},
+		{"info", InfoLevel},
+		{"dry", DryLevel},
+		{"warn", WarnLevel},
+		{"warning", WarnLevel},
+		{"error", ErrorLevel},
+		{"fatal", FatalLevel},
+		{"critical", FatalLevel},
+		{"TRACE", TraceLevel},
+		{"Debug", DebugLevel},
+		{"INFO", InfoLevel},
+		{"WARNING", WarnLevel},
+		{"CRITICAL", FatalLevel},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got, err := ParseLevel(tt.input)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestParseLevelUnknown(t *testing.T) {
+	_, err := ParseLevel("bogus")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "bogus")
+}
+
+func TestLevelMarshalText(t *testing.T) {
+	tests := []struct {
+		level Level
+		want  string
+	}{
+		{TraceLevel, LevelTrace},
+		{DebugLevel, LevelDebug},
+		{InfoLevel, LevelInfo},
+		{DryLevel, LevelDry},
+		{WarnLevel, LevelWarn},
+		{ErrorLevel, LevelError},
+		{FatalLevel, LevelFatal},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.want, func(t *testing.T) {
+			got, err := tt.level.MarshalText()
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, string(got))
+		})
+	}
+}
+
+func TestLevelMarshalTextUnknown(t *testing.T) {
+	_, err := Level(99).MarshalText()
+	assert.Error(t, err)
+}
+
+func TestLevelUnmarshalText(t *testing.T) {
+	tests := []struct {
+		input string
+		want  Level
+	}{
+		{"trace", TraceLevel},
+		{"info", InfoLevel},
+		{"warning", WarnLevel},
+		{"FATAL", FatalLevel},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			var l Level
+			err := l.UnmarshalText([]byte(tt.input))
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, l)
+		})
+	}
+}
+
+func TestLevelUnmarshalTextUnknown(t *testing.T) {
+	var l Level
+	err := l.UnmarshalText([]byte("bogus"))
+	assert.Error(t, err)
+}
+
+func TestLevelMarshalRoundTrip(t *testing.T) {
+	for level := TraceLevel; level <= FatalLevel; level++ {
+		text, err := level.MarshalText()
+		require.NoError(t, err)
+
+		var got Level
+		err = got.UnmarshalText(text)
+		require.NoError(t, err)
+		assert.Equal(t, level, got)
+	}
+}
+
+func TestSetElapsedFormatFunc(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetElapsedFormatFunc(func(d time.Duration) string {
+		return "custom:" + d.String()
+	})
+
+	// Disable minimum so elapsed is always shown.
+	l.SetElapsedMinimum(0)
+	l.SetElapsedRound(0)
+
+	// Directly inject an elapsed field via the logger's fields.
+	l.mu.Lock()
+	l.fields = []Field{{Key: "took", Value: elapsed(3 * time.Second)}}
+	l.mu.Unlock()
+
+	l.Info().Msg("test")
+
+	assert.Contains(t, buf.String(), "took=custom:3s")
+}
+
+func TestSetElapsedMinimum(t *testing.T) {
+	t.Run("below_threshold_hidden", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetElapsedMinimum(2 * time.Second)
+		l.SetElapsedRound(0)
+
+		l.mu.Lock()
+		l.fields = []Field{{Key: "took", Value: elapsed(1 * time.Second)}}
+		l.mu.Unlock()
+
+		l.Info().Msg("test")
+
+		assert.NotContains(t, buf.String(), "took=")
+	})
+
+	t.Run("above_threshold_shown", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetElapsedMinimum(1 * time.Second)
+		l.SetElapsedRound(0)
+
+		l.mu.Lock()
+		l.fields = []Field{{Key: "took", Value: elapsed(2 * time.Second)}}
+		l.mu.Unlock()
+
+		l.Info().Msg("test")
+
+		assert.Contains(t, buf.String(), "took=")
+	})
+
+	t.Run("zero_shows_all", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetElapsedMinimum(0)
+		l.SetElapsedRound(0)
+
+		l.mu.Lock()
+		l.fields = []Field{{Key: "took", Value: elapsed(100 * time.Millisecond)}}
+		l.mu.Unlock()
+
+		l.Info().Msg("test")
+
+		assert.Contains(t, buf.String(), "took=")
+	})
+}
+
+func TestSetElapsedPrecision(t *testing.T) {
+	t.Run("precision_0", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetElapsedPrecision(0)
+		l.SetElapsedMinimum(0)
+		l.SetElapsedRound(0)
+
+		l.mu.Lock()
+		l.fields = []Field{{Key: "took", Value: elapsed(3200 * time.Millisecond)}}
+		l.mu.Unlock()
+
+		l.Info().Msg("test")
+
+		assert.Contains(t, buf.String(), "took=3s")
+	})
+
+	t.Run("precision_1", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetElapsedPrecision(1)
+		l.SetElapsedMinimum(0)
+		l.SetElapsedRound(0)
+
+		l.mu.Lock()
+		l.fields = []Field{{Key: "took", Value: elapsed(3200 * time.Millisecond)}}
+		l.mu.Unlock()
+
+		l.Info().Msg("test")
+
+		assert.Contains(t, buf.String(), "took=3.2s")
+	})
+}
+
+func TestSetElapsedRound(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetElapsedRound(time.Second)
+	l.SetElapsedMinimum(0)
+	l.SetElapsedPrecision(0)
+
+	l.mu.Lock()
+	l.fields = []Field{{Key: "took", Value: elapsed(2600 * time.Millisecond)}}
+	l.mu.Unlock()
+
+	l.Info().Msg("test")
+
+	// 2600ms rounds to 3s.
+	assert.Contains(t, buf.String(), "took=3s")
+}
+
+func TestSetFieldSort(t *testing.T) {
+	t.Run("ascending", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetFieldSort(SortAscending)
+		l.Info().Str("zoo", "last").Str("alpha", "first").Msg("test")
+
+		got := buf.String()
+		alphaIdx := strings.Index(got, "alpha=")
+		zooIdx := strings.Index(got, "zoo=")
+		assert.Greater(t, zooIdx, alphaIdx, "expected alpha before zoo in ascending sort")
+	})
+
+	t.Run("descending", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetFieldSort(SortDescending)
+		l.Info().Str("alpha", "first").Str("zoo", "last").Msg("test")
+
+		got := buf.String()
+		alphaIdx := strings.Index(got, "alpha=")
+		zooIdx := strings.Index(got, "zoo=")
+		assert.Greater(t, alphaIdx, zooIdx, "expected zoo before alpha in descending sort")
+	})
+}
+
+func TestSetPercentFormatFunc(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetPercentFormatFunc(func(f float64) string {
+		return "pct:" + strings.TrimRight(strings.TrimRight(
+			strconv.FormatFloat(f, 'f', 1, 64), "0"), ".") + "%"
+	})
+
+	l.Info().Percent("progress", 75).Msg("test")
+
+	assert.Contains(t, buf.String(), "progress=pct:75%")
+}
+
+func TestSetPercentPrecision(t *testing.T) {
+	t.Run("precision_0", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetPercentPrecision(0)
+		l.Info().Percent("progress", 75).Msg("test")
+
+		assert.Contains(t, buf.String(), "progress=75%")
+	})
+
+	t.Run("precision_1", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetPercentPrecision(1)
+		l.Info().Percent("progress", 75).Msg("test")
+
+		assert.Contains(t, buf.String(), "progress=75.0%")
+	})
+}
+
+func TestSetQuantityUnitsIgnoreCase(t *testing.T) {
+	l := NewWriter(io.Discard)
+
+	// Default is true.
+	assert.True(t, l.quantityUnitsIgnoreCase)
+
+	l.SetQuantityUnitsIgnoreCase(false)
+	assert.False(t, l.quantityUnitsIgnoreCase)
+
+	l.SetQuantityUnitsIgnoreCase(true)
+	assert.True(t, l.quantityUnitsIgnoreCase)
+}
+
+func TestSetSeparatorText(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetSeparatorText(": ")
+	l.Info().Str("key", "val").Msg("test")
+
+	assert.Contains(t, buf.String(), "key: val")
+	assert.NotContains(t, buf.String(), "key=val")
+}
+
+func TestPackageLevelSetElapsedFormatFunc(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetElapsedFormatFunc(func(d time.Duration) string {
+		return d.String()
+	})
+
+	Default.mu.Lock()
+	assert.NotNil(t, Default.elapsedFormatFunc)
+	Default.mu.Unlock()
+
+	// Reset to nil.
+	SetElapsedFormatFunc(nil)
+
+	Default.mu.Lock()
+	assert.Nil(t, Default.elapsedFormatFunc)
+	Default.mu.Unlock()
+}
+
+func TestPackageLevelSetElapsedMinimum(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetElapsedMinimum(5 * time.Second)
+
+	Default.mu.Lock()
+	got := Default.elapsedMinimum
+	Default.mu.Unlock()
+
+	assert.Equal(t, 5*time.Second, got)
+}
+
+func TestPackageLevelSetElapsedPrecision(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetElapsedPrecision(2)
+
+	Default.mu.Lock()
+	got := Default.elapsedPrecision
+	Default.mu.Unlock()
+
+	assert.Equal(t, 2, got)
+}
+
+func TestPackageLevelSetElapsedRound(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetElapsedRound(time.Minute)
+
+	Default.mu.Lock()
+	got := Default.elapsedRound
+	Default.mu.Unlock()
+
+	assert.Equal(t, time.Minute, got)
+}
+
+func TestPackageLevelSetFieldSort(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetFieldSort(SortAscending)
+
+	Default.mu.Lock()
+	got := Default.fieldSort
+	Default.mu.Unlock()
+
+	assert.Equal(t, SortAscending, got)
+}
+
+func TestPackageLevelSetPercentFormatFunc(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetPercentFormatFunc(func(f float64) string {
+		return strconv.FormatFloat(f, 'f', 0, 64) + "%"
+	})
+
+	Default.mu.Lock()
+	assert.NotNil(t, Default.percentFormatFunc)
+	Default.mu.Unlock()
+
+	// Reset to nil.
+	SetPercentFormatFunc(nil)
+
+	Default.mu.Lock()
+	assert.Nil(t, Default.percentFormatFunc)
+	Default.mu.Unlock()
+}
+
+func TestPackageLevelSetPercentPrecision(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetPercentPrecision(3)
+
+	Default.mu.Lock()
+	got := Default.percentPrecision
+	Default.mu.Unlock()
+
+	assert.Equal(t, 3, got)
+}
+
+func TestPackageLevelSetQuantityUnitsIgnoreCase(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetQuantityUnitsIgnoreCase(false)
+
+	Default.mu.Lock()
+	got := Default.quantityUnitsIgnoreCase
+	Default.mu.Unlock()
+
+	assert.False(t, got)
+}
+
+func TestPackageLevelSetSeparatorText(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetSeparatorText(": ")
+
+	Default.mu.Lock()
+	got := Default.separatorText
+	Default.mu.Unlock()
+
+	assert.Equal(t, ": ", got)
+}
+
+func TestIsTerminal(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	var buf bytes.Buffer
+
+	Default = New(TestOutput(&buf))
+
+	// In a test environment, output is not a terminal.
+	assert.False(t, IsTerminal())
+}
+
+func TestColorModeStringBoundary(t *testing.T) {
+	// Valid values.
+	assert.Equal(t, "auto", ColorAuto.String())
+	assert.Equal(t, "always", ColorAlways.String())
+	assert.Equal(t, "never", ColorNever.String())
+
+	// Out-of-range negative value.
+	assert.Equal(t, "ColorMode(-1)", ColorMode(-1).String())
+
+	// Out-of-range positive value.
+	assert.Equal(t, "ColorMode(99)", ColorMode(99).String())
 }

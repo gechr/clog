@@ -4,17 +4,17 @@ import "time"
 
 // Field is a typed key-value pair attached to a log entry.
 type Field struct {
-	Key   string
-	Value any
+	Key   string `json:"key"`
+	Value any    `json:"value"`
 }
 
 // Entry represents a completed log entry passed to a [Handler].
 type Entry struct {
-	Fields  []Field
-	Level   Level
-	Message string
-	Prefix  string
-	Time    time.Time // Zero value if timestamps are disabled.
+	Fields  []Field   `json:"fields,omitempty"`
+	Level   Level     `json:"level"`
+	Message string    `json:"message"`
+	Prefix  string    `json:"prefix,omitempty"`
+	Time    time.Time `json:"time,omitzero"`
 }
 
 // Handler processes log entries. Implement this interface to customise

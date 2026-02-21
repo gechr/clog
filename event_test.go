@@ -1243,3 +1243,32 @@ func TestEventRawJSONNilReceiver(t *testing.T) {
 	got := e.RawJSON("k", []byte("{}"))
 	assert.Nil(t, got)
 }
+
+func TestEventInts64(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Ints64("nums", []int64{1, 2, 3})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "nums", e.fields[0].Key)
+	assertSliceField(t, e.fields, []int64{1, 2, 3})
+}
+
+func TestEventTimes(t *testing.T) {
+	t1 := time.Date(2025, 6, 15, 10, 0, 0, 0, time.UTC)
+	t2 := time.Date(2025, 6, 16, 12, 0, 0, 0, time.UTC)
+	e := NewWriter(io.Discard).Info()
+	e.Times("timestamps", []time.Time{t1, t2})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "timestamps", e.fields[0].Key)
+	assertSliceField(t, e.fields, []time.Time{t1, t2})
+}
+
+func TestEventUints(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Uints("counts", []uint{10, 20, 30})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "counts", e.fields[0].Key)
+	assertSliceField(t, e.fields, []uint{10, 20, 30})
+}
