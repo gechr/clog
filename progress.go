@@ -3,7 +3,6 @@ package clog
 import (
 	"context"
 	"io"
-	"math"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -283,7 +282,9 @@ func (b *AnimationBuilder) Progress(
 		errorLevel:   ErrorLevel,
 	}
 	w.fields = *fieldsPtr.Load()
-	if b.elapsedKey != "" || b.barPercentKey != "" {
+	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
+		!b.barStyle.HidePercent
+	if b.elapsedKey != "" || b.barPercentKey != "" || stylePercent {
 		w.fields = slices.Clone(w.fields)
 		for i := range w.fields {
 			switch w.fields[i].Key {
@@ -295,6 +296,15 @@ func (b *AnimationBuilder) Progress(
 				pct := float64(cur) / float64(max(tot, 1)) * percentMax
 				w.fields[i].Value = percent(min(pct, percentMax))
 			}
+		}
+		if stylePercent {
+			cur := int(b.barProgressPtr.Load())
+			tot := int(b.barTotalPtr.Load())
+			pct := float64(cur) / float64(max(tot, 1)) * percentMax
+			w.fields = append(
+				w.fields,
+				Field{Key: b.barStyle.percentFieldKey(), Value: percent(min(pct, percentMax))},
+			)
 		}
 	}
 	w.initSelf(w)
@@ -400,7 +410,6 @@ func (w *WaitResult) Silent() error {
 	return w.err
 }
 
-//nolint:cyclop // animation loop has inherent complexity
 func runAnimation(
 	ctx context.Context,
 	msgPtr *atomic.Pointer[string],
@@ -430,93 +439,20 @@ func runAnimation(
 		}
 	}
 
-	// Snapshot the logger's settings under the mutex to avoid data races.
-	l := b.resolveLogger()
-	l.mu.Lock()
-	elapsedFormatFunc := l.elapsedFormatFunc
-	elapsedMinimum := l.elapsedMinimum
-	elapsedPrecision := l.elapsedPrecision
-	elapsedRound := l.elapsedRound
-	fieldSort := l.fieldSort
-	fieldStyleLevel := l.fieldStyleLevel
-	fieldTimeFormat := l.fieldTimeFormat
-	label := l.formatLabel(b.level)
-	noColor := l.output.ColorsDisabled()
-	order := l.parts
-	out := l.output.Writer()
-	output := l.output // captured for per-tick width queries in bar mode
-	percentFormatFunc := l.percentFormatFunc
-	percentPrecision := l.percentPrecision
-	quantityUnitsIgnoreCase := l.quantityUnitsIgnoreCase
-	termOut := l.output.Renderer().Output()
-	quoteClose := l.quoteClose
-	quoteMode := l.quoteMode
-	quoteOpen := l.quoteOpen
-	reportTS := l.reportTimestamp
-	separatorText := l.separatorText
-	styles := l.styles
-	timeFmt := l.timeFormat
-	timeLoc := l.timeLocation
-	l.mu.Unlock()
-
-	// buildParts assembles the display parts slice from the configured order.
-	buildParts := func(order []Part, reportTS bool, tsStr, levelStr, prefix, msg, fieldsStr string) string {
-		parts := make([]string, 0, len(order))
-		for _, p := range order {
-			var part string
-			switch p {
-			case PartTimestamp:
-				if !reportTS {
-					continue
-				}
-				part = tsStr
-			case PartLevel:
-				part = levelStr
-			case PartPrefix:
-				part = prefix
-			case PartMessage:
-				part = msg
-			case PartFields:
-				part = fieldsStr
-			}
-			if part != "" {
-				parts = append(parts, part)
-			}
-		}
-		return strings.Join(parts, " ")
-	}
-
-	// Resolve the prefix icon for pulse/shimmer modes.
-	prefix := b.prefix
-	if prefix == "" {
-		prefix = "⏳"
-	}
+	// Build the slot and snapshot the logger's settings.
+	slot := &groupSlot{builder: b, msgPtr: msgPtr, fieldsPtr: fields, startTime: startTime}
+	captureSlotConfig(slot)
 
 	// Don't animate if colours are disabled (CI, piped output, etc.).
 	// Print the initial message so the user knows something is in progress.
-	if noColor {
+	if slot.cfg.noColor {
 		fieldsStr := strings.TrimLeft(
-			formatFields(*fields.Load(), formatFieldsOpts{
-				elapsedFormatFunc:       elapsedFormatFunc,
-				elapsedMinimum:          elapsedMinimum,
-				elapsedPrecision:        elapsedPrecision,
-				elapsedRound:            elapsedRound,
-				fieldSort:               fieldSort,
-				noColor:                 true,
-				percentFormatFunc:       percentFormatFunc,
-				percentPrecision:        percentPrecision,
-				quantityUnitsIgnoreCase: quantityUnitsIgnoreCase,
-				quoteClose:              quoteClose,
-				quoteMode:               quoteMode,
-				quoteOpen:               quoteOpen,
-				separatorText:           separatorText,
-				timeFormat:              fieldTimeFormat,
-			}), " ",
+			formatFields(*fields.Load(), slot.fieldOpts), " ",
 		)
-		line := buildParts(order, reportTS,
-			time.Now().In(timeLoc).Format(timeFmt),
-			label, prefix, *msgPtr.Load(), fieldsStr)
-		_, _ = io.WriteString(out, line+"\n")
+		line := buildLine(slot.cfg.order, slot.cfg.reportTS,
+			time.Now().In(slot.cfg.timeLoc).Format(slot.cfg.timeFmt),
+			slot.cfg.label, slot.prefix, *msgPtr.Load(), fieldsStr)
+		_, _ = io.WriteString(slot.cfg.out, line+"\n")
 		select {
 		case err := <-done:
 			return err
@@ -526,153 +462,13 @@ func runAnimation(
 	}
 
 	// Hide cursor during animation.
-	termOut.HideCursor()
-	defer termOut.ShowCursor()
+	slot.cfg.termOut.HideCursor()
+	defer slot.cfg.termOut.ShowCursor()
 
-	var levelPrefix string
-	if style := styles.Levels[b.level]; style != nil {
-		levelPrefix = style.Render(label)
-	} else {
-		levelPrefix = label
-	}
-
-	// Determine the tick rate and pre-compute any mode-specific resources.
-	var tickRate time.Duration
-	var hexLUT *shimmerLUT
-	var styleLUT *shimmerStyleLUT
-	switch b.mode {
-	case animationSpinner:
-		tickRate = b.spinner.FPS
-	case animationPulse:
-		tickRate = pulseTickRate
-	case animationShimmer:
-		tickRate = shimmerTickRate
-		hexLUT = buildShimmerLUT(b.shimmerStops)
-		styleLUT = buildShimmerStyleLUT(hexLUT)
-	case animationBar:
-		tickRate = barTickRate
-	}
-
-	// Cache formatted fields — only re-format when the atomic pointer changes.
-	var cachedFieldsPtr *[]Field
-	var cachedFieldsStr string
-	fieldOpts := formatFieldsOpts{
-		elapsedFormatFunc:       elapsedFormatFunc,
-		elapsedMinimum:          elapsedMinimum,
-		elapsedPrecision:        elapsedPrecision,
-		elapsedRound:            elapsedRound,
-		fieldSort:               fieldSort,
-		fieldStyleLevel:         fieldStyleLevel,
-		level:                   b.level,
-		percentFormatFunc:       percentFormatFunc,
-		percentPrecision:        percentPrecision,
-		quantityUnitsIgnoreCase: quantityUnitsIgnoreCase,
-		quoteClose:              quoteClose,
-		quoteMode:               quoteMode,
-		quoteOpen:               quoteOpen,
-		separatorText:           separatorText,
-		styles:                  styles,
-		timeFormat:              fieldTimeFormat,
-	}
-
-	// Guard against invalid SpinnerStyle values that would cause panics.
-	if b.mode == animationSpinner && len(b.spinner.Frames) == 0 {
-		b.spinner.Frames = DefaultSpinnerStyle().Frames
-	}
-	if tickRate <= 0 {
-		tickRate = DefaultSpinnerStyle().FPS
-	}
-
-	ticker := time.NewTicker(tickRate)
+	ticker := time.NewTicker(slot.tickRate)
 	defer ticker.Stop()
 
-	frame := 0            // spinner frame counter
-	var pCache pulseCache // reused across pulse frames to avoid style re-creation
 	var frameBuf strings.Builder
-
-	// writeFrame renders a single animation frame to the terminal.
-	// char is the prefix character (spinner frame or static prefix), msg is the
-	// styled message (possibly with inline bar), and barPart/barSep/barAlign
-	// control bar positioning for non-inline alignments.
-	writeFrame := func(dur time.Duration, char, msg, barPart, barSep string, barAlign BarAlign) {
-		fp := fields.Load()
-		if b.elapsedKey != "" || b.barPercentKey != "" {
-			clone := slices.Clone(*fp)
-			for i := range clone {
-				switch clone[i].Key {
-				case b.elapsedKey:
-					clone[i].Value = elapsed(dur)
-				case b.barPercentKey:
-					cur := int(b.barProgressPtr.Load())
-					tot := int(b.barTotalPtr.Load())
-					pct := float64(cur) / float64(max(tot, 1)) * percentMax
-					clone[i].Value = percent(min(pct, percentMax))
-				}
-			}
-			cachedFieldsStr = strings.TrimLeft(formatFields(clone, fieldOpts), " ")
-		} else if fp != cachedFieldsPtr {
-			cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
-		}
-		cachedFieldsPtr = fp
-
-		now := time.Now()
-		var tsStr string
-		if reportTS {
-			ts := now.In(timeLoc).Format(timeFmt)
-			if styles.Timestamp != nil {
-				tsStr = styles.Timestamp.Render(ts)
-			} else {
-				tsStr = ts
-			}
-		}
-
-		parts := buildParts(order, reportTS, tsStr, levelPrefix, char, msg, cachedFieldsStr)
-		var line string
-		if barPart != "" {
-			line = alignBarLine(parts, barPart, barSep, barAlign, output.Width())
-		} else {
-			line = parts
-		}
-		frameBuf.Reset()
-		frameBuf.WriteString(clearLine)
-		frameBuf.WriteString(line)
-		_, _ = io.WriteString(out, frameBuf.String())
-	}
-
-	// buildBarFrame prepares the bar-specific variables (msg, barPart, barSep,
-	// barAlign) for a single frame, then calls writeFrame.
-	buildBarFrame := func(dur time.Duration) {
-		msg := *msgPtr.Load()
-		if msgStyle := styles.Messages[b.level]; msgStyle != nil {
-			msg = msgStyle.Render(msg)
-		}
-		current := int(b.barProgressPtr.Load())
-		total := int(b.barTotalPtr.Load())
-		barStr := renderBar(current, total, b.barStyle, output.Width())
-		sep := b.barStyle.Separator
-		if sep == "" {
-			sep = " "
-		}
-		barFull := barStr
-		if !b.barStyle.HidePercent && b.barPercentKey == "" {
-			pct := barPercent(
-				current,
-				total,
-				b.barStyle.PercentPrecision,
-				b.barStyle.PadPercent == nil || *b.barStyle.PadPercent,
-			)
-			if b.barStyle.PercentPosition == PercentLeft {
-				barFull = pct + sep + barStr
-			} else {
-				barFull = barStr + sep + pct
-			}
-		}
-		if b.barStyle.Align == BarAlignInline {
-			writeFrame(dur, prefix, msg+sep+barFull, "", "", b.barStyle.Align)
-		} else {
-			writeFrame(dur, prefix, msg, barFull, sep, b.barStyle.Align)
-		}
-	}
 
 	for {
 		select {
@@ -680,47 +476,22 @@ func runAnimation(
 			// For bar animations, render one final frame so 100% is visible
 			// before the line is cleared and replaced with the completion message.
 			if b.mode == animationBar && err == nil {
-				buildBarFrame(time.Since(startTime))
+				line := renderSlotLine(slot, false, time.Now())
+				frameBuf.Reset()
+				frameBuf.WriteString(clearLine)
+				frameBuf.WriteString(line)
+				_, _ = io.WriteString(slot.cfg.out, frameBuf.String())
 			}
-			_, _ = io.WriteString(out, clearLine)
+			_, _ = io.WriteString(slot.cfg.out, clearLine)
 			return err
 		case now := <-ticker.C:
-			dur := now.Sub(startTime)
-
-			msg := *msgPtr.Load()
-			var char string
-			var barPart string    // bar + sep + pct, kept separate for non-inline alignment
-			var barAlign BarAlign // alignment mode (only set for animationBar)
-			var barSep string     // resolved separator for bar mode
-
-			switch b.mode {
-			case animationSpinner:
-				n := len(b.spinner.Frames)
-				i := frame % n
-				if b.spinner.Reverse {
-					i = n - 1 - i
-				}
-				char = b.spinner.Frames[i]
-				frame++
-				if msgStyle := styles.Messages[b.level]; msgStyle != nil {
-					msg = msgStyle.Render(msg)
-				}
-			case animationPulse:
-				char = prefix
-				t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
-				msg = pulseTextCached(msg, t, b.pulseStops, &pCache)
-			case animationShimmer:
-				char = prefix
-				phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
-				msg = shimmerText(msg, phase, b.shimmerDir, hexLUT, styleLUT)
-			case animationBar:
-				buildBarFrame(dur)
-				continue
-			}
-
-			writeFrame(dur, char, msg, barPart, barSep, barAlign)
+			line := renderSlotLine(slot, false, now)
+			frameBuf.Reset()
+			frameBuf.WriteString(clearLine)
+			frameBuf.WriteString(line)
+			_, _ = io.WriteString(slot.cfg.out, frameBuf.String())
 		case <-ctx.Done():
-			_, _ = io.WriteString(out, clearLine)
+			_, _ = io.WriteString(slot.cfg.out, clearLine)
 			return ctx.Err()
 		}
 	}

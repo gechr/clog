@@ -545,16 +545,16 @@ p.SetProgress(50).SetTotal(200).Msg("Processing").Send()
 
 #### Bar Styles
 
-Five pre-built styles are available in [`progress_bar_presets.go`](progress_bar_presets.go). Pass any of them to `.Style()`:
+Six pre-built styles are available in [`progress_bar_presets.go`](progress_bar_presets.go). Pass any of them to `.Style()`:
 
 | Preset        | Characters     | Description                                     |
 | ------------- | -------------- | ----------------------------------------------- |
 | `BarBasic`    | `[=====>    ]` | ASCII-only for maximum compatibility            |
 | `BarDash`     | `[-----     ]` | Simple dash fill                                |
-| `BarBlock`    | `[█████░░░░░]` | Solid block characters                          |
-| `BarGradient` | `[██████▍   ]` | Block elements with 8x sub-cell resolution      |
-| `BarSmooth`   | `[████▌     ]` | Block characters with half-block leading edge   |
 | `BarThin`     | `[━━━╺──────]` | Box-drawing with half-cell resolution (default) |
+| `BarBlock`    | `│█████░░░░░│` | Solid block characters                          |
+| `BarGradient` | `│██████▍   │` | Block elements with 8x sub-cell resolution      |
+| `BarSmooth`   | `│████▌     │` | Block characters with half-block leading edge   |
 
 ```go
 clog.Bar("Uploading", total).
@@ -597,13 +597,9 @@ clog.Bar("Uploading", total).
 
 When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clamped to `[MinWidth, MaxWidth]`.
 
-`PadPercent` controls fixed-width padding on the percentage label (e.g. `" 0%"`, `" 50%"`, `"100%"`) to prevent the bar from jumping as digits change. It defaults to enabled (`nil` = true). To disable:
+`NoPadPercent` disables fixed-width padding on the percentage label (e.g. `" 0%"`, `" 50%"`, `"100%"`). By default padding is enabled to prevent the bar from jumping as digits change. Set `NoPadPercent: true` to disable.
 
-```go
-style.PadPercent = new(true)
-```
-
-All presets include bold white `CapStyle` for the `[` `]` brackets. Set `CapStyle` to `nil` for unstyled caps.
+All presets include bold white `CapStyle` for the bar caps. Set `CapStyle` to `nil` for unstyled caps.
 
 #### Progress Gradient
 
@@ -635,19 +631,30 @@ When set, `ProgressGradient` overrides the `FilledStyle` foreground color. Use `
 
 The `Align` field on `BarStyle` controls where the bar appears on the line:
 
-| Constant           | Layout                                                                 |
-| ------------------ | ---------------------------------------------------------------------- |
-| `BarAlignRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
-| `BarAlignLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
-| `BarAlignInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `BarAlignRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `BarAlignLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
+| Constant           | Layout                                                                  |
+| ------------------ | ----------------------------------------------------------------------- |
+| `BarAlignRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default)  |
+| `BarAlignLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`            |
+| `BarAlignInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] progress=45%` (with `PercentField`) |
+| `BarAlignRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                                |
+| `BarAlignLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                                |
 
 The padded variants (`BarAlignRightPad`, `BarAlignLeftPad`) fill the gap between message and bar with spaces to span the terminal width. When the terminal is too narrow, they fall back to the `Separator` between parts.
 
 #### Bar Percentage as a Field
 
-By default the percentage is displayed inline beside the bar. Use `.BarPercent(key)` to move it into the structured fields instead — the inline percentage is automatically hidden:
+By default the percentage is displayed beside the bar. `BarAlignInline` automatically shows it as a structured field instead (key defaults to `"progress"`):
+
+```go
+clog.Bar("Syncing", 100).
+  Style(clog.BarStyle{Align: clog.BarAlignInline}).
+  Elapsed("elapsed").
+  Progress(ctx, task).
+  Msg("Synced")
+// INF ⏳ Syncing [━━━━━╸╺──────] elapsed=1.2s progress=45%
+```
+
+Override the key with `PercentField` on the style, or use `.BarPercent(key)` on the builder for explicit field positioning:
 
 ```go
 clog.Bar("Installing", 100).
@@ -658,7 +665,7 @@ clog.Bar("Installing", 100).
 // INF ⏳ Installing          [━━━━━╸╺──────] progress=45% elapsed=1.2s
 ```
 
-You can also hide the percentage entirely with `HidePercent: true` on the `BarStyle` without adding it as a field.
+Hide the percentage entirely with `HidePercent: true` on the `BarStyle`.
 
 All animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
 
@@ -670,6 +677,62 @@ clog.Pulse("Warming up").
   Wait(ctx, action).
   Msg("Ready")
 ```
+
+### Group (Concurrent Animations)
+
+`Group` runs multiple animations concurrently in a multi-line block, redrawn each tick.
+
+```go
+g := clog.NewGroup(ctx)
+g.Add(clog.Spinner("Processing data").Str("workers", "4")).
+  Run(func(ctx context.Context) error {
+    return processData(ctx)
+  })
+g.Add(clog.Bar("Downloading", 100)).
+  Progress(func(ctx context.Context, p *clog.ProgressUpdate) error {
+    for i := range 101 {
+      p.SetProgress(i).Send()
+      time.Sleep(20 * time.Millisecond)
+    }
+    return nil
+  })
+g.Wait().Prefix("✅").Msg("All tasks complete")
+```
+
+While the tasks run, the terminal shows all animations updating simultaneously:
+
+```text
+INF 🌒 Processing data workers=4
+INF ⏳ Downloading [━━━━━━━╸╺───────────] 42%
+```
+
+When all tasks finish, the block is cleared and a single summary line is logged. Alternatively, use per-slot results for individual completion messages:
+
+```go
+g := clog.NewGroup(ctx)
+proc := g.Add(clog.Spinner("Processing")).Run(processData)
+dl := g.Add(clog.Bar("Downloading", 100)).Progress(download)
+g.Wait()
+proc.Prefix("✅").Msg("Processing done")
+dl.Prefix("✅").Msg("Download complete")
+```
+
+Any mix of animation types works: spinners, bars, pulses, and shimmers can all run in the same group.
+
+#### API
+
+| Function / Method      | Description                                            |
+| ---------------------- | ------------------------------------------------------ |
+| `clog.NewGroup(ctx)`   | Create a group using the `Default` logger              |
+| `logger.Group(ctx)`    | Create a group using a specific logger                 |
+| `g.Add(builder)`       | Register an animation builder, returns `*GroupEntry`   |
+| `entry.Run(task)`      | Start a `Task`, returns `*SlotResult`                  |
+| `entry.Progress(task)` | Start a `ProgressTask`, returns `*SlotResult`          |
+| `g.Wait()`             | Block until all tasks complete, returns `*GroupResult` |
+
+`GroupResult` and `SlotResult` support the same chaining as `WaitResult`: `.Msg()`, `.Prefix()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
+
+`GroupResult.Err()` / `.Silent()` returns the `errors.Join` of all slot errors (nil when all succeeded).
 
 ## Hyperlinks
 

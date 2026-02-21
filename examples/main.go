@@ -46,59 +46,35 @@ func main() {
 	}
 
 	if !*quickFlag {
-		// --- Bar ---
-		header("Bar (default thin)")
-		_ = clog.Bar("Downloading", 1000).
-			Str("file", "release.tar.gz").
-			Elapsed("elapsed").
-			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
-				for i := range 1001 {
-					p.SetProgress(i).Msg("Downloading").Send()
-					time.Sleep(3 * time.Millisecond)
-				}
-				return nil
-			}).
-			Prefix("✅").
-			Msg("Download complete")
+		// --- Group (bar styles + spinner + pulse running concurrently) ---
+		header("Group (concurrent bar styles)")
 
-		header("Bar (thin)")
 		thinColored := clog.BarThin
 		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
 		thinColored.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		_ = clog.Bar("Installing", 1000).
-			Style(thinColored).
-			Str("pkg", "clog").
-			BarPercent("progress").
-			Elapsed("elapsed").
-			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
-				for i := range 1001 {
-					p.SetProgress(i).Msg("Installing").Send()
-					time.Sleep(3 * time.Millisecond)
-				}
-				return nil
-			}).
-			Prefix("✅").
-			Msg("Installed")
 
-		header("Bar (gradient)")
 		gradientBar := clog.BarSmooth
 		gradientBar.ProgressGradient = clog.DefaultBarGradient()
-		_ = clog.Bar("Building", 1000).
-			Style(gradientBar).
-			Str("target", "release").
-			Elapsed("elapsed").
-			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
-				for i := range 1001 {
-					p.SetProgress(i).Msg("Building").Send()
-					time.Sleep(3 * time.Millisecond)
-				}
-				return nil
-			}).
-			Prefix("✅").
-			Msg("Build complete")
 
-		header("Bar (inline)")
-		_ = clog.Bar("Downloading", 1000).
+		barFill := func(_ context.Context, p *clog.ProgressUpdate) error {
+			for i := range 1001 {
+				p.SetProgress(i).Send()
+				time.Sleep(3 * time.Millisecond)
+			}
+			return nil
+		}
+
+		g := clog.NewGroup(context.Background())
+		g.Add(clog.Bar("Downloading", 1000).
+			Str("file", "release.tar.gz").Elapsed("elapsed")).
+			Progress(barFill)
+		g.Add(clog.Bar("Installing", 1000).
+			Style(thinColored).Str("pkg", "clog").BarPercent("progress").Elapsed("elapsed")).
+			Progress(barFill)
+		g.Add(clog.Bar("Building", 1000).
+			Style(gradientBar).Str("target", "release").Elapsed("elapsed")).
+			Progress(barFill)
+		g.Add(clog.Bar("Syncing", 1000).
 			Style(clog.BarStyle{
 				FilledChar:   '█',
 				EmptyChar:    ' ',
@@ -109,18 +85,19 @@ func main() {
 				MinWidth:     10,
 				MaxWidth:     40,
 				Align:        clog.BarAlignInline,
-			}).
-			Str("file", "release.tar.gz").
-			Elapsed("elapsed").
-			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
-				for i := range 1001 {
-					p.SetProgress(i).Msg("Downloading").Send()
-					time.Sleep(3 * time.Millisecond)
-				}
+			}).Str("region", "us-east-1").Elapsed("elapsed")).
+			Progress(barFill)
+		g.Add(clog.Spinner("Processing data").Str("workers", "4")).
+			Run(func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
-			Msg("Download complete")
+			})
+		g.Add(clog.Pulse("Indexing search catalogue")).
+			Run(func(_ context.Context) error {
+				time.Sleep(3 * time.Second)
+				return nil
+			})
+		g.Wait().Prefix("✅").Msg("Group demo complete")
 
 		// --- Spinner ---
 		header("Spinner")
@@ -693,91 +670,31 @@ func spinners(filter string) {
 	all := []entry{
 		{"Aesthetic", clog.SpinnerAesthetic},
 		{"Arc", clog.SpinnerArc},
-		{"Arrow2", clog.SpinnerArrow2},
 		{"Arrow3", clog.SpinnerArrow3},
-		{"Balloon", clog.SpinnerBalloon},
-		{"Balloon2", clog.SpinnerBalloon2},
 		{"BetaWave", clog.SpinnerBetaWave},
-		{"Binary", clog.SpinnerBinary},
-		{"BluePulse", clog.SpinnerBluePulse},
 		{"BouncingBall", clog.SpinnerBouncingBall},
-		{"BoxBounce", clog.SpinnerBoxBounce},
-		{"BoxBounce2", clog.SpinnerBoxBounce2},
-		{"Christmas", clog.SpinnerChristmas},
 		{"Circle", clog.SpinnerCircle},
-		{"CircleHalves", clog.SpinnerCircleHalves},
-		{"CircleQuarters", clog.SpinnerCircleQuarters},
-		{"Dot", clog.SpinnerDot},
 		{"Dots", clog.SpinnerDots},
-		{"Dots3", clog.SpinnerDots3},
-		{"Dots4", clog.SpinnerDots4},
-		{"Dots5", clog.SpinnerDots5},
-		{"Dots6", clog.SpinnerDots6},
-		{"Dots7", clog.SpinnerDots7},
-		{"Dots8", clog.SpinnerDots8},
 		{"Dots8Bit", clog.SpinnerDots8Bit},
-		{"Dots9", clog.SpinnerDots9},
-		{"Dots11", clog.SpinnerDots11},
 		{"Dots12", clog.SpinnerDots12},
-		{"Dots13", clog.SpinnerDots13},
-		{"Dots14", clog.SpinnerDots14},
-		{"DotsCircle", clog.SpinnerDotsCircle},
-		{"Dqpb", clog.SpinnerDqpb},
-		{"DwarfFortress", clog.SpinnerDwarfFortress},
-		{"Ellipsis", clog.SpinnerEllipsis},
-		{"FingerDance", clog.SpinnerFingerDance},
-		{"Fish", clog.SpinnerFish},
-		{"FistBump", clog.SpinnerFistBump},
 		{"Flip", clog.SpinnerFlip},
 		{"Globe", clog.SpinnerGlobe},
-		{"Grenade", clog.SpinnerGrenade},
-		{"GrowHorizontal", clog.SpinnerGrowHorizontal},
 		{"GrowVertical", clog.SpinnerGrowVertical},
-		{"Hamburger", clog.SpinnerHamburger},
-		{"Jump", clog.SpinnerJump},
 		{"Layer", clog.SpinnerLayer},
 		{"Line", clog.SpinnerLine},
-		{"Line2", clog.SpinnerLine2},
 		{"Material", clog.SpinnerMaterial},
 		{"Meter", clog.SpinnerMeter},
-		{"Mindblown", clog.SpinnerMindblown},
-		{"MiniDot", clog.SpinnerMiniDot},
-		{"Monkey", clog.SpinnerMonkey},
 		{"Moon", clog.SpinnerMoon},
 		{"Noise", clog.SpinnerNoise},
-		{"OrangeBluePulse", clog.SpinnerOrangeBluePulse},
-		{"OrangePulse", clog.SpinnerOrangePulse},
 		{"Pipe", clog.SpinnerPipe},
-		{"Point", clog.SpinnerPoint},
-		{"Points", clog.SpinnerPoints},
 		{"Pong", clog.SpinnerPong},
-		{"Pulse", clog.SpinnerPulse},
-		{"RollingLine", clog.SpinnerRollingLine},
 		{"Runner", clog.SpinnerRunner},
-		{"Sand", clog.SpinnerSand},
 		{"Shark", clog.SpinnerShark},
-		{"SimpleDots", clog.SpinnerSimpleDots},
-		{"SimpleDotsScrolling", clog.SpinnerSimpleDotsScrolling},
 		{"Smiley", clog.SpinnerSmiley},
 		{"SoccerHeader", clog.SpinnerSoccerHeader},
-		{"Speaker", clog.SpinnerSpeaker},
 		{"SquareCorners", clog.SpinnerSquareCorners},
-		{"Squish", clog.SpinnerSquish},
 		{"Star2", clog.SpinnerStar2},
-		{"TimeTravel", clog.SpinnerTimeTravel},
 		{"Toggle", clog.SpinnerToggle},
-		{"Toggle2", clog.SpinnerToggle2},
-		{"Toggle3", clog.SpinnerToggle3},
-		{"Toggle4", clog.SpinnerToggle4},
-		{"Toggle5", clog.SpinnerToggle5},
-		{"Toggle6", clog.SpinnerToggle6},
-		{"Toggle7", clog.SpinnerToggle7},
-		{"Toggle8", clog.SpinnerToggle8},
-		{"Toggle9", clog.SpinnerToggle9},
-		{"Toggle10", clog.SpinnerToggle10},
-		{"Toggle11", clog.SpinnerToggle11},
-		{"Toggle12", clog.SpinnerToggle12},
-		{"Toggle13", clog.SpinnerToggle13},
 		{"Triangle", clog.SpinnerTriangle},
 		{"Weather", clog.SpinnerWeather},
 	}
@@ -797,7 +714,7 @@ func spinners(filter string) {
 	}
 
 	clog.SetReportTimestamp(false)
-	clog.SetParts(clog.PartPrefix, clog.PartMessage, clog.PartFields)
+	clog.SetParts(clog.PartMessage, clog.PartPrefix)
 	styles := clog.DefaultStyles()
 	orange := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
 	styles.Messages[clog.InfoLevel] = &orange
@@ -806,20 +723,26 @@ func spinners(filter string) {
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
 	check := green.Render("✓")
 
-	ctx := context.Background()
+	maxName := 0
 	for _, e := range all {
-		cycle := e.spinner.FPS * time.Duration(len(e.spinner.Frames))
-		dur := max(min(cycle*2, 3*time.Second), 1*time.Second)
+		maxName = max(maxName, len(e.name))
+	}
 
-		_ = clog.Spinner(e.name).
-			Style(e.spinner).
-			Duration("cycle", cycle).
-			Wait(ctx, func(_ context.Context) error {
-				time.Sleep(dur)
+	ctx := context.Background()
+	g := clog.NewGroup(ctx)
+	results := make([]*clog.SlotResult, len(all))
+	for i, e := range all {
+		name := fmt.Sprintf("%-*s", maxName, e.name)
+		results[i] = g.Add(clog.Spinner(name).
+			Style(e.spinner)).
+			Run(func(_ context.Context) error {
+				time.Sleep(10 * time.Second)
 				return nil
-			}).
-			Prefix(check).
-			Msg(e.name)
+			})
+	}
+	g.Wait()
+	for i, e := range all {
+		results[i].Prefix(check).Msg(e.name)
 	}
 }
 

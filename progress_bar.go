@@ -60,13 +60,27 @@ type BarStyle struct {
 	LeftCap          string          // left bracket; default "["
 	MaxWidth         int             // maximum auto-sized width; default 40
 	MinWidth         int             // minimum auto-sized width; default 10
-	PadPercent       *bool           // right-align percentage to fixed width to prevent jumping; nil or true = enabled (default)
+	NoPadPercent     bool            // disable right-aligned fixed-width percentage; when false (default), the label is padded to prevent jumping
+	PercentField     string          // when set, the percentage is shown as a structured field with this key instead of beside the bar; defaults to "progress" for BarAlignInline
 	PercentPosition  PercentPosition // which side of the bar the percentage appears on; default PercentRight
 	PercentPrecision int             // decimal places for the percentage label; default 0 (e.g. 0 → "50%", 1 → "50.0%")
 	ProgressGradient []ColorStop     // when set, colors filled cells based on progress; overrides FilledStyle foreground
 	RightCap         string          // right bracket; default "]"
 	Separator        string          // separator between message, bar, and percentage; default " "
 	Width            int             // fixed inner width; 0 = auto-size
+}
+
+// percentFieldKey returns the effective percent field key. When PercentField
+// is explicitly set, that value is returned. Otherwise, [BarAlignInline]
+// defaults to "progress" so the percentage is shown as a structured field.
+func (s BarStyle) percentFieldKey() string {
+	if s.PercentField != "" {
+		return s.PercentField
+	}
+	if s.Align == BarAlignInline {
+		return "progress"
+	}
+	return ""
 }
 
 // DefaultBarStyle returns the default [BarStyle].
