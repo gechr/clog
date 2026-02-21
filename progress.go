@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -62,7 +63,8 @@ func (u *ProgressUpdate) Send() {
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
-	level        Level // log level used during animation rendering (default: InfoLevel)
+	elapsedKey   string // when set, a formatted elapsed-time field is injected each tick
+	level        Level  // log level used during animation rendering (default: InfoLevel)
 	mode         animMode
 	msg          string
 	prefix       string // icon shown during animation; defaults to "⏳" for pulse/shimmer
@@ -131,6 +133,19 @@ func (b *AnimationBuilder) Type(s SpinnerType) *AnimationBuilder {
 // Only meaningful when the builder was created with [Shimmer].
 func (b *AnimationBuilder) ShimmerDirection(d Direction) *AnimationBuilder {
 	b.shimmerDir = d
+	return b
+}
+
+// Elapsed enables an auto-updating elapsed-time field that is injected on
+// each animation tick and included in the final completion log. The key
+// parameter is the field name (e.g. "elapsed"). The value is formatted
+// using [formatElapsed] with [Styles.ElapsedPrecision].
+//
+// The field respects the position where Elapsed is called relative to other
+// field methods (e.g. Str, Int) on the builder.
+func (b *AnimationBuilder) Elapsed(key string) *AnimationBuilder {
+	b.elapsedKey = key
+	b.fields = append(b.fields, Field{Key: key, Value: elapsed(0)})
 	return b
 }
 
@@ -224,7 +239,8 @@ func (b *AnimationBuilder) Progress(
 		return task(ctx, update)
 	}
 
-	err := runAnimation(ctx, &msgPtr, &fieldsPtr, b, wrapped)
+	startTime := time.Now()
+	err := runAnimation(ctx, &msgPtr, &fieldsPtr, b, wrapped, startTime)
 
 	msg := *msgPtr.Load()
 	w := &WaitResult{
@@ -234,6 +250,15 @@ func (b *AnimationBuilder) Progress(
 		errorLevel:   ErrorLevel,
 	}
 	w.fields = *fieldsPtr.Load()
+	if b.elapsedKey != "" {
+		w.fields = slices.Clone(w.fields)
+		for i := range w.fields {
+			if w.fields[i].Key == b.elapsedKey {
+				w.fields[i].Value = elapsed(time.Since(startTime))
+				break
+			}
+		}
+	}
 	w.initSelf(w)
 	return w
 }
@@ -338,6 +363,7 @@ func runAnimation(
 	fields *atomic.Pointer[[]Field],
 	b *AnimationBuilder,
 	task Task,
+	startTime time.Time,
 ) error {
 	// Run the task in a goroutine.
 	done := make(chan error, 1)
@@ -454,7 +480,6 @@ func runAnimation(
 		timeFormat:      fieldTimeFormat,
 	}
 
-	startTime := time.Now()
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
@@ -468,7 +493,7 @@ func runAnimation(
 			_, _ = io.WriteString(out, clearLine)
 			return err
 		case now := <-ticker.C:
-			elapsed := now.Sub(startTime)
+			dur := now.Sub(startTime)
 
 			msg := *msgPtr.Load()
 			var char string
@@ -487,21 +512,31 @@ func runAnimation(
 				}
 			case animModePulse:
 				char = prefix
-				t := (1.0 + math.Sin(2*math.Pi*elapsed.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
+				t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 				msg = pulseTextCached(msg, t, b.pulseStops, &pCache)
 			case animModeShimmer:
 				char = prefix
-				phase := math.Mod(elapsed.Seconds()*shimmerSpeed, 1.0)
+				phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
 				msg = shimmerText(msg, phase, b.shimmerDir, hexLUT, styleLUT)
 			}
 
-			// Only re-format fields when the pointer changes.
+			// Re-format fields when the pointer changes, or every tick if
+			// an elapsed field is present (its value changes each tick).
 			fp := fields.Load()
 			fpRaw := unsafe.Pointer(fp)
-			if fpRaw != cachedFieldsPtr {
-				cachedFieldsPtr = fpRaw
+			if b.elapsedKey != "" {
+				clone := slices.Clone(*fp)
+				for i := range clone {
+					if clone[i].Key == b.elapsedKey {
+						clone[i].Value = elapsed(dur)
+						break
+					}
+				}
+				cachedFieldsStr = strings.TrimLeft(formatFields(clone, fieldOpts), " ")
+			} else if fpRaw != cachedFieldsPtr {
 				cachedFieldsStr = strings.TrimLeft(formatFields(*fp, fieldOpts), " ")
 			}
+			cachedFieldsPtr = fpRaw
 
 			var tsStr string
 			if reportTS {

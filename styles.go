@@ -1,6 +1,8 @@
 package clog
 
 import (
+	"time"
+
 	"github.com/charmbracelet/lipgloss"
 	"github.com/lucasb-eyer/go-colorful"
 )
@@ -76,6 +78,18 @@ const (
 	// Example: {"user":{"name":"alice"},"tags":["a","b"]}
 	//       →  {user.name:alice,tags:[a,b]}
 	JSONModeFlat
+)
+
+// Sort controls how fields are sorted in output.
+type Sort int
+
+const (
+	// SortNone preserves the insertion order of fields (default).
+	SortNone Sort = iota
+	// SortAscending sorts fields by key A→Z.
+	SortAscending
+	// SortDescending sorts fields by key Z→A.
+	SortDescending
 )
 
 // JSONStyles configures per-token lipgloss styles for JSON syntax highlighting.
@@ -176,10 +190,18 @@ type Styles struct {
 	DurationThresholds ThresholdMap
 	// Duration unit -> style override (e.g. "s" -> yellow).
 	DurationUnits StyleMap
+	// Custom format function for Elapsed fields. nil uses the built-in [formatElapsed].
+	ElapsedFormatFunc func(time.Duration) string
+	// Decimal places for Elapsed display (default 1 = "3.2s"; 0 = "3s").
+	ElapsedPrecision int
 	// Style for the numeric segments of duration values (e.g. "1" in "1m30s") [nil = plain text]
 	FieldDurationNumber Style
 	// Style for the unit segments of duration values (e.g. "m" in "1m30s") [nil = plain text]
 	FieldDurationUnit Style
+	// Style for the numeric segments of elapsed-time values [nil = falls back to FieldDurationNumber]
+	FieldElapsedNumber Style
+	// Style for the unit segments of elapsed-time values [nil = falls back to FieldDurationUnit]
+	FieldElapsedUnit Style
 	// Style for error field values [nil = plain text]
 	FieldError Style
 	// Per-token styles for JSON syntax highlighting.
@@ -193,6 +215,8 @@ type Styles struct {
 	FieldQuantityNumber Style
 	// Style for the unit part of quantity values (e.g. "km" in "5km") [nil = plain text]
 	FieldQuantityUnit Style
+	// Sort order for fields. Default [SortNone] preserves insertion order.
+	FieldSort Sort
 	// Style for string field values [nil = plain text]
 	FieldString Style
 	// Style for time.Time field values [nil = plain text]
@@ -205,6 +229,8 @@ type Styles struct {
 	Levels LevelStyleMap
 	// Message text style per level.
 	Messages LevelStyleMap
+	// Custom format function for Percent fields. nil uses the built-in format.
+	PercentFormatFunc func(float64) string
 	// Gradient stops for Percent fields (default: red → yellow → green).
 	PercentGradient []ColorStop
 	// Decimal places for Percent display (default 0 = "75%", 1 -> "75.0%", etc).
@@ -284,6 +310,7 @@ func DefaultStyles() *Styles {
 		},
 		DurationThresholds:      make(ThresholdMap),
 		DurationUnits:           make(StyleMap),
+		ElapsedPrecision:        1,
 		Messages:                DefaultMessageStyles(),
 		PercentGradient:         DefaultPercentGradient(),
 		QuantityThresholds:      make(ThresholdMap),

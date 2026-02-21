@@ -3,6 +3,7 @@ package clog
 import (
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -198,7 +199,7 @@ func TestFormatValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "", 0)
+			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "", 0, 1)
 			assert.Equal(t, tt.wantStr, got)
 			assert.Equal(t, tt.wantKind, kind)
 		})
@@ -206,31 +207,77 @@ func TestFormatValue(t *testing.T) {
 }
 
 func TestFormatValuePercent(t *testing.T) {
-	got, kind := formatValue(percent(75), QuoteAuto, 0, 0, "", 0)
+	got, kind := formatValue(percent(75), QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "75%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentDecimal(t *testing.T) {
-	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 0)
+	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentPrecision(t *testing.T) {
-	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 1)
+	got, kind := formatValue(percent(33.333), QuoteAuto, 0, 0, "", 1, 1)
 	assert.Equal(t, "33.3%", got)
 	assert.Equal(t, kindPercent, kind)
 
-	got, kind = formatValue(percent(33.333), QuoteAuto, 0, 0, "", 2)
+	got, kind = formatValue(percent(33.333), QuoteAuto, 0, 0, "", 2, 1)
 	assert.Equal(t, "33.33%", got)
 	assert.Equal(t, kindPercent, kind)
+}
+
+func TestFormatElapsed(t *testing.T) {
+	tests := []struct {
+		name      string
+		dur       time.Duration
+		precision int
+		want      string
+	}{
+		{"zero", 0, 1, "0s"},
+		{"nanoseconds", 500 * time.Nanosecond, 1, "500ns"},
+		{"microseconds", 1500 * time.Nanosecond, 1, "1.5µs"},
+		{"milliseconds", 42 * time.Millisecond, 1, "42ms"},
+		{"milliseconds_fractional", 1500 * time.Microsecond, 1, "1.5ms"},
+		{"seconds", 3200 * time.Millisecond, 1, "3.2s"},
+		{"seconds_whole", 5 * time.Second, 1, "5s"},
+		{"minutes", 90 * time.Second, 1, "1.5m"},
+		{"hours", 2*time.Hour + 30*time.Minute, 1, "2.5h"},
+		{"precision_0", 3200 * time.Millisecond, 0, "3s"},
+		{"precision_2", 3210 * time.Millisecond, 2, "3.21s"},
+		{"negative", -3200 * time.Millisecond, 1, "3.2s"},
+		{"trim_trailing_zeros", 3*time.Second + 100*time.Millisecond, 2, "3.1s"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatElapsed(tt.dur, tt.precision)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestFormatValueElapsed(t *testing.T) {
+	got, kind := formatValue(elapsed(3200*time.Millisecond), QuoteAuto, 0, 0, "", 0, 1)
+	assert.Equal(t, "3.2s", got)
+	assert.Equal(t, kindElapsed, kind)
+}
+
+func TestFormatValueElapsedPrecision(t *testing.T) {
+	got, kind := formatValue(elapsed(3210*time.Millisecond), QuoteAuto, 0, 0, "", 0, 0)
+	assert.Equal(t, "3s", got)
+	assert.Equal(t, kindElapsed, kind)
+
+	got, kind = formatValue(elapsed(3210*time.Millisecond), QuoteAuto, 0, 0, "", 0, 2)
+	assert.Equal(t, "3.21s", got)
+	assert.Equal(t, kindElapsed, kind)
 }
 
 func TestFormatValueTimeCustomFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339, 0)
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339, 0, 1)
 	assert.Equal(t, "2025-06-15T10:30:00Z", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -239,7 +286,7 @@ func TestFormatValueTimeEmptyFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
 	// Empty timeFormat should fall back to time.DateTime.
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, "", 0)
+	got, kind := formatValue(ts, QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "2025-06-15 10:30:00", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -1225,7 +1272,7 @@ func TestStyleQuantityPartialNil(t *testing.T) {
 }
 
 func TestFormatValueQuantity(t *testing.T) {
-	got, kind := formatValue(quantity("5.1km"), QuoteAuto, 0, 0, "", 0)
+	got, kind := formatValue(quantity("5.1km"), QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "5.1km", got)
 	assert.Equal(t, kindQuantity, kind)
 }
@@ -1916,6 +1963,125 @@ func TestInterpolateGradientThreeStops(t *testing.T) {
 	// At 0.75 (between yellow and green), G should be high and R should be dropping.
 	c = interpolateGradient(0.75, stops)
 	assert.Greater(t, c.G, 0.7, "G at 0.75 should be high")
+}
+
+func TestFormatFieldsSortAscending(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldSort = SortAscending
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	fields := []Field{
+		{Key: "c", Value: "3"},
+		{Key: "a", Value: "1"},
+		{Key: "b", Value: "2"},
+	}
+
+	got := formatFields(fields, opts)
+	assert.Equal(t, " a=1 b=2 c=3", got)
+
+	// Original slice must not be mutated.
+	assert.Equal(t, "c", fields[0].Key)
+}
+
+func TestFormatFieldsSortDescending(t *testing.T) {
+	styles := DefaultStyles()
+	styles.FieldSort = SortDescending
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "a", Value: "1"},
+		{Key: "c", Value: "3"},
+		{Key: "b", Value: "2"},
+	}, opts)
+	assert.Equal(t, " c=3 b=2 a=1", got)
+}
+
+func TestFormatFieldsSortNone(t *testing.T) {
+	styles := DefaultStyles()
+	// SortNone is the default zero value.
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "c", Value: "3"},
+		{Key: "a", Value: "1"},
+	}, opts)
+	assert.Equal(t, " c=3 a=1", got)
+}
+
+func TestElapsedFormatFunc(t *testing.T) {
+	styles := DefaultStyles()
+	styles.ElapsedFormatFunc = func(d time.Duration) string {
+		return d.Truncate(time.Second).String()
+	}
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: elapsed(3456 * time.Millisecond)},
+	}, opts)
+	assert.Equal(t, " took=3s", got)
+}
+
+func TestPercentFormatFunc(t *testing.T) {
+	styles := DefaultStyles()
+	styles.PercentFormatFunc = func(v float64) string {
+		return strconv.FormatFloat(v, 'f', 0, 64) + " pct"
+	}
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "done", Value: percent(75)},
+	}, opts)
+	assert.Equal(t, " done=75 pct", got)
+}
+
+func TestElapsedFormatFuncNilFallsBack(t *testing.T) {
+	styles := DefaultStyles()
+	// ElapsedFormatFunc is nil — should use built-in formatElapsed.
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: elapsed(3200 * time.Millisecond)},
+	}, opts)
+	assert.Equal(t, " took=3.2s", got)
+}
+
+func TestPercentFormatFuncNilFallsBack(t *testing.T) {
+	styles := DefaultStyles()
+	// PercentFormatFunc is nil — should use built-in format.
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{
+		{Key: "done", Value: percent(75)},
+	}, opts)
+	assert.Equal(t, " done=75%", got)
 }
 
 func TestLookupValueStyle(t *testing.T) {

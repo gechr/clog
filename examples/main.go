@@ -174,6 +174,19 @@ func main() {
 			}).
 			Prefix("✅").
 			Msg("Configuration broadcast complete")
+
+		// --- Elapsed timer ---
+		header("Elapsed Timer (respects field ordering)")
+		_ = clog.Spinner("Processing batch").
+			Str("batch", "1/3").
+			Elapsed("elapsed").
+			Int("workers", 4).
+			Wait(context.Background(), func(_ context.Context) error {
+				time.Sleep(2 * time.Second)
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Batch processed")
 	}
 
 	// --- Basic levels ---
@@ -560,6 +573,44 @@ func main() {
 	}))
 	logger.Info().Str("k", "v").Msg("handled by custom handler")
 	logger.Error().Err(errors.New("boom")).Msg("error via handler")
+
+	// --- Format hooks ---
+	header("Format Hooks")
+	hookStyles := clog.DefaultStyles()
+	hookStyles.ElapsedFormatFunc = func(d time.Duration) string {
+		return d.Truncate(time.Second).String()
+	}
+	hookStyles.PercentFormatFunc = func(v float64) string {
+		return fmt.Sprintf("%.0f/100", v)
+	}
+	clog.SetStyles(hookStyles)
+	clog.Info().
+		Percent("progress", 75).
+		Msg("Custom format hooks")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
+	// --- Field sort order ---
+	header("Field Sort Order (Ascending)")
+	sortStyles := clog.DefaultStyles()
+	sortStyles.FieldSort = clog.SortAscending
+	clog.SetStyles(sortStyles)
+	clog.Info().
+		Str("zoo", "animals").
+		Int("count", 42).
+		Str("alpha", "first").
+		Msg("Fields sorted A→Z")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+
+	header("Field Sort Order (Descending)")
+	sortStyles = clog.DefaultStyles()
+	sortStyles.FieldSort = clog.SortDescending
+	clog.SetStyles(sortStyles)
+	clog.Info().
+		Str("alpha", "first").
+		Int("count", 42).
+		Str("zoo", "animals").
+		Msg("Fields sorted Z→A")
+	clog.SetStyles(clog.DefaultStyles()) // reset
 }
 
 func spinners(filter string) {
