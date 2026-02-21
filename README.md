@@ -1,6 +1,6 @@
 <h1 align="center"><code>clog</code></h1>
 
-Structured CLI logging for Go with terminal-aware colours, hyperlinks, and spinners. A [zerolog](https://github.com/rs/zerolog)-style fluent API designed for command-line tools.
+Structured CLI logging for Go with terminal-aware colours, hyperlinks, and animations. A [zerolog](https://github.com/rs/zerolog)-style fluent API designed for command-line tools.
 
 ## Demo
 
@@ -349,12 +349,12 @@ err := clog.Spinner("Processing").
 
 ### WaitResult Finalisers
 
-| Method      | Success behaviour                       | Failure behaviour                      |
-| ----------- | --------------------------------------- | -------------------------------------- |
-| `.Msg(s)`   | Logs at `INF` with message              | Logs at `ERR` with error string        |
-| `.Err()`    | Logs at `INF` with spinner message      | Logs at `ERR` with error string as msg |
-| `.Send()`   | Logs at configured level                | Logs at configured level               |
-| `.Silent()` | Returns error, no logging               | Returns error, no logging              |
+| Method      | Success behaviour                  | Failure behaviour                      |
+| ----------- | ---------------------------------- | -------------------------------------- |
+| `.Msg(s)`   | Logs at `INF` with message         | Logs at `ERR` with error string        |
+| `.Err()`    | Logs at `INF` with spinner message | Logs at `ERR` with error string as msg |
+| `.Send()`   | Logs at configured level           | Logs at configured level               |
+| `.Silent()` | Returns error, no logging          | Returns error, no logging              |
 
 `.Err()` is equivalent to calling `.Send()` with default settings (no `OnSuccess`/`OnError` overrides).
 
