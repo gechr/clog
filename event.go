@@ -152,6 +152,17 @@ func (e *Event) Durations(key string, vals []time.Duration) *Event {
 	return e
 }
 
+// Errs adds an error slice field. Each error is converted to its message
+// string; nil errors are rendered as [Nil] ("<nil>").
+func (e *Event) Errs(key string, vals []error) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: errSliceToStrings(vals)})
+	return e
+}
+
 // Err attaches an error to the event. No-op if err is nil.
 //
 // If the event is finalised with [Event.Send], the error message becomes the
@@ -163,6 +174,17 @@ func (e *Event) Err(err error) *Event {
 	}
 
 	e.err = err
+	return e
+}
+
+// Func executes fn with the event if the event is enabled (non-nil).
+// This is useful for computing expensive fields lazily — the callback
+// is skipped entirely when the log level is disabled.
+func (e *Event) Func(fn func(*Event)) *Event {
+	if e == nil {
+		return e
+	}
+	fn(e)
 	return e
 }
 

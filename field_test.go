@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"errors"
 	"math"
 	"testing"
 
@@ -52,6 +53,18 @@ func TestFieldBuilderUintChaining(t *testing.T) {
 	assert.Equal(t, uint(1), b.fields[0].Value)
 	assert.Equal(t, uint(2), b.fields[1].Value)
 	assert.Equal(t, "x", b.fields[2].Value)
+}
+
+func TestFieldBuilderErrs(t *testing.T) {
+	errs := []error{errors.New("a"), nil, errors.New("c")}
+	b := Spinner("test").Errs("problems", errs)
+
+	require.Len(t, b.fields, 1)
+	assert.Equal(t, "problems", b.fields[0].Key)
+
+	vals, ok := b.fields[0].Value.([]string)
+	require.True(t, ok, "expected []string value")
+	assert.Equal(t, []string{"a", "<nil>", "c"}, vals)
 }
 
 func TestFieldBuilderPercent(t *testing.T) {

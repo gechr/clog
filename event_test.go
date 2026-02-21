@@ -202,6 +202,46 @@ func TestEventAnys(t *testing.T) {
 	assertSliceField(t, e.fields, vals)
 }
 
+func TestEventErrs(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	errs := []error{errors.New("a"), nil, errors.New("c")}
+	e.Errs("problems", errs)
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "problems", e.fields[0].Key)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok, "expected []string value")
+	assert.Equal(t, []string{"a", "<nil>", "c"}, vals)
+}
+
+func TestEventErrsNilReceiver(t *testing.T) {
+	var e *Event
+	got := e.Errs("k", []error{errors.New("x")})
+	assert.Nil(t, got)
+}
+
+func TestEventFunc(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.Func(func(e *Event) {
+		e.Str("lazy", "computed")
+	})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "lazy", e.fields[0].Key)
+	assert.Equal(t, "computed", e.fields[0].Value)
+}
+
+func TestEventFuncNilReceiver(t *testing.T) {
+	var e *Event
+	called := false
+	got := e.Func(func(_ *Event) {
+		called = true
+	})
+	assert.Nil(t, got)
+	assert.False(t, called, "callback should not be called on nil event")
+}
+
 func TestEventDict(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Dict("request", Dict().Str("method", "GET").Int("status", 200))
@@ -881,6 +921,8 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Duration("k", time.Second))
 	assert.Nil(t, e.Durations("k", []time.Duration{time.Second}))
 	assert.Nil(t, e.Err(errors.New("x")))
+	assert.Nil(t, e.Errs("k", []error{errors.New("x")}))
+	assert.Nil(t, e.Func(func(*Event) {}))
 	assert.Nil(t, e.Float64("k", 1.0))
 	assert.Nil(t, e.Floats64("k", []float64{1.0}))
 	assert.Nil(t, e.Hex("k", []byte{0xab}))

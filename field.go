@@ -69,6 +69,13 @@ func (fb *fieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
 	return fb.self
 }
 
+// Errs adds an error slice field. Each error is converted to its message
+// string; nil errors are rendered as [Nil] ("<nil>").
+func (fb *fieldBuilder[T]) Errs(key string, vals []error) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: errSliceToStrings(vals)})
+	return fb.self
+}
+
 // Err adds an error field with key "error". No-op if err is nil.
 //
 // Unlike [Event.Err], context errors are always stored as a field because
@@ -234,4 +241,18 @@ func (fb *fieldBuilder[T]) Uints(key string, vals []uint) *T {
 func (fb *fieldBuilder[T]) Uints64(key string, vals []uint64) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
 	return fb.self
+}
+
+// errSliceToStrings converts a slice of errors to a slice of strings.
+// Nil errors are rendered as [Nil] ("<nil>").
+func errSliceToStrings(errs []error) []string {
+	strs := make([]string, len(errs))
+	for i, e := range errs {
+		if e == nil {
+			strs[i] = Nil
+		} else {
+			strs[i] = e.Error()
+		}
+	}
+	return strs
 }

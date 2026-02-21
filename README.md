@@ -86,8 +86,10 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                            |
 | `Durations`  | `Durations(key string, vals []time.Duration)` | Duration slice field                                                      |
 | `Err`        | `Err(err error)`                              | Attach error; `Send` uses it as message, `Msg`/`Msgf` add `"error"` field |
+| `Errs`       | `Errs(key string, vals []error)`              | Error slice as string slice (nil errors render as `<nil>`)                |
 | `Float64`    | `Float64(key string, val float64)`            | Float field                                                               |
 | `Floats64`   | `Floats64(key string, vals []float64)`        | Float slice field                                                         |
+| `Func`       | `Func(fn func(*Event))`                       | Lazy field builder; callback skipped on nil (disabled) events             |
 | `Hex`        | `Hex(key string, val []byte)`                 | Byte slice as hex string                                                  |
 | `Int`        | `Int(key string, val int)`                    | Integer field                                                             |
 | `Int64`      | `Int64(key string, val int64)`                | 64-bit integer field                                                      |
