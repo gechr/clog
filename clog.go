@@ -706,7 +706,9 @@ func (l *Logger) log(e *Event, msg string) {
 			Prefix:  prefix,
 			Fields:  allFields,
 		}
-		if l.reportTimestamp {
+		if !e.timestamp.IsZero() {
+			entry.Time = e.timestamp.In(l.timeLocation)
+		} else if l.reportTimestamp {
 			entry.Time = time.Now().In(l.timeLocation)
 		}
 
@@ -725,11 +727,17 @@ func (l *Logger) log(e *Event, msg string) {
 
 		switch p {
 		case PartTimestamp:
-			if !l.reportTimestamp {
+			if e.timestamp.IsZero() && !l.reportTimestamp {
 				continue
 			}
 
-			ts := time.Now().In(l.timeLocation).Format(l.timeFormat)
+			var now time.Time
+			if !e.timestamp.IsZero() {
+				now = e.timestamp.In(l.timeLocation)
+			} else {
+				now = time.Now().In(l.timeLocation)
+			}
+			ts := now.Format(l.timeFormat)
 			if noColor || l.styles.Timestamp == nil {
 				s = ts
 			} else {

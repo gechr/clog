@@ -1592,8 +1592,8 @@ func TestAtomicLevelConcurrent(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range 1000 {
-			_ = l.Info()
-			_ = l.Error()
+			l.Info()
+			l.Error()
 		}
 	}()
 	go func() {

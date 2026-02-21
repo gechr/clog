@@ -32,12 +32,6 @@ func TestPulseTextSpacesUnstyled(t *testing.T) {
 	got := pulseText("a b c", 0.5, stops)
 
 	// Spaces themselves should not contain ANSI escapes.
-	for i, r := range got {
-		if r == ' ' {
-			// Check surrounding bytes aren't mid-escape for this space.
-			_ = i // space passed through
-		}
-	}
 	assert.Contains(t, got, " ")
 }
 

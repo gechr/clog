@@ -302,7 +302,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 // renderSlotBarLine renders a bar-animation frame for a slot. Factored out to
 // keep renderSlotLine focused.
-func renderSlotBarLine(s *groupSlot, dur time.Duration, fieldsStr, tsStr string) string {
+func renderSlotBarLine(s *groupSlot, _ time.Duration, fieldsStr, tsStr string) string {
 	b := s.builder
 	msg := *s.msgPtr.Load()
 	if msgStyle := s.cfg.styles.Messages[b.level]; msgStyle != nil && !s.cfg.noColor {
@@ -333,8 +333,6 @@ func renderSlotBarLine(s *groupSlot, dur time.Duration, fieldsStr, tsStr string)
 	}
 
 	// writeFrame equivalent: build the complete line string.
-	_ = dur // dur already used in fieldsStr computation
-
 	if b.barStyle.Align == BarAlignInline {
 		parts := buildLine(
 			s.cfg.order,

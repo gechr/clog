@@ -13,11 +13,12 @@ import (
 // to call on a nil receiver — disabled events (when the log level is
 // below the logger's minimum) are no-ops.
 type Event struct {
-	logger *Logger
-	level  Level
-	fields []Field
-	prefix *string // nil = use logger/default prefix
-	err    error   // set by Err(); used as message by Send(), or as error= field by Msg()
+	logger    *Logger
+	level     Level
+	fields    []Field
+	prefix    *string   // nil = use logger/default prefix
+	err       error     // set by Err(); used as message by Send(), or as error= field by Msg()
+	timestamp time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
 
 // Any adds a field with an arbitrary value.
