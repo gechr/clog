@@ -347,6 +347,16 @@ func TestWaitResultMsgError(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, ErrorLevel, got.Level)
 	assert.Equal(t, "boom", got.Message)
+
+	// Error should appear only as the message, not also as an error= field.
+	for _, f := range got.Fields {
+		assert.NotEqual(
+			t,
+			ErrorKey,
+			f.Key,
+			"default error should not produce a duplicate error field",
+		)
+	}
 }
 
 func TestWaitResultErrSuccess(t *testing.T) {
@@ -388,6 +398,16 @@ func TestWaitResultErrError(t *testing.T) {
 
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, ErrorLevel, got.Level)
+
+	// Error should appear only as the message, not also as an error= field.
+	for _, f := range got.Fields {
+		assert.NotEqual(
+			t,
+			ErrorKey,
+			f.Key,
+			"default error should not produce a duplicate error field",
+		)
+	}
 }
 
 func TestWaitResultOnSuccessLevel(t *testing.T) {
@@ -471,6 +491,20 @@ func TestWaitResultOnErrorMessage(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, ErrorLevel, got.Level)
 	assert.Equal(t, "custom failure", got.Message)
+
+	// With a custom error message, the actual error should appear as an error= field.
+	var found bool
+	for _, f := range got.Fields {
+		if f.Key == ErrorKey {
+			assert.Equal(t, testErr, f.Value)
+			found = true
+		}
+	}
+	assert.True(
+		t,
+		found,
+		"custom error message should include error= field with the original error",
+	)
 }
 
 func TestWaitResultOnErrorMessageDefault(t *testing.T) {
@@ -491,6 +525,16 @@ func TestWaitResultOnErrorMessageDefault(t *testing.T) {
 
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, "boom", got.Message)
+
+	// Without a custom error message, the error IS the message — no error= field.
+	for _, f := range got.Fields {
+		assert.NotEqual(
+			t,
+			ErrorKey,
+			f.Key,
+			"default error should not produce a duplicate error field",
+		)
+	}
 }
 
 func TestWaitResultSendSuccess(t *testing.T) {

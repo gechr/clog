@@ -384,6 +384,8 @@ err := clog.Spinner("Connecting to database").
   Send()
 ```
 
+When `OnErrorMessage` is set, the custom message becomes the log message and the original error is included as an `error=` field. Without it, the error string is used directly as the message with no extra field.
+
 Spinners gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
 
 ### Custom Spinner Type

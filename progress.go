@@ -341,8 +341,9 @@ func (w *WaitResult) OnErrorLevel(level Level) *WaitResult {
 	return w
 }
 
-// OnErrorMessage sets a custom message for the error case. Defaults to the
-// error string.
+// OnErrorMessage sets a custom message for the error case. When set, the
+// original error is added as an [ErrorKey] field alongside the custom message.
+// Defaults to using the error string as the message with no extra field.
 func (w *WaitResult) OnErrorMessage(msg string) *WaitResult {
 	w.errorMsg = &msg
 	return w
@@ -368,17 +369,17 @@ func (w *WaitResult) Prefix(prefix string) *WaitResult {
 }
 
 // Send finalises the result, logging at the configured success or error
-// level. Returns the error from the task.
+// level. On failure, the error string is used as the message. If a custom
+// error message was set via [WaitResult.OnErrorMessage], the original error
+// is included as an [ErrorKey] field. Returns the error from the task.
 func (w *WaitResult) Send() error {
-	if w.err == nil {
+	switch {
+	case w.err == nil:
 		w.event(w.successLevel).Msg(w.successMsg)
-	} else {
-		msg := w.err.Error()
-		if w.errorMsg != nil {
-			msg = *w.errorMsg
-		}
-
-		w.event(w.errorLevel).Err(w.err).Msg(msg)
+	case w.errorMsg != nil:
+		w.event(w.errorLevel).Err(w.err).Msg(*w.errorMsg)
+	default:
+		w.event(w.errorLevel).Msg(w.err.Error())
 	}
 	return w.err
 }
