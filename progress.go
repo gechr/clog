@@ -18,9 +18,10 @@ const clearLine = "\x1b[2K\r"
 type animation int
 
 const (
-	animationSpinner animation = iota
+	animationBar animation = iota
 	animationPulse
 	animationShimmer
+	animationSpinner
 )
 
 // Task is a function executed by [AnimationBuilder.Wait].
@@ -36,43 +37,77 @@ type ProgressTask func(context.Context, *ProgressUpdate) error
 type ProgressUpdate struct {
 	fieldBuilder[ProgressUpdate]
 
-	base      []Field
-	fieldsPtr *atomic.Pointer[[]Field]
-	msg       string
-	msgPtr    *atomic.Pointer[string]
+	base        []Field
+	fieldsPtr   *atomic.Pointer[[]Field]
+	msg         string
+	msgPtr      *atomic.Pointer[string]
+	progressPtr *atomic.Int64 // bar mode: current progress value; nil for non-bar modes
+	totalPtr    *atomic.Int64 // bar mode: total progress value; nil for non-bar modes
+}
+
+// SetProgress sets the current progress value for a bar animation.
+// Values are clamped to [0, total]. No-op if this is not a bar animation.
+func (p *ProgressUpdate) SetProgress(current int) *ProgressUpdate {
+	if p.progressPtr != nil {
+		if current < 0 {
+			current = 0
+		}
+		if p.totalPtr != nil {
+			if total := int(p.totalPtr.Load()); current > total {
+				current = total
+			}
+		}
+		p.progressPtr.Store(int64(current))
+	}
+	return p
+}
+
+// SetTotal updates the total progress value for a bar animation.
+// No-op if this is not a bar animation.
+func (p *ProgressUpdate) SetTotal(total int) *ProgressUpdate {
+	if p.totalPtr != nil {
+		if total <= 0 {
+			total = 1
+		}
+		p.totalPtr.Store(int64(total))
+	}
+	return p
 }
 
 // Msg sets the animation's displayed message.
-func (u *ProgressUpdate) Msg(msg string) *ProgressUpdate {
-	u.msg = msg
-	return u
+func (p *ProgressUpdate) Msg(msg string) *ProgressUpdate {
+	p.msg = msg
+	return p
 }
 
 // Send applies the accumulated message and field changes to the animation atomically.
-func (u *ProgressUpdate) Send() {
-	msg := u.msg
-	u.msgPtr.Store(&msg)
-	merged := mergeFields(u.base, u.fields)
-	u.fieldsPtr.Store(&merged)
-	u.fields = nil // reset for reuse
+func (p *ProgressUpdate) Send() {
+	msg := p.msg
+	p.msgPtr.Store(&msg)
+	merged := mergeFields(p.base, p.fields)
+	p.fieldsPtr.Store(&merged)
+	p.fields = nil // reset for reuse
 }
 
 // AnimationBuilder configures an animation before execution.
-// Create one with [Spinner], [Pulse], or [Shimmer], or their [Logger] method equivalents.
+// Create one with [Spinner], [Pulse], [Shimmer], or [Bar], or their [Logger] method equivalents.
 type AnimationBuilder struct {
 	fieldBuilder[AnimationBuilder]
 
-	delay        time.Duration // when set, suppresses animation until this duration elapses
-	elapsedKey   string        // when set, a formatted elapsed-time field is injected each tick
-	level        Level         // log level used during animation rendering (default: InfoLevel)
-	logger       *Logger
-	mode         animation
-	msg          string
-	prefix       string // icon shown during animation; defaults to "⏳" for pulse/shimmer
-	pulseStops   []ColorStop
-	shimmerDir   Direction
-	shimmerStops []ColorStop
-	spinner      SpinnerType
+	barProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
+	barStyle       BarStyle      // bar mode: visual style
+	barTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
+	delay          time.Duration // when set, suppresses animation until this duration elapses
+	elapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
+	level          Level         // log level used during animation rendering (default: InfoLevel)
+	logger         *Logger
+	mode           animation
+	msg            string
+	prefix         string // icon shown during animation; defaults to "⏳" for pulse/shimmer/bar
+	pulseStops     []ColorStop
+	shimmerDir     Direction
+	shimmerStops   []ColorStop
+	spinner        SpinnerType
 }
 
 // resolveLogger returns the builder's logger, falling back to [Default].
@@ -269,6 +304,10 @@ func (b *AnimationBuilder) Progress(
 		fieldsPtr: &fieldsPtr,
 		base:      b.fields,
 	}
+	if b.mode == animationBar {
+		update.progressPtr = b.barProgressPtr
+		update.totalPtr = b.barTotalPtr
+	}
 	update.initSelf(update)
 
 	wrapped := func(ctx context.Context) error {
@@ -443,6 +482,7 @@ func runAnimation(
 	noColor := l.output.ColorsDisabled()
 	order := l.parts
 	out := l.output.Writer()
+	output := l.output // captured for per-tick width queries in bar mode
 	percentFormatFunc := l.percentFormatFunc
 	percentPrecision := l.percentPrecision
 	quantityUnitsIgnoreCase := l.quantityUnitsIgnoreCase
@@ -547,6 +587,8 @@ func runAnimation(
 		tickRate = shimmerTickRate
 		hexLUT = buildShimmerLUT(b.shimmerStops)
 		styleLUT = buildShimmerStyleLUT(hexLUT)
+	case animationBar:
+		tickRate = barTickRate
 	}
 
 	// Cache formatted fields — only re-format when the atomic pointer changes.
@@ -617,6 +659,20 @@ func runAnimation(
 				char = prefix
 				phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
 				msg = shimmerText(msg, phase, b.shimmerDir, hexLUT, styleLUT)
+			case animationBar:
+				char = prefix
+				if msgStyle := styles.Messages[b.level]; msgStyle != nil {
+					msg = msgStyle.Render(msg)
+				}
+				current := int(b.barProgressPtr.Load())
+				total := int(b.barTotalPtr.Load())
+				barStr := renderBar(current, total, b.barStyle, output.Width())
+				pctStr := barPercent(current, total)
+				sep := b.barStyle.Separator
+				if sep == "" {
+					sep = " "
+				}
+				msg = msg + sep + barStr + sep + pctStr
 			}
 
 			// Re-format fields when the pointer changes, or every tick if

@@ -46,6 +46,22 @@ func main() {
 	}
 
 	if !*quickFlag {
+		// --- Bar ---
+		header("Bar")
+		_ = clog.Bar("Downloading", 1000).
+			BarStyle(clog.BarGradient).
+			Str("file", "release.tar.gz").
+			Elapsed("elapsed").
+			Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+				for i := range 1001 {
+					p.SetProgress(i).Msg("Downloading").Send()
+					time.Sleep(3 * time.Millisecond)
+				}
+				return nil
+			}).
+			Prefix("✅").
+			Msg("Download complete")
+
 		// --- Spinner ---
 		header("Spinner")
 		_ = clog.Spinner("Loading demo").

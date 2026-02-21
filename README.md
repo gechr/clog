@@ -386,7 +386,7 @@ err := clog.Spinner("Connecting to database").
 
 When `OnErrorMessage` is set, the custom message becomes the log message and the original error is included as an `error=` field. Without it, the error string is used directly as the message with no extra field.
 
-Spinners gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
+All animations gracefully degrade: when colours are disabled (CI, piped output), the animation is skipped and a static status line is printed instead.
 
 ### Custom Spinner Type
 
@@ -516,9 +516,84 @@ type ColorStop struct {
 }
 ```
 
-All three animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
+### Bar Animation
 
-The icon displayed during `Pulse` and `Shimmer` animations defaults to ⏳ and can be changed with `.Prefix()` on the builder:
+`Bar` creates a determinate progress bar that shows filled/empty cells and a live percentage. Use `SetProgress` on the `ProgressUpdate` to advance the bar.
+
+```go
+err := clog.Bar("Downloading", 100).
+  Str("file", "release.tar.gz").
+  Elapsed("elapsed").
+  Progress(ctx, func(ctx context.Context, p *clog.ProgressUpdate) error {
+    for i := range 101 {
+      p.SetProgress(i).Msg("Downloading").Send()
+      time.Sleep(20 * time.Millisecond)
+    }
+    return nil
+  }).
+  Prefix("✅").
+  Msg("Download complete")
+// INF ⏳ Downloading [━━━━━━━━╸───────────] 42% elapsed=1.2s
+// INF ✅ Download complete file=release.tar.gz elapsed=3.4s
+```
+
+`SetTotal` can be called mid-task to update the denominator if the total becomes known after the task starts:
+
+```go
+p.SetProgress(50).SetTotal(200).Msg("Processing").Send()
+```
+
+#### Bar Styles
+
+Five pre-built styles are available in [`bar_types.go`](bar_types.go). Pass any of them to `.BarStyle()`:
+
+| Preset        | Characters     | Description                                     |
+| ------------- | -------------- | ----------------------------------------------- |
+| `BarThin`     | `[━━━╺──────]` | Box-drawing with half-cell resolution (default) |
+| `BarBlock`    | `[█████░░░░░]` | Solid block characters                          |
+| `BarGradient` | `[██████▍   ]` | Block elements with 8x sub-cell resolution      |
+| `BarSmooth`   | `[████▌     ]` | Block characters with half-block leading edge   |
+| `BarASCII`    | `[=====>    ]` | ASCII-only for maximum compatibility            |
+
+```go
+clog.Bar("Uploading", total).
+  BarStyle(clog.BarSmooth).
+  Progress(ctx, task).
+  Msg("Done")
+```
+
+`BarThin` and `BarSmooth` use half-cell resolution via `HalfFilled` (and `HalfEmpty` for `BarThin`), giving twice the visual granularity of full-cell styles. `BarGradient` uses `FillGradient` for 8x sub-cell resolution — the smoothest built-in option.
+
+#### Custom BarStyle
+
+Build a fully custom style by passing a `BarStyle` struct:
+
+```go
+clog.Bar("Uploading", total).
+  BarStyle(clog.BarStyle{
+    FilledChar:  '=',
+    EmptyChar:   '-',
+    HeadChar:    '>',    // decorative head at leading edge (0 = disabled)
+    HalfFilled:  0,      // half-cell leading edge for 2x resolution (0 = disabled)
+    HalfEmpty:   0,      // half-cell trailing edge for 2x resolution (0 = disabled)
+    LeftCap:     "|",
+    RightCap:    "|",
+    Separator:   " ",    // separator between message, bar, and percentage
+    Width:       30,     // fixed inner width (0 = auto-size from terminal)
+    MinWidth:    10,     // auto-size minimum (default 10)
+    MaxWidth:    40,     // auto-size maximum (default 40)
+    FilledStyle: new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),  // green
+    EmptyStyle:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),  // grey
+  }).
+  Progress(ctx, task).
+  Msg("Done")
+```
+
+When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clamped to `[MinWidth, MaxWidth]`.
+
+All animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
+
+The icon displayed during `Pulse`, `Shimmer`, and `Bar` animations defaults to ⏳ and can be changed with `.Prefix()` on the builder:
 
 ```go
 clog.Pulse("Warming up").
