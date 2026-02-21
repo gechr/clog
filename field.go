@@ -38,15 +38,14 @@ func (fb *fieldBuilder[T]) Bools(key string, vals []bool) *T {
 	return fb.self
 }
 
-// Err adds an error field with key "error". No-op if err is nil.
-//
-// Unlike [Event.Err], context errors are always stored as a field because
-// context fields have no Send/Msg finalisation semantics.
-func (fb *fieldBuilder[T]) Err(err error) *T {
-	if err == nil {
-		return fb.self
+// Bytes adds a []byte field. If val is valid JSON it is stored as [RawJSON]
+// with syntax highlighting; otherwise it is stored as a plain string.
+func (fb *fieldBuilder[T]) Bytes(key string, val []byte) *T {
+	if json.Valid(val) {
+		fb.fields = append(fb.fields, Field{Key: key, Value: rawJSON(val)})
+	} else {
+		fb.fields = append(fb.fields, Field{Key: key, Value: string(val)})
 	}
-	fb.fields = append(fb.fields, Field{Key: ErrorKey, Value: err})
 	return fb.self
 }
 
@@ -59,6 +58,18 @@ func (fb *fieldBuilder[T]) Duration(key string, val time.Duration) *T {
 // Durations adds a [time.Duration] slice field.
 func (fb *fieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
+	return fb.self
+}
+
+// Err adds an error field with key "error". No-op if err is nil.
+//
+// Unlike [Event.Err], context errors are always stored as a field because
+// context fields have no Send/Msg finalisation semantics.
+func (fb *fieldBuilder[T]) Err(err error) *T {
+	if err == nil {
+		return fb.self
+	}
+	fb.fields = append(fb.fields, Field{Key: ErrorKey, Value: err})
 	return fb.self
 }
 
@@ -100,6 +111,18 @@ func (fb *fieldBuilder[T]) Ints64(key string, vals []int64) *T {
 	return fb.self
 }
 
+// JSON marshals val to JSON and adds it as a highlighted field.
+// On marshal error the field value is the error string.
+func (fb *fieldBuilder[T]) JSON(key string, val any) *T {
+	b, err := json.Marshal(val)
+	if err != nil {
+		fb.fields = append(fb.fields, Field{Key: key, Value: err.Error()})
+		return fb.self
+	}
+	fb.fields = append(fb.fields, Field{Key: key, Value: rawJSON(b)})
+	return fb.self
+}
+
 // Percent adds a percentage field (0–100) with gradient color styling.
 // Values are clamped to the 0–100 range. The color is interpolated from
 // the [Styles.PercentGradient] stops (default: red → yellow → green).
@@ -131,18 +154,6 @@ func (fb *fieldBuilder[T]) Quantity(key, val string) *T {
 // without quoting or escaping. The bytes must be valid JSON.
 func (fb *fieldBuilder[T]) RawJSON(key string, val []byte) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: rawJSON(val)})
-	return fb.self
-}
-
-// JSON marshals val to JSON and adds it as a highlighted field.
-// On marshal error the field value is the error string.
-func (fb *fieldBuilder[T]) JSON(key string, val any) *T {
-	b, err := json.Marshal(val)
-	if err != nil {
-		fb.fields = append(fb.fields, Field{Key: key, Value: err.Error()})
-		return fb.self
-	}
-	fb.fields = append(fb.fields, Field{Key: key, Value: rawJSON(b)})
 	return fb.self
 }
 

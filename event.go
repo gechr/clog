@@ -39,6 +39,21 @@ func (e *Event) Anys(key string, vals []any) *Event {
 	return e
 }
 
+// Bytes adds a []byte field. If val is valid JSON it is stored as [RawJSON]
+// with syntax highlighting; otherwise it is stored as a plain string.
+func (e *Event) Bytes(key string, val []byte) *Event {
+	if e == nil {
+		return e
+	}
+
+	if json.Valid(val) {
+		e.fields = append(e.fields, Field{Key: key, Value: rawJSON(val)})
+	} else {
+		e.fields = append(e.fields, Field{Key: key, Value: string(val)})
+	}
+	return e
+}
+
 // Bool adds a bool field.
 func (e *Event) Bool(key string, val bool) *Event {
 	if e == nil {

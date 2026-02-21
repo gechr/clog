@@ -79,6 +79,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Anys`       | `Anys(key string, vals []any)`                | Arbitrary value slice                                                     |
 | `Bool`       | `Bool(key string, val bool)`                  | Boolean field                                                             |
 | `Bools`      | `Bools(key string, vals []bool)`              | Boolean slice field                                                       |
+| `Bytes`      | `Bytes(key string, val []byte)`               | Byte slice as string                                                      |
 | `Column`     | `Column(key, path string, line, column int)`  | Clickable file:line:column hyperlink                                      |
 | `Dict`       | `Dict(key string, dict *Event)`               | Nested fields with dot-notation keys                                      |
 | `Duration`   | `Duration(key string, val time.Duration)`     | Duration field                                                            |
@@ -554,16 +555,16 @@ clog.SetHyperlinkPreset("vscode")
 export CLOG_HYPERLINK_FORMAT=vscode
 ```
 
-| Preset             | Scheme                 |
-| ------------------ | ---------------------- |
-| `cursor`           | `cursor://`            |
-| `kitty`            | `file://` with `#line` |
-| `macvim`           | `mvim://`              |
-| `subl`             | `subl://`              |
-| `textmate`         | `txmt://`              |
-| `vscode`           | `vscode://`            |
-| `vscode-insiders`  | `vscode-insiders://`   |
-| `vscodium`         | `vscodium://`          |
+| Preset            | Scheme                 |
+| ----------------- | ---------------------- |
+| `cursor`          | `cursor://`            |
+| `kitty`           | `file://` with `#line` |
+| `macvim`          | `mvim://`              |
+| `subl`            | `subl://`              |
+| `textmate`        | `txmt://`              |
+| `vscode`          | `vscode://`            |
+| `vscode-insiders` | `vscode-insiders://`   |
+| `vscodium`        | `vscodium://`          |
 
 Hyperlinks are automatically disabled when colours are disabled.
 
@@ -781,11 +782,11 @@ clog.SetStyles(styles)
 
 Set `JSONStyles.Mode` to control how JSON structure is rendered:
 
-| Mode             | Description                                                      | Example                              |
-| ---------------- | ---------------------------------------------------------------- | ------------------------------------ |
-| `JSONModeJSON`   | Standard JSON (default)                                          | `{"status":"ok","count":42}`         |
-| `JSONModeHuman`  | Unquote keys and simple string values                            | `{status:ok, count:42}`              |
-| `JSONModeFlat`   | Flatten nested object keys with dot notation; arrays kept intact | `{status:ok, meta.region:us-east-1}` |
+| Mode            | Description                                                      | Example                              |
+| --------------- | ---------------------------------------------------------------- | ------------------------------------ |
+| `JSONModeJSON`  | Standard JSON (default)                                          | `{"status":"ok","count":42}`         |
+| `JSONModeHuman` | Unquote keys and simple string values                            | `{status:ok, count:42}`              |
+| `JSONModeFlat`  | Flatten nested object keys with dot notation; arrays kept intact | `{status:ok, meta.region:us-east-1}` |
 
 **`JSONModeHuman`** — keys are unquoted unless they contain `,{}[]\s:#"'` or start with `//`/`/*`. String values are unquoted unless they start with a forbidden character, end with whitespace, are ambiguous as a JSON keyword (`true`, `false`, `null`), or look like a number. Empty strings always render as `""`.
 
@@ -814,13 +815,13 @@ clog.Info().
 
 `JSONStyles.Spacing` is a bitmask controlling where spaces are inserted. The default (`DefaultJSONStyles`) adds a space after commas.
 
-| Flag                      | Effect                          | Example                             |
-| ------------------------- | ------------------------------- | ----------------------------------- |
-| `JSONSpacingAfterColon`   | Space after `:`                 | `{"key": "value"}`                  |
-| `JSONSpacingAfterComma`   | Space after `,`                 | `{"a":1, "b":2}`                    |
-| `JSONSpacingBeforeObject` | Space before a nested `{`       | `{"key": {"n":1}}`                  |
-| `JSONSpacingBeforeArray`  | Space before a nested `[`       | `{"tags": ["a","b"]}`               |
-| `JSONSpacingAll`          | All of the above                | `{"key": {"n": 1}, "tags": ["a"]}`  |
+| Flag                      | Effect                    | Example                            |
+| ------------------------- | ------------------------- | ---------------------------------- |
+| `JSONSpacingAfterColon`   | Space after `:`           | `{"key": "value"}`                 |
+| `JSONSpacingAfterComma`   | Space after `,`           | `{"a":1, "b":2}`                   |
+| `JSONSpacingBeforeObject` | Space before a nested `{` | `{"key": {"n":1}}`                 |
+| `JSONSpacingBeforeArray`  | Space before a nested `[` | `{"tags": ["a","b"]}`              |
+| `JSONSpacingAll`          | All of the above          | `{"key": {"n": 1}, "tags": ["a"]}` |
 
 ```go
 // Fluent builder
