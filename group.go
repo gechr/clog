@@ -15,6 +15,399 @@ import (
 	"github.com/muesli/termenv"
 )
 
+// --- Group types ---
+
+// Group manages a set of concurrent animations rendered as a multi-line
+// block. Create one with [Group] or [Logger.Group], add animations with
+// [Group.Add], then call [Group.Wait] to run the render loop.
+type Group struct {
+	ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
+	mu  sync.Mutex
+
+	logger *Logger
+	slots  []*groupSlot
+}
+
+// NewGroup creates a new animation group using the [Default] logger.
+func NewGroup(ctx context.Context) *Group {
+	return Default.Group(ctx)
+}
+
+// Group creates a new animation group.
+func (l *Logger) Group(ctx context.Context) *Group {
+	return &Group{ctx: ctx, logger: l}
+}
+
+// Add registers an animation builder with the group and returns a
+// [GroupEntry] for starting the task.
+func (g *Group) Add(b *AnimationBuilder) *GroupEntry {
+	if b.logger == nil {
+		b.logger = g.logger
+	}
+
+	msgPtr := new(atomic.Pointer[string])
+	fieldsPtr := new(atomic.Pointer[[]Field])
+	msgPtr.Store(&b.msg)
+	fieldsPtr.Store(&b.fields)
+
+	s := &groupSlot{
+		builder:   b,
+		doneErr:   make(chan error, 1),
+		fieldsPtr: fieldsPtr,
+		msgPtr:    msgPtr,
+		startTime: time.Now(),
+	}
+	captureSlotConfig(s)
+
+	g.mu.Lock()
+	g.slots = append(g.slots, s)
+	g.mu.Unlock()
+
+	return &GroupEntry{slot: s, group: g}
+}
+
+// Wait runs the render loop, blocking until all slots complete or the context
+// is cancelled. After Wait returns, each slot's err field is populated.
+// The returned [GroupResult] can be used to log a single summary line;
+// alternatively, use individual [SlotResult] values for per-slot messages.
+func (g *Group) Wait() *GroupResult {
+	g.mu.Lock()
+	slots := g.slots
+	g.mu.Unlock()
+
+	result := &GroupResult{
+		group:        g,
+		logger:       g.logger,
+		successLevel: InfoLevel,
+		errorLevel:   ErrorLevel,
+	}
+	result.initSelf(result)
+
+	if len(slots) == 0 {
+		return result
+	}
+
+	// Non-TTY: print each slot's initial line, then block on all results.
+	if !slots[0].cfg.isTTY {
+		for _, s := range slots {
+			fieldsStr := strings.TrimLeft(
+				formatFields(*s.fieldsPtr.Load(), s.fieldOpts), " ",
+			)
+			line := buildLine(s.cfg.order, s.cfg.reportTS,
+				time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt),
+				s.cfg.label, s.prefix, *s.msgPtr.Load(), fieldsStr)
+			_, _ = io.WriteString(s.cfg.out, line+"\n")
+		}
+		for _, s := range slots {
+			select {
+			case s.err = <-s.doneErr:
+			case <-g.ctx.Done():
+				for _, s2 := range slots {
+					if s2.err == nil {
+						select {
+						case s2.err = <-s2.doneErr:
+						default:
+							s2.err = g.ctx.Err()
+						}
+					}
+				}
+				return result
+			}
+		}
+		return result
+	}
+
+	// Tick rate = fastest slot's rate.
+	tickRate := slots[0].tickRate
+	for _, s := range slots[1:] {
+		tickRate = min(tickRate, s.tickRate)
+	}
+
+	termOut := slots[0].cfg.termOut
+	termOut.HideCursor()
+	defer termOut.ShowCursor()
+
+	out := slots[0].cfg.out
+	ticker := time.NewTicker(tickRate)
+	defer ticker.Stop()
+
+	numLines := 0
+	done := make([]bool, len(slots))
+	remaining := len(slots)
+	var frameBuf strings.Builder
+
+	for remaining > 0 {
+		select {
+		case <-g.ctx.Done():
+			clearBlock(out, numLines)
+			for i, s := range slots {
+				if !done[i] {
+					s.err = g.ctx.Err()
+				}
+			}
+			return result
+		case <-ticker.C:
+			now := time.Now()
+			// Drain completed tasks.
+			for i, s := range slots {
+				if done[i] {
+					continue
+				}
+				select {
+				case err := <-s.doneErr:
+					s.err = err
+					done[i] = true
+					remaining--
+				default:
+				}
+			}
+			// Batch all writes into a single string.
+			frameBuf.Reset()
+			if numLines > 0 {
+				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines)
+			}
+			for i, s := range slots {
+				line := renderSlotLine(s, done[i], now)
+				fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
+			}
+			_, _ = io.WriteString(out, frameBuf.String())
+			numLines = len(slots)
+			// If all done, break out after one final render.
+			if remaining == 0 {
+				break
+			}
+		}
+	}
+
+	clearBlock(out, numLines)
+	return result
+}
+
+// GroupEntry is returned by [Group.Add] and provides [Run] and [Progress]
+// methods to start a task within the group.
+type GroupEntry struct {
+	slot  *groupSlot
+	group *Group
+}
+
+// Run starts a simple task (no progress updates) and returns a [SlotResult].
+func (ge *GroupEntry) Run(task Task) *SlotResult {
+	return ge.Progress(func(ctx context.Context, _ *ProgressUpdate) error {
+		return task(ctx)
+	})
+}
+
+// Progress starts a task with progress update capability and returns a [SlotResult].
+func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
+	s := ge.slot
+	b := s.builder
+	g := ge.group
+
+	update := &ProgressUpdate{
+		msg:       b.msg,
+		msgPtr:    s.msgPtr,
+		fieldsPtr: s.fieldsPtr,
+		base:      b.fields,
+	}
+	if b.mode == animationBar {
+		update.progressPtr = b.barProgressPtr
+		update.totalPtr = b.barTotalPtr
+	}
+	update.initSelf(update)
+
+	go func() {
+		s.doneErr <- task(g.ctx, update)
+	}()
+
+	r := &SlotResult{
+		slot:         s,
+		logger:       g.logger,
+		successLevel: b.level,
+		errorLevel:   ErrorLevel,
+	}
+	r.initSelf(r)
+	return r
+}
+
+// SlotResult holds the result of a group animation task. It mirrors
+// [WaitResult] but reads its error from the slot (set by [Group.Wait]).
+type SlotResult struct {
+	fieldBuilder[SlotResult]
+
+	slot         *groupSlot
+	logger       *Logger
+	successLevel Level
+	errorLevel   Level
+	successMsg   string // empty = use *slot.msgPtr.Load()
+	errorMsg     *string
+	prefix       *string
+}
+
+// Err returns the error, logging success or failure using the original message.
+func (r *SlotResult) Err() error {
+	return r.Send()
+}
+
+// Msg logs at success level with the given message on success, or at error
+// level with the error string on failure. Returns the error.
+func (r *SlotResult) Msg(msg string) error {
+	r.successMsg = msg
+	return r.Send()
+}
+
+// OnErrorLevel sets the log level for the error case.
+func (r *SlotResult) OnErrorLevel(level Level) *SlotResult {
+	r.errorLevel = level
+	return r
+}
+
+// OnErrorMessage sets a custom message for the error case.
+func (r *SlotResult) OnErrorMessage(msg string) *SlotResult {
+	r.errorMsg = &msg
+	return r
+}
+
+// OnSuccessLevel sets the log level for the success case.
+func (r *SlotResult) OnSuccessLevel(level Level) *SlotResult {
+	r.successLevel = level
+	return r
+}
+
+// OnSuccessMessage sets the message for the success case.
+func (r *SlotResult) OnSuccessMessage(msg string) *SlotResult {
+	r.successMsg = msg
+	return r
+}
+
+// Prefix sets a custom emoji prefix for the completion log message.
+func (r *SlotResult) Prefix(prefix string) *SlotResult {
+	r.prefix = new(prefix)
+	return r
+}
+
+// Send finalises the result, logging at the configured success or error level.
+func (r *SlotResult) Send() error {
+	s := r.slot
+	err := s.err
+
+	// Resolve message.
+	msg := r.successMsg
+	if msg == "" {
+		msg = *s.msgPtr.Load()
+	}
+
+	// Resolve final fields: animation fields + any fields added to the SlotResult.
+	finalFields := s.builder.resolveDynamicFields(*s.fieldsPtr.Load(), time.Since(s.startTime))
+	if len(r.fields) > 0 {
+		finalFields = mergeFields(finalFields, r.fields)
+	}
+
+	return sendResult(
+		r.logger,
+		finalFields,
+		r.prefix,
+		r.successLevel,
+		r.errorLevel,
+		msg,
+		r.errorMsg,
+		err,
+	)
+}
+
+// Silent returns just the error without logging anything.
+func (r *SlotResult) Silent() error {
+	return r.slot.err
+}
+
+// GroupResult holds the aggregate result of a [Group.Wait] and allows
+// chaining a single summary log line instead of per-slot messages.
+type GroupResult struct {
+	fieldBuilder[GroupResult]
+
+	group        *Group
+	logger       *Logger
+	successLevel Level
+	errorLevel   Level
+	successMsg   string
+	errorMsg     *string
+	prefix       *string
+}
+
+// Err returns the joined error, logging success at info level or failure at
+// error level using the original message.
+func (r *GroupResult) Err() error {
+	return r.Send()
+}
+
+// Msg logs at success level with the given message if all tasks succeeded,
+// or at error level with the joined error string on failure. Returns the error.
+func (r *GroupResult) Msg(msg string) error {
+	r.successMsg = msg
+	return r.Send()
+}
+
+// OnErrorLevel sets the log level for the error case.
+func (r *GroupResult) OnErrorLevel(level Level) *GroupResult {
+	r.errorLevel = level
+	return r
+}
+
+// OnErrorMessage sets a custom message for the error case.
+func (r *GroupResult) OnErrorMessage(msg string) *GroupResult {
+	r.errorMsg = &msg
+	return r
+}
+
+// OnSuccessLevel sets the log level for the success case.
+func (r *GroupResult) OnSuccessLevel(level Level) *GroupResult {
+	r.successLevel = level
+	return r
+}
+
+// OnSuccessMessage sets the message for the success case.
+func (r *GroupResult) OnSuccessMessage(msg string) *GroupResult {
+	r.successMsg = msg
+	return r
+}
+
+// Prefix sets a custom emoji prefix for the completion log message.
+func (r *GroupResult) Prefix(prefix string) *GroupResult {
+	r.prefix = new(prefix)
+	return r
+}
+
+// Send finalises the result, logging at the configured success or error level.
+// The error is the [errors.Join] of all slot errors (nil when all succeeded).
+func (r *GroupResult) Send() error {
+	err := r.joinErrors()
+	return sendResult(
+		r.logger,
+		r.fields,
+		r.prefix,
+		r.successLevel,
+		r.errorLevel,
+		r.successMsg,
+		r.errorMsg,
+		err,
+	)
+}
+
+// Silent returns the joined error without logging anything.
+func (r *GroupResult) Silent() error {
+	return r.joinErrors()
+}
+
+// joinErrors returns the [errors.Join] of all slot errors.
+func (r *GroupResult) joinErrors() error {
+	var errs []error
+	for _, s := range r.group.slots {
+		if s.err != nil {
+			errs = append(errs, s.err)
+		}
+	}
+	return errors.Join(errs...)
+}
+
 // slotConfig is an immutable snapshot of logger settings captured under the
 // logger's mutex. It stores exactly the fields needed for per-tick rendering
 // so the animation loop never touches the logger after the initial capture.
@@ -37,22 +430,22 @@ type slotConfig struct {
 // (runAnimation) and multi-animation (Group) paths.
 type groupSlot struct {
 	builder   *AnimationBuilder
-	msgPtr    *atomic.Pointer[string]
-	fieldsPtr *atomic.Pointer[[]Field]
+	cfg       slotConfig
 	doneErr   chan error // buffered(1); goroutine sends result here (Group only)
 	err       error      // populated by Wait() after doneErr is drained (Group only)
-	startTime time.Time
-	cfg       slotConfig
-	tickRate  time.Duration
+	fieldsPtr *atomic.Pointer[[]Field]
+	msgPtr    *atomic.Pointer[string]
 	prefix    string // resolved icon (builder.prefix or "⏳")
+	startTime time.Time
+	tickRate  time.Duration
 
 	// per-tick mutable state
-	pCache          pulseCache
-	hexLUT          *shimmerLUT      // shimmer only, immutable after init
-	styleLUT        *shimmerStyleLUT // shimmer only, immutable after init
 	cachedFieldsPtr *[]Field         // dedup: last-formatted fields pointer
 	cachedFieldsStr string           // dedup: last-formatted fields string
 	fieldOpts       formatFieldsOpts // pre-built from slotConfig
+	hexLUT          *shimmerLUT      // shimmer only, immutable after init
+	pCache          pulseCache
+	styleLUT        *shimmerStyleLUT // shimmer only, immutable after init
 
 	// gradient cache (bar mode with ProgressGradient only)
 	gradientProgress float64
@@ -92,9 +485,9 @@ func captureSlotConfig(s *groupSlot) {
 		percentFormatFunc:       l.percentFormatFunc,
 		percentPrecision:        l.percentPrecision,
 		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
+		quoteOpen:               l.quoteOpen,
 		quoteClose:              l.quoteClose,
 		quoteMode:               l.quoteMode,
-		quoteOpen:               l.quoteOpen,
 		separatorText:           l.separatorText,
 		styles:                  l.styles,
 		timeFormat:              l.fieldTimeFormat,
@@ -325,158 +718,6 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string) string {
 	return alignBarLine(parts, barFull, sep, b.barStyle.Align, s.cfg.output.Width())
 }
 
-// --- Group types ---
-
-// Group manages a set of concurrent animations rendered as a multi-line
-// block. Create one with [Group] or [Logger.Group], add animations with
-// [Group.Add], then call [Group.Wait] to run the render loop.
-type Group struct {
-	ctx    context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
-	logger *Logger
-	mu     sync.Mutex
-	slots  []*groupSlot
-}
-
-// NewGroup creates a new animation group using the [Default] logger.
-func NewGroup(ctx context.Context) *Group {
-	return Default.Group(ctx)
-}
-
-// Group creates a new animation group.
-func (l *Logger) Group(ctx context.Context) *Group {
-	return &Group{ctx: ctx, logger: l}
-}
-
-// GroupEntry is returned by [Group.Add] and provides [Run] and [Progress]
-// methods to start a task within the group.
-type GroupEntry struct {
-	slot  *groupSlot
-	group *Group
-}
-
-// Add registers an animation builder with the group and returns a
-// [GroupEntry] for starting the task.
-func (g *Group) Add(b *AnimationBuilder) *GroupEntry {
-	if b.logger == nil {
-		b.logger = g.logger
-	}
-
-	msgPtr := new(atomic.Pointer[string])
-	fieldsPtr := new(atomic.Pointer[[]Field])
-	msgPtr.Store(&b.msg)
-	fieldsPtr.Store(&b.fields)
-
-	s := &groupSlot{
-		builder:   b,
-		msgPtr:    msgPtr,
-		fieldsPtr: fieldsPtr,
-		doneErr:   make(chan error, 1),
-		startTime: time.Now(),
-	}
-	captureSlotConfig(s)
-
-	g.mu.Lock()
-	g.slots = append(g.slots, s)
-	g.mu.Unlock()
-
-	return &GroupEntry{slot: s, group: g}
-}
-
-// Run starts a simple task (no progress updates) and returns a [SlotResult].
-func (ge *GroupEntry) Run(task Task) *SlotResult {
-	return ge.Progress(func(ctx context.Context, _ *ProgressUpdate) error {
-		return task(ctx)
-	})
-}
-
-// Progress starts a task with progress update capability and returns a [SlotResult].
-func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
-	s := ge.slot
-	b := s.builder
-	g := ge.group
-
-	update := &ProgressUpdate{
-		msg:       b.msg,
-		msgPtr:    s.msgPtr,
-		fieldsPtr: s.fieldsPtr,
-		base:      b.fields,
-	}
-	if b.mode == animationBar {
-		update.progressPtr = b.barProgressPtr
-		update.totalPtr = b.barTotalPtr
-	}
-	update.initSelf(update)
-
-	go func() {
-		s.doneErr <- task(g.ctx, update)
-	}()
-
-	r := &SlotResult{
-		slot:         s,
-		logger:       g.logger,
-		successLevel: b.level,
-		errorLevel:   ErrorLevel,
-	}
-	r.initSelf(r)
-	return r
-}
-
-// SlotResult holds the result of a group animation task. It mirrors
-// [WaitResult] but reads its error from the slot (set by [Group.Wait]).
-type SlotResult struct {
-	fieldBuilder[SlotResult]
-
-	slot         *groupSlot
-	logger       *Logger
-	successLevel Level
-	errorLevel   Level
-	successMsg   string // empty = use *slot.msgPtr.Load()
-	errorMsg     *string
-	prefix       *string
-}
-
-// Err returns the error, logging success or failure using the original message.
-func (r *SlotResult) Err() error {
-	return r.Send()
-}
-
-// Msg logs at success level with the given message on success, or at error
-// level with the error string on failure. Returns the error.
-func (r *SlotResult) Msg(msg string) error {
-	r.successMsg = msg
-	return r.Send()
-}
-
-// OnErrorLevel sets the log level for the error case.
-func (r *SlotResult) OnErrorLevel(level Level) *SlotResult {
-	r.errorLevel = level
-	return r
-}
-
-// OnErrorMessage sets a custom message for the error case.
-func (r *SlotResult) OnErrorMessage(msg string) *SlotResult {
-	r.errorMsg = &msg
-	return r
-}
-
-// OnSuccessLevel sets the log level for the success case.
-func (r *SlotResult) OnSuccessLevel(level Level) *SlotResult {
-	r.successLevel = level
-	return r
-}
-
-// OnSuccessMessage sets the message for the success case.
-func (r *SlotResult) OnSuccessMessage(msg string) *SlotResult {
-	r.successMsg = msg
-	return r
-}
-
-// Prefix sets a custom emoji prefix for the completion log message.
-func (r *SlotResult) Prefix(prefix string) *SlotResult {
-	r.prefix = new(prefix)
-	return r
-}
-
 // sendResult logs a success or error event and returns the error.
 func sendResult(
 	l *Logger,
@@ -522,246 +763,6 @@ func sendResult(
 		e.Msg(msg)
 	}
 	return err
-}
-
-// Send finalises the result, logging at the configured success or error level.
-func (r *SlotResult) Send() error {
-	s := r.slot
-	err := s.err
-
-	// Resolve message.
-	msg := r.successMsg
-	if msg == "" {
-		msg = *s.msgPtr.Load()
-	}
-
-	// Resolve final fields: animation fields + any fields added to the SlotResult.
-	finalFields := s.builder.resolveDynamicFields(*s.fieldsPtr.Load(), time.Since(s.startTime))
-	if len(r.fields) > 0 {
-		finalFields = mergeFields(finalFields, r.fields)
-	}
-
-	return sendResult(
-		r.logger,
-		finalFields,
-		r.prefix,
-		r.successLevel,
-		r.errorLevel,
-		msg,
-		r.errorMsg,
-		err,
-	)
-}
-
-// Silent returns just the error without logging anything.
-func (r *SlotResult) Silent() error {
-	return r.slot.err
-}
-
-// GroupResult holds the aggregate result of a [Group.Wait] and allows
-// chaining a single summary log line instead of per-slot messages.
-type GroupResult struct {
-	fieldBuilder[GroupResult]
-
-	group        *Group
-	logger       *Logger
-	successLevel Level
-	errorLevel   Level
-	successMsg   string
-	errorMsg     *string
-	prefix       *string
-}
-
-// Err returns the joined error, logging success at info level or failure at
-// error level using the original message.
-func (r *GroupResult) Err() error {
-	return r.Send()
-}
-
-// Msg logs at success level with the given message if all tasks succeeded,
-// or at error level with the joined error string on failure. Returns the error.
-func (r *GroupResult) Msg(msg string) error {
-	r.successMsg = msg
-	return r.Send()
-}
-
-// OnErrorLevel sets the log level for the error case.
-func (r *GroupResult) OnErrorLevel(level Level) *GroupResult {
-	r.errorLevel = level
-	return r
-}
-
-// OnErrorMessage sets a custom message for the error case.
-func (r *GroupResult) OnErrorMessage(msg string) *GroupResult {
-	r.errorMsg = &msg
-	return r
-}
-
-// OnSuccessLevel sets the log level for the success case.
-func (r *GroupResult) OnSuccessLevel(level Level) *GroupResult {
-	r.successLevel = level
-	return r
-}
-
-// OnSuccessMessage sets the message for the success case.
-func (r *GroupResult) OnSuccessMessage(msg string) *GroupResult {
-	r.successMsg = msg
-	return r
-}
-
-// Prefix sets a custom emoji prefix for the completion log message.
-func (r *GroupResult) Prefix(prefix string) *GroupResult {
-	r.prefix = new(prefix)
-	return r
-}
-
-// Send finalises the result, logging at the configured success or error level.
-// The error is the [errors.Join] of all slot errors (nil when all succeeded).
-func (r *GroupResult) Send() error {
-	err := r.joinErrors()
-	return sendResult(
-		r.logger,
-		r.fields,
-		r.prefix,
-		r.successLevel,
-		r.errorLevel,
-		r.successMsg,
-		r.errorMsg,
-		err,
-	)
-}
-
-// Silent returns the joined error without logging anything.
-func (r *GroupResult) Silent() error {
-	return r.joinErrors()
-}
-
-// joinErrors returns the [errors.Join] of all slot errors.
-func (r *GroupResult) joinErrors() error {
-	var errs []error
-	for _, s := range r.group.slots {
-		if s.err != nil {
-			errs = append(errs, s.err)
-		}
-	}
-	return errors.Join(errs...)
-}
-
-// Wait runs the render loop, blocking until all slots complete or the context
-// is cancelled. After Wait returns, each slot's err field is populated.
-// The returned [GroupResult] can be used to log a single summary line;
-// alternatively, use individual [SlotResult] values for per-slot messages.
-func (g *Group) Wait() *GroupResult {
-	g.mu.Lock()
-	slots := g.slots
-	g.mu.Unlock()
-
-	result := &GroupResult{
-		group:        g,
-		logger:       g.logger,
-		successLevel: InfoLevel,
-		errorLevel:   ErrorLevel,
-	}
-	result.initSelf(result)
-
-	if len(slots) == 0 {
-		return result
-	}
-
-	// Non-TTY: print each slot's initial line, then block on all results.
-	if !slots[0].cfg.isTTY {
-		for _, s := range slots {
-			fieldsStr := strings.TrimLeft(
-				formatFields(*s.fieldsPtr.Load(), s.fieldOpts), " ",
-			)
-			line := buildLine(s.cfg.order, s.cfg.reportTS,
-				time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt),
-				s.cfg.label, s.prefix, *s.msgPtr.Load(), fieldsStr)
-			_, _ = io.WriteString(s.cfg.out, line+"\n")
-		}
-		for _, s := range slots {
-			select {
-			case s.err = <-s.doneErr:
-			case <-g.ctx.Done():
-				for _, s2 := range slots {
-					if s2.err == nil {
-						select {
-						case s2.err = <-s2.doneErr:
-						default:
-							s2.err = g.ctx.Err()
-						}
-					}
-				}
-				return result
-			}
-		}
-		return result
-	}
-
-	// Tick rate = fastest slot's rate.
-	tickRate := slots[0].tickRate
-	for _, s := range slots[1:] {
-		tickRate = min(tickRate, s.tickRate)
-	}
-
-	termOut := slots[0].cfg.termOut
-	termOut.HideCursor()
-	defer termOut.ShowCursor()
-
-	out := slots[0].cfg.out
-	ticker := time.NewTicker(tickRate)
-	defer ticker.Stop()
-
-	numLines := 0
-	done := make([]bool, len(slots))
-	remaining := len(slots)
-	var frameBuf strings.Builder
-
-	for remaining > 0 {
-		select {
-		case <-g.ctx.Done():
-			clearBlock(out, numLines)
-			for i, s := range slots {
-				if !done[i] {
-					s.err = g.ctx.Err()
-				}
-			}
-			return result
-		case <-ticker.C:
-			now := time.Now()
-			// Drain completed tasks.
-			for i, s := range slots {
-				if done[i] {
-					continue
-				}
-				select {
-				case err := <-s.doneErr:
-					s.err = err
-					done[i] = true
-					remaining--
-				default:
-				}
-			}
-			// Batch all writes into a single string.
-			frameBuf.Reset()
-			if numLines > 0 {
-				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines)
-			}
-			for i, s := range slots {
-				line := renderSlotLine(s, done[i], now)
-				fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
-			}
-			_, _ = io.WriteString(out, frameBuf.String())
-			numLines = len(slots)
-			// If all done, break out after one final render.
-			if remaining == 0 {
-				break
-			}
-		}
-	}
-
-	clearBlock(out, numLines)
-	return result
 }
 
 // clearBlock erases n lines above the cursor and repositions the cursor.

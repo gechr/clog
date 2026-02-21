@@ -306,7 +306,7 @@ func (b *AnimationBuilder) Progress(
 	}
 
 	startTime := time.Now()
-	err := runAnimation(ctx, &msgPtr, &fieldsPtr, b, wrapped, startTime)
+	err := runAnimation(ctx, b, wrapped, &msgPtr, &fieldsPtr, startTime)
 
 	msg := *msgPtr.Load()
 	w := &WaitResult{
@@ -339,24 +339,6 @@ type WaitResult struct {
 // level using the original animation message.
 func (w *WaitResult) Err() error {
 	return w.Send()
-}
-
-func (w *WaitResult) event(level Level) *Event {
-	l := w.logger
-	if l == nil {
-		l = Default
-	}
-	e := l.newEvent(level)
-	if e == nil {
-		return nil
-	}
-
-	e = e.withFields(w.fields)
-
-	if w.prefix != nil {
-		e = e.withPrefix(*w.prefix)
-	}
-	return e
 }
 
 // Msg logs at info level with the given message on success, or at error
@@ -420,12 +402,30 @@ func (w *WaitResult) Silent() error {
 	return w.err
 }
 
+func (w *WaitResult) event(level Level) *Event {
+	l := w.logger
+	if l == nil {
+		l = Default
+	}
+	e := l.newEvent(level)
+	if e == nil {
+		return nil
+	}
+
+	e = e.withFields(w.fields)
+
+	if w.prefix != nil {
+		e = e.withPrefix(*w.prefix)
+	}
+	return e
+}
+
 func runAnimation(
 	ctx context.Context,
-	msgPtr *atomic.Pointer[string],
-	fields *atomic.Pointer[[]Field],
 	b *AnimationBuilder,
 	task Task,
+	msgPtr *atomic.Pointer[string],
+	fields *atomic.Pointer[[]Field],
 	startTime time.Time,
 ) error {
 	// Run the task in a goroutine.
@@ -450,7 +450,7 @@ func runAnimation(
 	}
 
 	// Build the slot and snapshot the logger's settings.
-	slot := &groupSlot{builder: b, msgPtr: msgPtr, fieldsPtr: fields, startTime: startTime}
+	slot := &groupSlot{builder: b, fieldsPtr: fields, msgPtr: msgPtr, startTime: startTime}
 	captureSlotConfig(slot)
 
 	// Don't animate if not a TTY (CI, piped output, etc.).

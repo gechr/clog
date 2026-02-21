@@ -11,48 +11,6 @@ type Context struct {
 	prefix *string // nil = inherit from parent logger
 }
 
-// clone returns a shallow copy of the Logger with all fields duplicated.
-// The caller must hold l.mu. The returned Logger has its own mutex;
-// callers that want to share the parent mutex should reassign l.mu after cloning.
-func (l *Logger) clone() *Logger {
-	return &Logger{
-		mu: &sync.Mutex{}, // placeholder; callers typically override
-
-		elapsedFormatFunc:       l.elapsedFormatFunc,
-		elapsedMinimum:          l.elapsedMinimum,
-		elapsedPrecision:        l.elapsedPrecision,
-		elapsedRound:            l.elapsedRound,
-		exitFunc:                l.exitFunc,
-		fieldSort:               l.fieldSort,
-		fieldStyleLevel:         l.fieldStyleLevel,
-		fieldTimeFormat:         l.fieldTimeFormat,
-		fields:                  l.fields,
-		handler:                 l.handler,
-		labelWidth:              l.labelWidth,
-		labels:                  l.labels,
-		level:                   l.level,
-		levelAlign:              l.levelAlign,
-		omitEmpty:               l.omitEmpty,
-		omitZero:                l.omitZero,
-		output:                  l.output,
-		labelsPadded:            l.labelsPadded,
-		parts:                   l.parts,
-		percentFormatFunc:       l.percentFormatFunc,
-		percentPrecision:        l.percentPrecision,
-		prefix:                  l.prefix,
-		prefixes:                l.prefixes,
-		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
-		quoteClose:              l.quoteClose,
-		quoteMode:               l.quoteMode,
-		quoteOpen:               l.quoteOpen,
-		reportTimestamp:         l.reportTimestamp,
-		separatorText:           l.separatorText,
-		styles:                  l.styles,
-		timeFormat:              l.timeFormat,
-		timeLocation:            l.timeLocation,
-	}
-}
-
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) Column(key, path string, line, column int) *Context {
@@ -150,4 +108,46 @@ func (c *Context) URL(key, url string) *Context {
 		Field{Key: key, Value: c.logger.Output().hyperlink(url, url)},
 	)
 	return c
+}
+
+// clone returns a shallow copy of the Logger with all fields duplicated.
+// The caller must hold l.mu. The returned Logger has its own mutex;
+// callers that want to share the parent mutex should reassign l.mu after cloning.
+func (l *Logger) clone() *Logger {
+	return &Logger{
+		mu: &sync.Mutex{}, // placeholder; callers typically override
+
+		elapsedFormatFunc:       l.elapsedFormatFunc,
+		elapsedMinimum:          l.elapsedMinimum,
+		elapsedPrecision:        l.elapsedPrecision,
+		elapsedRound:            l.elapsedRound,
+		exitFunc:                l.exitFunc,
+		fieldSort:               l.fieldSort,
+		fieldStyleLevel:         l.fieldStyleLevel,
+		fieldTimeFormat:         l.fieldTimeFormat,
+		fields:                  l.fields,
+		handler:                 l.handler,
+		labelWidth:              l.labelWidth,
+		labels:                  l.labels,
+		labelsPadded:            l.labelsPadded,
+		level:                   l.level,
+		levelAlign:              l.levelAlign,
+		omitEmpty:               l.omitEmpty,
+		omitZero:                l.omitZero,
+		output:                  l.output,
+		parts:                   l.parts,
+		percentFormatFunc:       l.percentFormatFunc,
+		percentPrecision:        l.percentPrecision,
+		prefix:                  l.prefix,
+		prefixes:                l.prefixes,
+		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
+		quoteOpen:               l.quoteOpen,
+		quoteClose:              l.quoteClose,
+		quoteMode:               l.quoteMode,
+		reportTimestamp:         l.reportTimestamp,
+		separatorText:           l.separatorText,
+		styles:                  l.styles,
+		timeFormat:              l.timeFormat,
+		timeLocation:            l.timeLocation,
+	}
 }

@@ -49,8 +49,8 @@ func highlightJSON(s string, styles *JSONStyles) string {
 				buf.WriteByte(' ')
 			}
 			braceStyle := styles.Brace
-			if len(stack) == 0 && styles.RootBrace != nil {
-				braceStyle = styles.RootBrace
+			if len(stack) == 0 && styles.BraceRoot != nil {
+				braceStyle = styles.BraceRoot
 			}
 			emitStyled(&buf, "{", braceStyle)
 			stack = append(stack, '{')
@@ -59,8 +59,8 @@ func highlightJSON(s string, styles *JSONStyles) string {
 
 		case c == '}':
 			braceStyle := styles.Brace
-			if len(stack) == 1 && styles.RootBrace != nil {
-				braceStyle = styles.RootBrace
+			if len(stack) == 1 && styles.BraceRoot != nil {
+				braceStyle = styles.BraceRoot
 			}
 			emitStyled(&buf, "}", braceStyle)
 			if len(stack) > 0 {
@@ -74,8 +74,8 @@ func highlightJSON(s string, styles *JSONStyles) string {
 				buf.WriteByte(' ')
 			}
 			bracketStyle := styles.Bracket
-			if len(stack) == 0 && styles.RootBracket != nil {
-				bracketStyle = styles.RootBracket
+			if len(stack) == 0 && styles.BracketRoot != nil {
+				bracketStyle = styles.BracketRoot
 			}
 			emitStyled(&buf, "[", bracketStyle)
 			stack = append(stack, '[')
@@ -83,8 +83,8 @@ func highlightJSON(s string, styles *JSONStyles) string {
 
 		case c == ']':
 			bracketStyle := styles.Bracket
-			if len(stack) == 1 && styles.RootBracket != nil {
-				bracketStyle = styles.RootBracket
+			if len(stack) == 1 && styles.BracketRoot != nil {
+				bracketStyle = styles.BracketRoot
 			}
 			emitStyled(&buf, "]", bracketStyle)
 			if len(stack) > 0 {
@@ -141,7 +141,7 @@ func highlightJSON(s string, styles *JSONStyles) string {
 
 		case c == 't':
 			if i+4 <= n && data[i+1] == 'r' && data[i+2] == 'u' && data[i+3] == 'e' {
-				emitStyled(&buf, "true", styles.True)
+				emitStyled(&buf, "true", styles.BoolTrue)
 				i += 4
 			} else {
 				buf.Write(data[i:])
@@ -151,7 +151,7 @@ func highlightJSON(s string, styles *JSONStyles) string {
 		case c == 'f':
 			if i+5 <= n && data[i+1] == 'a' && data[i+2] == 'l' && data[i+3] == 's' &&
 				data[i+4] == 'e' {
-				emitStyled(&buf, "false", styles.False)
+				emitStyled(&buf, "false", styles.BoolFalse)
 				i += 5
 			} else {
 				buf.Write(data[i:])
@@ -238,13 +238,13 @@ func renderFlatJSON(s string, styles *JSONStyles) string {
 	// (since values are rendered as fragments, not root documents)
 	valueStyles := *styles
 	valueStyles.Mode = JSONModeHuman
-	valueStyles.RootBrace = nil
-	valueStyles.RootBracket = nil
+	valueStyles.BraceRoot = nil
+	valueStyles.BracketRoot = nil
 
 	var buf strings.Builder
 	buf.Grow(len(s))
 
-	braceStyle := styles.RootBrace
+	braceStyle := styles.BraceRoot
 	if braceStyle == nil {
 		braceStyle = styles.Brace
 	}

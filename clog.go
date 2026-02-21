@@ -48,9 +48,6 @@ const Nil = "<nil>"
 // Default is the default logger instance.
 var Default = New(Stdout(ColorAuto))
 
-// ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
-type ctxKey struct{}
-
 // Default emoji prefixes for each level.
 var defaultPrefixes = LevelMap{
 	TraceLevel: "🔍",
@@ -214,6 +211,9 @@ const (
 	PartFields
 )
 
+// ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
+type ctxKey struct{}
+
 // Logger is the main structured logger.
 type Logger struct {
 	mu *sync.Mutex
@@ -243,9 +243,9 @@ type Logger struct {
 	prefix                  *string // nil = use default emoji for level
 	prefixes                LevelMap
 	quantityUnitsIgnoreCase bool
+	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
 	quoteClose              rune // 0 means same as quoteOpen (or default)
 	quoteMode               QuoteMode
-	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
 	reportTimestamp         bool
 	separatorText           string
 	styles                  *Styles
@@ -284,6 +284,15 @@ func New(output *Output) *Logger {
 // NewWriter creates a new [Logger] that writes to w with [ColorAuto].
 func NewWriter(w io.Writer) *Logger {
 	return New(NewOutput(w, ColorAuto))
+}
+
+// SetColorMode sets the colour mode by recreating the logger's [Output]
+// with the given mode.
+func (l *Logger) SetColorMode(mode ColorMode) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	w := l.output.Writer()
+	l.output = NewOutput(w, mode)
 }
 
 // SetElapsedFormatFunc sets a custom format function for Elapsed fields.
@@ -608,6 +617,13 @@ func (l *Logger) Error() *Event { return l.newEvent(ErrorLevel) }
 // Fatal returns a new [Event] at fatal level.
 func (l *Logger) Fatal() *Event { return l.newEvent(FatalLevel) }
 
+// Level returns the current minimum log level.
+func (l *Logger) Level() Level {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.level
+}
+
 // colorsDisabled returns true if this logger should suppress colours.
 func (l *Logger) colorsDisabled() bool {
 	return l.output.ColorsDisabled()
@@ -779,9 +795,9 @@ func (l *Logger) log(e *Event, msg string) {
 				percentFormatFunc:       l.percentFormatFunc,
 				percentPrecision:        l.percentPrecision,
 				quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
+				quoteOpen:               l.quoteOpen,
 				quoteClose:              l.quoteClose,
 				quoteMode:               l.quoteMode,
-				quoteOpen:               l.quoteOpen,
 				separatorText:           l.separatorText,
 				styles:                  l.styles,
 				timeFormat:              l.fieldTimeFormat,
@@ -802,17 +818,6 @@ func (l *Logger) log(e *Event, msg string) {
 	}
 	lineBuf.WriteByte('\n')
 	_, _ = io.WriteString(l.output.Writer(), lineBuf.String())
-}
-
-// computeLabelWidth returns the length of the longest label in the map.
-func computeLabelWidth(labels LevelMap) int {
-	maxWidth := 0
-	for _, lbl := range labels {
-		if len(lbl) > maxWidth {
-			maxWidth = len(lbl)
-		}
-	}
-	return maxWidth
 }
 
 // newEvent creates a new [Event] for the given level.
@@ -846,12 +851,12 @@ func (l *Logger) resolvePrefix(e *Event) string {
 
 // Config holds configuration options for the [Default] logger.
 type Config struct {
-	// Verbose enables debug level logging and timestamps.
-	Verbose bool
 	// Output is the output to use (defaults to [Stdout]([ColorAuto])).
 	Output *Output
 	// Styles allows customising the visual styles.
 	Styles *Styles
+	// Verbose enables debug level logging and timestamps.
+	Verbose bool
 }
 
 // Configure sets up the [Default] logger with the given configuration.
@@ -876,6 +881,22 @@ func Configure(cfg *Config) {
 	SetVerbose(cfg.Verbose)
 }
 
+// DefaultLabels returns a copy of the default level labels.
+func DefaultLabels() LevelMap {
+	return maps.Clone(levelLabels)
+}
+
+// DefaultParts returns the default ordering of log line parts:
+// timestamp, level, prefix, message, fields.
+func DefaultParts() []Part {
+	return []Part{PartTimestamp, PartLevel, PartPrefix, PartMessage, PartFields}
+}
+
+// DefaultPrefixes returns a copy of the default emoji prefixes for each level.
+func DefaultPrefixes() LevelMap {
+	return maps.Clone(defaultPrefixes)
+}
+
 // SetVerbose enables or disables verbose mode on the [Default] logger.
 // When verbose is true, it always enables debug logging. When false, it
 // respects the log level environment variable if set.
@@ -895,29 +916,6 @@ func SetVerbose(verbose bool) {
 	Default.SetReportTimestamp(false)
 }
 
-// DefaultLabels returns a copy of the default level labels.
-func DefaultLabels() LevelMap {
-	return maps.Clone(levelLabels)
-}
-
-// DefaultParts returns the default ordering of log line parts:
-// timestamp, level, prefix, message, fields.
-func DefaultParts() []Part {
-	return []Part{PartTimestamp, PartLevel, PartPrefix, PartMessage, PartFields}
-}
-
-// DefaultPrefixes returns a copy of the default emoji prefixes for each level.
-func DefaultPrefixes() LevelMap {
-	return maps.Clone(defaultPrefixes)
-}
-
-// Level returns the current minimum log level.
-func (l *Logger) Level() Level {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.level
-}
-
 // GetLevel returns the current log level of the [Default] logger.
 func GetLevel() Level {
 	return Default.Level()
@@ -930,15 +928,6 @@ func IsVerbose() bool {
 }
 
 // Package-level convenience functions that use the [Default] logger.
-
-// SetColorMode sets the colour mode by recreating the logger's [Output]
-// with the given mode.
-func (l *Logger) SetColorMode(mode ColorMode) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	w := l.output.Writer()
-	l.output = NewOutput(w, mode)
-}
 
 // SetColorMode sets the colour mode on the [Default] logger by recreating
 // its [Output] with the given mode.
@@ -1076,6 +1065,17 @@ func Error() *Event { return Default.Error() }
 
 // Fatal returns a new fatal-level [Event] from the [Default] logger.
 func Fatal() *Event { return Default.Fatal() }
+
+// computeLabelWidth returns the length of the longest label in the map.
+func computeLabelWidth(labels LevelMap) int {
+	maxWidth := 0
+	for _, lbl := range labels {
+		if len(lbl) > maxWidth {
+			maxWidth = len(lbl)
+		}
+	}
+	return maxWidth
+}
 
 // centerPad centres s within width, padding with spaces.
 func centerPad(s string, width int) string {

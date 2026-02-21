@@ -17,6 +17,14 @@ const (
 	pulseTickRate = 33 * time.Millisecond
 )
 
+// pulseCache holds the last-used hex color and its corresponding lipgloss
+// style, allowing [pulseTextCached] to skip style creation when the color
+// hasn't changed between frames.
+type pulseCache struct {
+	hex   string
+	style lipgloss.Style
+}
+
 // DefaultPulseGradient returns a three-stop gradient for pulse effects:
 // pastel light blue fading through light green to white.
 func DefaultPulseGradient() []ColorStop {
@@ -33,12 +41,31 @@ func DefaultPulseGradient() []ColorStop {
 	}
 }
 
-// pulseCache holds the last-used hex color and its corresponding lipgloss
-// style, allowing [pulseTextCached] to skip style creation when the color
-// hasn't changed between frames.
-type pulseCache struct {
-	hex   string
-	style lipgloss.Style
+// Pulse creates a new [AnimationBuilder] using the [Default] logger with an
+// animated color pulse on the message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func Pulse(msg string, stops ...ColorStop) *AnimationBuilder { return Default.Pulse(msg, stops...) }
+
+// Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
+// All characters fade uniformly between colors in the gradient.
+// With no arguments, the default pulse gradient is used. Custom gradient
+// stops can be passed to override the default.
+func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
+	if len(stops) == 0 {
+		stops = DefaultPulseGradient()
+	}
+	b := &AnimationBuilder{
+		level:      InfoLevel,
+		logger:     l,
+		mode:       animationPulse,
+		msg:        msg,
+		pulseStops: stops,
+		spinner:    DefaultSpinnerStyle(),
+	}
+	b.initSelf(b)
+	return b
 }
 
 // pulseText renders all characters of text with a single gradient-interpolated
@@ -108,31 +135,4 @@ func applyPulseStyle(text string, style lipgloss.Style) string {
 	}
 
 	return buf.String()
-}
-
-// Pulse creates a new [AnimationBuilder] using the [Default] logger with an
-// animated color pulse on the message text.
-// All characters fade uniformly between colors in the gradient.
-// With no arguments, the default pulse gradient is used. Custom gradient
-// stops can be passed to override the default.
-func Pulse(msg string, stops ...ColorStop) *AnimationBuilder { return Default.Pulse(msg, stops...) }
-
-// Pulse creates a new [AnimationBuilder] with an animated color pulse on the message text.
-// All characters fade uniformly between colors in the gradient.
-// With no arguments, the default pulse gradient is used. Custom gradient
-// stops can be passed to override the default.
-func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
-	if len(stops) == 0 {
-		stops = DefaultPulseGradient()
-	}
-	b := &AnimationBuilder{
-		level:      InfoLevel,
-		logger:     l,
-		mode:       animationPulse,
-		msg:        msg,
-		pulseStops: stops,
-		spinner:    DefaultSpinnerStyle(),
-	}
-	b.initSelf(b)
-	return b
 }

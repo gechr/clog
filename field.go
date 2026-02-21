@@ -28,6 +28,12 @@ func (fb *fieldBuilder[T]) Anys(key string, vals []any) *T {
 	return fb.self
 }
 
+// Base64 adds a []byte field encoded as a base64 string.
+func (fb *fieldBuilder[T]) Base64(key string, val []byte) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: base64.StdEncoding.EncodeToString(val)})
+	return fb.self
+}
+
 // Bool adds a bool field.
 func (fb *fieldBuilder[T]) Bool(key string, val bool) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: val})
@@ -37,12 +43,6 @@ func (fb *fieldBuilder[T]) Bool(key string, val bool) *T {
 // Bools adds a bool slice field.
 func (fb *fieldBuilder[T]) Bools(key string, vals []bool) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
-	return fb.self
-}
-
-// Base64 adds a []byte field encoded as a base64 string.
-func (fb *fieldBuilder[T]) Base64(key string, val []byte) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: base64.StdEncoding.EncodeToString(val)})
 	return fb.self
 }
 
@@ -69,13 +69,6 @@ func (fb *fieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
 	return fb.self
 }
 
-// Errs adds an error slice field. Each error is converted to its message
-// string; nil errors are rendered as [Nil] ("<nil>").
-func (fb *fieldBuilder[T]) Errs(key string, vals []error) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: errSliceToStrings(vals)})
-	return fb.self
-}
-
 // Err adds an error field with key "error". No-op if err is nil.
 //
 // Unlike [Event.Err], context errors are always stored as a field because
@@ -88,9 +81,10 @@ func (fb *fieldBuilder[T]) Err(err error) *T {
 	return fb.self
 }
 
-// Hex adds a []byte field encoded as a hex string.
-func (fb *fieldBuilder[T]) Hex(key string, val []byte) *T {
-	fb.fields = append(fb.fields, Field{Key: key, Value: hex.EncodeToString(val)})
+// Errs adds an error slice field. Each error is converted to its message
+// string; nil errors are rendered as [Nil] ("<nil>").
+func (fb *fieldBuilder[T]) Errs(key string, vals []error) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: errSliceToStrings(vals)})
 	return fb.self
 }
 
@@ -106,7 +100,11 @@ func (fb *fieldBuilder[T]) Floats64(key string, vals []float64) *T {
 	return fb.self
 }
 
-func (fb *fieldBuilder[T]) initSelf(s *T) { fb.self = s }
+// Hex adds a []byte field encoded as a hex string.
+func (fb *fieldBuilder[T]) Hex(key string, val []byte) *T {
+	fb.fields = append(fb.fields, Field{Key: key, Value: hex.EncodeToString(val)})
+	return fb.self
+}
 
 // Int adds an int field.
 func (fb *fieldBuilder[T]) Int(key string, val int) *T {
@@ -248,6 +246,8 @@ func (fb *fieldBuilder[T]) Uints64(key string, vals []uint64) *T {
 	fb.fields = append(fb.fields, Field{Key: key, Value: vals})
 	return fb.self
 }
+
+func (fb *fieldBuilder[T]) initSelf(s *T) { fb.self = s }
 
 // errSliceToStrings converts a slice of errors to a slice of strings.
 // Nil errors are rendered as [Nil] ("<nil>").

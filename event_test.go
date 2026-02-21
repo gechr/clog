@@ -427,7 +427,7 @@ func TestHighlightJSONNullDistinctFromBool(t *testing.T) {
 	falseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff6600"))
 	nullStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
 
-	styles := &JSONStyles{True: &trueStyle, False: &falseStyle, Null: &nullStyle}
+	styles := &JSONStyles{BoolTrue: &trueStyle, BoolFalse: &falseStyle, Null: &nullStyle}
 	result := highlightJSON(`{"a":true,"b":false,"c":null}`, styles)
 
 	assert.Contains(t, result, trueStyle.Render("true"))
@@ -708,7 +708,7 @@ func TestHighlightJSONRootBrace(t *testing.T) {
 	rootStyle := lipgloss.NewStyle().Bold(true)
 	nestedStyle := lipgloss.NewStyle().Faint(true)
 
-	styles := &JSONStyles{Brace: &nestedStyle, RootBrace: &rootStyle}
+	styles := &JSONStyles{Brace: &nestedStyle, BraceRoot: &rootStyle}
 	result := highlightJSON(`{"a":{"b":1}}`, styles)
 
 	// Root braces use RootBrace style.
@@ -723,7 +723,7 @@ func TestHighlightJSONRootBracket(t *testing.T) {
 	rootStyle := lipgloss.NewStyle().Bold(true)
 	nestedStyle := lipgloss.NewStyle().Faint(true)
 
-	styles := &JSONStyles{Bracket: &nestedStyle, RootBracket: &rootStyle}
+	styles := &JSONStyles{Bracket: &nestedStyle, BracketRoot: &rootStyle}
 	result := highlightJSON(`[[1,2],[3]]`, styles)
 
 	assert.Contains(t, result, rootStyle.Render("["))
@@ -752,7 +752,7 @@ func TestHighlightJSONRootBracketFallsBackToBracket(t *testing.T) {
 func TestHighlightJSONRootArray(t *testing.T) {
 	// A bare array is valid JSON at the root.
 	rootStyle := lipgloss.NewStyle().Bold(true)
-	styles := &JSONStyles{RootBracket: &rootStyle}
+	styles := &JSONStyles{BracketRoot: &rootStyle}
 	result := highlightJSON(`[1,"x",null]`, styles)
 
 	assert.Contains(t, result, rootStyle.Render("["))

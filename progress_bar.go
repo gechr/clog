@@ -83,6 +83,8 @@ func (s BarStyle) percentFieldKey() string {
 	return ""
 }
 
+func (s BarStyle) applyAnimation(b *AnimationBuilder) { b.barStyle = s }
+
 // DefaultBarStyle returns the default [BarStyle].
 // It uses box-drawing characters with half-cell resolution for smooth progress.
 func DefaultBarStyle() BarStyle { return BarThin }
@@ -120,8 +122,6 @@ func (l *Logger) Bar(msg string, total int) *AnimationBuilder {
 	b.initSelf(b)
 	return b
 }
-
-func (s BarStyle) applyAnimation(b *AnimationBuilder) { b.barStyle = s }
 
 // renderBar renders the visual bar string for the given progress values.
 // termWidth is the terminal column count (0 = fall back to auto-sizing from style).

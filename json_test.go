@@ -232,7 +232,7 @@ func TestHighlightJSONFlatMode(t *testing.T) {
 func TestHighlightJSONRootBraceOverride(t *testing.T) {
 	rootStyle := lipgloss.NewStyle().Bold(true)
 	styles := &JSONStyles{
-		RootBrace: new(rootStyle),
+		BraceRoot: new(rootStyle),
 	}
 
 	got := highlightJSON(`{"a":{"b":1}}`, styles)
@@ -244,7 +244,7 @@ func TestHighlightJSONRootBraceOverride(t *testing.T) {
 func TestHighlightJSONRootBracketOverride(t *testing.T) {
 	rootStyle := lipgloss.NewStyle().Bold(true)
 	styles := &JSONStyles{
-		RootBracket: new(rootStyle),
+		BracketRoot: new(rootStyle),
 	}
 
 	got := highlightJSON(`[1,2]`, styles)
@@ -333,12 +333,12 @@ func TestHighlightJSONStyled(t *testing.T) {
 	nullStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 
 	styles := &JSONStyles{
-		Key:    new(keyStyle),
-		Number: new(numStyle),
-		String: new(strStyle),
-		True:   new(trueStyle),
-		False:  new(falseStyle),
-		Null:   new(nullStyle),
+		Key:       new(keyStyle),
+		Number:    new(numStyle),
+		String:    new(strStyle),
+		BoolTrue:  new(trueStyle),
+		BoolFalse: new(falseStyle),
+		Null:      new(nullStyle),
 	}
 
 	got := highlightJSON(`{"n":42,"s":"v","t":true,"f":false,"z":null}`, styles)

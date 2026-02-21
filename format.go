@@ -44,9 +44,9 @@ type formatFieldsOpts struct {
 	percentFormatFunc       func(float64) string
 	percentPrecision        int
 	quantityUnitsIgnoreCase bool
+	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
 	quoteClose              rune // 0 means same as quoteOpen (or default)
 	quoteMode               QuoteMode
-	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
 	separatorText           string
 	styles                  *Styles
 	timeFormat              string

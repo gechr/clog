@@ -47,7 +47,7 @@ func main() {
 
 	if !*quickFlag {
 		// --- Group (bar styles + spinner + pulse running concurrently) ---
-		header("Group (concurrent bar styles)")
+		header("Group")
 
 		thinColored := clog.BarThin
 		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))

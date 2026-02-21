@@ -20,6 +20,7 @@ type SlogOptions struct {
 // SlogHandler implements [slog.Handler] by routing records through a clog [Logger].
 type SlogHandler struct {
 	logger *Logger
+
 	attrs  []Field  // preset fields from WithAttrs (immutable after creation)
 	groups []string // group prefix stack from WithGroup (immutable after creation)
 	opts   SlogOptions

@@ -100,30 +100,31 @@ type JSONStyles struct {
 	// JSONModeHuman strips quotes from identifier-like keys and simple string values.
 	// JSONModeFlat flattens nested object keys with dot notation; arrays are kept intact.
 	Mode JSONMode
-	// Spacing controls where spaces are inserted. Zero (default) means no spaces.
-	// Use JSONSpacingAll for {"key": "value", "n": 1} style output.
-	Spacing JSONSpacing
 	// OmitCommas omits the comma between items. JSONSpacingAfterComma still
 	// applies and can be used to keep a space separator: {"a":1 "b":2}.
 	OmitCommas bool
+	// Spacing controls where spaces are inserted. Zero (default) means no spaces.
+	// Use JSONSpacingAll for {"key": "value", "n": 1} style output.
+	Spacing JSONSpacing
 
+	BoolFalse      Style // false
+	BoolTrue       Style // true
 	Key            Style // Object keys
-	String         Style // String values
+	Null           Style // null
 	Number         Style // Numeric values — base fallback for all number sub-styles
-	NumberPositive Style // Positive numbers (with or without explicit sign); falls back to Number
-	NumberNegative Style // Negative numbers; falls back to Number
-	NumberZero     Style // Zero; falls back to NumberPositive, then Number
 	NumberFloat    Style // Floating-point values; falls back to Number
 	NumberInteger  Style // Integer values; falls back to Number
-	True           Style // true
-	False          Style // false
-	Null           Style // null
-	Brace          Style // { } (nested)
-	RootBrace      Style // { } (outermost object; falls back to Brace if nil)
-	Bracket        Style // [ ] (nested)
-	RootBracket    Style // [ ] (outermost array; falls back to Bracket if nil)
-	Colon          Style // :
-	Comma          Style // ,
+	NumberNegative Style // Negative numbers; falls back to Number
+	NumberPositive Style // Positive numbers (with or without explicit sign); falls back to Number
+	NumberZero     Style // Zero; falls back to NumberPositive, then Number
+	String         Style // String values
+
+	Brace       Style // { } (nested)
+	BraceRoot   Style // { } (outermost object; falls back to Brace if nil)
+	Bracket     Style // [ ] (nested)
+	BracketRoot Style // [ ] (outermost array; falls back to Bracket if nil)
+	Colon       Style // :
+	Comma       Style // ,
 }
 
 // DefaultJSONStyles returns dracula-inspired lipgloss styles for JSON tokens.
@@ -131,36 +132,38 @@ type JSONStyles struct {
 func DefaultJSONStyles() *JSONStyles {
 	return &JSONStyles{
 		Spacing: JSONSpacingAfterComma,
-		Key: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#bd93f9")), // purple
+
+		BoolFalse: new(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
 		),
-		String: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f1fa8c")), // yellow
-		),
-		Number: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6")), // pink
-		),
-		True: new(
+		BoolTrue: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("2")), // green
 		),
-		False: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
+		Key: new(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#bd93f9")), // purple
 		),
 		Null: new(
 			lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#8892bf")).
 				Italic(true), // muted blue-grey italic
 		),
+		Number: new(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6")), // pink
+		),
+		String: new(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#f1fa8c")), // yellow
+		),
+
 		Brace: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
 		),
-		RootBrace: new(
+		BraceRoot: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")).Bold(true), // white bold
 		),
 		Bracket: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
 		),
-		RootBracket: new(
+		BracketRoot: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")).Bold(true), // white bold
 		),
 		Colon: new(
