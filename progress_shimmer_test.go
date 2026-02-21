@@ -92,7 +92,7 @@ func TestShimmerTextAllDirectionsProduce(t *testing.T) {
 	lut := buildShimmerLUT(DefaultShimmerGradient())
 	text := "hello world"
 
-	for _, dir := range []Direction{DirectionRight, DirectionLeft, DirectionMiddleIn, DirectionMiddleOut} {
+	for _, dir := range []Direction{DirectionRight, DirectionLeft, DirectionMiddleIn, DirectionMiddleOut, DirectionBounceIn, DirectionBounceOut} {
 		got := shimmerText(text, 0.25, dir, lut, nil)
 		assert.Contains(t, got, "\x1b", "direction %d should produce styled output", dir)
 	}
@@ -102,16 +102,53 @@ func TestShimmerTextDirectionsDiffer(t *testing.T) {
 	withTrueColor(t)
 	lut := buildShimmerLUT(DefaultShimmerGradient())
 	text := "hello world testing"
-	phase := 0.3
+
+	// Use phase 0.7 so that the bounce triangle wave (which equals the
+	// linear phase for p < 0.5) diverges from MiddleIn/MiddleOut.
+	phase := 0.7
 
 	right := shimmerText(text, phase, DirectionRight, lut, nil)
 	left := shimmerText(text, phase, DirectionLeft, lut, nil)
 	middleIn := shimmerText(text, phase, DirectionMiddleIn, lut, nil)
 	middleOut := shimmerText(text, phase, DirectionMiddleOut, lut, nil)
+	bounceIn := shimmerText(text, phase, DirectionBounceIn, lut, nil)
+	bounceOut := shimmerText(text, phase, DirectionBounceOut, lut, nil)
 
 	assert.NotEqual(t, right, left)
 	assert.NotEqual(t, right, middleIn)
 	assert.NotEqual(t, middleIn, middleOut)
+	assert.NotEqual(t, bounceIn, bounceOut)
+	assert.NotEqual(t, bounceIn, middleIn)
+	assert.NotEqual(t, bounceOut, middleOut)
+}
+
+func TestShimmerTextBounceInPingPong(t *testing.T) {
+	withTrueColor(t)
+	lut := buildShimmerLUT(DefaultShimmerGradient())
+	text := "hello world testing"
+
+	// BounceIn uses a triangle wave on the phase, so phase 0 and phase 1
+	// should produce identical output (both map to bounce=0).
+	at0 := shimmerText(text, 0.0, DirectionBounceIn, lut, nil)
+	at1 := shimmerText(text, 1.0, DirectionBounceIn, lut, nil)
+	assert.Equal(t, at0, at1, "BounceIn at phase 0 and 1 should match (ping-pong)")
+
+	// Mid-phase should differ from endpoints.
+	atMid := shimmerText(text, 0.5, DirectionBounceIn, lut, nil)
+	assert.NotEqual(t, at0, atMid, "BounceIn mid-phase should differ from endpoints")
+}
+
+func TestShimmerTextBounceOutPingPong(t *testing.T) {
+	withTrueColor(t)
+	lut := buildShimmerLUT(DefaultShimmerGradient())
+	text := "hello world testing"
+
+	at0 := shimmerText(text, 0.0, DirectionBounceOut, lut, nil)
+	at1 := shimmerText(text, 1.0, DirectionBounceOut, lut, nil)
+	assert.Equal(t, at0, at1, "BounceOut at phase 0 and 1 should match (ping-pong)")
+
+	atMid := shimmerText(text, 0.5, DirectionBounceOut, lut, nil)
+	assert.NotEqual(t, at0, atMid, "BounceOut mid-phase should differ from endpoints")
 }
 
 func TestShimmerTextMiddleInSymmetric(t *testing.T) {

@@ -23,6 +23,12 @@ const (
 	DirectionMiddleIn
 	// DirectionMiddleOut sends the shimmer wave outward from the center.
 	DirectionMiddleOut
+	// DirectionBounceIn sends the shimmer wave inward from both edges, then
+	// bounces it back outward, creating a ping-pong effect.
+	DirectionBounceIn
+	// DirectionBounceOut sends the shimmer wave outward from the center, then
+	// bounces it back inward, creating a ping-pong effect.
+	DirectionBounceOut
 )
 
 const (
@@ -212,6 +218,16 @@ func shimmerCharIdx(i, n int, phase float64, dir Direction) int {
 		t = math.Mod(fold+phase, 1.0)
 	case DirectionRight:
 		t = math.Mod(pos-phase+1.0, 1.0)
+	case DirectionBounceIn:
+		//nolint:mnd // triangle wave amplitude for ping-pong phase
+		bounce := 0.75 * (1.0 - math.Abs(2*phase-1.0))
+		fold := math.Abs(2*pos - 1.0)
+		t = math.Mod(fold+bounce, 1.0)
+	case DirectionBounceOut:
+		//nolint:mnd // triangle wave amplitude for ping-pong phase
+		bounce := 0.75 * (1.0 - math.Abs(2*phase-1.0))
+		fold := 1.0 - math.Abs(2*pos-1.0)
+		t = math.Mod(fold+bounce, 1.0)
 	}
 
 	idx := int(t * float64(shimmerLUTSize-1))

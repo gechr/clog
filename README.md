@@ -506,12 +506,14 @@ Use `DefaultShimmerGradient()` to get the default gradient stops.
 
 #### Shimmer Directions
 
-| Constant             | Description             |
-| -------------------- | ----------------------- |
-| `DirectionRight`     | Left to right (default) |
-| `DirectionLeft`      | Right to left           |
-| `DirectionMiddleIn`  | Inward from both edges  |
-| `DirectionMiddleOut` | Outward from the center |
+| Constant              | Description                              |
+| --------------------- | ---------------------------------------- |
+| `DirectionRight`      | Left to right (default)                  |
+| `DirectionLeft`       | Right to left                            |
+| `DirectionMiddleIn`   | Inward from both edges                   |
+| `DirectionMiddleOut`  | Outward from the center                  |
+| `DirectionBounceIn`   | Inward from both edges, then bounces out |
+| `DirectionBounceOut`  | Outward from center, then bounces in     |
 
 Both pulse and shimmer use `ColorStop` for gradient definitions:
 

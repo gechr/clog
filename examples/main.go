@@ -46,8 +46,44 @@ func main() {
 	}
 
 	if !*quickFlag {
+		// --- Shimmer (all directions, rainbow) ---
+		header("Shimmer")
+		rainbow := []clog.ColorStop{
+			{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		}
+		sleep3s := func(_ context.Context) error {
+			time.Sleep(3 * time.Second)
+			return nil
+		}
+		shimmerGroup := clog.NewGroup(context.Background())
+		shimmerGroup.Add(clog.Shimmer("Shimmer right: streaming data to downstream services", rainbow...).
+			ShimmerDirection(clog.DirectionRight)).
+			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Shimmer left: rewinding transaction log to checkpoint", rainbow...).
+			ShimmerDirection(clog.DirectionLeft)).
+			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Middle in: synchronizing upstream dependencies and rebuilding", rainbow...).
+			ShimmerDirection(clog.DirectionMiddleIn)).
+			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Middle out: broadcasting configuration changes to edge nodes", rainbow...).
+			ShimmerDirection(clog.DirectionMiddleOut)).
+			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Bounce in: converging replicas and verifying quorum", rainbow...).
+			ShimmerDirection(clog.DirectionBounceIn)).
+			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Bounce out: propagating cache invalidation to all locations", rainbow...).
+			ShimmerDirection(clog.DirectionBounceOut)).
+			Run(sleep3s)
+		shimmerGroup.Wait().Prefix("✅").Msg("Shimmer demo complete")
+
 		// --- Group (bar styles + spinner + pulse running concurrently) ---
-		header("Group")
+		header("Bar")
 
 		thinColored := clog.BarThin
 		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
@@ -148,7 +184,7 @@ func main() {
 			Msg("Deployed")
 
 		// --- Pulse ---
-		header("Pulse (default gradient)")
+		header("Pulse")
 		_ = clog.Pulse("Warming up inference engine").
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
