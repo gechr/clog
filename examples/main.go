@@ -80,6 +80,9 @@ func main() {
 		shimmerGroup.Add(clog.Shimmer("Bounce out: propagating cache invalidation to all locations", rainbow...).
 			ShimmerDirection(clog.DirectionBounceOut)).
 			Run(sleep3s)
+		shimmerGroup.Add(clog.Shimmer("Fast shimmer: rapid gradient cycle at 2× speed", rainbow...).
+			Speed(1.0)).
+			Run(sleep3s)
 		shimmerGroup.Wait().Prefix("✅").Msg("Shimmer demo complete")
 
 		// --- Group (bar styles + spinner + pulse running concurrently) ---

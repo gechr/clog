@@ -25,6 +25,10 @@ const (
 	animationSpinner
 )
 
+// Speed is the number of full animation cycles per second.
+// Used by [AnimationBuilder.Speed] to control shimmer and pulse rate.
+type Speed = float64
+
 // Task is a function executed by [AnimationBuilder.Wait].
 type Task func(context.Context) error
 
@@ -109,6 +113,7 @@ type AnimationBuilder struct {
 	pulseStops     []ColorStop
 	shimmerDir     Direction
 	shimmerStops   []ColorStop
+	speed          Speed
 	spinner        SpinnerStyle
 }
 

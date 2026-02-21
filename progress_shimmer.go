@@ -90,6 +90,7 @@ func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 		mode:         animationShimmer,
 		msg:          msg,
 		shimmerStops: stops,
+		speed:        shimmerSpeed,
 		spinner:      DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)
@@ -102,6 +103,23 @@ func (l *Logger) Shimmer(msg string, stops ...ColorStop) *AnimationBuilder {
 // Only meaningful when the builder was created with [Shimmer].
 func (b *AnimationBuilder) ShimmerDirection(d Direction) *AnimationBuilder {
 	b.shimmerDir = d
+	return b
+}
+
+// Speed sets the number of full animation cycles per second.
+// For [Shimmer] this controls how fast the gradient wave sweeps across the text
+// (default 0.5). For [Pulse] this controls the oscillation rate (default 0.5).
+// Higher values produce faster animation. Values <= 0 are treated as the default.
+func (b *AnimationBuilder) Speed(speed Speed) *AnimationBuilder {
+	if speed <= 0 {
+		switch b.mode { //nolint:exhaustive // only pulse and shimmer have configurable speed
+		case animationPulse:
+			speed = pulseSpeed
+		default:
+			speed = shimmerSpeed
+		}
+	}
+	b.speed = speed
 	return b
 }
 

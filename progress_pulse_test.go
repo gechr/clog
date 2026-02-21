@@ -120,6 +120,30 @@ func TestPulseBuilderPrefixDefault(t *testing.T) {
 	assert.Empty(t, b.prefix)
 }
 
+func TestPulseSpeedDefault(t *testing.T) {
+	b := Pulse("test")
+
+	assert.InDelta(t, pulseSpeed, b.speed, 1e-9)
+}
+
+func TestPulseSpeedCustom(t *testing.T) {
+	b := Pulse("test").Speed(2.0)
+
+	assert.InDelta(t, 2.0, b.speed, 1e-9)
+}
+
+func TestPulseSpeedZeroFallsBackToDefault(t *testing.T) {
+	b := Pulse("test").Speed(0)
+
+	assert.InDelta(t, pulseSpeed, b.speed, 1e-9)
+}
+
+func TestPulseSpeedNegativeFallsBackToDefault(t *testing.T) {
+	b := Pulse("test").Speed(-1.0)
+
+	assert.InDelta(t, pulseSpeed, b.speed, 1e-9)
+}
+
 func TestPulseDefaultPrefixInOutput(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()

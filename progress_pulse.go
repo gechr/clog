@@ -62,6 +62,7 @@ func (l *Logger) Pulse(msg string, stops ...ColorStop) *AnimationBuilder {
 		mode:       animationPulse,
 		msg:        msg,
 		pulseStops: stops,
+		speed:      pulseSpeed,
 		spinner:    DefaultSpinnerStyle(),
 	}
 	b.initSelf(b)

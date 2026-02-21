@@ -515,6 +515,22 @@ Use `DefaultShimmerGradient()` to get the default gradient stops.
 | `DirectionBounceIn`   | Inward from both edges, then bounces out |
 | `DirectionBounceOut`  | Outward from center, then bounces in     |
 
+#### Animation Speed
+
+Control how fast the animation cycles with `Speed(cyclesPerSecond)`. The default is `0.5` (one full cycle every two seconds) for both Shimmer and Pulse. Values ≤ 0 are treated as the default.
+
+```go
+clog.Shimmer("Fast shimmer").
+  Speed(2.0).  // 2 gradient cycles per second
+  Wait(ctx, action).
+  Msg("Done")
+
+clog.Pulse("Quick pulse").
+  Speed(1.5).  // 1.5 oscillations per second
+  Wait(ctx, action).
+  Msg("Done")
+```
+
 Both pulse and shimmer use `ColorStop` for gradient definitions:
 
 ```go

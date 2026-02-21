@@ -639,11 +639,11 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 		msg = styledMsg(msg, b.level, s.cfg.styles, s.cfg.noColor)
 	case animationPulse:
 		char = s.prefix
-		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*pulseSpeed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
+		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 		msg = pulseTextCached(msg, t, b.pulseStops, &s.pCache)
 	case animationShimmer:
 		char = s.prefix
-		phase := math.Mod(dur.Seconds()*shimmerSpeed, 1.0)
+		phase := math.Mod(dur.Seconds()*b.speed, 1.0)
 		msg = shimmerText(msg, phase, b.shimmerDir, s.hexLUT, s.styleLUT)
 	}
 

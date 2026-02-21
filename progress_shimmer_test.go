@@ -225,6 +225,30 @@ func TestShimmerDirectionDefault(t *testing.T) {
 	assert.Equal(t, DirectionRight, b.shimmerDir)
 }
 
+func TestShimmerSpeedDefault(t *testing.T) {
+	b := Shimmer("test")
+
+	assert.InDelta(t, shimmerSpeed, b.speed, 1e-9)
+}
+
+func TestShimmerSpeedCustom(t *testing.T) {
+	b := Shimmer("test").Speed(2.0)
+
+	assert.InDelta(t, 2.0, b.speed, 1e-9)
+}
+
+func TestShimmerSpeedZeroFallsBackToDefault(t *testing.T) {
+	b := Shimmer("test").Speed(0)
+
+	assert.InDelta(t, shimmerSpeed, b.speed, 1e-9)
+}
+
+func TestShimmerSpeedNegativeFallsBackToDefault(t *testing.T) {
+	b := Shimmer("test").Speed(-1.0)
+
+	assert.InDelta(t, shimmerSpeed, b.speed, 1e-9)
+}
+
 func TestShimmerBuilderPrefix(t *testing.T) {
 	b := Shimmer("test").Prefix("🔄")
 
