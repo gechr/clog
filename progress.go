@@ -189,6 +189,24 @@ func (b *AnimationBuilder) barPercentValue() percent {
 	return percent(min(pct, percentMax))
 }
 
+// stripDynamicFields returns fields with animation-only dynamic fields
+// removed. These are fields whose values are updated on each animation tick
+// (elapsed time, bar percent) and have no meaningful initial value in
+// non-TTY contexts where the animation cannot update them.
+func (b *AnimationBuilder) stripDynamicFields(fields []Field) []Field {
+	if b.elapsedKey == "" && b.barPercentKey == "" {
+		return fields
+	}
+	out := make([]Field, 0, len(fields))
+	for _, f := range fields {
+		if f.Key == b.elapsedKey || f.Key == b.barPercentKey {
+			continue
+		}
+		out = append(out, f)
+	}
+	return out
+}
+
 // resolveDynamicFields clones fields and injects elapsed/percent values
 // for any dynamic field keys configured on the builder. Returns the
 // original slice unmodified when no dynamic keys are configured.
@@ -460,9 +478,11 @@ func runAnimation(
 
 	// Don't animate if not a TTY (CI, piped output, etc.).
 	// Print the initial message so the user knows something is in progress.
+	// Dynamic fields (elapsed, bar percent) are stripped because their
+	// initial zero values are meaningless without live updates.
 	if !slot.cfg.isTTY {
 		fieldsStr := strings.TrimLeft(
-			formatFields(*fields.Load(), slot.fieldOpts), " ",
+			formatFields(b.stripDynamicFields(*fields.Load()), slot.fieldOpts), " ",
 		)
 		line := buildLine(slot.cfg.order, slot.cfg.reportTS,
 			time.Now().In(slot.cfg.timeLoc).Format(slot.cfg.timeFmt),

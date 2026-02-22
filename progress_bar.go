@@ -240,8 +240,9 @@ func barPercent(current, total, precision int, pad bool) string {
 	}
 	s := fmt.Sprintf("%.*f%%", precision, pct)
 	if pad {
-		// "100%" with the given precision is the widest possible string.
-		w := len(fmt.Sprintf("%.*f%%", precision, percentMax))
+		// Pad to one less than the widest string ("100%" at the given
+		// precision) because the separator already provides a space.
+		w := len(fmt.Sprintf("%.*f%%", precision, percentMax)) - 1
 		return fmt.Sprintf("%*s", w, s)
 	}
 	return s

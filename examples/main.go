@@ -58,7 +58,7 @@ func main() {
 			{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
 		}
 		sleep3s := func(_ context.Context) error {
-			time.Sleep(3 * time.Second)
+			time.Sleep(5 * time.Second)
 			return nil
 		}
 		shimmerGroup := clog.NewGroup(context.Background())
@@ -91,9 +91,11 @@ func main() {
 		thinColored := clog.BarThin
 		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
 		thinColored.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		thinColored.PercentPosition = clog.PercentLeft
 
 		gradientBar := clog.BarSmooth
 		gradientBar.ProgressGradient = clog.DefaultBarGradient()
+		gradientBar.PercentPosition = clog.PercentLeft
 
 		barFill := func(_ context.Context, p *clog.ProgressUpdate) error {
 			for i := range 1001 {
@@ -103,9 +105,14 @@ func main() {
 			return nil
 		}
 
+		downloadBar := clog.BarThin
+		downloadBar.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
+		downloadBar.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		downloadBar.PercentPosition = clog.PercentLeft
+
 		g := clog.NewGroup(context.Background())
 		g.Add(clog.Bar("Downloading", 1000).
-			Str("file", "release.tar.gz").Elapsed("elapsed")).
+			Style(downloadBar).Str("file", "release.tar.gz").Elapsed("elapsed")).
 			Progress(barFill)
 		g.Add(clog.Bar("Installing", 1000).
 			Style(thinColored).Str("pkg", "clog").BarPercent("progress").Elapsed("elapsed")).
@@ -116,7 +123,9 @@ func main() {
 		g.Add(clog.Bar("Syncing", 1000).
 			Style(clog.BarStyle{
 				FilledChar:   '█',
+				FilledStyle:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
 				EmptyChar:    ' ',
+				EmptyStyle:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),
 				FillGradient: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
 				LeftCap:      "│",
 				RightCap:     "│",

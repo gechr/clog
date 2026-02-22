@@ -163,6 +163,32 @@ func TestGroupNonTTY(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 }
 
+func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+	logger.SetElapsedMinimum(0)
+
+	g := logger.Group(context.Background())
+	r := g.Add(logger.Bar("downloading", 100).
+		Str("file", "release.tar.gz").
+		BarPercent("progress").
+		Elapsed("elapsed")).
+		Progress(func(_ context.Context, p *ProgressUpdate) error {
+			p.SetProgress(50).Send()
+			return nil
+		})
+	g.Wait()
+
+	out := buf.String()
+	// Static fields should be present.
+	assert.Contains(t, out, "file=release.tar.gz")
+	// Dynamic fields should be stripped in non-TTY output.
+	assert.NotContains(t, out, "progress=")
+	assert.NotContains(t, out, "elapsed=")
+
+	require.NoError(t, r.Msg("done"))
+}
+
 func TestGroupEmptyWait(_ *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background())

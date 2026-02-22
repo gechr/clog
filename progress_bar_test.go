@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"strings"
@@ -195,10 +196,10 @@ func TestBarPercent(t *testing.T) {
 }
 
 func TestBarPercentPadded(t *testing.T) {
-	assert.Equal(t, "  0%", barPercent(0, 100, 0, true))
-	assert.Equal(t, " 50%", barPercent(50, 100, 0, true))
+	assert.Equal(t, " 0%", barPercent(0, 100, 0, true))
+	assert.Equal(t, "50%", barPercent(50, 100, 0, true))
 	assert.Equal(t, "100%", barPercent(100, 100, 0, true))
-	assert.Equal(t, "  0%", barPercent(0, 0, 0, true))
+	assert.Equal(t, " 0%", barPercent(0, 0, 0, true))
 	assert.Equal(t, "100%", barPercent(200, 100, 0, true))
 }
 
@@ -210,8 +211,8 @@ func TestBarPercentPrecision(t *testing.T) {
 }
 
 func TestBarPercentPrecisionPadded(t *testing.T) {
-	assert.Equal(t, "  0.0%", barPercent(0, 100, 1, true))
-	assert.Equal(t, " 50.0%", barPercent(50, 100, 1, true))
+	assert.Equal(t, " 0.0%", barPercent(0, 100, 1, true))
+	assert.Equal(t, "50.0%", barPercent(50, 100, 1, true))
 	assert.Equal(t, "100.0%", barPercent(100, 100, 1, true))
 }
 
@@ -525,6 +526,27 @@ func TestRenderBarWithoutProgressGradient(t *testing.T) {
 		"\x1b[",
 		"bar without ProgressGradient should not contain ANSI escapes",
 	)
+}
+
+func TestBarNonTTYStripsDynamicFields(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+	logger.SetElapsedMinimum(0)
+
+	_ = logger.Bar("downloading", 100).
+		Str("file", "release.tar.gz").
+		BarPercent("progress").
+		Elapsed("elapsed").
+		Progress(context.Background(), func(_ context.Context, p *ProgressUpdate) error {
+			p.SetProgress(50).Send()
+			return nil
+		}).
+		Silent()
+
+	out := buf.String()
+	assert.Contains(t, out, "file=release.tar.gz")
+	assert.NotContains(t, out, "progress=")
+	assert.NotContains(t, out, "elapsed=")
 }
 
 func TestDefaultBarGradient(t *testing.T) {

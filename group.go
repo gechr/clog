@@ -88,10 +88,12 @@ func (g *Group) Wait() *GroupResult {
 	}
 
 	// Non-TTY: print each slot's initial line, then block on all results.
+	// Dynamic fields (elapsed, bar percent) are stripped because their
+	// initial zero values are meaningless without live updates.
 	if !slots[0].cfg.isTTY {
 		for _, s := range slots {
 			fieldsStr := strings.TrimLeft(
-				formatFields(*s.fieldsPtr.Load(), s.fieldOpts), " ",
+				formatFields(s.builder.stripDynamicFields(*s.fieldsPtr.Load()), s.fieldOpts), " ",
 			)
 			line := buildLine(s.cfg.order, s.cfg.reportTS,
 				time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt),
