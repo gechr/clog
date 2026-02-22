@@ -18,140 +18,137 @@ func newTimerTestLogger(buf *bytes.Buffer) *Logger {
 	return l
 }
 
-func TestTimedSend(t *testing.T) {
+func TestElapsedSend(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("database migration").Send()
+	l.Info().Elapsed("elapsed").Send()
 
-	assert.Equal(t, "INF ℹ️ database migration elapsed=1s\n", buf.String())
+	assert.Equal(t, "INF ℹ️ elapsed=1s\n", buf.String())
 }
 
-func TestTimedMsg(t *testing.T) {
+func TestElapsedMsg(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("upload").Msg("file uploaded")
+	l.Info().Elapsed("elapsed").Msg("file uploaded")
 
 	assert.Equal(t, "INF ℹ️ file uploaded elapsed=1s\n", buf.String())
 }
 
-func TestTimedErrNil(t *testing.T) {
+func TestElapsedMsgf(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("compile").Err(nil)
+	l.Info().Elapsed("elapsed").Msgf("uploaded %d files", 3)
 
-	assert.Equal(t, "INF ℹ️ compile elapsed=1s\n", buf.String())
+	assert.Equal(t, "INF ℹ️ uploaded 3 files elapsed=1s\n", buf.String())
 }
 
-func TestTimedErrNonNil(t *testing.T) {
+func TestElapsedErrField(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("compile").Err(errors.New("syntax error"))
+	l.Error().Elapsed("elapsed").Err(errors.New("syntax error")).Msg("compile")
 
-	assert.Equal(t, "ERR ❌ compile error=\"syntax error\" elapsed=1s\n", buf.String())
+	assert.Equal(t, "ERR ❌ compile elapsed=1s error=\"syntax error\"\n", buf.String())
 }
 
-func TestTimedFields(t *testing.T) {
+func TestElapsedFields(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("batch").
+	l.Info().
 		Str("name", "imports").
 		Int("items", 100).
-		Send()
+		Elapsed("elapsed").
+		Msg("batch")
 
 	assert.Equal(t, "INF ℹ️ batch name=imports items=100 elapsed=1s\n", buf.String())
 }
 
-func TestTimedElapsedKey(t *testing.T) {
+func TestElapsedCustomKey(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("compile").ElapsedKey("duration").Send()
+	l.Info().Elapsed("duration").Msg("compile")
 
 	assert.Equal(t, "INF ℹ️ compile duration=1s\n", buf.String())
 }
 
-func TestTimedElapsedAppearsAfterFields(t *testing.T) {
+func TestElapsedPositionFirst(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("process").Str("a", "1").Int("b", 2).Send()
+	l.Info().Elapsed("elapsed").Str("a", "1").Int("b", 2).Msg("process")
+
+	assert.Equal(t, "INF ℹ️ process elapsed=1s a=1 b=2\n", buf.String())
+}
+
+func TestElapsedPositionMiddle(t *testing.T) {
+	var buf bytes.Buffer
+	l := newTimerTestLogger(&buf)
+
+	l.Info().Str("a", "1").Elapsed("elapsed").Int("b", 2).Msg("process")
+
+	assert.Equal(t, "INF ℹ️ process a=1 elapsed=1s b=2\n", buf.String())
+}
+
+func TestElapsedPositionLast(t *testing.T) {
+	var buf bytes.Buffer
+	l := newTimerTestLogger(&buf)
+
+	l.Info().Str("a", "1").Int("b", 2).Elapsed("elapsed").Msg("process")
 
 	assert.Equal(t, "INF ℹ️ process a=1 b=2 elapsed=1s\n", buf.String())
 }
 
-func TestTimedErrFieldOrdering(t *testing.T) {
+func TestElapsedCalledTwice(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	l.Timed("upload").Str("file", "a.txt").Err(errors.New("timeout"))
+	l.Info().Elapsed("elapsed").Str("a", "1").Elapsed("elapsed").Str("b", "2").Msg("double")
 
-	assert.Equal(t, "ERR ❌ upload file=a.txt error=timeout elapsed=1s\n", buf.String())
+	assert.Equal(t, "INF ℹ️ double elapsed=1s a=1 elapsed=1s b=2\n", buf.String())
 }
 
-func TestTimedLevelFiltering(t *testing.T) {
+func TestElapsedLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 	l.SetLevel(WarnLevel)
 
-	l.Timed("ignored").Send()
+	l.Info().Elapsed("elapsed").Msg("ignored")
 
 	assert.Empty(t, buf.String())
 }
 
-func TestTimedErrLevelFiltering(t *testing.T) {
-	var buf bytes.Buffer
-	l := newTimerTestLogger(&buf)
-	l.SetLevel(FatalLevel)
-
-	l.Timed("ignored").Err(errors.New("boom"))
-
-	assert.Empty(t, buf.String())
-}
-
-func TestTimedPackageLevel(t *testing.T) {
-	var buf bytes.Buffer
-	orig := Default
-	defer func() { Default = orig }()
-	Default = newTimerTestLogger(&buf)
-
-	Timed("package level").Send()
-
-	assert.Equal(t, "INF ℹ️ package level elapsed=1s\n", buf.String())
-}
-
-func TestTimedElapsedFormatFunc(t *testing.T) {
+func TestElapsedEventFormatFunc(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(TestOutput(&buf))
 	l.SetElapsedMinimum(0)
 	l.SetElapsedFormatFunc(func(time.Duration) string { return "custom" })
 
-	l.Timed("test").Send()
+	l.Info().Elapsed("elapsed").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test elapsed=custom\n", buf.String())
 }
 
-func TestTimedMsgWithFields(t *testing.T) {
-	var buf bytes.Buffer
-	l := newTimerTestLogger(&buf)
-
-	l.Timed("original").
-		Str("key", "val").
-		Msg("replacement")
-
-	assert.Equal(t, "INF ℹ️ replacement key=val elapsed=1s\n", buf.String())
-}
-
-func TestTimedSubLogger(t *testing.T) {
+func TestElapsedWithSubLogger(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 	sub := l.With().Str("component", "db").Logger()
 
-	sub.Timed("query").Send()
+	sub.Info().Elapsed("elapsed").Msg("query")
 
 	assert.Equal(t, "INF ℹ️ query component=db elapsed=1s\n", buf.String())
+}
+
+func TestElapsedNoCallNoResolve(t *testing.T) {
+	var buf bytes.Buffer
+	l := newTimerTestLogger(&buf)
+
+	// No Elapsed call — should not add any elapsed field.
+	l.Info().Str("a", "1").Msg("plain")
+
+	assert.Equal(t, "INF ℹ️ plain a=1\n", buf.String())
 }

@@ -295,7 +295,7 @@ func main() {
 			Msg("Configuration broadcast complete")
 
 		// --- Elapsed timer ---
-		header("Elapsed Timer (respects field ordering)")
+		header("Elapsed Timer")
 		_ = clog.Spinner("Processing batch").
 			Str("batch", "1/3").
 			Elapsed("elapsed").
@@ -308,19 +308,19 @@ func main() {
 			Msg("Batch processed")
 	}
 
-	// --- Timed operations (no animation) ---
-	header("Timed Operations")
-	t := clog.Timed("database migration")
+	// --- Elapsed operations (no animation) ---
+	header("Elapsed Operations")
+	e := clog.Info().Elapsed("elapsed")
 	time.Sleep(2 * time.Second)
-	t.Send()
+	e.Msg("database migration")
 
-	t = clog.Timed("compile").Str("target", "release")
+	e = clog.Error().Elapsed("elapsed").Str("target", "release")
 	time.Sleep(1 * time.Second)
-	t.Err(errors.New("syntax error in main.go"))
+	e.Err(errors.New("syntax error in main.go")).Msg("compile")
 
-	t = clog.Timed("batch processing").Str("workers", "4")
+	e = clog.Info().Str("workers", "4").Elapsed("elapsed")
 	time.Sleep(1 * time.Second)
-	t.Int("items", 150).Msg("processed all items")
+	e.Int("items", 150).Msg("processed all items")
 
 	// --- Context propagation ---
 	header("Context Propagation")

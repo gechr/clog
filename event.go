@@ -15,11 +15,12 @@ import (
 type Event struct {
 	logger *Logger
 
-	err       error // set by Err(); used as message by Send(), or as error= field by Msg()
-	fields    []Field
-	level     Level
-	prefix    *string   // nil = use logger/default prefix
-	timestamp time.Time // if non-zero, overrides time.Now() in Logger.log()
+	elapsedStart time.Time // set by Elapsed(); zero means no elapsed field
+	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
+	fields       []Field
+	level        Level
+	prefix       *string   // nil = use logger/default prefix
+	timestamp    time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
 
 // Any adds a field with an arbitrary value.
@@ -326,6 +327,8 @@ func (e *Event) Msg(msg string) {
 	if e.logger == nil {
 		panic("clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead")
 	}
+
+	e.resolveElapsed()
 
 	if e.err != nil {
 		e.fields = append(e.fields, Field{Key: ErrorKey, Value: e.err})
