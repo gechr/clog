@@ -180,3 +180,38 @@ func TestFieldBuilderTimes(t *testing.T) {
 	b := Spinner("test").Times("timestamps", vals)
 	assertSliceField(t, b.fields, vals)
 }
+
+func TestFieldBuilderWhenTrue(t *testing.T) {
+	b := Spinner("test").When(true, func(ab *AnimationBuilder) {
+		ab.Str("key", "value")
+	})
+	assertSingleField(t, b.fields, "key", "value")
+}
+
+func TestFieldBuilderWhenFalse(t *testing.T) {
+	b := Spinner("test").When(false, func(ab *AnimationBuilder) {
+		ab.Str("key", "value")
+	})
+	assert.Empty(t, b.fields)
+}
+
+func TestFieldBuilderWhenNilFn(t *testing.T) {
+	assert.NotPanics(t, func() {
+		b := Spinner("test").When(true, nil)
+		assert.Empty(t, b.fields)
+	})
+}
+
+func TestFieldBuilderWhenChaining(t *testing.T) {
+	b := Spinner("test").
+		Str("before", "a").
+		When(true, func(ab *AnimationBuilder) {
+			ab.Str("conditional", "b")
+		}).
+		Str("after", "c")
+
+	require.Len(t, b.fields, 3)
+	assert.Equal(t, "before", b.fields[0].Key)
+	assert.Equal(t, "conditional", b.fields[1].Key)
+	assert.Equal(t, "after", b.fields[2].Key)
+}

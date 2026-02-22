@@ -242,6 +242,44 @@ func TestEventFuncNilReceiver(t *testing.T) {
 	assert.False(t, called, "callback should not be called on nil event")
 }
 
+func TestEventWhenTrue(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	e.When(true, func(e *Event) {
+		e.Str("key", "value")
+	})
+
+	assertSingleField(t, e.fields, "key", "value")
+}
+
+func TestEventWhenFalse(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	called := false
+	e.When(false, func(_ *Event) {
+		called = true
+	})
+
+	assert.False(t, called, "callback should not be called when condition is false")
+	assert.Empty(t, e.fields)
+}
+
+func TestEventWhenNilReceiver(t *testing.T) {
+	var e *Event
+	called := false
+	got := e.When(true, func(_ *Event) {
+		called = true
+	})
+	assert.Nil(t, got)
+	assert.False(t, called, "callback should not be called on nil event")
+}
+
+func TestEventWhenNilFn(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	assert.NotPanics(t, func() {
+		e.When(true, nil)
+	})
+	assert.Empty(t, e.fields)
+}
+
 func TestEventDict(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Dict("request", Dict().Str("method", "GET").Int("status", 200))
@@ -923,6 +961,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Err(errors.New("x")))
 	assert.Nil(t, e.Errs("k", []error{errors.New("x")}))
 	assert.Nil(t, e.Func(func(*Event) {}))
+	assert.Nil(t, e.When(true, func(*Event) {}))
 	assert.Nil(t, e.Float64("k", 1.0))
 	assert.Nil(t, e.Floats64("k", []float64{1.0}))
 	assert.Nil(t, e.Hex("k", []byte{0xab}))

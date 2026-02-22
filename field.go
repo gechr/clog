@@ -247,6 +247,15 @@ func (fb *fieldBuilder[T]) Uints64(key string, vals []uint64) *T {
 	return fb.self
 }
 
+// When calls fn with the builder if condition is true.
+// This is useful for conditionally adding fields without breaking the chain.
+func (fb *fieldBuilder[T]) When(condition bool, fn func(*T)) *T {
+	if condition && fn != nil {
+		fn(fb.self)
+	}
+	return fb.self
+}
+
 func (fb *fieldBuilder[T]) initSelf(s *T) { fb.self = s }
 
 // errSliceToStrings converts a slice of errors to a slice of strings.

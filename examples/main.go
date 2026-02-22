@@ -364,6 +364,16 @@ func main() {
 		Str("host", "db.internal").
 		Int("retries", 3).
 		Msg("Database connection failed")
+
+	// --- Conditional fields ---
+	header("Conditional Fields (When)")
+	detailed := true
+	clog.Info().
+		Str("user", "alice").
+		When(detailed, func(e *clog.Event) {
+			e.Str("role", "admin").Int("login_count", 42)
+		}).
+		Msg("User authenticated")
 	// --- Value colouring ---
 	header("Value Colouring")
 	clog.Info().

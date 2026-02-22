@@ -190,6 +190,19 @@ func (e *Event) Func(fn func(*Event)) *Event {
 	return e
 }
 
+// When calls fn with the event if condition is true and the event is
+// enabled (non-nil). This is useful for conditionally adding fields
+// without breaking the chain.
+func (e *Event) When(condition bool, fn func(*Event)) *Event {
+	if e == nil {
+		return e
+	}
+	if condition && fn != nil {
+		fn(e)
+	}
+	return e
+}
+
 // Float64 adds a float64 field.
 func (e *Event) Float64(key string, val float64) *Event {
 	if e == nil {
