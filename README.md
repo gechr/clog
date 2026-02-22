@@ -1287,17 +1287,18 @@ clog.SetStyles(styles)
 
 Behavioural settings are configured via setter methods on `Logger` (or package-level convenience functions for the `Default` logger):
 
-| Setter                       | Type                         | Default       | Description                                                   |
-| ---------------------------- | ---------------------------- | ------------- | ------------------------------------------------------------- |
-| `SetElapsedFormatFunc`       | `func(time.Duration) string` | `nil`         | Custom format function for `Elapsed` fields                   |
-| `SetElapsedMinimum`          | `time.Duration`              | `time.Second` | Minimum duration for `Elapsed` fields to be displayed         |
-| `SetElapsedPrecision`        | `int`                        | `0`           | Decimal places for `Elapsed` display (0 = "3s", 1 = "3.2s")   |
-| `SetElapsedRound`            | `time.Duration`              | `time.Second` | Rounding granularity for `Elapsed` values (0 to disable)      |
-| `SetFieldSort`               | `Sort`                       | `SortNone`    | Sort order: `SortNone`, `SortAscending`, `SortDescending`     |
-| `SetPercentFormatFunc`       | `func(float64) string`       | `nil`         | Custom format function for `Percent` fields                   |
-| `SetPercentPrecision`        | `int`                        | `0`           | Decimal places for `Percent` display (0 = "75%", 1 = "75.0%") |
-| `SetQuantityUnitsIgnoreCase` | `bool`                       | `true`        | Case-insensitive quantity unit matching                       |
-| `SetSeparatorText`           | `string`                     | `"="`         | Key/value separator string                                    |
+| Setter                       | Type                         | Default       | Description                                                          |
+| ---------------------------- | ---------------------------- | ------------- | -------------------------------------------------------------------- |
+| `SetAnimationInterval`       | `time.Duration`              | `67ms`        | Minimum refresh interval for all animations (0 = use built-in rates) |
+| `SetElapsedFormatFunc`       | `func(time.Duration) string` | `nil`         | Custom format function for `Elapsed` fields                          |
+| `SetElapsedMinimum`          | `time.Duration`              | `time.Second` | Minimum duration for `Elapsed` fields to be displayed                |
+| `SetElapsedPrecision`        | `int`                        | `0`           | Decimal places for `Elapsed` display (0 = "3s", 1 = "3.2s")          |
+| `SetElapsedRound`            | `time.Duration`              | `time.Second` | Rounding granularity for `Elapsed` values (0 to disable)             |
+| `SetFieldSort`               | `Sort`                       | `SortNone`    | Sort order: `SortNone`, `SortAscending`, `SortDescending`            |
+| `SetPercentFormatFunc`       | `func(float64) string`       | `nil`         | Custom format function for `Percent` fields                          |
+| `SetPercentPrecision`        | `int`                        | `0`           | Decimal places for `Percent` display (0 = "75%", 1 = "75.0%")        |
+| `SetQuantityUnitsIgnoreCase` | `bool`                       | `true`        | Case-insensitive quantity unit matching                              |
+| `SetSeparatorText`           | `string`                     | `"="`         | Key/value separator string                                           |
 
 Each `Threshold` pairs a minimum value with style overrides:
 

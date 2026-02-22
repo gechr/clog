@@ -218,6 +218,7 @@ type ctxKey struct{}
 type Logger struct {
 	mu *sync.Mutex
 
+	animationInterval       time.Duration
 	atomicLevel             atomic.Int32 // lock-free level check for newEvent() hot path
 	elapsedFormatFunc       func(time.Duration) string
 	elapsedMinimum          time.Duration
@@ -258,6 +259,7 @@ func New(output *Output) *Logger {
 	l := &Logger{
 		mu: &sync.Mutex{},
 
+		animationInterval:       67 * time.Millisecond, //nolint:mnd // ~15fps
 		elapsedMinimum:          time.Second,
 		elapsedRound:            time.Second,
 		exitFunc:                os.Exit,
@@ -284,6 +286,16 @@ func New(output *Output) *Logger {
 // NewWriter creates a new [Logger] that writes to w with [ColorAuto].
 func NewWriter(w io.Writer) *Logger {
 	return New(NewOutput(w, ColorAuto))
+}
+
+// SetAnimationInterval sets a minimum refresh interval for all animations
+// (spinners, bars, pulse, shimmer). Any animation whose built-in tick rate
+// is faster than d will be clamped to d. The default is 67ms (~15fps).
+// Zero means use built-in rates unchanged.
+func (l *Logger) SetAnimationInterval(d time.Duration) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.animationInterval = d
 }
 
 // SetColorMode sets the colour mode by recreating the logger's [Output]
@@ -928,6 +940,9 @@ func IsVerbose() bool {
 }
 
 // Package-level convenience functions that use the [Default] logger.
+
+// SetAnimationInterval sets the minimum animation refresh interval on the [Default] logger.
+func SetAnimationInterval(d time.Duration) { Default.SetAnimationInterval(d) }
 
 // SetColorMode sets the colour mode on the [Default] logger by recreating
 // its [Output] with the given mode.

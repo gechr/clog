@@ -444,6 +444,68 @@ func TestBuildLine(t *testing.T) {
 	})
 }
 
+func TestAnimationIntervalClampsTickRate(t *testing.T) {
+	t.Run("bar clamped to 200ms", func(t *testing.T) {
+		logger := NewWriter(io.Discard)
+		logger.SetAnimationInterval(200 * time.Millisecond)
+
+		b := logger.Bar("downloading", 100)
+		s := &groupSlot{
+			builder:   b,
+			fieldsPtr: new(atomic.Pointer[[]Field]),
+			msgPtr:    new(atomic.Pointer[string]),
+		}
+		msg := "downloading"
+		fields := []Field{}
+		s.msgPtr.Store(&msg)
+		s.fieldsPtr.Store(&fields)
+		captureSlotConfig(s)
+
+		assert.Equal(t, 200*time.Millisecond, s.tickRate)
+	})
+
+	t.Run("spinner clamped to 200ms", func(t *testing.T) {
+		logger := NewWriter(io.Discard)
+		logger.SetAnimationInterval(200 * time.Millisecond)
+
+		b := logger.Spinner("loading").Style(SpinnerStyle{
+			Frames: []string{".", "..", "..."},
+			FPS:    17 * time.Millisecond,
+		})
+		s := &groupSlot{
+			builder:   b,
+			fieldsPtr: new(atomic.Pointer[[]Field]),
+			msgPtr:    new(atomic.Pointer[string]),
+		}
+		msg := "loading"
+		fields := []Field{}
+		s.msgPtr.Store(&msg)
+		s.fieldsPtr.Store(&fields)
+		captureSlotConfig(s)
+
+		assert.Equal(t, 200*time.Millisecond, s.tickRate)
+	})
+
+	t.Run("zero interval leaves tick rate unchanged", func(t *testing.T) {
+		logger := NewWriter(io.Discard)
+		logger.SetAnimationInterval(0) // disable clamping
+
+		b := logger.Bar("downloading", 100)
+		s := &groupSlot{
+			builder:   b,
+			fieldsPtr: new(atomic.Pointer[[]Field]),
+			msgPtr:    new(atomic.Pointer[string]),
+		}
+		msg := "downloading"
+		fields := []Field{}
+		s.msgPtr.Store(&msg)
+		s.fieldsPtr.Store(&fields)
+		captureSlotConfig(s)
+
+		assert.Equal(t, barTickRate, s.tickRate)
+	})
+}
+
 func TestClearBlock(t *testing.T) {
 	var buf strings.Builder
 	clearBlock(&buf, 0)

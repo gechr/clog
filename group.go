@@ -462,6 +462,7 @@ func captureSlotConfig(s *groupSlot) {
 	b := s.builder
 	l := b.resolveLogger()
 	l.mu.Lock()
+	animInterval := l.animationInterval
 	s.cfg = slotConfig{
 		isTTY:    l.output.IsTTY(),
 		label:    l.formatLabel(b.level),
@@ -529,6 +530,9 @@ func captureSlotConfig(s *groupSlot) {
 	}
 	if s.tickRate <= 0 {
 		s.tickRate = DefaultSpinnerStyle().FPS
+	}
+	if animInterval > 0 && s.tickRate < animInterval {
+		s.tickRate = animInterval
 	}
 }
 
