@@ -308,6 +308,20 @@ func main() {
 			Msg("Batch processed")
 	}
 
+	// --- Timed operations (no animation) ---
+	header("Timed Operations")
+	t := clog.Timed("database migration")
+	time.Sleep(2 * time.Second)
+	t.Send()
+
+	t = clog.Timed("compile").Str("target", "release")
+	time.Sleep(1 * time.Second)
+	t.Err(errors.New("syntax error in main.go"))
+
+	t = clog.Timed("batch processing").Str("workers", "4")
+	time.Sleep(1 * time.Second)
+	t.Int("items", 150).Msg("processed all items")
+
 	// --- Context propagation ---
 	header("Context Propagation")
 	ctxLogger := clog.With().Str("request_id", "abc-123").Logger()
