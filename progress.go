@@ -170,8 +170,8 @@ func (b *AnimationBuilder) Elapsed(key string) *AnimationBuilder {
 
 // BarPercent enables an auto-updating percentage field that is injected on
 // each animation tick for [Bar] animations. The key parameter is the field
-// name (e.g. "progress"). This is useful with [BarStyle.HidePercent] to move
-// the percentage from beside the bar into the structured fields.
+// name (e.g. "progress"). When set, the default right-side percent widget
+// is suppressed so the percentage appears only as a structured field.
 //
 // The field respects the position where BarPercent is called relative to other
 // field methods (e.g. Str, Int) on the builder. No-op for non-bar animations.
@@ -211,9 +211,7 @@ func (b *AnimationBuilder) stripDynamicFields(fields []Field) []Field {
 // for any dynamic field keys configured on the builder. Returns the
 // original slice unmodified when no dynamic keys are configured.
 func (b *AnimationBuilder) resolveDynamicFields(fields []Field, dur time.Duration) []Field {
-	stylePercent := b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" &&
-		!b.barStyle.HidePercent
-	if b.elapsedKey == "" && b.barPercentKey == "" && !stylePercent {
+	if b.elapsedKey == "" && b.barPercentKey == "" {
 		return fields
 	}
 	fields = slices.Clone(fields)
@@ -224,12 +222,6 @@ func (b *AnimationBuilder) resolveDynamicFields(fields []Field, dur time.Duratio
 		case b.barPercentKey:
 			fields[i].Value = b.barPercentValue()
 		}
-	}
-	if stylePercent {
-		fields = append(fields, Field{
-			Key:   b.barStyle.percentFieldKey(),
-			Value: b.barPercentValue(),
-		})
 	}
 	return fields
 }

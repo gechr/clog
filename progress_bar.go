@@ -13,8 +13,8 @@ const (
 	// barTickRate is the repaint interval when a bar animation is active (~20fps).
 	barTickRate = 50 * time.Millisecond
 
-	barDefaultBarMinWidth = 10 // default minimum auto-sized inner width
-	barDefaultMaxWidth    = 40 // default maximum auto-sized inner width
+	barDefaultBarWidthMin = 10 // default minimum auto-sized inner width
+	barDefaultWidthMax    = 40 // default maximum auto-sized inner width
 	barWidthDivisor       = 4  // terminal width fraction used for auto-sizing
 )
 
@@ -34,53 +34,27 @@ const (
 	BarAlignRight
 )
 
-// PercentPosition controls which side of the bar the percentage label appears on.
-type PercentPosition int
-
-const (
-	// PercentRight places the percentage after the bar (default): [━━━╺──] 50%
-	PercentRight PercentPosition = iota
-	// PercentLeft places the percentage before the bar: 50% [━━━╺──]
-	PercentLeft
-)
-
 // BarStyle configures the visual appearance of a determinate progress bar.
 type BarStyle struct {
-	Align            BarAlign        // horizontal bar placement; default BarAlignRightPad
-	CapStyle         Style           // lipgloss style for left/right caps; nil = plain text
-	EmptyChar        rune            // full empty cell; default '─'
-	EmptyStyle       Style           // lipgloss style for empty cells; nil = plain text
-	FilledChar       rune            // full filled cell; default '━'
-	FilledStyle      Style           // lipgloss style for filled cells; nil = plain text
-	FillGradient     []rune          // sub-cell fill chars, least→most filled; enables Nx resolution (N = len+1); overrides HalfFilled/HeadChar
-	HalfEmpty        rune            // half-cell at start of empty when HalfFilled is not shown; 0 = disabled
-	HalfFilled       rune            // half-cell at leading edge of filled (enables 2x resolution); 0 = disabled
-	HeadChar         rune            // decorative head at leading edge (1x resolution); 0 = disabled; ignored when HalfFilled is set
-	HidePercent      bool            // when true, the percentage label is not shown
-	LeftCap          string          // left bracket; default "["
-	MaxWidth         int             // maximum auto-sized width; default 40
-	MinWidth         int             // minimum auto-sized width; default 10
-	NoPadPercent     bool            // disable right-aligned fixed-width percentage; when false (default), the label is padded to prevent jumping
-	PercentField     string          // when set, the percentage is shown as a structured field with this key instead of beside the bar; defaults to "progress" for BarAlignInline
-	PercentPosition  PercentPosition // which side of the bar the percentage appears on; default PercentRight
-	PercentPrecision int             // decimal places for the percentage label; default 0 (e.g. 0 → "50%", 1 → "50.0%")
-	ProgressGradient []ColorStop     // when set, colors filled cells based on progress; overrides FilledStyle foreground
-	RightCap         string          // right bracket; default "]"
-	Separator        string          // separator between message, bar, and percentage; default " "
-	Width            int             // fixed inner width; 0 = auto-size
-}
-
-// percentFieldKey returns the effective percent field key. When PercentField
-// is explicitly set, that value is returned. Otherwise, [BarAlignInline]
-// defaults to "progress" so the percentage is shown as a structured field.
-func (s BarStyle) percentFieldKey() string {
-	if s.PercentField != "" {
-		return s.PercentField
-	}
-	if s.Align == BarAlignInline {
-		return "progress"
-	}
-	return ""
+	Align            BarAlign    // horizontal bar placement; default BarAlignRightPad
+	CapLeft          string      // left bracket; default "["
+	CapRight         string      // right bracket; default "]"
+	CapStyle         Style       // lipgloss style for left/right caps; nil = plain text
+	CharEmpty        rune        // full empty cell; default '─'
+	CharFill         rune        // full filled cell; default '━'
+	CharHead         rune        // decorative head at leading edge (1x resolution); 0 = disabled; ignored when HalfFilled is set
+	GradientFill     []rune      // sub-cell fill chars, least→most filled; enables Nx resolution (N = len+1); overrides HalfFilled/CharHead
+	HalfEmpty        rune        // half-cell at start of empty when HalfFilled is not shown; 0 = disabled
+	HalfFilled       rune        // half-cell at leading edge of filled (enables 2x resolution); 0 = disabled
+	ProgressGradient []ColorStop // when set, colors filled cells based on progress; overrides StyleFill foreground
+	Separator        string      // separator between message, bar, and widget text; default " "
+	StyleEmpty       Style       // lipgloss style for empty cells; nil = plain text
+	StyleFill        Style       // lipgloss style for filled cells; nil = plain text
+	Width            int         // fixed inner width; 0 = auto-size
+	WidgetLeft       BarWidget   // widget to the left of the bar; nil = nothing
+	WidgetRight      BarWidget   // widget to the right of the bar; nil = default padded percent
+	WidthMax         int         // maximum auto-sized width; default 40
+	WidthMin         int         // minimum auto-sized width; default 10
 }
 
 func (s BarStyle) applyAnimation(b *AnimationBuilder) { b.barStyle = s }
@@ -136,13 +110,13 @@ func renderBar(current, total int, style BarStyle, termWidth int) string {
 		current = total
 	}
 
-	filledChar := style.FilledChar
+	filledChar := style.CharFill
 	if filledChar == 0 {
 		filledChar = '━'
 	}
-	emptyChar := style.EmptyChar
-	if emptyChar == 0 {
-		emptyChar = '─'
+	charEmpty := style.CharEmpty
+	if charEmpty == 0 {
+		charEmpty = '─'
 	}
 
 	innerWidth := resolveBarWidth(style, termWidth)
@@ -152,9 +126,9 @@ func renderBar(current, total int, style BarStyle, termWidth int) string {
 	var headStr, trailStr string
 
 	switch {
-	case len(style.FillGradient) > 0:
+	case len(style.GradientFill) > 0:
 		// Nx sub-cell resolution.
-		subUnits := len(style.FillGradient) + 1
+		subUnits := len(style.GradientFill) + 1
 		completeParts := min(
 			innerWidth*subUnits,
 			int(float64(innerWidth)*float64(subUnits)*float64(current)/float64(total)),
@@ -163,7 +137,7 @@ func renderBar(current, total int, style BarStyle, termWidth int) string {
 		remainder := completeParts % subUnits
 		emptyCount = innerWidth - filledCount
 		if remainder > 0 {
-			headStr = string(style.FillGradient[remainder-1])
+			headStr = string(style.GradientFill[remainder-1])
 			emptyCount--
 		}
 	case style.HalfFilled != 0:
@@ -185,32 +159,32 @@ func renderBar(current, total int, style BarStyle, termWidth int) string {
 		// Full-cell (1x) resolution.
 		filledCount = min(innerWidth, int(float64(current)/float64(total)*float64(innerWidth)))
 		emptyCount = innerWidth - filledCount
-		if style.HeadChar != 0 && filledCount > 0 && filledCount < innerWidth {
-			headStr = string(style.HeadChar)
+		if style.CharHead != 0 && filledCount > 0 && filledCount < innerWidth {
+			headStr = string(style.CharHead)
 			filledCount--
 		}
 	}
 
 	filledStr := strings.Repeat(string(filledChar), filledCount)
-	emptyStr := strings.Repeat(string(emptyChar), emptyCount)
+	emptyStr := strings.Repeat(string(charEmpty), emptyCount)
 
 	// When ProgressGradient is set, compute a single color from the gradient
 	// at the current progress position and use it for filled cells.
-	filledStyle := style.FilledStyle
+	styleFill := style.StyleFill
 	if len(style.ProgressGradient) > 0 {
 		progress := float64(current) / float64(total)
 		c := interpolateGradient(progress, style.ProgressGradient)
 		s := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
-		filledStyle = &s
+		styleFill = &s
 	}
 
 	var buf strings.Builder
-	barWriteStyled(&buf, style.LeftCap, style.CapStyle)
-	barWriteStyled(&buf, filledStr, filledStyle)
-	barWriteStyled(&buf, headStr, filledStyle)
-	barWriteStyled(&buf, trailStr, style.EmptyStyle)
-	barWriteStyled(&buf, emptyStr, style.EmptyStyle)
-	barWriteStyled(&buf, style.RightCap, style.CapStyle)
+	barWriteStyled(&buf, style.CapLeft, style.CapStyle)
+	barWriteStyled(&buf, filledStr, styleFill)
+	barWriteStyled(&buf, headStr, styleFill)
+	barWriteStyled(&buf, trailStr, style.StyleEmpty)
+	barWriteStyled(&buf, emptyStr, style.StyleEmpty)
+	barWriteStyled(&buf, style.CapRight, style.CapStyle)
 	return buf.String()
 }
 
@@ -227,10 +201,11 @@ func barWriteStyled(buf *strings.Builder, s string, style Style) {
 }
 
 // barPercent formats the percentage string for display alongside the bar.
-// precision controls decimal places (0 → "50%", 1 → "50.0%").
-// When pad is true the result is right-aligned to a fixed width so the string
-// width stays constant and the bar doesn't jump (e.g. "  0%", " 50%", "100%").
-func barPercent(current, total, precision int, pad bool) string {
+// digits controls decimal places (0 → "50%", 1 → "50%" or "42.5%").
+// Trailing decimal zeros are always stripped ("50.0%" → "50%").
+// When pad is true, the result is right-aligned to the width of "100%"
+// at the given digit count for stable display.
+func barPercent(current, total, digits int, pad bool) string {
 	var pct float64
 	if total > 0 {
 		pct = float64(current) / float64(total) * percentMax
@@ -238,31 +213,29 @@ func barPercent(current, total, precision int, pad bool) string {
 			pct = percentMax
 		}
 	}
-	s := fmt.Sprintf("%.*f%%", precision, pct)
+	s := trimDecimalZeros(fmt.Sprintf("%.*f", digits, pct)) + "%"
 	if pad {
-		// Pad to one less than the widest string ("100%" at the given
-		// precision) because the separator already provides a space.
-		w := len(fmt.Sprintf("%.*f%%", precision, percentMax)) - 1
-		return fmt.Sprintf("%*s", w, s)
+		padWidth := len(fmt.Sprintf("%.*f%%", digits, percentMax))
+		return fmt.Sprintf("%*s", padWidth, s)
 	}
 	return s
 }
 
 // resolveBarWidth computes the inner cell count for the bar from the style
 // and the terminal width. A fixed Width takes priority; otherwise the width
-// is derived from termWidth and clamped to [MinWidth, MaxWidth].
+// is derived from termWidth and clamped to [WidthMin, WidthMax].
 func resolveBarWidth(style BarStyle, termWidth int) int {
 	if style.Width > 0 {
 		return style.Width
 	}
 
-	minW := style.MinWidth
+	minW := style.WidthMin
 	if minW <= 0 {
-		minW = barDefaultBarMinWidth
+		minW = barDefaultBarWidthMin
 	}
-	maxW := style.MaxWidth
+	maxW := style.WidthMax
 	if maxW <= 0 {
-		maxW = barDefaultMaxWidth
+		maxW = barDefaultWidthMax
 	}
 
 	w := minW

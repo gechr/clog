@@ -89,13 +89,15 @@ func main() {
 		header("Bar")
 
 		thinColored := clog.BarThin
-		thinColored.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
-		thinColored.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		thinColored.PercentPosition = clog.PercentLeft
+		thinColored.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
+		thinColored.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		thinColored.WidgetLeft = clog.WidgetPercent()
+		thinColored.WidgetRight = clog.WidgetNone
 
 		gradientBar := clog.BarSmooth
 		gradientBar.ProgressGradient = clog.DefaultBarGradient()
-		gradientBar.PercentPosition = clog.PercentLeft
+		gradientBar.WidgetLeft = clog.WidgetPercent()
+		gradientBar.WidgetRight = clog.WidgetNone
 
 		barFill := func(_ context.Context, p *clog.ProgressUpdate) error {
 			for i := range 1001 {
@@ -106,9 +108,10 @@ func main() {
 		}
 
 		downloadBar := clog.BarThin
-		downloadBar.FilledStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
-		downloadBar.EmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		downloadBar.PercentPosition = clog.PercentLeft
+		downloadBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
+		downloadBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		downloadBar.WidgetLeft = clog.WidgetPercent()
+		downloadBar.WidgetRight = clog.WidgetNone
 
 		g := clog.NewGroup(context.Background())
 		g.Add(clog.Bar("Downloading", 1000).
@@ -122,19 +125,34 @@ func main() {
 			Progress(barFill)
 		g.Add(clog.Bar("Syncing", 1000).
 			Style(clog.BarStyle{
-				FilledChar:   '█',
-				FilledStyle:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
-				EmptyChar:    ' ',
-				EmptyStyle:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),
-				FillGradient: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
-				LeftCap:      "│",
-				RightCap:     "│",
-				Separator:    " ",
-				MinWidth:     10,
-				MaxWidth:     40,
 				Align:        clog.BarAlignInline,
+				CapLeft:      "│",
+				CapRight:     "│",
+				CharEmpty:    ' ',
+				CharFill:     '█',
+				GradientFill: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
+				Separator:    " ",
+				StyleEmpty:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),
+				StyleFill:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
+				WidthMax:     40,
+				WidthMin:     10,
 			}).Str("region", "us-east-1").Elapsed("elapsed")).
 			Progress(barFill)
+		fileSize := 150 * 1000 * 1000 // 150 MB
+		bytesBar := clog.BarSmooth
+		bytesBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))
+		bytesBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
+		bytesBar.WidgetRight = clog.WidgetBytes()
+		g.Add(clog.Bar("Fetching", fileSize).
+			Style(bytesBar).Str("file", "model.bin").Elapsed("elapsed")).
+			Progress(func(_ context.Context, p *clog.ProgressUpdate) error {
+				steps := 1000
+				for i := range steps + 1 {
+					p.SetProgress(fileSize * i / steps).Send()
+					time.Sleep(3 * time.Millisecond)
+				}
+				return nil
+			})
 		g.Add(clog.Spinner("Processing data").Str("workers", "4")).
 			Run(func(_ context.Context) error {
 				time.Sleep(3 * time.Second)

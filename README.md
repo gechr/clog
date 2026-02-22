@@ -506,14 +506,14 @@ Use `DefaultShimmerGradient()` to get the default gradient stops.
 
 #### Shimmer Directions
 
-| Constant              | Description                              |
-| --------------------- | ---------------------------------------- |
-| `DirectionRight`      | Left to right (default)                  |
-| `DirectionLeft`       | Right to left                            |
-| `DirectionMiddleIn`   | Inward from both edges                   |
-| `DirectionMiddleOut`  | Outward from the center                  |
-| `DirectionBounceIn`   | Inward from both edges, then bounces out |
-| `DirectionBounceOut`  | Outward from center, then bounces in     |
+| Constant             | Description                              |
+| -------------------- | ---------------------------------------- |
+| `DirectionRight`     | Left to right (default)                  |
+| `DirectionLeft`      | Right to left                            |
+| `DirectionMiddleIn`  | Inward from both edges                   |
+| `DirectionMiddleOut` | Outward from the center                  |
+| `DirectionBounceIn`  | Inward from both edges, then bounces out |
+| `DirectionBounceOut` | Outward from center, then bounces in     |
 
 #### Animation Speed
 
@@ -587,7 +587,7 @@ clog.Bar("Uploading", total).
   Msg("Done")
 ```
 
-`BarThin` and `BarSmooth` use half-cell resolution via `HalfFilled` (and `HalfEmpty` for `BarThin`), giving twice the visual granularity of full-cell styles. `BarGradient` uses `FillGradient` for 8x sub-cell resolution — the smoothest built-in option.
+`BarThin` and `BarSmooth` use half-cell resolution via `HalfFilled` (and `HalfEmpty` for `BarThin`), giving twice the visual granularity of full-cell styles. `BarGradient` uses `GradientFill` for 8x sub-cell resolution — the smoothest built-in option.
 
 #### Custom BarStyle
 
@@ -596,32 +596,36 @@ Build a fully custom style by passing a `BarStyle` struct:
 ```go
 clog.Bar("Uploading", total).
   Style(clog.BarStyle{
-    Align:           clog.BarAlignInline, // inline with message (default: BarAlignRightPad)
-    CapStyle:        new(lipgloss.NewStyle().Bold(true)),  // style for [ ] caps (default: bold white)
-    EmptyChar:       '-',
-    EmptyStyle:      new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),  // grey
-    FilledChar:      '=',
-    FilledStyle:     new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),  // green
-    HalfEmpty:       0,      // half-cell trailing edge for 2x resolution (0 = disabled)
-    HalfFilled:      0,      // half-cell leading edge for 2x resolution (0 = disabled)
-    HeadChar:        '>',    // decorative head at leading edge (0 = disabled)
-    HidePercent:     true,   // hide the inline percentage label (default: false)
-    LeftCap:         "|",
-    MaxWidth:        40,     // auto-size maximum (default 40)
-    MinWidth:        10,     // auto-size minimum (default 10)
-    PercentPosition:  clog.PercentLeft, // percentage before bar (default: PercentRight)
-    PercentPrecision: 1,               // decimal places for percentage (default: 0 → "50%", 1 → "50.0%")
-    RightCap:         "|",
-    Separator:        " ",    // separator between message, bar, and percentage
-    Width:            30,     // fixed inner width (0 = auto-size from terminal)
+    Align:       clog.BarAlignInline, // inline with message (default: BarAlignRightPad)
+
+    CapStyle:    new(lipgloss.NewStyle().Bold(true)), // style for [ ] caps (default: bold white)
+    CapLeft:     "|",
+    CapRight:    "|",
+
+    CharEmpty:   '-',
+    CharFill:    '=',
+    CharHead:    '>', // decorative head at leading edge (0 = disabled)
+
+    HalfEmpty:   0, // half-cell trailing edge for 2x resolution (0 = disabled)
+    HalfFilled:  0, // half-cell leading edge for 2x resolution (0 = disabled)
+
+    Separator:   " ", // separator between message, bar, and widget text
+
+    StyleEmpty:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),  // grey
+    StyleFill:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),  // green
+
+    WidgetLeft:  clog.WidgetPercent(1), // "50.0%" to the left of the bar
+    WidgetRight: clog.WidgetNone,       // suppress the default right-side percent
+
+    Width:       30, // fixed inner width (0 = auto-size from terminal)
+    WidthMin:    10, // auto-size minimum (default 10)
+    WidthMax:    40, // auto-size maximum (default 40)
   }).
   Progress(ctx, task).
   Msg("Done")
 ```
 
-When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clamped to `[MinWidth, MaxWidth]`.
-
-`NoPadPercent` disables fixed-width padding on the percentage label (e.g. `" 0%"`, `" 50%"`, `"100%"`). By default padding is enabled to prevent the bar from jumping as digits change. Set `NoPadPercent: true` to disable.
+When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clamped to `[WidthMin, WidthMax]`.
 
 All presets include bold white `CapStyle` for the bar caps. Set `CapStyle` to `nil` for unstyled caps.
 
@@ -649,36 +653,93 @@ style.ProgressGradient = []clog.ColorStop{
 }
 ```
 
-When set, `ProgressGradient` overrides the `FilledStyle` foreground color. Use `DefaultBarGradient()` to get the default red → yellow → green stops.
+When set, `ProgressGradient` overrides the `StyleFill` foreground color. Use `DefaultBarGradient()` to get the default red → yellow → green stops.
 
 #### Bar Alignment
 
 The `Align` field on `BarStyle` controls where the bar appears on the line:
 
-| Constant           | Layout                                                                  |
-| ------------------ | ----------------------------------------------------------------------- |
-| `BarAlignRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default)  |
-| `BarAlignLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`            |
-| `BarAlignInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] progress=45%` (with `PercentField`) |
-| `BarAlignRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                                |
-| `BarAlignLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                                |
+| Constant           | Layout                                                                 |
+| ------------------ | ---------------------------------------------------------------------- |
+| `BarAlignRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
+| `BarAlignLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
+| `BarAlignInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `BarAlignRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `BarAlignLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
 
 The padded variants (`BarAlignRightPad`, `BarAlignLeftPad`) fill the gap between message and bar with spaces to span the terminal width. When the terminal is too narrow, they fall back to the `Separator` between parts.
 
-#### Bar Percentage as a Field
+#### Bar Widgets
 
-By default the percentage is displayed beside the bar. `BarAlignInline` automatically shows it as a structured field instead (key defaults to `"progress"`):
+`WidgetLeft` and `WidgetRight` on `BarStyle` control text annotations beside the bar. Each is a `BarWidget` — a callback that receives progress state and returns a string:
 
 ```go
-clog.Bar("Syncing", 100).
-  Style(clog.BarStyle{Align: clog.BarAlignInline}).
-  Elapsed("elapsed").
-  Progress(ctx, task).
-  Msg("Synced")
-// INF ⏳ Syncing [━━━━━╸╺──────] elapsed=1.2s progress=45%
+type BarState struct {
+  Current int
+  Total   int
+  Elapsed time.Duration
+}
+type BarWidget func(BarState) string
 ```
 
-Override the key with `PercentField` on the style, or use `.BarPercent(key)` on the builder for explicit field positioning:
+All presets set `WidgetRight: WidgetPercent(0)` — padded percentage on the right (e.g. `" 42%"`). When both widgets are `nil`, the same default applies.
+
+**Built-in widgets:**
+
+| Widget             | Description                                              |
+| ------------------ | -------------------------------------------------------- |
+| `WidgetPercent(n)` | Padded percentage with `n` decimal places                |
+| `WidgetBytes()`    | SI byte progress (e.g. `" 50 MB / 100 MB"`, base-1000)   |
+| `WidgetIBytes()`   | IEC byte progress (e.g. `"50 MiB / 100 MiB"`, base-1024) |
+| `WidgetNone`       | Always returns "" — suppresses default percent           |
+
+**Move percent to the left:**
+
+```go
+style := clog.BarThin
+style.WidgetLeft = clog.WidgetPercent(0)
+style.WidgetRight = clog.WidgetNone
+```
+
+**Download progress with byte sizes:**
+
+```go
+fileSize := 150 * 1000 * 1000 // 150 MB
+style := clog.BarSmooth
+style.WidgetRight = clog.WidgetBytes()
+
+clog.Bar("Downloading", fileSize).
+  Style(style).
+  Str("file", "model.bin").
+  Progress(ctx, func(ctx context.Context, p *clog.ProgressUpdate) error {
+    // p.SetProgress(bytesReceived).Send()
+  }).
+  Msg("Downloaded")
+// INF ⏳ Downloading │████▌     │  75 MB / 150 MB file=model.bin
+```
+
+The current value is right-aligned to the total's width to prevent the bar from jumping as digits change. Use `WidgetIBytes()` for base-1024 units (KiB, MiB, GiB).
+
+**Custom widget:**
+
+```go
+style := clog.BarThin
+style.WidgetRight = func(s clog.BarState) string {
+  remaining := s.Total - s.Current
+  return fmt.Sprintf("%d remaining", remaining)
+}
+```
+
+**Suppress percent entirely:**
+
+```go
+style := clog.BarThin
+style.WidgetRight = clog.WidgetNone
+```
+
+**Percentage as a structured field:**
+
+Use `.BarPercent(key)` on the builder to move the percentage into structured fields. This suppresses the default right-side widget:
 
 ```go
 clog.Bar("Installing", 100).
@@ -688,8 +749,6 @@ clog.Bar("Installing", 100).
   Msg("Installed")
 // INF ⏳ Installing          [━━━━━╸╺──────] progress=45% elapsed=1.2s
 ```
-
-Hide the percentage entirely with `HidePercent: true` on the `BarStyle`.
 
 All animations gracefully degrade: when colours are disabled (CI, piped output), a static status line with an ⏳ prefix is printed instead.
 
@@ -892,14 +951,14 @@ h := clog.NewSlogHandler(clog.Default, &clog.SlogOptions{
 
 ### Level Mapping
 
-| slog level         | clog level   |
-| ------------------ | ------------ |
-| < `LevelDebug`     | `TraceLevel` |
-| `LevelDebug`       | `DebugLevel` |
-| `LevelInfo`        | `InfoLevel`  |
-| `LevelWarn`        | `WarnLevel`  |
-| `LevelError`       | `ErrorLevel` |
-| > `LevelError`     | `FatalLevel` |
+| slog level     | clog level   |
+| -------------- | ------------ |
+| < `LevelDebug` | `TraceLevel` |
+| `LevelDebug`   | `DebugLevel` |
+| `LevelInfo`    | `InfoLevel`  |
+| `LevelWarn`    | `WarnLevel`  |
+| `LevelError`   | `ErrorLevel` |
+| > `LevelError` | `FatalLevel` |
 
 Records mapped to `FatalLevel` are logged but do **not** call `os.Exit` — only clog's own `Fatal().Msg()` does that.
 

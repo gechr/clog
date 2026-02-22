@@ -12,43 +12,46 @@ var (
 	//
 	//	[=====>    ] 50%
 	BarBasic = BarStyle{
-		CapStyle:   defaultCapStyle,
-		FilledChar: '=',
-		EmptyChar:  ' ',
-		HeadChar:   '>',
-		LeftCap:    "[",
-		RightCap:   "]",
-		Separator:  " ",
-		MinWidth:   barDefaultBarMinWidth,
-		MaxWidth:   barDefaultMaxWidth,
+		CapLeft:     "[",
+		CapRight:    "]",
+		CapStyle:    defaultCapStyle,
+		CharEmpty:   ' ',
+		CharFill:    '=',
+		CharHead:    '>',
+		Separator:   " ",
+		WidgetRight: WidgetPercent(),
+		WidthMax:    barDefaultWidthMax,
+		WidthMin:    barDefaultBarWidthMin,
 	}
 
 	// BarBlock uses solid block characters without sub-cell resolution.
 	//
 	//	│█████░░░░░│ 50%
 	BarBlock = BarStyle{
-		CapStyle:   defaultCapStyle,
-		FilledChar: '█',
-		EmptyChar:  '░',
-		LeftCap:    "│",
-		RightCap:   "│",
-		Separator:  " ",
-		MinWidth:   barDefaultBarMinWidth,
-		MaxWidth:   barDefaultMaxWidth,
+		CapLeft:     "│",
+		CapRight:    "│",
+		CapStyle:    defaultCapStyle,
+		CharEmpty:   '░',
+		CharFill:    '█',
+		Separator:   " ",
+		WidgetRight: WidgetPercent(),
+		WidthMax:    barDefaultWidthMax,
+		WidthMin:    barDefaultBarWidthMin,
 	}
 
 	// BarDash uses a simple dash for filled cells and spaces for empty.
 	//
 	//	[-----     ] 50%
 	BarDash = BarStyle{
-		CapStyle:   defaultCapStyle,
-		FilledChar: '-',
-		EmptyChar:  ' ',
-		LeftCap:    "[",
-		RightCap:   "]",
-		Separator:  " ",
-		MinWidth:   barDefaultBarMinWidth,
-		MaxWidth:   barDefaultMaxWidth,
+		CapLeft:     "[",
+		CapRight:    "]",
+		CapStyle:    defaultCapStyle,
+		CharEmpty:   ' ',
+		CharFill:    '-',
+		Separator:   " ",
+		WidgetRight: WidgetPercent(),
+		WidthMax:    barDefaultWidthMax,
+		WidthMin:    barDefaultBarWidthMin,
 	}
 
 	// BarGradient uses block-element characters with 8x sub-cell resolution
@@ -56,15 +59,16 @@ var (
 	//
 	//	│██████▍   │ 64%
 	BarGradient = BarStyle{
+		CapLeft:      "│",
+		CapRight:     "│",
 		CapStyle:     defaultCapStyle,
-		FilledChar:   '█',
-		EmptyChar:    ' ',
-		FillGradient: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
-		LeftCap:      "│",
-		RightCap:     "│",
+		CharEmpty:    ' ',
+		CharFill:     '█',
+		GradientFill: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
 		Separator:    " ",
-		MinWidth:     barDefaultBarMinWidth,
-		MaxWidth:     barDefaultMaxWidth,
+		WidgetRight:  WidgetPercent(),
+		WidthMax:     barDefaultWidthMax,
+		WidthMin:     barDefaultBarWidthMin,
 	}
 
 	// BarThin uses box-drawing characters with half-cell resolution for smooth
@@ -72,16 +76,17 @@ var (
 	//
 	//	[━━━━━╸╺──────] 45%
 	BarThin = BarStyle{
-		CapStyle:   defaultCapStyle,
-		FilledChar: '━',
-		EmptyChar:  '─',
-		HalfFilled: '╸',
-		HalfEmpty:  '╺',
-		LeftCap:    "[",
-		RightCap:   "]",
-		Separator:  " ",
-		MinWidth:   barDefaultBarMinWidth,
-		MaxWidth:   barDefaultMaxWidth,
+		CapLeft:     "[",
+		CapRight:    "]",
+		CapStyle:    defaultCapStyle,
+		CharEmpty:   '─',
+		CharFill:    '━',
+		HalfEmpty:   '╺',
+		HalfFilled:  '╸',
+		Separator:   " ",
+		WidgetRight: WidgetPercent(),
+		WidthMax:    barDefaultWidthMax,
+		WidthMin:    barDefaultBarWidthMin,
 	}
 
 	// BarSmooth uses block characters with a half-block leading edge for
@@ -89,14 +94,15 @@ var (
 	//
 	//	│████▌     │ 45%
 	BarSmooth = BarStyle{
-		CapStyle:   defaultCapStyle,
-		FilledChar: '█',
-		EmptyChar:  ' ',
-		HalfFilled: '▌',
-		LeftCap:    "│",
-		RightCap:   "│",
-		Separator:  " ",
-		MinWidth:   barDefaultBarMinWidth,
-		MaxWidth:   barDefaultMaxWidth,
+		CapLeft:     "│",
+		CapRight:    "│",
+		CapStyle:    defaultCapStyle,
+		CharEmpty:   ' ',
+		CharFill:    '█',
+		HalfFilled:  '▌',
+		Separator:   " ",
+		WidgetRight: WidgetPercent(),
+		WidthMax:    barDefaultWidthMax,
+		WidthMin:    barDefaultBarWidthMin,
 	}
 )

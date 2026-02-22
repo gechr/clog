@@ -576,8 +576,7 @@ func styledMsg(msg string, level Level, styles *Styles, noColor bool) string {
 func renderSlotFields(s *groupSlot, dur time.Duration) string {
 	b := s.builder
 	fp := s.fieldsPtr.Load()
-	if b.elapsedKey != "" || b.barPercentKey != "" ||
-		(b.barStyle.percentFieldKey() != "" && b.barPercentKey == "" && !b.barStyle.HidePercent) {
+	if b.elapsedKey != "" || b.barPercentKey != "" {
 		resolved := b.resolveDynamicFields(*fp, dur)
 		s.cachedFieldsStr = strings.TrimLeft(formatFields(resolved, s.fieldOpts), " ")
 	} else if fp != s.cachedFieldsPtr {
@@ -628,7 +627,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 	// Bar mode has its own rendering path.
 	if b.mode == animationBar {
-		return renderSlotBarLine(s, fieldsStr, tsStr)
+		return renderSlotBarLine(s, fieldsStr, tsStr, now)
 	}
 
 	msg := *s.msgPtr.Load()
@@ -658,7 +657,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 // renderSlotBarLine renders a bar-animation frame for a slot. Factored out to
 // keep renderSlotLine focused.
-func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string) string {
+func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) string {
 	b := s.builder
 	msg := styledMsg(*s.msgPtr.Load(), b.level, s.cfg.styles, s.cfg.noColor)
 
@@ -675,7 +674,7 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string) string {
 			s.gradientProgress = progress
 			s.gradientValid = true
 		}
-		barStyle.FilledStyle = &s.gradientStyle
+		barStyle.StyleFill = &s.gradientStyle
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
 	barStr := renderBar(current, total, barStyle, s.cfg.output.Width())
@@ -684,19 +683,26 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string) string {
 		sep = " "
 	}
 
+	state := BarState{Current: current, Total: total, Elapsed: now.Sub(s.startTime)}
+
+	var leftText, rightText string
+	if b.barStyle.WidgetLeft != nil {
+		leftText = b.barStyle.WidgetLeft(state)
+	}
+	if b.barStyle.WidgetRight != nil && b.barPercentKey == "" {
+		rightText = b.barStyle.WidgetRight(state)
+	} else if b.barStyle.WidgetLeft == nil && b.barStyle.WidgetRight == nil && b.barPercentKey == "" {
+		// Default: padded percent on the right when no widgets are configured
+		// and no BarPercent field is set.
+		rightText = barPercent(current, total, 0, true)
+	}
+
 	barFull := barStr
-	if !b.barStyle.HidePercent && b.barPercentKey == "" && b.barStyle.percentFieldKey() == "" {
-		pct := barPercent(
-			current,
-			total,
-			b.barStyle.PercentPrecision,
-			!b.barStyle.NoPadPercent,
-		)
-		if b.barStyle.PercentPosition == PercentLeft {
-			barFull = pct + sep + barStr
-		} else {
-			barFull = barStr + sep + pct
-		}
+	if leftText != "" {
+		barFull = leftText + sep + barFull
+	}
+	if rightText != "" {
+		barFull = barFull + sep + rightText
 	}
 
 	// writeFrame equivalent: build the complete line string.

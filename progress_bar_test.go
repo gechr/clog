@@ -3,6 +3,7 @@ package clog
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"sync/atomic"
@@ -56,7 +57,7 @@ func TestRenderBarBasic(t *testing.T) {
 	style := BarBasic
 	style.Width = 10
 
-	// HeadChar '>' at leading edge
+	// CharHead '>' at leading edge
 	assert.Equal(t, "[====>     ]", renderBar(5, 10, style, 0))
 	assert.Equal(t, "[          ]", renderBar(0, 10, style, 0))
 	assert.Equal(t, "[==========]", renderBar(10, 10, style, 0))
@@ -81,11 +82,11 @@ func TestRenderBarGradient(t *testing.T) {
 func TestRenderBarGradientCustom(t *testing.T) {
 	// 4x resolution gradient (3 chars + full = 4 sub-units per cell).
 	style := BarStyle{
-		FilledChar:   '█',
-		EmptyChar:    ' ',
-		FillGradient: []rune{'░', '▒', '▓'},
-		LeftCap:      "[",
-		RightCap:     "]",
+		CapLeft:      "[",
+		CapRight:     "]",
+		CharEmpty:    ' ',
+		CharFill:     '█',
+		GradientFill: []rune{'░', '▒', '▓'},
 		Width:        8,
 	}
 
@@ -106,14 +107,14 @@ func TestRenderBarGradientCustom(t *testing.T) {
 }
 
 func TestRenderBarGradientOverridesHalfFilled(t *testing.T) {
-	// When both FillGradient and HalfFilled are set, FillGradient wins.
+	// When both GradientFill and HalfFilled are set, GradientFill wins.
 	style := BarStyle{
-		FilledChar:   '█',
-		EmptyChar:    ' ',
+		CapLeft:      "[",
+		CapRight:     "]",
+		CharEmpty:    ' ',
+		CharFill:     '█',
+		GradientFill: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
 		HalfFilled:   '▌',
-		FillGradient: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
-		LeftCap:      "[",
-		RightCap:     "]",
 		Width:        10,
 	}
 
@@ -137,21 +138,21 @@ func TestRenderBarEdgeCases(t *testing.T) {
 
 func TestRenderBarCustomChars(t *testing.T) {
 	style := BarStyle{
-		FilledChar: '=',
-		EmptyChar:  '-',
-		LeftCap:    "(",
-		RightCap:   ")",
-		Width:      4,
+		CapLeft:   "(",
+		CapRight:  ")",
+		CharEmpty: '-',
+		CharFill:  '=',
+		Width:     4,
 	}
 
 	assert.Equal(t, "(==--)", renderBar(2, 4, style, 0))
 }
 
-func TestRenderBarHeadChar(t *testing.T) {
-	// HeadChar is only used when HalfFilled is 0.
+func TestRenderBarCharHead(t *testing.T) {
+	// CharHead is only used when HalfFilled is 0.
 	style := BarBlock
 	style.Width = 10
-	style.HeadChar = '>'
+	style.CharHead = '>'
 
 	// at 50%: 5 filled, head takes one slot → 4 filled + head + 5 empty
 	assert.Equal(t, "│████>░░░░░│", renderBar(5, 10, style, 0))
@@ -165,7 +166,7 @@ func TestRenderBarHeadChar(t *testing.T) {
 
 func TestRenderBarAutoWidth(t *testing.T) {
 	style := DefaultBarStyle()
-	// MinWidth=10, MaxWidth=40; termWidth=80 → 80/4=20, clamped to [10,40] → 20
+	// WidthMin=10, WidthMax=40; termWidth=80 → 80/4=20, clamped to [10,40] → 20
 	result := renderBar(10, 20, style, 80)
 	// 20 inner cells, 10/20 = 50%: 20 half-cells, even → trail char
 	assert.Equal(t, "[━━━━━━━━━━╺─────────]", result)
@@ -173,7 +174,7 @@ func TestRenderBarAutoWidth(t *testing.T) {
 
 func TestRenderBarAutoWidthClampMin(t *testing.T) {
 	style := DefaultBarStyle()
-	// termWidth=0 → fallback to MinWidth=10
+	// termWidth=0 → fallback to WidthMin=10
 	result := renderBar(5, 10, style, 0)
 	assert.Equal(t, "[━━━━━╺────]", result)
 }
@@ -181,8 +182,8 @@ func TestRenderBarAutoWidthClampMin(t *testing.T) {
 func TestRenderBarNoCaps(t *testing.T) {
 	style := DefaultBarStyle()
 	style.Width = 10
-	style.LeftCap = ""
-	style.RightCap = ""
+	style.CapLeft = ""
+	style.CapRight = ""
 
 	assert.Equal(t, "━━━━━╺────", renderBar(5, 10, style, 0))
 }
@@ -196,24 +197,31 @@ func TestBarPercent(t *testing.T) {
 }
 
 func TestBarPercentPadded(t *testing.T) {
-	assert.Equal(t, " 0%", barPercent(0, 100, 0, true))
-	assert.Equal(t, "50%", barPercent(50, 100, 0, true))
-	assert.Equal(t, "100%", barPercent(100, 100, 0, true))
-	assert.Equal(t, " 0%", barPercent(0, 0, 0, true))
-	assert.Equal(t, "100%", barPercent(200, 100, 0, true))
+	assert.Equal(t, "  0%", barPercent(0, 100, 0, true))
+	assert.Equal(t, "  1%", barPercent(1, 100, 0, true))
+	assert.Equal(t, " 50%", barPercent(50, 100, 0, true))
+	assert.Equal(t, "100%", barPercent(100, 100, 0, true)) // full width
+	assert.Equal(t, "  0%", barPercent(0, 0, 0, true))
+	assert.Equal(t, "100%", barPercent(200, 100, 0, true)) // clamped, full width
 }
 
-func TestBarPercentPrecision(t *testing.T) {
-	assert.Equal(t, "0.0%", barPercent(0, 100, 1, false))
-	assert.Equal(t, "50.0%", barPercent(50, 100, 1, false))
-	assert.Equal(t, "100.0%", barPercent(100, 100, 1, false))
+func TestBarPercentDigits(t *testing.T) {
+	// Trailing zeros are stripped: "0.0%" → "0%", "50.0%" → "50%".
+	assert.Equal(t, "0%", barPercent(0, 100, 1, false))
+	assert.Equal(t, "50%", barPercent(50, 100, 1, false))
+	assert.Equal(t, "100%", barPercent(100, 100, 1, false))
+	assert.Equal(t, "33.3%", barPercent(1, 3, 1, false))
 	assert.Equal(t, "33.33%", barPercent(1, 3, 2, false))
 }
 
-func TestBarPercentPrecisionPadded(t *testing.T) {
-	assert.Equal(t, " 0.0%", barPercent(0, 100, 1, true))
-	assert.Equal(t, "50.0%", barPercent(50, 100, 1, true))
-	assert.Equal(t, "100.0%", barPercent(100, 100, 1, true))
+func TestBarPercentDigitsPadded(t *testing.T) {
+	// Padded to unstripped "100.0%" width (6 chars).
+	assert.Equal(t, "    0%", barPercent(0, 100, 1, true))
+	assert.Equal(t, "    1%", barPercent(1, 100, 1, true))
+	assert.Equal(t, "   50%", barPercent(50, 100, 1, true))
+	assert.Equal(t, "  100%", barPercent(100, 100, 1, true))
+	assert.Equal(t, " 33.3%", barPercent(1, 3, 1, true)) // full width
+	assert.Equal(t, " 66.7%", barPercent(2, 3, 1, true)) // full width
 }
 
 func TestBarBuilderMode(t *testing.T) {
@@ -335,11 +343,11 @@ func TestBarWait(t *testing.T) {
 
 func TestBarStyleMethod(t *testing.T) {
 	custom := BarStyle{
-		FilledChar: '=',
-		EmptyChar:  '-',
-		LeftCap:    "|",
-		RightCap:   "|",
-		Width:      20,
+		CapLeft:   "|",
+		CapRight:  "|",
+		CharEmpty: '-',
+		CharFill:  '=',
+		Width:     20,
 	}
 	b := Bar("test", 100).Style(custom)
 	assert.Equal(t, custom, b.barStyle)
@@ -347,7 +355,17 @@ func TestBarStyleMethod(t *testing.T) {
 
 func TestBarDefaultStyle(t *testing.T) {
 	s := DefaultBarStyle()
-	assert.Equal(t, BarThin, s)
+	// Function fields can't be compared with DeepEqual, so verify key structural fields.
+	assert.Equal(t, BarThin.CharFill, s.CharFill)
+	assert.Equal(t, BarThin.CharEmpty, s.CharEmpty)
+	assert.Equal(t, BarThin.HalfFilled, s.HalfFilled)
+	assert.Equal(t, BarThin.HalfEmpty, s.HalfEmpty)
+	assert.Equal(t, BarThin.CapLeft, s.CapLeft)
+	assert.Equal(t, BarThin.CapRight, s.CapRight)
+	assert.Equal(t, BarThin.Separator, s.Separator)
+	assert.Equal(t, BarThin.WidthMin, s.WidthMin)
+	assert.Equal(t, BarThin.WidthMax, s.WidthMax)
+	assert.NotNil(t, s.WidgetRight, "DefaultBarStyle should include a WidgetRight")
 }
 
 func TestBarPresets(t *testing.T) {
@@ -360,9 +378,9 @@ func TestBarPresets(t *testing.T) {
 		"BarGradient": BarGradient,
 		"BarSmooth":   BarSmooth,
 	} {
-		assert.NotZero(t, style.FilledChar, "%s: FilledChar", name)
-		assert.NotZero(t, style.MinWidth, "%s: MinWidth", name)
-		assert.NotZero(t, style.MaxWidth, "%s: MaxWidth", name)
+		assert.NotZero(t, style.CharFill, "%s: CharFill", name)
+		assert.NotZero(t, style.WidthMin, "%s: WidthMin", name)
+		assert.NotZero(t, style.WidthMax, "%s: WidthMax", name)
 		assert.NotEmpty(t, style.Separator, "%s: Separator", name)
 	}
 }
@@ -475,12 +493,12 @@ func TestRenderBarProgressGradient(t *testing.T) {
 
 	gradient := DefaultBarGradient()
 	style := BarStyle{
-		FilledChar:       '█',
-		EmptyChar:        ' ',
-		LeftCap:          "[",
-		RightCap:         "]",
-		Width:            10,
+		CapLeft:          "[",
+		CapRight:         "]",
+		CharEmpty:        ' ',
+		CharFill:         '█',
 		ProgressGradient: gradient,
+		Width:            10,
 	}
 
 	// 0%: no filled cells, so no ANSI escape sequences
@@ -511,11 +529,11 @@ func TestRenderBarProgressGradient(t *testing.T) {
 func TestRenderBarWithoutProgressGradient(t *testing.T) {
 	// Verify that bars without ProgressGradient remain unchanged (no ANSI).
 	style := BarStyle{
-		FilledChar: '█',
-		EmptyChar:  ' ',
-		LeftCap:    "[",
-		RightCap:   "]",
-		Width:      10,
+		CapLeft:   "[",
+		CapRight:  "]",
+		CharEmpty: ' ',
+		CharFill:  '█',
+		Width:     10,
 	}
 
 	result := renderBar(50, 100, style, 0)
@@ -553,4 +571,157 @@ func TestDefaultBarGradient(t *testing.T) {
 	gradient := DefaultBarGradient()
 	assert.Equal(t, DefaultPercentGradient(), gradient)
 	assert.Len(t, gradient, 3)
+}
+
+func TestWidgetPercent(t *testing.T) {
+	w := WidgetPercent()
+	assert.Equal(t, "  0%", w(BarState{Current: 0, Total: 100}))
+	assert.Equal(t, "  1%", w(BarState{Current: 1, Total: 100}))
+	assert.Equal(t, " 50%", w(BarState{Current: 50, Total: 100}))
+	assert.Equal(t, "100%", w(BarState{Current: 100, Total: 100}))
+
+	// WithDigits(1): trailing zeros stripped, padded to "100.0%" width (6).
+	w1 := WidgetPercent(WithDigits(1))
+	assert.Equal(t, "    0%", w1(BarState{Current: 0, Total: 100}))
+	assert.Equal(t, " 33.3%", w1(BarState{Current: 1, Total: 3})) // full width
+	assert.Equal(t, " 66.7%", w1(BarState{Current: 2, Total: 3})) // full width
+	assert.Equal(t, "   50%", w1(BarState{Current: 50, Total: 100}))
+	assert.Equal(t, "  100%", w1(BarState{Current: 100, Total: 100}))
+}
+
+func TestWidgetBytes(t *testing.T) {
+	w := WidgetBytes() // default digits=3
+
+	// MB range — significant digits with zero stripping, padded to max width.
+	total := 100 * 1000 * 1000 // 100 MB
+	assert.Equal(t, "    0 B / 100 MB", w(BarState{Current: 0, Total: total}))
+	assert.Equal(t, "9.52 MB / 100 MB", w(BarState{Current: 9_524_000, Total: total})) // full width
+	assert.Equal(t, "  50 MB / 100 MB", w(BarState{Current: 50_000_000, Total: total}))
+	assert.Equal(t, "82.9 MB / 100 MB", w(BarState{Current: 82_854_982, Total: total}))
+	assert.Equal(t, " 100 MB / 100 MB", w(BarState{Current: total, Total: total}))
+
+	// GB range — padded to max width for "X.XX GB" (7 chars).
+	totalGB := 2 * 1000 * 1000 * 1000 // 2 GB
+	assert.Equal(t, "   1 GB / 2 GB", w(BarState{Current: 1_000_000_000, Total: totalGB}))
+	assert.Equal(t, "1.52 GB / 2 GB", w(BarState{Current: 1_524_000_000, Total: totalGB}))
+	assert.Equal(t, " 1.5 GB / 2 GB", w(BarState{Current: 1_500_000_000, Total: totalGB}))
+
+	// Width stays constant for same total.
+	r1 := w(BarState{Current: 1000, Total: totalGB})
+	r2 := w(BarState{Current: 1_500_000_000, Total: totalGB})
+	assert.Len(t, r2, len(r1), "output width should be constant for same total")
+
+	// WithDigits(1) → coarser output.
+	w1 := WidgetBytes(WithDigits(1))
+	assert.Equal(t, "1 GB / 2 GB", w1(BarState{Current: 1_000_000_000, Total: totalGB}))
+
+	// WithDigits(5) → high precision, padded to "X.XXXX GB" width (9 chars).
+	w5 := WidgetBytes(WithDigits(5))
+	assert.Equal(t, "      0 B / 2 GB", w5(BarState{Current: 0, Total: totalGB}))
+	assert.Equal(t, "     1 GB / 2 GB", w5(BarState{Current: 1_000_000_000, Total: totalGB}))
+	assert.Equal(t, "   1.5 GB / 2 GB", w5(BarState{Current: 1_500_000_000, Total: totalGB}))
+	assert.Equal(t, "1.5241 GB / 2 GB", w5(BarState{Current: 1_524_120_000, Total: totalGB}))
+	assert.Equal(t, "     2 GB / 2 GB", w5(BarState{Current: totalGB, Total: totalGB}))
+}
+
+func TestWidgetIBytes(t *testing.T) {
+	w := WidgetIBytes() // default digits=3
+
+	// MiB range — padded to max width for "X.XX MiB" (8 chars).
+	total := 100 * 1024 * 1024 // 100 MiB
+	assert.Equal(t, "     0 B / 100 MiB", w(BarState{Current: 0, Total: total}))
+	assert.Equal(t, "79.5 MiB / 100 MiB", w(BarState{Current: 83_361_587, Total: total}))
+	assert.Equal(t, "9.53 MiB / 100 MiB", w(BarState{Current: 9_991_946, Total: total}))
+	assert.Equal(t, " 100 MiB / 100 MiB", w(BarState{Current: total, Total: total}))
+
+	// GiB range — padded to max width for "X.XX GiB" (8 chars).
+	totalGiB := 2 * 1024 * 1024 * 1024 // 2 GiB
+	assert.Equal(t, "     0 B / 2 GiB", w(BarState{Current: 0, Total: totalGiB}))
+	assert.Equal(t, "   1 GiB / 2 GiB", w(BarState{Current: 1024 * 1024 * 1024, Total: totalGiB}))
+	assert.Equal(
+		t,
+		"1.52 GiB / 2 GiB",
+		w(BarState{Current: 1024*1024*1024 + 536*1024*1024, Total: totalGiB}),
+	)
+	assert.Equal(
+		t,
+		" 1.5 GiB / 2 GiB",
+		w(BarState{Current: 1024*1024*1024 + 512*1024*1024, Total: totalGiB}),
+	)
+}
+
+func TestWidgetNone(t *testing.T) {
+	assert.Empty(t, WidgetNone(BarState{Current: 50, Total: 100}))
+	assert.Empty(t, WidgetNone(BarState{}))
+}
+
+func TestBarStyleWidgetRight(_ *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+
+	custom := func(s BarState) string {
+		return fmt.Sprintf("%d/%d", s.Current, s.Total)
+	}
+
+	_ = logger.Bar("testing", 100).
+		Style(BarStyle{
+			CapLeft:     "[",
+			CapRight:    "]",
+			CharEmpty:   '-',
+			CharFill:    '=',
+			Separator:   " ",
+			Width:       10,
+			WidgetRight: custom,
+			WidthMax:    40,
+			WidthMin:    10,
+		}).
+		Progress(context.Background(), func(_ context.Context, p *ProgressUpdate) error {
+			p.SetProgress(50).Send()
+			return nil
+		}).
+		Silent()
+
+	// Non-TTY: just verifying it doesn't panic and compiles.
+	// The widget is rendered in TTY mode only.
+}
+
+func TestBarStyleWidgetLeft(_ *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+
+	custom := func(s BarState) string {
+		return fmt.Sprintf("%d%%", s.Current*100/max(s.Total, 1))
+	}
+
+	_ = logger.Bar("testing", 100).
+		Style(BarStyle{
+			CapLeft:     "[",
+			CapRight:    "]",
+			CharEmpty:   '-',
+			CharFill:    '=',
+			Separator:   " ",
+			Width:       10,
+			WidgetLeft:  custom,
+			WidgetRight: WidgetNone,
+			WidthMax:    40,
+			WidthMin:    10,
+		}).
+		Progress(context.Background(), func(_ context.Context, p *ProgressUpdate) error {
+			p.SetProgress(50).Send()
+			return nil
+		}).
+		Silent()
+}
+
+func TestBarPresetsHaveWidgetRight(t *testing.T) {
+	for name, style := range map[string]BarStyle{
+		"BarThin":     BarThin,
+		"BarBasic":    BarBasic,
+		"BarBlock":    BarBlock,
+		"BarDash":     BarDash,
+		"BarGradient": BarGradient,
+		"BarSmooth":   BarSmooth,
+	} {
+		assert.NotNil(t, style.WidgetRight, "%s: WidgetRight should be set", name)
+	}
 }
