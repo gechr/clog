@@ -187,6 +187,10 @@ func (s *JSONStyles) WithSpacing(spacing JSONSpacing) *JSONStyles {
 // Styles holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Styles struct {
+	// Style for divider line characters (see [Logger.Divider]) [nil = plain text]
+	DividerLine Style
+	// Style for divider title text (see [DividerBuilder.Msg]) [nil = plain text]
+	DividerTitle Style
 	// Duration unit -> thresholds (evaluated high->low).
 	DurationThresholds ThresholdMap
 	// Duration unit -> style override (e.g. "s" -> yellow).
@@ -242,6 +246,8 @@ type Styles struct {
 // DefaultStyles returns the default colour styles.
 func DefaultStyles() *Styles {
 	return &Styles{
+		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
+		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
 		FieldDurationNumber: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),

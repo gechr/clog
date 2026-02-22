@@ -829,7 +829,7 @@ func (l *Logger) log(e *Event, msg string) {
 		lineBuf.WriteString(p)
 	}
 	lineBuf.WriteByte('\n')
-	_, _ = io.WriteString(l.output.Writer(), lineBuf.String())
+	writeString(l.output.Writer(), lineBuf.String())
 }
 
 // newEvent creates a new [Event] for the given level.
@@ -1059,6 +1059,10 @@ func With() *Context { return Default.With() }
 
 // Dict returns a new detached [Event] for use as a nested dictionary field.
 func Dict() *Event { return &Event{} }
+
+// Divider returns a new [DividerBuilder] for rendering a horizontal rule
+// using the [Default] logger.
+func Divider() *DividerBuilder { return Default.Divider() }
 
 // Trace returns a new trace-level [Event] from the [Default] logger.
 func Trace() *Event { return Default.Trace() }

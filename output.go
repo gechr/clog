@@ -102,6 +102,11 @@ func (o *Output) RefreshWidth() {
 // Renderer returns the [lipgloss.Renderer] configured for this output.
 func (o *Output) Renderer() *lipgloss.Renderer { return o.renderer }
 
+// writeString writes s to w, discarding the return values.
+func writeString(w io.Writer, s string) {
+	_, _ = io.WriteString(w, s)
+}
+
 // buildRenderer creates a [lipgloss.Renderer] with the appropriate
 // [termenv.Profile] for the given writer, TTY state, and color mode.
 func buildRenderer(w io.Writer, isTTY bool, mode ColorMode) *lipgloss.Renderer {

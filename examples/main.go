@@ -755,6 +755,14 @@ func main() {
 		Str("zoo", "animals").
 		Msg("Fields sorted Z→A")
 	clog.SetFieldSort(clog.SortNone) // reset
+
+	// --- Dividers ---
+	header("Dividers")
+	clog.Divider().Send()
+	clog.Divider().Msg("Build Phase")
+	clog.Divider().Char('═').Msg("Deployment")
+	clog.Divider().Align(clog.AlignCenter).Msg("Test Results")
+	clog.Divider().Align(clog.AlignRight).Msg("Summary")
 }
 
 func spinners(filter string) {

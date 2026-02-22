@@ -2,7 +2,6 @@ package clog
 
 import (
 	"context"
-	"io"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -479,7 +478,7 @@ func runAnimation(
 		line := buildLine(slot.cfg.order, slot.cfg.reportTS,
 			time.Now().In(slot.cfg.timeLoc).Format(slot.cfg.timeFmt),
 			slot.cfg.label, slot.prefix, *msgPtr.Load(), fieldsStr)
-		_, _ = io.WriteString(slot.cfg.out, line+"\n")
+		writeString(slot.cfg.out, line+"\n")
 		select {
 		case err := <-done:
 			return err
@@ -507,18 +506,18 @@ func runAnimation(
 				frameBuf.Reset()
 				frameBuf.WriteString(clearLine)
 				frameBuf.WriteString(line)
-				_, _ = io.WriteString(slot.cfg.out, frameBuf.String())
+				writeString(slot.cfg.out, frameBuf.String())
 			}
-			_, _ = io.WriteString(slot.cfg.out, clearLine)
+			writeString(slot.cfg.out, clearLine)
 			return err
 		case now := <-ticker.C:
 			line := renderSlotLine(slot, false, now)
 			frameBuf.Reset()
 			frameBuf.WriteString(clearLine)
 			frameBuf.WriteString(line)
-			_, _ = io.WriteString(slot.cfg.out, frameBuf.String())
+			writeString(slot.cfg.out, frameBuf.String())
 		case <-ctx.Done():
-			_, _ = io.WriteString(slot.cfg.out, clearLine)
+			writeString(slot.cfg.out, clearLine)
 			return ctx.Err()
 		}
 	}

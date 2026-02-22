@@ -98,7 +98,7 @@ func (g *Group) Wait() *GroupResult {
 			line := buildLine(s.cfg.order, s.cfg.reportTS,
 				time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt),
 				s.cfg.label, s.prefix, *s.msgPtr.Load(), fieldsStr)
-			_, _ = io.WriteString(s.cfg.out, line+"\n")
+			writeString(s.cfg.out, line+"\n")
 		}
 		for _, s := range slots {
 			select {
@@ -172,7 +172,7 @@ func (g *Group) Wait() *GroupResult {
 				line := renderSlotLine(s, done[i], now)
 				fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
 			}
-			_, _ = io.WriteString(out, frameBuf.String())
+			writeString(out, frameBuf.String())
 			numLines = len(slots)
 			// If all done, break out after one final render.
 			if remaining == 0 {
@@ -788,5 +788,5 @@ func clearBlock(out io.Writer, n int) {
 		buf.WriteString("\x1b[2K\r\n")
 	}
 	fmt.Fprintf(&buf, "\x1b[%dA", n)
-	_, _ = io.WriteString(out, buf.String())
+	writeString(out, buf.String())
 }
