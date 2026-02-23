@@ -971,6 +971,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Line("k", "file.go", 1))
 	assert.Nil(t, e.Link("k", "https://example.com", "text"))
 	assert.Nil(t, e.Path("k", "file.go"))
+	assert.Nil(t, e.Parts(PartMessage))
 	assert.Nil(t, e.Percent("k", 50))
 	assert.Nil(t, e.Prefix("p"))
 	assert.Nil(t, e.Quantities("k", []string{"10GB"}))
@@ -985,6 +986,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Uints64("k", []uint64{1}))
 	assert.Nil(t, e.URL("k", "https://example.com"))
 	assert.Nil(t, e.withFields([]Field{{Key: "k", Value: "v"}}))
+	assert.Nil(t, e.withParts(&[]Part{PartMessage}))
 	assert.Nil(t, e.withPrefix("p"))
 
 	// Finalizers should not panic.
@@ -1068,6 +1070,52 @@ func TestEventWithPrefixNilReceiver(t *testing.T) {
 
 	got := e.withPrefix("CUSTOM")
 	assert.Nil(t, got, "expected nil from withPrefix on nil event")
+}
+
+func TestEventParts(t *testing.T) {
+	t.Run("reorder", func(t *testing.T) {
+		var buf bytes.Buffer
+		l := New(TestOutput(&buf))
+		l.Info().Parts(PartMessage, PartLevel, PartPrefix).Msg("hello")
+		assert.Equal(t, "hello INF ℹ️\n", buf.String())
+	})
+
+	t.Run("omit", func(t *testing.T) {
+		var buf bytes.Buffer
+		l := New(TestOutput(&buf))
+		l.Info().Parts(PartMessage).Str("k", "v").Msg("hello")
+		assert.Equal(t, "hello\n", buf.String())
+	})
+
+	t.Run("does_not_mutate_logger", func(t *testing.T) {
+		var buf bytes.Buffer
+		l := New(TestOutput(&buf))
+		l.Info().Parts(PartMessage).Msg("first")
+		buf.Reset()
+		l.Info().Msg("second")
+		assert.Contains(t, buf.String(), "INF")
+	})
+
+	t.Run("nil_receiver", func(t *testing.T) {
+		var e *Event
+		assert.Nil(t, e.Parts(PartMessage))
+	})
+}
+
+func TestEventWithParts(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	p := []Part{PartMessage}
+	e = e.withParts(&p)
+
+	require.NotNil(t, e.parts)
+	assert.Equal(t, []Part{PartMessage}, *e.parts)
+}
+
+func TestEventWithPartsNilReceiver(t *testing.T) {
+	var e *Event
+
+	got := e.withParts(&[]Part{PartMessage})
+	assert.Nil(t, got, "expected nil from withParts on nil event")
 }
 
 func TestEventChaining(t *testing.T) {

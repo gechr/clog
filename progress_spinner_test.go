@@ -179,6 +179,62 @@ func TestSpinnerBuilderChaining(t *testing.T) {
 	require.Len(t, b.fields, 3)
 }
 
+func TestSpinnerBuilderParts(t *testing.T) {
+	b := Spinner("test").Parts(PartPrefix, PartMessage)
+
+	require.NotNil(t, b.parts)
+	assert.Equal(t, []Part{PartPrefix, PartMessage}, *b.parts)
+}
+
+func TestSpinnerPartsThreadsToWaitResult(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+
+	// Override: only show message on the spinner + completion.
+	result := l.Spinner("loading").
+		Parts(PartMessage).
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		})
+
+	// Non-TTY path prints an initial animation line, then completion writes another.
+	// The initial line also uses the overridden parts (PartMessage only).
+	buf.Reset()
+	require.NoError(t, result.Msg("done"))
+	assert.Equal(t, "done\n", buf.String())
+}
+
+func TestWaitResultPartsOverride(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+
+	// Builder does NOT set parts, but WaitResult overrides.
+	result := l.Spinner("loading").
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		})
+
+	buf.Reset()
+	require.NoError(t, result.Parts(PartMessage).Msg("done"))
+	assert.Equal(t, "done\n", buf.String())
+}
+
+func TestWaitResultPartsNilUsesLoggerDefault(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	l.SetParts(PartMessage)
+
+	result := l.Spinner("loading").
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		})
+
+	// No Parts() call on builder or result — should use logger's PartMessage.
+	buf.Reset()
+	require.NoError(t, result.Msg("done"))
+	assert.Equal(t, "done\n", buf.String())
+}
+
 func TestSpinnerWaitSuccess(t *testing.T) {
 	// In test env, ColorsDisabled() == true, so runAnimation takes fast path.
 	origDefault := Default

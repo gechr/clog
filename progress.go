@@ -108,7 +108,8 @@ type AnimationBuilder struct {
 	logger         *Logger
 	mode           animation
 	msg            string
-	prefix         string // icon shown during animation; defaults to "⏳" for pulse/shimmer/bar
+	parts          *[]Part // nil = use logger's parts
+	prefix         string  // icon shown during animation; defaults to "⏳" for pulse/shimmer/bar
 	pulseStops     []ColorStop
 	shimmerDir     Direction
 	shimmerStops   []ColorStop
@@ -130,6 +131,13 @@ func (b *AnimationBuilder) resolveLogger() *Logger {
 // the animation only appears when needed, avoiding visual noise.
 func (b *AnimationBuilder) After(d time.Duration) *AnimationBuilder {
 	b.delay = d
+	return b
+}
+
+// Parts overrides the log-line part order for this animation and its
+// completion message. Parts not included are hidden.
+func (b *AnimationBuilder) Parts(parts ...Part) *AnimationBuilder {
+	b.parts = new(parts)
 	return b
 }
 
@@ -326,6 +334,7 @@ func (b *AnimationBuilder) Progress(
 	w := &WaitResult{
 		err:          err,
 		logger:       b.logger,
+		parts:        b.parts,
 		successLevel: b.level,
 		successMsg:   msg,
 		errorLevel:   ErrorLevel,
@@ -344,6 +353,7 @@ type WaitResult struct {
 	errorLevel   Level
 	errorMsg     *string // nil = use error string
 	logger       *Logger // nil = Default
+	parts        *[]Part // nil = use logger's parts
 	prefix       *string // nil = use default emoji for level
 	successLevel Level
 	successMsg   string
@@ -389,6 +399,12 @@ func (w *WaitResult) OnSuccessMessage(msg string) *WaitResult {
 	return w
 }
 
+// Parts overrides the log-line part order for the completion message.
+func (w *WaitResult) Parts(parts ...Part) *WaitResult {
+	w.parts = new(parts)
+	return w
+}
+
 // Prefix sets a custom emoji prefix for the completion log message.
 func (w *WaitResult) Prefix(prefix string) *WaitResult {
 	w.prefix = new(prefix)
@@ -427,6 +443,10 @@ func (w *WaitResult) event(level Level) *Event {
 	}
 
 	e = e.withFields(w.fields)
+
+	if w.parts != nil {
+		e = e.withParts(w.parts)
+	}
 
 	if w.prefix != nil {
 		e = e.withPrefix(*w.prefix)

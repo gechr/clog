@@ -19,6 +19,7 @@ type Event struct {
 	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
 	fields       []Field
 	level        Level
+	parts        *[]Part   // nil = use logger's parts
 	prefix       *string   // nil = use logger/default prefix
 	timestamp    time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
@@ -409,6 +410,17 @@ func (e *Event) JSON(key string, val any) *Event {
 	return e
 }
 
+// Parts overrides the log-line part order for this entry.
+// Parts not included are hidden. This does not affect the logger's global parts.
+func (e *Event) Parts(parts ...Part) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.parts = new(parts)
+	return e
+}
+
 // Prefix overrides the default emoji prefix for this entry.
 func (e *Event) Prefix(prefix string) *Event {
 	if e == nil {
@@ -599,6 +611,16 @@ func (e *Event) withFields(fields []Field) *Event {
 	}
 
 	e.fields = append(e.fields, fields...)
+	return e
+}
+
+// withParts sets the parts override on the event (used internally).
+func (e *Event) withParts(parts *[]Part) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.parts = parts
 	return e
 }
 

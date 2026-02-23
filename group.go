@@ -224,6 +224,7 @@ func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
 	r := &SlotResult{
 		slot:         s,
 		logger:       g.logger,
+		parts:        b.parts,
 		successLevel: b.level,
 		errorLevel:   ErrorLevel,
 	}
@@ -242,6 +243,7 @@ type SlotResult struct {
 	errorLevel   Level
 	successMsg   string // empty = use *slot.msgPtr.Load()
 	errorMsg     *string
+	parts        *[]Part
 	prefix       *string
 }
 
@@ -281,6 +283,12 @@ func (r *SlotResult) OnSuccessMessage(msg string) *SlotResult {
 	return r
 }
 
+// Parts overrides the log-line part order for the completion message.
+func (r *SlotResult) Parts(parts ...Part) *SlotResult {
+	r.parts = new(parts)
+	return r
+}
+
 // Prefix sets a custom emoji prefix for the completion log message.
 func (r *SlotResult) Prefix(prefix string) *SlotResult {
 	r.prefix = new(prefix)
@@ -307,6 +315,7 @@ func (r *SlotResult) Send() error {
 	return sendResult(
 		r.logger,
 		finalFields,
+		r.parts,
 		r.prefix,
 		r.successLevel,
 		r.errorLevel,
@@ -332,6 +341,7 @@ type GroupResult struct {
 	errorLevel   Level
 	successMsg   string
 	errorMsg     *string
+	parts        *[]Part
 	prefix       *string
 }
 
@@ -372,6 +382,12 @@ func (r *GroupResult) OnSuccessMessage(msg string) *GroupResult {
 	return r
 }
 
+// Parts overrides the log-line part order for the completion message.
+func (r *GroupResult) Parts(parts ...Part) *GroupResult {
+	r.parts = new(parts)
+	return r
+}
+
 // Prefix sets a custom emoji prefix for the completion log message.
 func (r *GroupResult) Prefix(prefix string) *GroupResult {
 	r.prefix = new(prefix)
@@ -385,6 +401,7 @@ func (r *GroupResult) Send() error {
 	return sendResult(
 		r.logger,
 		r.fields,
+		r.parts,
 		r.prefix,
 		r.successLevel,
 		r.errorLevel,
@@ -463,11 +480,15 @@ func captureSlotConfig(s *groupSlot) {
 	l := b.resolveLogger()
 	l.mu.Lock()
 	animInterval := l.animationInterval
+	order := l.parts
+	if b.parts != nil {
+		order = *b.parts
+	}
 	s.cfg = slotConfig{
 		isTTY:    l.output.IsTTY(),
 		label:    l.formatLabel(b.level),
 		noColor:  l.output.ColorsDisabled(),
-		order:    l.parts,
+		order:    order,
 		out:      l.output.Writer(),
 		output:   l.output,
 		reportTS: l.reportTimestamp,
@@ -734,6 +755,7 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) str
 func sendResult(
 	l *Logger,
 	fields []Field,
+	parts *[]Part,
 	prefix *string,
 	successLevel, errorLevel Level,
 	successMsg string,
@@ -766,6 +788,9 @@ func sendResult(
 		return err
 	}
 	e = e.withFields(fields)
+	if parts != nil {
+		e = e.withParts(parts)
+	}
 	if prefix != nil {
 		e = e.withPrefix(*prefix)
 	}

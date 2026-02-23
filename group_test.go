@@ -506,6 +506,53 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 	})
 }
 
+func TestSlotResultParts(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+
+	g := logger.Group(context.Background())
+	r := g.Add(logger.Spinner("task").Parts(PartMessage)).
+		Run(func(_ context.Context) error { return nil })
+	g.Wait()
+
+	// Non-TTY group prints initial lines; reset to isolate completion.
+	buf.Reset()
+	require.NoError(t, r.Msg("done"))
+
+	assert.Equal(t, "done\n", buf.String())
+}
+
+func TestSlotResultPartsOverride(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+
+	g := logger.Group(context.Background())
+	r := g.Add(logger.Spinner("task").Parts(PartMessage, PartLevel)).
+		Run(func(_ context.Context) error { return nil })
+	g.Wait()
+
+	buf.Reset()
+	require.NoError(t, r.Parts(PartMessage).Msg("done"))
+
+	assert.Equal(t, "done\n", buf.String())
+}
+
+func TestGroupResultParts(t *testing.T) {
+	var buf bytes.Buffer
+	logger := New(TestOutput(&buf))
+
+	g := logger.Group(context.Background())
+	g.Add(logger.Spinner("task")).
+		Run(func(_ context.Context) error { return nil })
+
+	// Non-TTY group prints initial lines; reset to isolate the summary.
+	result := g.Wait()
+	buf.Reset()
+	require.NoError(t, result.Parts(PartMessage).Msg("All done"))
+
+	assert.Equal(t, "All done\n", buf.String())
+}
+
 func TestClearBlock(t *testing.T) {
 	var buf strings.Builder
 	clearBlock(&buf, 0)

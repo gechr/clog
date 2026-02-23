@@ -747,10 +747,16 @@ func (l *Logger) log(e *Event, msg string) {
 	// Built-in pretty formatter.
 	noColor := l.colorsDisabled()
 
+	// Resolve parts: event override -> logger default.
+	partsOrder := l.parts
+	if e.parts != nil {
+		partsOrder = *e.parts
+	}
+
 	var partsArr [8]string
 	parts := partsArr[:0]
 
-	for _, p := range l.parts {
+	for _, p := range partsOrder {
 		var s string
 
 		switch p {

@@ -992,6 +992,13 @@ func TestSetParts(t *testing.T) {
 	})
 }
 
+func TestEventPartsNilOnDisabledLevel(t *testing.T) {
+	l := New(TestOutput(io.Discard))
+	l.SetLevel(ErrorLevel)
+	e := l.Info() // returns nil
+	assert.Nil(t, e.Parts(PartMessage))
+}
+
 func TestPackageLevelSetParts(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
@@ -1039,6 +1046,59 @@ func TestPerLevelMessageStyle(t *testing.T) {
 		l.Info().Msg("hello")
 
 		assert.Equal(t, "hello\n", buf.String())
+	})
+}
+
+func TestEventPartsOverride(t *testing.T) {
+	t.Run("overrides_logger_parts", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetParts(PartLevel, PartPrefix, PartMessage, PartFields)
+
+		// Override to only show message on this one event.
+		l.Info().Parts(PartPrefix, PartMessage).Msg("hello")
+
+		assert.Equal(t, "ℹ️ hello\n", buf.String())
+	})
+
+	t.Run("nil_parts_uses_logger_default", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetParts(PartMessage)
+
+		// No Parts() call — should use logger's parts.
+		l.Info().Msg("hello")
+
+		assert.Equal(t, "hello\n", buf.String())
+	})
+
+	t.Run("reorder_parts", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetParts(PartLevel, PartMessage)
+
+		// Override order on a single event.
+		l.Info().Parts(PartMessage, PartLevel).Msg("hello")
+
+		assert.Equal(t, "hello INF\n", buf.String())
+	})
+
+	t.Run("does_not_affect_next_event", func(t *testing.T) {
+		var buf bytes.Buffer
+
+		l := New(TestOutput(&buf))
+		l.SetParts(PartLevel, PartMessage)
+
+		l.Info().Parts(PartMessage).Msg("first")
+		l.Info().Msg("second")
+
+		lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+		require.Len(t, lines, 2)
+		assert.Equal(t, "first", lines[0])
+		assert.Equal(t, "INF second", lines[1])
 	})
 }
 
