@@ -880,7 +880,7 @@ var (
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
 	SpinnerLine2 = SpinnerStyle{
-		Frames: []string{"⠂", "-", "–", "—", "–", "-"},
+		Frames: []string{"⠂", "-", "–", "-", "–", "-"},
 		FPS:    100 * time.Millisecond, //nolint:mnd // frame rate
 	}
 	SpinnerMaterial = SpinnerStyle{

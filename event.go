@@ -10,7 +10,7 @@ import (
 )
 
 // Event represents a log event being constructed. All methods are safe
-// to call on a nil receiver — disabled events (when the log level is
+// to call on a nil receiver - disabled events (when the log level is
 // below the logger's minimum) are no-ops.
 type Event struct {
 	logger *Logger
@@ -182,7 +182,7 @@ func (e *Event) Err(err error) *Event {
 }
 
 // Func executes fn with the event if the event is enabled (non-nil).
-// This is useful for computing expensive fields lazily — the callback
+// This is useful for computing expensive fields lazily - the callback
 // is skipped entirely when the log level is disabled.
 func (e *Event) Func(fn func(*Event)) *Event {
 	if e == nil {

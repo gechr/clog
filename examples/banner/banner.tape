@@ -3,7 +3,10 @@ Set Height 300
 Source examples/base.tape
 
 Hide
-Type "tput civis && go run ./examples/banner"
+Type "tput civis && clear"
+Enter
+Sleep 200ms
+Type "go run ./examples/banner"
 Show
 Sleep 100ms
 Enter

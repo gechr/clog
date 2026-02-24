@@ -387,7 +387,7 @@ func TestEventJSONAppearsUnquotedInOutput(t *testing.T) {
 }
 
 func TestEventJSONMarshalError(t *testing.T) {
-	// Channels are not JSON-serializable — error stored as field value.
+	// Channels are not JSON-serializable - error stored as field value.
 	e := NewWriter(io.Discard).Info()
 	e.JSON("bad", make(chan int))
 

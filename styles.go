@@ -21,7 +21,7 @@ type ThresholdStyle struct {
 
 // Threshold defines a style override when a quantity's numeric value
 // meets or exceeds the given threshold. Thresholds are evaluated in descending
-// order — the first match wins.
+// order - the first match wins.
 type Threshold struct {
 	Value float64        // Minimum numeric value (inclusive) to trigger this style.
 	Style ThresholdStyle // Style overrides for number and unit segments.
@@ -111,7 +111,7 @@ type JSONStyles struct {
 	BoolTrue       Style // true
 	Key            Style // Object keys
 	Null           Style // null
-	Number         Style // Numeric values — base fallback for all number sub-styles
+	Number         Style // Numeric values - base fallback for all number sub-styles
 	NumberFloat    Style // Floating-point values; falls back to Number
 	NumberInteger  Style // Integer values; falls back to Number
 	NumberNegative Style // Negative numbers; falls back to Number

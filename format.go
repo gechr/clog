@@ -527,7 +527,7 @@ func styleAnyElement(
 	styles *Styles,
 	ignoreCase bool,
 ) string {
-	// Per-value styling (typed key lookup — bool true ≠ string "true").
+	// Per-value styling (typed key lookup - bool true ≠ string "true").
 	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
 		return style.Render(s)
 	}
@@ -868,7 +868,7 @@ func styleValue(
 		return style.Render(valStr)
 	}
 
-	// Per-value styling (typed key lookup — bool true ≠ string "true").
+	// Per-value styling (typed key lookup - bool true ≠ string "true").
 	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
 		return style.Render(valStr)
 	}
@@ -1018,7 +1018,7 @@ func isQuantityString(s string) bool {
 }
 
 // isZeroValue reports whether v is the zero value for its type. This is a
-// superset of [isEmptyValue] — it additionally covers 0, false, 0.0, zero
+// superset of [isEmptyValue] - it additionally covers 0, false, 0.0, zero
 // duration, and any other typed zero.
 func isZeroValue(v any) bool {
 	if v == nil {

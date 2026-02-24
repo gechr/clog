@@ -229,7 +229,7 @@ func TestWaitResultPartsNilUsesLoggerDefault(t *testing.T) {
 			return nil
 		})
 
-	// No Parts() call on builder or result — should use logger's PartMessage.
+	// No Parts() call on builder or result - should use logger's PartMessage.
 	buf.Reset()
 	require.NoError(t, result.Msg("done"))
 	assert.Equal(t, "done\n", buf.String())
@@ -582,7 +582,7 @@ func TestWaitResultOnErrorMessageDefault(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 	assert.Equal(t, "boom", got.Message)
 
-	// Without a custom error message, the error IS the message — no error= field.
+	// Without a custom error message, the error IS the message - no error= field.
 	for _, f := range got.Fields {
 		assert.NotEqual(
 			t,
@@ -947,7 +947,7 @@ func TestProgressUpdateStringerTypedNil(t *testing.T) {
 		})
 
 	require.NoError(t, result.err)
-	// Typed nil should be skipped — no fields added.
+	// Typed nil should be skipped - no fields added.
 	for _, f := range result.fields {
 		assert.NotEqual(t, "item", f.Key, "typed nil stringer should not produce a field")
 	}

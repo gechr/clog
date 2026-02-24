@@ -4,7 +4,10 @@ Set LineHeight 1.2
 Source examples/base.tape
 
 Hide
-Type "tput civis && go run ./examples/group"
+Type "tput civis && clear"
+Enter
+Sleep 200ms
+Type "go run ./examples/group"
 Show
 Sleep 100ms
 Enter

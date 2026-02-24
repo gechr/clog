@@ -284,7 +284,7 @@ func TestProgressUpdateSetProgressClamp(t *testing.T) {
 }
 
 func TestProgressUpdateSetProgressNilNoOp(t *testing.T) {
-	// Non-bar ProgressUpdate has nil pointers — should be a no-op.
+	// Non-bar ProgressUpdate has nil pointers - should be a no-op.
 	u := &ProgressUpdate{}
 	u.initSelf(u)
 
@@ -592,7 +592,7 @@ func TestWidgetPercent(t *testing.T) {
 func TestWidgetBytes(t *testing.T) {
 	w := WidgetBytes() // default digits=3
 
-	// MB range — significant digits with zero stripping, padded to max width.
+	// MB range - significant digits with zero stripping, padded to max width.
 	total := 100 * 1000 * 1000 // 100 MB
 	assert.Equal(t, "    0 B / 100 MB", w(BarState{Current: 0, Total: total}))
 	assert.Equal(t, "9.52 MB / 100 MB", w(BarState{Current: 9_524_000, Total: total})) // full width
@@ -600,7 +600,7 @@ func TestWidgetBytes(t *testing.T) {
 	assert.Equal(t, "82.9 MB / 100 MB", w(BarState{Current: 82_854_982, Total: total}))
 	assert.Equal(t, " 100 MB / 100 MB", w(BarState{Current: total, Total: total}))
 
-	// GB range — padded to max width for "X.XX GB" (7 chars).
+	// GB range - padded to max width for "X.XX GB" (7 chars).
 	totalGB := 2 * 1000 * 1000 * 1000 // 2 GB
 	assert.Equal(t, "   1 GB / 2 GB", w(BarState{Current: 1_000_000_000, Total: totalGB}))
 	assert.Equal(t, "1.52 GB / 2 GB", w(BarState{Current: 1_524_000_000, Total: totalGB}))
@@ -627,14 +627,14 @@ func TestWidgetBytes(t *testing.T) {
 func TestWidgetIBytes(t *testing.T) {
 	w := WidgetIBytes() // default digits=3
 
-	// MiB range — padded to max width for "X.XX MiB" (8 chars).
+	// MiB range - padded to max width for "X.XX MiB" (8 chars).
 	total := 100 * 1024 * 1024 // 100 MiB
 	assert.Equal(t, "     0 B / 100 MiB", w(BarState{Current: 0, Total: total}))
 	assert.Equal(t, "79.5 MiB / 100 MiB", w(BarState{Current: 83_361_587, Total: total}))
 	assert.Equal(t, "9.53 MiB / 100 MiB", w(BarState{Current: 9_991_946, Total: total}))
 	assert.Equal(t, " 100 MiB / 100 MiB", w(BarState{Current: total, Total: total}))
 
-	// GiB range — padded to max width for "X.XX GiB" (8 chars).
+	// GiB range - padded to max width for "X.XX GiB" (8 chars).
 	totalGiB := 2 * 1024 * 1024 * 1024 // 2 GiB
 	assert.Equal(t, "     0 B / 2 GiB", w(BarState{Current: 0, Total: totalGiB}))
 	assert.Equal(t, "   1 GiB / 2 GiB", w(BarState{Current: 1024 * 1024 * 1024, Total: totalGiB}))

@@ -1,11 +1,12 @@
-Set Width 1420
-Set Height 1000
+Set Width 630
+Set Height 390
+Set LineHeight 1.3
 Source examples/base.tape
+Set FontSize 14
 
 Hide
-Type "tput civis && go run ./examples/spinner -styles"
-Show
-Sleep 100ms
+Type "tput civis && clear && go run ./examples/spinner -styles-page PAGE"
 Enter
-Wait /^\$$/
-Sleep 2s
+Sleep 500ms
+Show
+Sleep 9s

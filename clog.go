@@ -883,7 +883,7 @@ type Config struct {
 // Configure sets up the [Default] logger with the given configuration.
 // Call this once at application startup.
 //
-// Note: this respects the log level environment variable — it won't reset
+// Note: this respects the log level environment variable - it won't reset
 // the level if CLOG_LOG_LEVEL (or a custom prefix equivalent) was set and
 // cfg.Verbose is false.
 func Configure(cfg *Config) {

@@ -1,9 +1,12 @@
 Set Width 1420
-Set Height 350
+Set Height 270
 Source examples/base.tape
 
 Hide
-Type "tput civis && go run ./examples/bar -styles"
+Type "tput civis && clear"
+Enter
+Sleep 200ms
+Type "go run ./examples/bar -styles"
 Show
 Sleep 100ms
 Enter

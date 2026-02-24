@@ -527,7 +527,7 @@ func TestCollectFlatPairsPreservesArrayValues(t *testing.T) {
 }
 
 func TestCollectFlatPairsMalformedKey(t *testing.T) {
-	// Key that doesn't start with " — scanner should bail.
+	// Key that doesn't start with " - scanner should bail.
 	pairs := collectFlatPairs([]byte(`{bad:1}`), "")
 	assert.Empty(t, pairs)
 }

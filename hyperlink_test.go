@@ -145,7 +145,7 @@ func TestPathLinkDirectory(t *testing.T) {
 	withColorsEnabled(t)
 	clearFormats(t)
 
-	// Set a line format — directories should still use file://.
+	// Set a line format - directories should still use file://.
 	fmtStr := "vscode://file{path}:{line}"
 	hyperlinkLineFormat.Store(&fmtStr)
 
@@ -375,7 +375,7 @@ func TestPathDisplayTextColumn(t *testing.T) {
 }
 
 func TestPathDisplayTextColumnNoLine(t *testing.T) {
-	// Column without line — column is ignored.
+	// Column without line - column is ignored.
 	got := pathDisplayText("/tmp/test.go", 0, 10)
 	assert.Equal(t, "/tmp/test.go", got)
 }
@@ -424,7 +424,7 @@ func TestAbsPathFallbackOnGetwdFailure(t *testing.T) {
 	tmp := t.TempDir()
 	t.Chdir(tmp)
 
-	// Remove the directory we just entered — Getwd will now fail on some platforms.
+	// Remove the directory we just entered - Getwd will now fail on some platforms.
 	if err := os.Remove(tmp); err != nil {
 		t.Fatal(err)
 	}

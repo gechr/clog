@@ -59,7 +59,7 @@ func TestShimmerTextSpacesUnstyled(t *testing.T) {
 
 	got := shimmerText("a b c", 0, DirectionRight, lut, nil)
 
-	// Split on spaces — spaces themselves should not contain ANSI escapes.
+	// Split on spaces - spaces themselves should not contain ANSI escapes.
 	parts := strings.SplitAfter(got, " ")
 	for _, p := range parts {
 		if p == " " {

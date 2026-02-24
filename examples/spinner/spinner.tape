@@ -3,7 +3,10 @@ Set Height 250
 Source examples/base.tape
 
 Hide
-Type "tput civis && go run ./examples/spinner"
+Type "tput civis && clear"
+Enter
+Sleep 200ms
+Type "go run ./examples/spinner"
 Show
 Sleep 100ms
 Enter

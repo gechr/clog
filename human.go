@@ -82,7 +82,7 @@ func humanizeBytes(s uint64, base float64, digits int, strip bool, sizes []strin
 	suffix := sizes[int(e)]
 	rawVal := float64(s) / math.Pow(base, e)
 
-	// Below MB/MiB (e < 2), decimal places are meaningless — show whole numbers.
+	// Below MB/MiB (e < 2), decimal places are meaningless - show whole numbers.
 	if e < 2 { //nolint:mnd // 0=B, 1=kB/KiB, 2=MB/MiB
 		return fmt.Sprintf("%.0f %s", math.Round(rawVal), suffix)
 	}
@@ -112,7 +112,7 @@ func maxBytesWidth(s uint64, base float64, digits int, sizes []string) int {
 		if e >= 2 { //nolint:mnd // only MB/MiB+ have decimals
 			suffix := sizes[int(e)]
 			maxDecimals := max(digits-1, 0)
-			// "X.XX… suffix" — 1 integer digit with maximum decimal places.
+			// "X.XX… suffix" - 1 integer digit with maximum decimal places.
 			oneDigitWidth := 1 + 1 + len(suffix) // "X" + " " + suffix
 			if maxDecimals > 0 {
 				oneDigitWidth += 1 + maxDecimals // "." + decimals

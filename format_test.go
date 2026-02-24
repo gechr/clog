@@ -1336,7 +1336,7 @@ func TestStyleValueQuantityFallbackNilString(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldString = nil
 
-	// No quantity match, no string style — should return "".
+	// No quantity match, no string style - should return "".
 	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles, true)
 	assert.Empty(t, got)
 }
@@ -1576,7 +1576,7 @@ func TestStyleThresholdCompound(t *testing.T) {
 		{Value: 10, Style: ThresholdStyle{Number: new(redNum)}},
 	}
 
-	// "12h30m" — "h" threshold fires for 12, "m" uses default.
+	// "12h30m" - "h" threshold fires for 12, "m" uses default.
 	got := styleQuantity("12h30m", styles, true)
 	assert.Equal(t, redNum.Render("12")+unit("h")+num("30")+unit("m"), got)
 }
@@ -1594,7 +1594,7 @@ func TestStyleThresholdNilOverrides(t *testing.T) {
 	got := styleQuantity("60s", styles, true)
 	assert.Equal(t, yellowNum.Render("60")+styles.FieldQuantityUnit.Render("s"), got)
 
-	// Below threshold — uses default.
+	// Below threshold - uses default.
 	got = styleQuantity("5s", styles, true)
 	assert.Equal(t, num("5")+styles.FieldQuantityUnit.Render("s"), got)
 }
@@ -1614,7 +1614,7 @@ func TestStyleDurationThreshold(t *testing.T) {
 	got := styleDuration("45s", styles)
 	assert.Equal(t, redNum.Render("45")+redUnit.Render("s"), got)
 
-	// 5s does not exceed threshold — uses default.
+	// 5s does not exceed threshold - uses default.
 	got = styleDuration("5s", styles)
 	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
 }
@@ -1632,7 +1632,7 @@ func TestStyleThresholdIgnoreCase(t *testing.T) {
 	got := styleQuantity("1000MB", styles, true)
 	assert.Equal(t, redNum.Render("1000")+styles.FieldQuantityUnit.Render("MB"), got)
 
-	// Below threshold — uses default number style.
+	// Below threshold - uses default number style.
 	got = styleQuantity("100MB", styles, true)
 	assert.Equal(t, num("100")+styles.FieldQuantityUnit.Render("MB"), got)
 }
@@ -1648,11 +1648,11 @@ func TestStyleThresholdOnlyOverridesEnabled(t *testing.T) {
 		{Value: 100, Style: ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
 	}
 
-	// Above threshold — threshold styles apply even with nil defaults.
+	// Above threshold - threshold styles apply even with nil defaults.
 	got := styleQuantity("500ms", styles, true)
 	assert.Equal(t, redNum.Render("500")+redUnit.Render("ms"), got)
 
-	// Below threshold — no default styles, no threshold match.
+	// Below threshold - no default styles, no threshold match.
 	got = styleQuantity("50ms", styles, true)
 	assert.Equal(t, "50ms", got)
 }
@@ -2053,7 +2053,7 @@ func TestPercentFormatFunc(t *testing.T) {
 }
 
 func TestElapsedFormatFuncNilFallsBack(t *testing.T) {
-	// ElapsedFormatFunc is nil — should use built-in formatElapsed with default precision 0.
+	// ElapsedFormatFunc is nil - should use built-in formatElapsed with default precision 0.
 	opts := formatFieldsOpts{
 		noColor: true,
 	}
@@ -2066,7 +2066,7 @@ func TestElapsedFormatFuncNilFallsBack(t *testing.T) {
 
 func TestPercentFormatFuncNilFallsBack(t *testing.T) {
 	styles := DefaultStyles()
-	// PercentFormatFunc is nil — should use built-in format.
+	// PercentFormatFunc is nil - should use built-in format.
 
 	opts := formatFieldsOpts{
 		noColor: true,

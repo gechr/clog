@@ -127,7 +127,7 @@ func (b *AnimationBuilder) resolveLogger() *Logger {
 
 // After sets a delay before the animation becomes visible. If the task
 // completes before the delay elapses, no animation is shown at all.
-// This is useful for operations that are usually fast but occasionally slow —
+// This is useful for operations that are usually fast but occasionally slow -
 // the animation only appears when needed, avoiding visual noise.
 func (b *AnimationBuilder) After(d time.Duration) *AnimationBuilder {
 	b.delay = d

@@ -204,7 +204,7 @@ func Hyperlink(url, text string) string {
 }
 
 // PathLink creates a clickable terminal hyperlink for a file path.
-// The line parameter is optional — pass 0 to omit line numbers.
+// The line parameter is optional - pass 0 to omit line numbers.
 func PathLink(path string, line int) string {
 	display := pathDisplayText(path, line, 0)
 

@@ -274,7 +274,7 @@ func renderFlatJSON(s string, styles *JSONStyles) string {
 // flatPair holds a dotted key and its raw JSON value extracted during flattening.
 type flatPair struct {
 	key   string
-	value []byte // scalar, null, bool, number, or array — never an object
+	value []byte // scalar, null, bool, number, or array - never an object
 }
 
 // collectFlatPairs walks a JSON object and returns (dotted_key, raw_value)

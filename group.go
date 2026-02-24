@@ -165,12 +165,16 @@ func (g *Group) Wait() *GroupResult {
 			}
 			// Batch all writes into a single string.
 			frameBuf.Reset()
-			if numLines > 0 {
-				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines)
+			if numLines > 1 {
+				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines-1)
 			}
 			for i, s := range slots {
 				line := renderSlotLine(s, done[i], now)
-				fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
+				if i < len(slots)-1 {
+					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
+				} else {
+					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s", line)
+				}
 			}
 			writeString(out, frameBuf.String())
 			numLines = len(slots)

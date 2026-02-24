@@ -1,9 +1,12 @@
-Set Width 2000
-Set Height 240
+Set Width 2050
+Set Height 250
 Source examples/base.tape
 
 Hide
-Type "tput civis && go run ./examples/json"
+Type "tput civis && clear"
+Enter
+Sleep 200ms
+Type "go run ./examples/json"
 Show
 Sleep 100ms
 Enter

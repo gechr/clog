@@ -1068,7 +1068,7 @@ func TestEventPartsOverride(t *testing.T) {
 		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage)
 
-		// No Parts() call — should use logger's parts.
+		// No Parts() call - should use logger's parts.
 		l.Info().Msg("hello")
 
 		assert.Equal(t, "hello\n", buf.String())
@@ -1353,7 +1353,7 @@ func TestQuoteModeAuto(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	// QuoteAuto is the default — simple strings unquoted, spaced strings quoted.
+	// QuoteAuto is the default - simple strings unquoted, spaced strings quoted.
 	l.Info().Str("simple", "timeout").Str("spaced", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test simple=timeout spaced=\"hello world\"\n", buf.String())
@@ -1540,7 +1540,7 @@ func TestSetStylesNilDefaultsToDefaultStyles(t *testing.T) {
 	l := NewWriter(io.Discard)
 	original := l.styles
 
-	// Set to nil — should fall back to DefaultStyles().
+	// Set to nil - should fall back to DefaultStyles().
 	l.SetStyles(nil)
 
 	l.mu.Lock()
@@ -1560,7 +1560,7 @@ func TestSetTimeLocationNilDefaultsToLocal(t *testing.T) {
 	l.SetTimeLocation(time.UTC)
 	assert.Equal(t, time.UTC, l.timeLocation)
 
-	// Set to nil — should fall back to time.Local.
+	// Set to nil - should fall back to time.Local.
 	l.SetTimeLocation(nil)
 
 	l.mu.Lock()
@@ -1584,7 +1584,7 @@ func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
 	fn(0)
 	assert.True(t, called)
 
-	// Set to nil — should fall back to os.Exit.
+	// Set to nil - should fall back to os.Exit.
 	l.SetExitFunc(nil)
 
 	l.mu.Lock()
@@ -1603,7 +1603,7 @@ func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
 	l2 := New(TestOutput(&buf))
 	var exitCode int
 	l2.SetExitFunc(nil) // should default to os.Exit
-	// Override again to intercept — just verify nil didn't leave it broken.
+	// Override again to intercept - just verify nil didn't leave it broken.
 	l2.SetExitFunc(func(code int) {
 		exitCode = code
 	})

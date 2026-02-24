@@ -147,7 +147,7 @@ func TestElapsedNoCallNoResolve(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
 
-	// No Elapsed call — should not add any elapsed field.
+	// No Elapsed call - should not add any elapsed field.
 	l.Info().Str("a", "1").Msg("plain")
 
 	assert.Equal(t, "INF ℹ️ plain a=1\n", buf.String())
