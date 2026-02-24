@@ -187,7 +187,7 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("non_empty_result", func(t *testing.T) {
 		cache := &pulseCache{}
 
-		got := pulseTextCached("hello", 0.5, stops, cache)
+		got := pulseTextCached("hello", 0.5, stops, cache, nil)
 
 		assert.NotEmpty(t, got)
 		assert.NotEmpty(t, cache.hex)
@@ -196,10 +196,10 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("cache_hit_same_phase", func(t *testing.T) {
 		cache := &pulseCache{}
 
-		first := pulseTextCached("hello", 0.5, stops, cache)
+		first := pulseTextCached("hello", 0.5, stops, cache, nil)
 		hexAfterFirst := cache.hex
 
-		second := pulseTextCached("hello", 0.5, stops, cache)
+		second := pulseTextCached("hello", 0.5, stops, cache, nil)
 
 		assert.Equal(t, first, second)
 		assert.Equal(t, hexAfterFirst, cache.hex, "cache hex should not change on same phase")
@@ -208,7 +208,7 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("empty_text", func(t *testing.T) {
 		cache := &pulseCache{}
 
-		got := pulseTextCached("", 0.5, stops, cache)
+		got := pulseTextCached("", 0.5, stops, cache, nil)
 
 		assert.Empty(t, got)
 	})
@@ -216,10 +216,10 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("cache_miss_different_phase", func(t *testing.T) {
 		cache := &pulseCache{}
 
-		pulseTextCached("hello", 0.0, stops, cache)
+		pulseTextCached("hello", 0.0, stops, cache, nil)
 		hexFirst := cache.hex
 
-		pulseTextCached("hello", 1.0, stops, cache)
+		pulseTextCached("hello", 1.0, stops, cache, nil)
 		hexSecond := cache.hex
 
 		assert.NotEqual(

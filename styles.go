@@ -187,6 +187,7 @@ func (s *JSONStyles) WithSpacing(spacing JSONSpacing) *JSONStyles {
 // Styles holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Styles struct {
+	renderer *lipgloss.Renderer
 	// Style for divider line characters (see [Logger.Divider]) [nil = plain text]
 	DividerLine Style
 	// Style for divider title text (see [DividerBuilder.Msg]) [nil = plain text]
@@ -357,4 +358,106 @@ func DefaultValueStyles() ValueStyleMap {
 		), // "<nil>" string (from Stringers with nil elements)
 		"": new(lipgloss.NewStyle().Faint(true)),
 	}
+}
+
+// rebindStyle rebinds a Style to the given renderer. Returns nil for nil styles.
+func rebindStyle(r *lipgloss.Renderer, s Style) Style {
+	if s == nil {
+		return nil
+	}
+	ns := s.Renderer(r)
+	return &ns
+}
+
+// rebindStyleMap rebinds all Style values in a map to the given renderer.
+func rebindStyleMap[K comparable](r *lipgloss.Renderer, m map[K]Style) {
+	for k, s := range m {
+		m[k] = rebindStyle(r, s)
+	}
+}
+
+// WithRenderer rebinds all styles to the given renderer. This ensures styles
+// render correctly when the logger's output differs from os.Stdout (e.g.
+// logging to stderr while stdout is piped). It mutates and returns the
+// receiver for fluent chaining.
+func (s *Styles) WithRenderer(r *lipgloss.Renderer) *Styles {
+	s.renderer = r
+
+	// Simple Style fields.
+	s.DividerLine = rebindStyle(r, s.DividerLine)
+	s.DividerTitle = rebindStyle(r, s.DividerTitle)
+	s.FieldDurationNumber = rebindStyle(r, s.FieldDurationNumber)
+	s.FieldDurationUnit = rebindStyle(r, s.FieldDurationUnit)
+	s.FieldElapsedNumber = rebindStyle(r, s.FieldElapsedNumber)
+	s.FieldElapsedUnit = rebindStyle(r, s.FieldElapsedUnit)
+	s.FieldError = rebindStyle(r, s.FieldError)
+	s.FieldNumber = rebindStyle(r, s.FieldNumber)
+	s.FieldPercent = rebindStyle(r, s.FieldPercent)
+	s.FieldQuantityNumber = rebindStyle(r, s.FieldQuantityNumber)
+	s.FieldQuantityUnit = rebindStyle(r, s.FieldQuantityUnit)
+	s.FieldString = rebindStyle(r, s.FieldString)
+	s.FieldTime = rebindStyle(r, s.FieldTime)
+	s.KeyDefault = rebindStyle(r, s.KeyDefault)
+	s.Separator = rebindStyle(r, s.Separator)
+	s.Timestamp = rebindStyle(r, s.Timestamp)
+
+	// StyleMap fields.
+	rebindStyleMap(r, s.Keys)
+	rebindStyleMap(r, s.DurationUnits)
+	rebindStyleMap(r, s.QuantityUnits)
+
+	// LevelStyleMap fields.
+	rebindStyleMap(r, s.Levels)
+	rebindStyleMap(r, s.Messages)
+
+	// ValueStyleMap.
+	for k, v := range s.Values {
+		s.Values[k] = rebindStyle(r, v)
+	}
+
+	// ThresholdMap fields.
+	for unit, thresholds := range s.DurationThresholds {
+		for i := range thresholds {
+			thresholds[i].Style.Number = rebindStyle(r, thresholds[i].Style.Number)
+			thresholds[i].Style.Unit = rebindStyle(r, thresholds[i].Style.Unit)
+		}
+		s.DurationThresholds[unit] = thresholds
+	}
+	for unit, thresholds := range s.QuantityThresholds {
+		for i := range thresholds {
+			thresholds[i].Style.Number = rebindStyle(r, thresholds[i].Style.Number)
+			thresholds[i].Style.Unit = rebindStyle(r, thresholds[i].Style.Unit)
+		}
+		s.QuantityThresholds[unit] = thresholds
+	}
+
+	// Delegate to JSONStyles.
+	if s.FieldJSON != nil {
+		s.FieldJSON.WithRenderer(r)
+	}
+
+	return s
+}
+
+// WithRenderer rebinds all token styles to the given renderer. It mutates
+// and returns the receiver for fluent chaining.
+func (s *JSONStyles) WithRenderer(r *lipgloss.Renderer) *JSONStyles {
+	s.BoolFalse = rebindStyle(r, s.BoolFalse)
+	s.BoolTrue = rebindStyle(r, s.BoolTrue)
+	s.Key = rebindStyle(r, s.Key)
+	s.Null = rebindStyle(r, s.Null)
+	s.Number = rebindStyle(r, s.Number)
+	s.NumberFloat = rebindStyle(r, s.NumberFloat)
+	s.NumberInteger = rebindStyle(r, s.NumberInteger)
+	s.NumberNegative = rebindStyle(r, s.NumberNegative)
+	s.NumberPositive = rebindStyle(r, s.NumberPositive)
+	s.NumberZero = rebindStyle(r, s.NumberZero)
+	s.String = rebindStyle(r, s.String)
+	s.Brace = rebindStyle(r, s.Brace)
+	s.BraceRoot = rebindStyle(r, s.BraceRoot)
+	s.Bracket = rebindStyle(r, s.Bracket)
+	s.BracketRoot = rebindStyle(r, s.BracketRoot)
+	s.Colon = rebindStyle(r, s.Colon)
+	s.Comma = rebindStyle(r, s.Comma)
+	return s
 }

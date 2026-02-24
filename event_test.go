@@ -440,7 +440,8 @@ func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
 	l.Info().RawJSON("data", []byte(`{"n":1}`)).Msg("ok")
 
 	got := buf.String()
-	assert.Contains(t, got, `data={"n":1}`)
+	// The raw JSON value itself should appear verbatim (no per-token styling).
+	assert.Contains(t, got, `{"n":1}`)
 }
 
 func TestEventRawJSONUnquoted(t *testing.T) {

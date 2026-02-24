@@ -540,7 +540,7 @@ func captureSlotConfig(s *groupSlot) {
 	case animationShimmer:
 		s.tickRate = shimmerTickRate
 		s.hexLUT = buildShimmerLUT(b.shimmerStops)
-		s.styleLUT = buildShimmerStyleLUT(s.hexLUT)
+		s.styleLUT = buildShimmerStyleLUT(s.hexLUT, s.cfg.output.Renderer())
 	case animationBar:
 		s.tickRate = barTickRate
 	}
@@ -666,7 +666,7 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 	case animationPulse:
 		char = s.prefix
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
-		msg = pulseTextCached(msg, t, b.pulseStops, &s.pCache)
+		msg = pulseTextCached(msg, t, b.pulseStops, &s.pCache, s.cfg.output.Renderer())
 	case animationShimmer:
 		char = s.prefix
 		phase := math.Mod(dur.Seconds()*b.speed, 1.0)
@@ -691,7 +691,9 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) str
 		progress := float64(current) / float64(max(total, 1))
 		if !s.gradientValid || s.gradientProgress != progress {
 			c := interpolateGradient(progress, barStyle.ProgressGradient)
-			s.gradientStyle = lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+			s.gradientStyle = s.cfg.output.Renderer().
+				NewStyle().
+				Foreground(lipgloss.Color(c.Clamped().Hex()))
 			s.gradientProgress = progress
 			s.gradientValid = true
 		}

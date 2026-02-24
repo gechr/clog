@@ -84,15 +84,26 @@ func pulseText(text string, phase float64, stops []ColorStop) string {
 // pulseTextCached is like [pulseText] but reuses the cached style when the
 // interpolated hex color matches the previous call. Pass a persistent
 // *pulseCache across frames to avoid style allocations when the color is
-// stable between ticks.
-func pulseTextCached(text string, phase float64, stops []ColorStop, cache *pulseCache) string {
+// stable between ticks. When r is non-nil, styles are bound to that renderer
+// instead of the global default; pass nil to use [lipgloss.NewStyle].
+func pulseTextCached(
+	text string,
+	phase float64,
+	stops []ColorStop,
+	cache *pulseCache,
+	r *lipgloss.Renderer,
+) string {
 	if len(text) == 0 {
 		return text
 	}
 	c := interpolateGradient(phase, stops)
 	hex := c.Clamped().Hex()
 	if hex != cache.hex {
-		cache.style = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+		if r != nil {
+			cache.style = r.NewStyle().Foreground(lipgloss.Color(hex))
+		} else {
+			cache.style = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+		}
 		cache.hex = hex
 	}
 	return applyPulseStyle(text, cache.style)

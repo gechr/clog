@@ -1548,7 +1548,7 @@ func TestSetStylesNilDefaultsToDefaultStyles(t *testing.T) {
 	l.mu.Unlock()
 
 	assert.NotNil(t, got, "styles should not be nil after SetStyles(nil)")
-	assert.Equal(t, DefaultStyles(), got)
+	assert.Equal(t, DefaultStyles().WithRenderer(l.output.Renderer()), got)
 	// Should be a new instance, not the original pointer.
 	assert.NotSame(t, original, got)
 }

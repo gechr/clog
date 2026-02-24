@@ -138,12 +138,18 @@ func buildShimmerLUT(stops []ColorStop) *shimmerLUT {
 
 // buildShimmerStyleLUT pre-computes a lipgloss style for every entry in the
 // hex LUT. Call once after [buildShimmerLUT] and pass the result to
-// [shimmerText] to avoid style allocations in the render loop.
-func buildShimmerStyleLUT(lut *shimmerLUT) *shimmerStyleLUT {
+// [shimmerText] to avoid style allocations in the render loop. When r is
+// non-nil, styles are bound to that renderer instead of the global default;
+// pass nil to use [lipgloss.NewStyle].
+func buildShimmerStyleLUT(lut *shimmerLUT, r *lipgloss.Renderer) *shimmerStyleLUT {
 	var s shimmerStyleLUT
 	for i, hex := range lut {
 		//nolint:gosec // i is bounded by range lut
-		s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+		if r != nil {
+			s[i] = r.NewStyle().Foreground(lipgloss.Color(hex))
+		} else {
+			s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
+		}
 	}
 	return &s
 }

@@ -273,7 +273,7 @@ func New(output *Output) *Logger {
 		prefixes:                DefaultPrefixes(),
 		quantityUnitsIgnoreCase: true,
 		separatorText:           "=",
-		styles:                  DefaultStyles(),
+		styles:                  DefaultStyles().WithRenderer(output.Renderer()),
 		timeFormat:              "15:04:05.000",
 		timeLocation:            time.Local,
 	}
@@ -305,6 +305,7 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 	defer l.mu.Unlock()
 	w := l.output.Writer()
 	l.output = NewOutput(w, mode)
+	l.styles.WithRenderer(l.output.Renderer())
 }
 
 // SetElapsedFormatFunc sets a custom format function for Elapsed fields.
@@ -448,6 +449,7 @@ func (l *Logger) SetOutput(out *Output) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output = out
+	l.styles.WithRenderer(out.Renderer())
 }
 
 // SetOutputWriter sets the output writer with [ColorAuto].
@@ -563,6 +565,7 @@ func (l *Logger) SetStyles(styles *Styles) {
 	if styles == nil {
 		styles = DefaultStyles()
 	}
+	styles.WithRenderer(l.output.Renderer())
 	l.styles = styles
 }
 

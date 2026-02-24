@@ -299,14 +299,14 @@ func TestShimmerCustomPrefixInOutput(t *testing.T) {
 
 func TestBuildShimmerStyleLUT(t *testing.T) {
 	lut := buildShimmerLUT(DefaultShimmerGradient())
-	styleLUT := buildShimmerStyleLUT(lut)
+	styleLUT := buildShimmerStyleLUT(lut, nil)
 
 	assert.NotNil(t, styleLUT)
 }
 
 func BenchmarkShimmerText(b *testing.B) {
 	lut := buildShimmerLUT(DefaultShimmerGradient())
-	styleLUT := buildShimmerStyleLUT(lut)
+	styleLUT := buildShimmerStyleLUT(lut, nil)
 	text := "hello world shimmer benchmark"
 
 	b.ResetTimer()

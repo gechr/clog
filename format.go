@@ -818,6 +818,8 @@ func stylePercent(valStr string, originalValue any, styles *Styles) string {
 	var style lipgloss.Style
 	if styles.FieldPercent != nil {
 		style = *styles.FieldPercent
+	} else if styles.renderer != nil {
+		style = styles.renderer.NewStyle()
 	}
 
 	// Apply gradient foreground on top of the base style.
