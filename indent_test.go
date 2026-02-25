@@ -808,3 +808,93 @@ func TestPackageLevelSetIndentPrefixSeparator(t *testing.T) {
 
 	assert.Equal(t, "INF ℹ️   |->hello\n", buf.String())
 }
+
+// ---------------------------------------------------------------------------
+// Dedent on Context
+// ---------------------------------------------------------------------------
+
+func TestDedentReducesDepth(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Start at depth 2, dedent once → depth 1.
+	sub := l.With().Indent().Indent().Logger()
+	back := sub.With().Dedent().Logger()
+	back.Info().Msg("hello")
+
+	assert.Equal(t, "INF ℹ️   hello\n", buf.String())
+}
+
+func TestDedentToZero(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Indent then immediately dedent → back to zero.
+	sub := l.With().Indent().Dedent().Logger()
+	sub.Info().Msg("hello")
+
+	assert.Equal(t, "INF ℹ️ hello\n", buf.String())
+}
+
+func TestDedentClampAtZero(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Already at depth 0; Dedent is a no-op.
+	sub := l.With().Dedent().Logger()
+	sub.Info().Msg("hello")
+
+	assert.Equal(t, "INF ℹ️ hello\n", buf.String())
+}
+
+func TestDedentChained(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Depth(3) then Dedent twice → depth 1.
+	sub := l.With().Depth(3).Dedent().Dedent().Logger()
+	sub.Info().Msg("hello")
+
+	assert.Equal(t, "INF ℹ️   hello\n", buf.String())
+}
+
+// ---------------------------------------------------------------------------
+// Dedent on AnimationBuilder
+// ---------------------------------------------------------------------------
+
+func TestSpinnerDedent(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Indent twice, Dedent once → net depth 1.
+	require.NoError(t, l.Spinner("loading").Indent().Indent().Dedent().
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		}).Msg("done"))
+
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	require.Len(t, lines, 2)
+
+	// net depth 1 → 2 spaces.
+	assert.Equal(t, "INF ⏳   loading\n", lines[0]+"\n")
+	assert.Equal(t, "INF ℹ️   done\n", lines[1]+"\n")
+}
+
+func TestSpinnerDedentClampAtZero(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// No prior indent; Dedent is a no-op.
+	require.NoError(t, l.Spinner("loading").Dedent().
+		Wait(context.Background(), func(_ context.Context) error {
+			return nil
+		}).Msg("done"))
+
+	out := buf.String()
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	require.Len(t, lines, 2)
+
+	assert.Equal(t, "INF ⏳ loading\n", lines[0]+"\n")
+	assert.Equal(t, "INF ℹ️ done\n", lines[1]+"\n")
+}

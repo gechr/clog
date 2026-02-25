@@ -12,6 +12,16 @@ type Context struct {
 	prefix *string // nil = inherit from parent logger
 }
 
+// Dedent removes one indent level from the sub-logger, down to a minimum of
+// zero. Useful for pulling a child logger back toward the root when a parent
+// logger is already indented.
+func (c *Context) Dedent() *Context {
+	if c.indent > 0 {
+		c.indent--
+	}
+	return c
+}
+
 // Depth adds multiple indent levels at once. Equivalent to calling
 // [Context.Indent] n times.
 func (c *Context) Depth(n int) *Context {

@@ -151,6 +151,15 @@ func (b *AnimationBuilder) indentedLogger() *Logger {
 	return l
 }
 
+// Dedent removes one indent level from the animation output, down to a
+// minimum of zero. Mirrors [AnimationBuilder.Indent].
+func (b *AnimationBuilder) Dedent() *AnimationBuilder {
+	if b.depth > 0 {
+		b.depth--
+	}
+	return b
+}
+
 // Depth adds multiple indent levels to the animation output.
 // Equivalent to calling [AnimationBuilder.Indent] n times.
 func (b *AnimationBuilder) Depth(n int) *AnimationBuilder {
