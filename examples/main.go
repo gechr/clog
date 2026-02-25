@@ -834,7 +834,7 @@ func spinners(filter string) {
 
 	ctx := context.Background()
 	g := clog.NewGroup(ctx)
-	results := make([]*clog.SlotResult, len(all))
+	results := make([]*clog.TaskResult, len(all))
 	for i, e := range all {
 		name := fmt.Sprintf("%-*s", maxName, e.name)
 		results[i] = g.Add(clog.Spinner(name).

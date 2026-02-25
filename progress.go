@@ -28,15 +28,15 @@ const (
 // Used by [AnimationBuilder.Speed] to control shimmer and pulse rate.
 type Speed = float64
 
-// Task is a function executed by [AnimationBuilder.Wait].
-type Task func(context.Context) error
+// TaskFunc is a function executed by [AnimationBuilder.Wait].
+type TaskFunc func(context.Context) error
 
-// ProgressTask is a function executed by [AnimationBuilder.Progress].
+// ProgressTaskFunc is a function executed by [AnimationBuilder.Progress].
 // The [ProgressUpdate] allows updating the animation's message and fields.
-type ProgressTask func(context.Context, *ProgressUpdate) error
+type ProgressTaskFunc func(context.Context, *ProgressUpdate) error
 
 // ProgressUpdate is a fluent builder for updating an animation's message and fields
-// during a [ProgressTask]. Call [ProgressUpdate.Msg] and field methods to
+// during a [ProgressTaskFunc]. Call [ProgressUpdate.Msg] and field methods to
 // build the update, then [ProgressUpdate.Send] to apply it atomically.
 type ProgressUpdate struct {
 	fieldBuilder[ProgressUpdate]
@@ -117,6 +117,7 @@ type AnimationBuilder struct {
 	barStyle       BarStyle      // bar mode: visual style
 	barTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
 	delay          time.Duration // when set, suppresses animation until this duration elapses
+	depth          int           // additional indent depth applied to the animation
 	elapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
 	level          Level         // log level used during animation rendering (default: InfoLevel)
 	logger         *Logger
@@ -137,6 +138,30 @@ func (b *AnimationBuilder) resolveLogger() *Logger {
 		return b.logger
 	}
 	return Default
+}
+
+// indentedLogger returns the builder's logger with any builder-level
+// indent depth applied. Used for completion logging so the result message
+// has the same indentation as the animation.
+func (b *AnimationBuilder) indentedLogger() *Logger {
+	l := b.resolveLogger()
+	if b.depth > 0 {
+		l = l.With().Depth(b.depth).Logger()
+	}
+	return l
+}
+
+// Depth adds multiple indent levels to the animation output.
+// Equivalent to calling [AnimationBuilder.Indent] n times.
+func (b *AnimationBuilder) Depth(n int) *AnimationBuilder {
+	b.depth += n
+	return b
+}
+
+// Indent adds one indent level to the animation output. Chainable.
+func (b *AnimationBuilder) Indent() *AnimationBuilder {
+	b.depth++
+	return b
 }
 
 // After sets a delay before the animation becomes visible. If the task
@@ -306,7 +331,7 @@ func (b *AnimationBuilder) Link(key, url, text string) *AnimationBuilder {
 
 // Wait executes the task with the animation and returns a [WaitResult] for chaining.
 // The animation displays as: <level> <icon> <message> <fields>.
-func (b *AnimationBuilder) Wait(ctx context.Context, task Task) *WaitResult {
+func (b *AnimationBuilder) Wait(ctx context.Context, task TaskFunc) *WaitResult {
 	return b.Progress(ctx, func(ctx context.Context, _ *ProgressUpdate) error {
 		return task(ctx)
 	})
@@ -317,7 +342,7 @@ func (b *AnimationBuilder) Wait(ctx context.Context, task Task) *WaitResult {
 // operations where the animation should reflect the current step.
 func (b *AnimationBuilder) Progress(
 	ctx context.Context,
-	task ProgressTask,
+	task ProgressTaskFunc,
 ) *WaitResult {
 	var msgPtr atomic.Pointer[string]
 	var fieldsPtr atomic.Pointer[[]Field]
@@ -347,7 +372,7 @@ func (b *AnimationBuilder) Progress(
 	msg := *msgPtr.Load()
 	w := &WaitResult{
 		err:          err,
-		logger:       b.logger,
+		logger:       b.indentedLogger(),
 		parts:        b.parts,
 		successLevel: b.level,
 		successMsg:   msg,
@@ -471,7 +496,7 @@ func (w *WaitResult) event(level Level) *Event {
 func runAnimation(
 	ctx context.Context,
 	b *AnimationBuilder,
-	task Task,
+	task TaskFunc,
 	msgPtr *atomic.Pointer[string],
 	fields *atomic.Pointer[[]Field],
 	startTime time.Time,
@@ -497,22 +522,29 @@ func runAnimation(
 		}
 	}
 
-	// Build the slot and snapshot the logger's settings.
-	slot := &groupSlot{builder: b, fieldsPtr: fields, msgPtr: msgPtr, startTime: startTime}
-	captureSlotConfig(slot)
+	// Build the gt and snapshot the logger's settings.
+	gt := &groupTask{builder: b, fieldsPtr: fields, msgPtr: msgPtr, startTime: startTime}
+	captureTaskConfig(gt)
 
 	// Don't animate if not a TTY (CI, piped output, etc.).
 	// Print the initial message so the user knows something is in progress.
 	// Dynamic fields (elapsed, bar percent) are stripped because their
 	// initial zero values are meaningless without live updates.
-	if !slot.cfg.isTTY {
+	if !gt.cfg.isTTY {
 		fieldsStr := strings.TrimLeft(
-			formatFields(b.stripDynamicFields(*fields.Load()), slot.fieldOpts), " ",
+			formatFields(b.stripDynamicFields(*fields.Load()), gt.fieldOpts),
+			" ",
 		)
-		line := buildLine(slot.cfg.order, slot.cfg.reportTS,
-			time.Now().In(slot.cfg.timeLoc).Format(slot.cfg.timeFmt),
-			slot.cfg.label, slot.prefix, *msgPtr.Load(), fieldsStr)
-		writeString(slot.cfg.out, line+"\n")
+		line := buildLine(
+			gt.cfg.order,
+			gt.cfg.reportTS,
+			time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
+			gt.cfg.label,
+			gt.prefix,
+			gt.cfg.indentation+*msgPtr.Load(),
+			fieldsStr,
+		)
+		writeString(gt.cfg.out, line+"\n")
 		select {
 		case err := <-done:
 			return err
@@ -522,10 +554,10 @@ func runAnimation(
 	}
 
 	// Hide cursor during animation.
-	slot.cfg.termOut.HideCursor()
-	defer slot.cfg.termOut.ShowCursor()
+	gt.cfg.termOut.HideCursor()
+	defer gt.cfg.termOut.ShowCursor()
 
-	ticker := time.NewTicker(slot.tickRate)
+	ticker := time.NewTicker(gt.tickRate)
 	defer ticker.Stop()
 
 	var frameBuf strings.Builder
@@ -536,22 +568,22 @@ func runAnimation(
 			// For bar animations, render one final frame so 100% is visible
 			// before the line is cleared and replaced with the completion message.
 			if b.mode == animationBar && err == nil {
-				line := renderSlotLine(slot, false, time.Now())
+				line := renderTaskLine(gt, false, time.Now())
 				frameBuf.Reset()
 				frameBuf.WriteString(clearLine)
 				frameBuf.WriteString(line)
-				writeString(slot.cfg.out, frameBuf.String())
+				writeString(gt.cfg.out, frameBuf.String())
 			}
-			writeString(slot.cfg.out, clearLine)
+			writeString(gt.cfg.out, clearLine)
 			return err
 		case now := <-ticker.C:
-			line := renderSlotLine(slot, false, now)
+			line := renderTaskLine(gt, false, now)
 			frameBuf.Reset()
 			frameBuf.WriteString(clearLine)
 			frameBuf.WriteString(line)
-			writeString(slot.cfg.out, frameBuf.String())
+			writeString(gt.cfg.out, frameBuf.String())
 		case <-ctx.Done():
-			writeString(slot.cfg.out, clearLine)
+			writeString(gt.cfg.out, clearLine)
 			return ctx.Err()
 		}
 	}

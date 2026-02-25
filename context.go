@@ -7,8 +7,23 @@ import "sync"
 type Context struct {
 	fieldBuilder[Context]
 
+	indent int // accumulated indent level
 	logger *Logger
 	prefix *string // nil = inherit from parent logger
+}
+
+// Depth adds multiple indent levels at once. Equivalent to calling
+// [Context.Indent] n times.
+func (c *Context) Depth(n int) *Context {
+	c.indent += n
+	return c
+}
+
+// Indent adds one indent level to the sub-logger. Chainable:
+// With().Indent().Indent().Logger() produces two levels of indentation.
+func (c *Context) Indent() *Context {
+	c.indent++
+	return c
 }
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
@@ -79,6 +94,7 @@ func (c *Context) Logger() *Logger {
 	l := c.logger.clone()
 	l.mu = c.logger.mu                  // share mutex
 	l.fields = c.fields                 // override with context fields
+	l.indent = c.indent                 // override with accumulated indent
 	l.prefix = c.prefix                 // override with context prefix
 	l.atomicLevel.Store(int32(l.level)) //nolint:gosec // Level values are small constants (0-6)
 	return l
@@ -127,6 +143,10 @@ func (l *Logger) clone() *Logger {
 		fieldTimeFormat:         l.fieldTimeFormat,
 		fields:                  l.fields,
 		handler:                 l.handler,
+		indent:                  l.indent,
+		indentPrefixes:          l.indentPrefixes,
+		indentPrefixSep:         l.indentPrefixSep,
+		indentWidth:             l.indentWidth,
 		labelWidth:              l.labelWidth,
 		labels:                  l.labels,
 		labelsPadded:            l.labelsPadded,

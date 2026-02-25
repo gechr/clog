@@ -230,6 +230,10 @@ type Logger struct {
 	fieldTimeFormat         string
 	fields                  []Field
 	handler                 Handler
+	indent                  int      // number of indent levels for nested output
+	indentPrefixes          []string // per-depth decorations cycled after space indent
+	indentPrefixSep         *string  // separator after prefix; nil = default " "
+	indentWidth             int      // spaces per indent level (default 2)
 	labelWidth              int
 	labels                  LevelMap
 	labelsPadded            LevelMap
@@ -264,6 +268,7 @@ func New(output *Output) *Logger {
 		elapsedRound:            time.Second,
 		exitFunc:                os.Exit,
 		fieldStyleLevel:         InfoLevel,
+		indentWidth:             2, //nolint:mnd // default indent: 2 spaces per level
 		fieldTimeFormat:         time.RFC3339,
 		labels:                  DefaultLabels(),
 		level:                   InfoLevel,
@@ -376,6 +381,40 @@ func (l *Logger) SetFieldTimeFormat(format string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.fieldTimeFormat = format
+}
+
+// SetIndent sets the indent depth (number of indent levels) on the logger.
+func (l *Logger) SetIndent(levels int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.indent = levels
+}
+
+// SetIndentPrefixes sets per-depth decorations placed after the space-based
+// indent. A trailing space is appended automatically. Prefixes are cycled:
+// at depth N the prefix is prefixes[(N-1) % len(prefixes)].
+// For example, with []string{"│"}, depth 2 produces "    │ " (4 spaces + "│" + space).
+// Pass nil to clear.
+func (l *Logger) SetIndentPrefixes(prefixes []string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.indentPrefixes = prefixes
+}
+
+// SetIndentPrefixSeparator sets the separator appended after an indent prefix.
+// Defaults to " " (a single space).
+func (l *Logger) SetIndentPrefixSeparator(sep string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.indentPrefixSep = &sep
+}
+
+// SetIndentWidth sets the number of spaces per indent level.
+// Defaults to 2.
+func (l *Logger) SetIndentWidth(width int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.indentWidth = width
 }
 
 // SetHandler sets a custom log handler. When set, the handler receives all
@@ -598,6 +637,7 @@ func (l *Logger) With() *Context {
 	copy(fields, l.fields)
 
 	c := &Context{
+		indent: l.indent,
 		logger: l,
 		prefix: l.prefix,
 	}
@@ -642,6 +682,29 @@ func (l *Logger) Level() Level {
 // colorsDisabled returns true if this logger should suppress colours.
 func (l *Logger) colorsDisabled() bool {
 	return l.output.ColorsDisabled()
+}
+
+// indentation returns the indent string for the current indent level.
+func (l *Logger) indentation() string {
+	return computeIndent(l.indent, l.indentWidth, l.indentPrefixes, l.indentPrefixSep)
+}
+
+// computeIndent builds the indent string for the given depth.
+// It is indentWidth*depth spaces followed by the cycled prefix from
+// prefixes (if set) and the separator.
+func computeIndent(depth, width int, prefixes []string, sep *string) string {
+	if depth <= 0 {
+		return ""
+	}
+	s := strings.Repeat(" ", depth*width)
+	if len(prefixes) > 0 {
+		psep := " "
+		if sep != nil {
+			psep = *sep
+		}
+		s += prefixes[(depth-1)%len(prefixes)] + psep
+	}
+	return s
 }
 
 // exit calls the logger's exit function (used by Fatal-level events).
@@ -733,8 +796,9 @@ func (l *Logger) log(e *Event, msg string) {
 	if l.handler != nil {
 		entry := Entry{
 			Level:   e.level,
-			Message: msg,
 			Prefix:  prefix,
+			Indent:  l.indent,
+			Message: msg,
 			Fields:  allFields,
 		}
 		if !e.timestamp.IsZero() {
@@ -794,7 +858,7 @@ func (l *Logger) log(e *Event, msg string) {
 
 			s = prefix
 		case PartMessage:
-			if msg == "" {
+			if msg == "" && l.indent == 0 {
 				continue
 			}
 
@@ -802,6 +866,10 @@ func (l *Logger) log(e *Event, msg string) {
 				s = style.Render(msg)
 			} else {
 				s = msg
+			}
+
+			if l.indent > 0 {
+				s = l.indentation() + s
 			}
 		case PartFields:
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
@@ -985,6 +1053,18 @@ func SetFieldTimeFormat(format string) { Default.SetFieldTimeFormat(format) }
 
 // SetHandler sets the log handler on the [Default] logger.
 func SetHandler(h Handler) { Default.SetHandler(h) }
+
+// SetIndent sets the indent depth on the [Default] logger.
+func SetIndent(levels int) { Default.SetIndent(levels) }
+
+// SetIndentPrefixes sets per-depth indent prefixes on the [Default] logger.
+func SetIndentPrefixes(prefixes []string) { Default.SetIndentPrefixes(prefixes) }
+
+// SetIndentPrefixSeparator sets the indent prefix separator on the [Default] logger.
+func SetIndentPrefixSeparator(sep string) { Default.SetIndentPrefixSeparator(sep) }
+
+// SetIndentWidth sets the indent width on the [Default] logger.
+func SetIndentWidth(width int) { Default.SetIndentWidth(width) }
 
 // SetLevel sets the minimum log level on the [Default] logger.
 func SetLevel(level Level) { Default.SetLevel(level) }

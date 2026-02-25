@@ -26,9 +26,10 @@ type Field struct {
 
 // Entry represents a completed log entry passed to a [Handler].
 type Entry struct {
-	Fields  []Field   `json:"fields,omitempty"`
-	Level   Level     `json:"level"`
-	Message string    `json:"message"`
-	Prefix  string    `json:"prefix,omitempty"`
 	Time    time.Time `json:"time,omitzero"`
+	Level   Level     `json:"level"`
+	Prefix  string    `json:"prefix,omitempty"`
+	Indent  int       `json:"indent,omitempty"`
+	Message string    `json:"message"`
+	Fields  []Field   `json:"fields,omitempty"`
 }

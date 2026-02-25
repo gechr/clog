@@ -196,7 +196,7 @@ func TestGroupEmptyWait(_ *testing.T) {
 	g.Wait()
 }
 
-func TestGroupSlotResultFields(t *testing.T) {
+func TestGroupTaskResultFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
@@ -207,7 +207,7 @@ func TestGroupSlotResultFields(t *testing.T) {
 		})
 	g.Wait()
 
-	// Add extra fields on the SlotResult.
+	// Add extra fields on the TaskResult.
 	require.NoError(t, r.Str("extra", "field").Msg("done"))
 
 	out := buf.String()
@@ -216,7 +216,7 @@ func TestGroupSlotResultFields(t *testing.T) {
 	assert.Contains(t, out, "done")
 }
 
-func TestGroupSlotResultOnError(t *testing.T) {
+func TestGroupTaskResultOnError(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
@@ -237,7 +237,7 @@ func TestGroupSlotResultOnError(t *testing.T) {
 	assert.Contains(t, out, "boom")
 }
 
-func TestGroupSlotResultElapsed(t *testing.T) {
+func TestGroupTaskResultElapsed(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 	logger.SetElapsedMinimum(0) // show all elapsed values
@@ -292,7 +292,7 @@ func TestGroupDefaultLogger(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 }
 
-func TestGroupSlotResultOnSuccessLevel(t *testing.T) {
+func TestGroupTaskResultOnSuccessLevel(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 	logger.SetLevel(DebugLevel)
@@ -310,7 +310,7 @@ func TestGroupSlotResultOnSuccessLevel(t *testing.T) {
 	assert.Contains(t, out, "debug msg")
 }
 
-func TestGroupSlotResultSilent(t *testing.T) {
+func TestGroupTaskResultSilent(t *testing.T) {
 	logger := NewWriter(io.Discard)
 
 	g := logger.Group(context.Background())
@@ -450,7 +450,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		logger.SetAnimationInterval(200 * time.Millisecond)
 
 		b := logger.Bar("downloading", 100)
-		s := &groupSlot{
+		s := &groupTask{
 			builder:   b,
 			fieldsPtr: new(atomic.Pointer[[]Field]),
 			msgPtr:    new(atomic.Pointer[string]),
@@ -459,7 +459,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []Field{}
 		s.msgPtr.Store(&msg)
 		s.fieldsPtr.Store(&fields)
-		captureSlotConfig(s)
+		captureTaskConfig(s)
 
 		assert.Equal(t, 200*time.Millisecond, s.tickRate)
 	})
@@ -472,7 +472,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 			Frames: []string{".", "..", "..."},
 			FPS:    17 * time.Millisecond,
 		})
-		s := &groupSlot{
+		s := &groupTask{
 			builder:   b,
 			fieldsPtr: new(atomic.Pointer[[]Field]),
 			msgPtr:    new(atomic.Pointer[string]),
@@ -481,7 +481,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []Field{}
 		s.msgPtr.Store(&msg)
 		s.fieldsPtr.Store(&fields)
-		captureSlotConfig(s)
+		captureTaskConfig(s)
 
 		assert.Equal(t, 200*time.Millisecond, s.tickRate)
 	})
@@ -491,7 +491,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		logger.SetAnimationInterval(0) // disable clamping
 
 		b := logger.Bar("downloading", 100)
-		s := &groupSlot{
+		s := &groupTask{
 			builder:   b,
 			fieldsPtr: new(atomic.Pointer[[]Field]),
 			msgPtr:    new(atomic.Pointer[string]),
@@ -500,13 +500,13 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []Field{}
 		s.msgPtr.Store(&msg)
 		s.fieldsPtr.Store(&fields)
-		captureSlotConfig(s)
+		captureTaskConfig(s)
 
 		assert.Equal(t, barTickRate, s.tickRate)
 	})
 }
 
-func TestSlotResultParts(t *testing.T) {
+func TestTaskResultParts(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
@@ -522,7 +522,7 @@ func TestSlotResultParts(t *testing.T) {
 	assert.Equal(t, "done\n", buf.String())
 }
 
-func TestSlotResultPartsOverride(t *testing.T) {
+func TestTaskResultPartsOverride(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 

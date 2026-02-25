@@ -25,7 +25,7 @@ type Group struct {
 	mu  sync.Mutex
 
 	logger *Logger
-	slots  []*groupSlot
+	tasks  []*groupTask
 }
 
 // NewGroup creates a new animation group using the [Default] logger.
@@ -50,29 +50,29 @@ func (g *Group) Add(b *AnimationBuilder) *GroupEntry {
 	msgPtr.Store(&b.msg)
 	fieldsPtr.Store(&b.fields)
 
-	s := &groupSlot{
+	gt := &groupTask{
 		builder:   b,
 		doneErr:   make(chan error, 1),
 		fieldsPtr: fieldsPtr,
 		msgPtr:    msgPtr,
 		startTime: time.Now(),
 	}
-	captureSlotConfig(s)
+	captureTaskConfig(gt)
 
 	g.mu.Lock()
-	g.slots = append(g.slots, s)
+	g.tasks = append(g.tasks, gt)
 	g.mu.Unlock()
 
-	return &GroupEntry{slot: s, group: g}
+	return &GroupEntry{task: gt, group: g}
 }
 
-// Wait runs the render loop, blocking until all slots complete or the context
-// is cancelled. After Wait returns, each slot's err field is populated.
+// Wait runs the render loop, blocking until all tasks complete or the context
+// is cancelled. After Wait returns, each task's err field is populated.
 // The returned [GroupResult] can be used to log a single summary line;
-// alternatively, use individual [SlotResult] values for per-slot messages.
+// alternatively, use individual [TaskResult] values for per-task messages.
 func (g *Group) Wait() *GroupResult {
 	g.mu.Lock()
-	slots := g.slots
+	tasks := g.tasks
 	g.mu.Unlock()
 
 	result := &GroupResult{
@@ -83,33 +83,33 @@ func (g *Group) Wait() *GroupResult {
 	}
 	result.initSelf(result)
 
-	if len(slots) == 0 {
+	if len(tasks) == 0 {
 		return result
 	}
 
-	// Non-TTY: print each slot's initial line, then block on all results.
+	// Non-TTY: print each task's initial line, then block on all results.
 	// Dynamic fields (elapsed, bar percent) are stripped because their
 	// initial zero values are meaningless without live updates.
-	if !slots[0].cfg.isTTY {
-		for _, s := range slots {
+	if !tasks[0].cfg.isTTY {
+		for _, t := range tasks {
 			fieldsStr := strings.TrimLeft(
-				formatFields(s.builder.stripDynamicFields(*s.fieldsPtr.Load()), s.fieldOpts), " ",
+				formatFields(t.builder.stripDynamicFields(*t.fieldsPtr.Load()), t.fieldOpts), " ",
 			)
-			line := buildLine(s.cfg.order, s.cfg.reportTS,
-				time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt),
-				s.cfg.label, s.prefix, *s.msgPtr.Load(), fieldsStr)
-			writeString(s.cfg.out, line+"\n")
+			line := buildLine(t.cfg.order, t.cfg.reportTS,
+				time.Now().In(t.cfg.timeLoc).Format(t.cfg.timeFmt),
+				t.cfg.label, t.prefix, t.cfg.indentation+*t.msgPtr.Load(), fieldsStr)
+			writeString(t.cfg.out, line+"\n")
 		}
-		for _, s := range slots {
+		for _, t := range tasks {
 			select {
-			case s.err = <-s.doneErr:
+			case t.err = <-t.doneErr:
 			case <-g.ctx.Done():
-				for _, s2 := range slots {
-					if s2.err == nil {
+				for _, t2 := range tasks {
+					if t2.err == nil {
 						select {
-						case s2.err = <-s2.doneErr:
+						case t2.err = <-t2.doneErr:
 						default:
-							s2.err = g.ctx.Err()
+							t2.err = g.ctx.Err()
 						}
 					}
 				}
@@ -119,45 +119,45 @@ func (g *Group) Wait() *GroupResult {
 		return result
 	}
 
-	// Tick rate = fastest slot's rate.
-	tickRate := slots[0].tickRate
-	for _, s := range slots[1:] {
-		tickRate = min(tickRate, s.tickRate)
+	// Tick rate = fastest task's rate.
+	tickRate := tasks[0].tickRate
+	for _, t := range tasks[1:] {
+		tickRate = min(tickRate, t.tickRate)
 	}
 
-	termOut := slots[0].cfg.termOut
+	termOut := tasks[0].cfg.termOut
 	termOut.HideCursor()
 	defer termOut.ShowCursor()
 
-	out := slots[0].cfg.out
+	out := tasks[0].cfg.out
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
 	numLines := 0
-	done := make([]bool, len(slots))
-	remaining := len(slots)
+	done := make([]bool, len(tasks))
+	remaining := len(tasks)
 	var frameBuf strings.Builder
 
 	for remaining > 0 {
 		select {
 		case <-g.ctx.Done():
 			clearBlock(out, numLines)
-			for i, s := range slots {
+			for i, t := range tasks {
 				if !done[i] {
-					s.err = g.ctx.Err()
+					t.err = g.ctx.Err()
 				}
 			}
 			return result
 		case <-ticker.C:
 			now := time.Now()
 			// Drain completed tasks.
-			for i, s := range slots {
+			for i, t := range tasks {
 				if done[i] {
 					continue
 				}
 				select {
-				case err := <-s.doneErr:
-					s.err = err
+				case err := <-t.doneErr:
+					t.err = err
 					done[i] = true
 					remaining--
 				default:
@@ -168,16 +168,16 @@ func (g *Group) Wait() *GroupResult {
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines-1)
 			}
-			for i, s := range slots {
-				line := renderSlotLine(s, done[i], now)
-				if i < len(slots)-1 {
+			for i, t := range tasks {
+				line := renderTaskLine(t, done[i], now)
+				if i < len(tasks)-1 {
 					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
 				} else {
 					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s", line)
 				}
 			}
 			writeString(out, frameBuf.String())
-			numLines = len(slots)
+			numLines = len(tasks)
 			// If all done, break out after one final render.
 			if remaining == 0 {
 				break
@@ -192,27 +192,27 @@ func (g *Group) Wait() *GroupResult {
 // GroupEntry is returned by [Group.Add] and provides [Run] and [Progress]
 // methods to start a task within the group.
 type GroupEntry struct {
-	slot  *groupSlot
+	task  *groupTask
 	group *Group
 }
 
-// Run starts a simple task (no progress updates) and returns a [SlotResult].
-func (ge *GroupEntry) Run(task Task) *SlotResult {
+// Run starts a simple task (no progress updates) and returns a [TaskResult].
+func (ge *GroupEntry) Run(task TaskFunc) *TaskResult {
 	return ge.Progress(func(ctx context.Context, _ *ProgressUpdate) error {
 		return task(ctx)
 	})
 }
 
-// Progress starts a task with progress update capability and returns a [SlotResult].
-func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
-	s := ge.slot
-	b := s.builder
+// Progress starts a task with progress update capability and returns a [TaskResult].
+func (ge *GroupEntry) Progress(task ProgressTaskFunc) *TaskResult {
+	t := ge.task
+	b := t.builder
 	g := ge.group
 
 	update := &ProgressUpdate{
 		msg:       b.msg,
-		msgPtr:    s.msgPtr,
-		fieldsPtr: s.fieldsPtr,
+		msgPtr:    t.msgPtr,
+		fieldsPtr: t.fieldsPtr,
 		base:      b.fields,
 	}
 	if b.mode == animationBar {
@@ -222,12 +222,12 @@ func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
 	update.initSelf(update)
 
 	go func() {
-		s.doneErr <- task(g.ctx, update)
+		t.doneErr <- task(g.ctx, update)
 	}()
 
-	r := &SlotResult{
-		slot:         s,
-		logger:       g.logger,
+	r := &TaskResult{
+		task:         t,
+		logger:       b.indentedLogger(),
 		parts:        b.parts,
 		successLevel: b.level,
 		errorLevel:   ErrorLevel,
@@ -236,82 +236,82 @@ func (ge *GroupEntry) Progress(task ProgressTask) *SlotResult {
 	return r
 }
 
-// SlotResult holds the result of a group animation task. It mirrors
-// [WaitResult] but reads its error from the slot (set by [Group.Wait]).
-type SlotResult struct {
-	fieldBuilder[SlotResult]
+// TaskResult holds the result of a group animation task. It mirrors
+// [WaitResult] but reads its error from the task (set by [Group.Wait]).
+type TaskResult struct {
+	fieldBuilder[TaskResult]
 
-	slot         *groupSlot
+	task         *groupTask
 	logger       *Logger
 	successLevel Level
 	errorLevel   Level
-	successMsg   string // empty = use *slot.msgPtr.Load()
+	successMsg   string // empty = use *task.msgPtr.Load()
 	errorMsg     *string
 	parts        *[]Part
 	prefix       *string
 }
 
 // Err returns the error, logging success or failure using the original message.
-func (r *SlotResult) Err() error {
+func (r *TaskResult) Err() error {
 	return r.Send()
 }
 
 // Msg logs at success level with the given message on success, or at error
 // level with the error string on failure. Returns the error.
-func (r *SlotResult) Msg(msg string) error {
+func (r *TaskResult) Msg(msg string) error {
 	r.successMsg = msg
 	return r.Send()
 }
 
 // OnErrorLevel sets the log level for the error case.
-func (r *SlotResult) OnErrorLevel(level Level) *SlotResult {
+func (r *TaskResult) OnErrorLevel(level Level) *TaskResult {
 	r.errorLevel = level
 	return r
 }
 
 // OnErrorMessage sets a custom message for the error case.
-func (r *SlotResult) OnErrorMessage(msg string) *SlotResult {
+func (r *TaskResult) OnErrorMessage(msg string) *TaskResult {
 	r.errorMsg = &msg
 	return r
 }
 
 // OnSuccessLevel sets the log level for the success case.
-func (r *SlotResult) OnSuccessLevel(level Level) *SlotResult {
+func (r *TaskResult) OnSuccessLevel(level Level) *TaskResult {
 	r.successLevel = level
 	return r
 }
 
 // OnSuccessMessage sets the message for the success case.
-func (r *SlotResult) OnSuccessMessage(msg string) *SlotResult {
+func (r *TaskResult) OnSuccessMessage(msg string) *TaskResult {
 	r.successMsg = msg
 	return r
 }
 
 // Parts overrides the log-line part order for the completion message.
-func (r *SlotResult) Parts(parts ...Part) *SlotResult {
+func (r *TaskResult) Parts(parts ...Part) *TaskResult {
 	r.parts = new(parts)
 	return r
 }
 
 // Prefix sets a custom emoji prefix for the completion log message.
-func (r *SlotResult) Prefix(prefix string) *SlotResult {
+func (r *TaskResult) Prefix(prefix string) *TaskResult {
 	r.prefix = new(prefix)
 	return r
 }
 
 // Send finalises the result, logging at the configured success or error level.
-func (r *SlotResult) Send() error {
-	s := r.slot
-	err := s.err
+func (r *TaskResult) Send() error {
+	t := r.task
+	err := t.err
 
 	// Resolve message.
 	msg := r.successMsg
 	if msg == "" {
-		msg = *s.msgPtr.Load()
+		msg = *t.msgPtr.Load()
 	}
 
-	// Resolve final fields: animation fields + any fields added to the SlotResult.
-	finalFields := s.builder.resolveDynamicFields(*s.fieldsPtr.Load(), time.Since(s.startTime))
+	// Resolve final fields: animation fields + any fields added to the TaskResult.
+	finalFields := t.builder.resolveDynamicFields(*t.fieldsPtr.Load(), time.Since(t.startTime))
 	if len(r.fields) > 0 {
 		finalFields = mergeFields(finalFields, r.fields)
 	}
@@ -330,12 +330,12 @@ func (r *SlotResult) Send() error {
 }
 
 // Silent returns just the error without logging anything.
-func (r *SlotResult) Silent() error {
-	return r.slot.err
+func (r *TaskResult) Silent() error {
+	return r.task.err
 }
 
 // GroupResult holds the aggregate result of a [Group.Wait] and allows
-// chaining a single summary log line instead of per-slot messages.
+// chaining a single summary log line instead of per-task messages.
 type GroupResult struct {
 	fieldBuilder[GroupResult]
 
@@ -399,7 +399,7 @@ func (r *GroupResult) Prefix(prefix string) *GroupResult {
 }
 
 // Send finalises the result, logging at the configured success or error level.
-// The error is the [errors.Join] of all slot errors (nil when all succeeded).
+// The error is the [errors.Join] of all task errors (nil when all succeeded).
 func (r *GroupResult) Send() error {
 	err := r.joinErrors()
 	return sendResult(
@@ -420,10 +420,10 @@ func (r *GroupResult) Silent() error {
 	return r.joinErrors()
 }
 
-// joinErrors returns the [errors.Join] of all slot errors.
+// joinErrors returns the [errors.Join] of all task errors.
 func (r *GroupResult) joinErrors() error {
 	var errs []error
-	for _, s := range r.group.slots {
+	for _, s := range r.group.tasks {
 		if s.err != nil {
 			errs = append(errs, s.err)
 		}
@@ -431,10 +431,11 @@ func (r *GroupResult) joinErrors() error {
 	return errors.Join(errs...)
 }
 
-// slotConfig is an immutable snapshot of logger settings captured under the
+// taskConfig is an immutable snapshot of logger settings captured under the
 // logger's mutex. It stores exactly the fields needed for per-tick rendering
 // so the animation loop never touches the logger after the initial capture.
-type slotConfig struct {
+type taskConfig struct {
+	indentation string    // pre-computed indent string for message prefix
 	isTTY       bool      // output.IsTTY()
 	label       string    // pre-computed padded label
 	levelPrefix string    // styled label (via styles.Levels[level])
@@ -449,11 +450,11 @@ type slotConfig struct {
 	timeLoc     *time.Location
 }
 
-// groupSlot holds per-animation mutable state for both the single-animation
+// groupTask holds per-animation mutable state for both the single-animation
 // (runAnimation) and multi-animation (Group) paths.
-type groupSlot struct {
+type groupTask struct {
 	builder   *AnimationBuilder
-	cfg       slotConfig
+	cfg       taskConfig
 	doneErr   chan error // buffered(1); goroutine sends result here (Group only)
 	err       error      // populated by Wait() after doneErr is drained (Group only)
 	fieldsPtr *atomic.Pointer[[]Field]
@@ -465,7 +466,7 @@ type groupSlot struct {
 	// per-tick mutable state
 	cachedFieldsPtr *[]Field         // dedup: last-formatted fields pointer
 	cachedFieldsStr string           // dedup: last-formatted fields string
-	fieldOpts       formatFieldsOpts // pre-built from slotConfig
+	fieldOpts       formatFieldsOpts // pre-built from taskConfig
 	hexLUT          *shimmerLUT      // shimmer only, immutable after init
 	pCache          pulseCache
 	styleLUT        *shimmerStyleLUT // shimmer only, immutable after init
@@ -476,11 +477,11 @@ type groupSlot struct {
 	gradientValid    bool
 }
 
-// captureSlotConfig locks the builder's logger, snapshots all fields into
+// captureTaskConfig locks the builder's logger, snapshots all fields into
 // s.cfg, and pre-computes s.tickRate, s.prefix, s.fieldOpts, s.cfg.levelPrefix,
 // and shimmer LUTs.
-func captureSlotConfig(s *groupSlot) {
-	b := s.builder
+func captureTaskConfig(gt *groupTask) {
+	b := gt.builder
 	l := b.resolveLogger()
 	l.mu.Lock()
 	animInterval := l.animationInterval
@@ -488,7 +489,13 @@ func captureSlotConfig(s *groupSlot) {
 	if b.parts != nil {
 		order = *b.parts
 	}
-	s.cfg = slotConfig{
+	gt.cfg = taskConfig{
+		indentation: computeIndent(
+			l.indent+b.depth,
+			l.indentWidth,
+			l.indentPrefixes,
+			l.indentPrefixSep,
+		),
 		isTTY:    l.output.IsTTY(),
 		label:    l.formatLabel(b.level),
 		noColor:  l.output.ColorsDisabled(),
@@ -501,7 +508,7 @@ func captureSlotConfig(s *groupSlot) {
 		timeFmt:  l.timeFormat,
 		timeLoc:  l.timeLocation,
 	}
-	s.fieldOpts = formatFieldsOpts{
+	gt.fieldOpts = formatFieldsOpts{
 		elapsedFormatFunc:       l.elapsedFormatFunc,
 		elapsedMinimum:          l.elapsedMinimum,
 		elapsedPrecision:        l.elapsedPrecision,
@@ -523,30 +530,30 @@ func captureSlotConfig(s *groupSlot) {
 	l.mu.Unlock()
 
 	// Styled level prefix.
-	if style := s.cfg.styles.Levels[b.level]; style != nil && !s.cfg.noColor {
-		s.cfg.levelPrefix = style.Render(s.cfg.label)
+	if style := gt.cfg.styles.Levels[b.level]; style != nil && !gt.cfg.noColor {
+		gt.cfg.levelPrefix = style.Render(gt.cfg.label)
 	} else {
-		s.cfg.levelPrefix = s.cfg.label
+		gt.cfg.levelPrefix = gt.cfg.label
 	}
 
 	// Resolve the prefix icon.
-	s.prefix = b.prefix
-	if s.prefix == "" {
-		s.prefix = "⏳"
+	gt.prefix = b.prefix
+	if gt.prefix == "" {
+		gt.prefix = "⏳"
 	}
 
 	// Determine tick rate and pre-compute mode-specific resources.
 	switch b.mode {
 	case animationSpinner:
-		s.tickRate = b.spinner.FPS
+		gt.tickRate = b.spinner.FPS
 	case animationPulse:
-		s.tickRate = pulseTickRate
+		gt.tickRate = pulseTickRate
 	case animationShimmer:
-		s.tickRate = shimmerTickRate
-		s.hexLUT = buildShimmerLUT(b.shimmerStops)
-		s.styleLUT = buildShimmerStyleLUT(s.hexLUT, s.cfg.output.Renderer())
+		gt.tickRate = shimmerTickRate
+		gt.hexLUT = buildShimmerLUT(b.shimmerStops)
+		gt.styleLUT = buildShimmerStyleLUT(gt.hexLUT, gt.cfg.output.Renderer())
 	case animationBar:
-		s.tickRate = barTickRate
+		gt.tickRate = barTickRate
 	}
 
 	// Guard against invalid SpinnerStyle values.
@@ -556,11 +563,11 @@ func captureSlotConfig(s *groupSlot) {
 	if b.mode == animationSpinner && b.spinner.Boomerang {
 		b.spinner.Frames = boomerangFrames(b.spinner.Frames)
 	}
-	if s.tickRate <= 0 {
-		s.tickRate = DefaultSpinnerStyle().FPS
+	if gt.tickRate <= 0 {
+		gt.tickRate = DefaultSpinnerStyle().FPS
 	}
-	if animInterval > 0 && s.tickRate < animInterval {
-		s.tickRate = animInterval
+	if animInterval > 0 && gt.tickRate < animInterval {
+		gt.tickRate = animInterval
 	}
 }
 
@@ -599,52 +606,57 @@ func styledMsg(msg string, level Level, styles *Styles, noColor bool) string {
 	return msg
 }
 
-// renderSlotFields formats the fields for a slot, caching the result when
+// renderTaskFields formats the fields for a task, caching the result when
 // the atomic pointer has not changed.
-func renderSlotFields(s *groupSlot, dur time.Duration) string {
-	b := s.builder
-	fp := s.fieldsPtr.Load()
+func renderTaskFields(gt *groupTask, dur time.Duration) string {
+	b := gt.builder
+	fp := gt.fieldsPtr.Load()
 	if b.elapsedKey != "" || b.barPercentKey != "" {
 		resolved := b.resolveDynamicFields(*fp, dur)
-		s.cachedFieldsStr = strings.TrimLeft(formatFields(resolved, s.fieldOpts), " ")
-	} else if fp != s.cachedFieldsPtr {
-		s.cachedFieldsStr = strings.TrimLeft(formatFields(*fp, s.fieldOpts), " ")
+		gt.cachedFieldsStr = strings.TrimLeft(formatFields(resolved, gt.fieldOpts), " ")
+	} else if fp != gt.cachedFieldsPtr {
+		gt.cachedFieldsStr = strings.TrimLeft(formatFields(*fp, gt.fieldOpts), " ")
 	}
-	s.cachedFieldsPtr = fp
-	return s.cachedFieldsStr
+	gt.cachedFieldsPtr = fp
+	return gt.cachedFieldsStr
 }
 
-// renderSlotTimestamp returns the styled timestamp string for a slot.
-func renderSlotTimestamp(s *groupSlot) string {
-	if !s.cfg.reportTS {
+// renderTaskTimestamp returns the styled timestamp string for a task.
+func renderTaskTimestamp(gt *groupTask) string {
+	if !gt.cfg.reportTS {
 		return ""
 	}
-	ts := time.Now().In(s.cfg.timeLoc).Format(s.cfg.timeFmt)
-	if s.cfg.styles.Timestamp != nil && !s.cfg.noColor {
-		return s.cfg.styles.Timestamp.Render(ts)
+	ts := time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt)
+	if gt.cfg.styles.Timestamp != nil && !gt.cfg.noColor {
+		return gt.cfg.styles.Timestamp.Render(ts)
 	}
 	return ts
 }
 
-// renderSlotLine renders a single animation frame line for a slot.
-// For done slots, it renders the frozen final state with the level's default prefix.
-// For active slots, it renders the current animation frame.
+// renderTaskLine renders a single animation frame line for a task.
+// For done tasks, it renders the frozen final state with the level's default prefix.
+// For active tasks, it renders the current animation frame.
 // It does not perform any I/O.
-func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
-	b := s.builder
-	dur := now.Sub(s.startTime)
-	fieldsStr := renderSlotFields(s, dur)
-	tsStr := renderSlotTimestamp(s)
+func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
+	b := gt.builder
+	dur := now.Sub(gt.startTime)
+	fieldsStr := renderTaskFields(gt, dur)
+	tsStr := renderTaskTimestamp(gt)
 
 	if isDone {
 		// Show the frozen final line with the level's default prefix.
-		msg := styledMsg(*s.msgPtr.Load(), b.level, s.cfg.styles, s.cfg.noColor)
-		levelPrefix := s.cfg.levelPrefix
+		msg := gt.cfg.indentation + styledMsg(
+			*gt.msgPtr.Load(),
+			b.level,
+			gt.cfg.styles,
+			gt.cfg.noColor,
+		)
+		levelPrefix := gt.cfg.levelPrefix
 		// Use a checkmark or the builder prefix for completed items.
-		donePrefix := s.prefix
+		donePrefix := gt.prefix
 		return buildLine(
-			s.cfg.order,
-			s.cfg.reportTS,
+			gt.cfg.order,
+			gt.cfg.reportTS,
 			tsStr,
 			levelPrefix,
 			donePrefix,
@@ -655,10 +667,10 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 
 	// Bar mode has its own rendering path.
 	if b.mode == animationBar {
-		return renderSlotBarLine(s, fieldsStr, tsStr, now)
+		return renderTaskBarLine(gt, fieldsStr, tsStr, now)
 	}
 
-	msg := *s.msgPtr.Load()
+	msg := *gt.msgPtr.Load()
 	var char string
 
 	switch b.mode { //nolint:exhaustive // animationBar handled above
@@ -669,25 +681,33 @@ func renderSlotLine(s *groupSlot, isDone bool, now time.Time) string {
 			i = n - 1 - i
 		}
 		char = b.spinner.Frames[i]
-		msg = styledMsg(msg, b.level, s.cfg.styles, s.cfg.noColor)
+		msg = styledMsg(msg, b.level, gt.cfg.styles, gt.cfg.noColor)
 	case animationPulse:
-		char = s.prefix
+		char = gt.prefix
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
-		msg = pulseTextCached(msg, t, b.pulseStops, &s.pCache, s.cfg.output.Renderer())
+		msg = pulseTextCached(msg, t, b.pulseStops, &gt.pCache, gt.cfg.output.Renderer())
 	case animationShimmer:
-		char = s.prefix
+		char = gt.prefix
 		phase := math.Mod(dur.Seconds()*b.speed, 1.0)
-		msg = shimmerText(msg, phase, b.shimmerDir, s.hexLUT, s.styleLUT)
+		msg = shimmerText(msg, phase, b.shimmerDir, gt.hexLUT, gt.styleLUT)
 	}
 
-	return buildLine(s.cfg.order, s.cfg.reportTS, tsStr, s.cfg.levelPrefix, char, msg, fieldsStr)
+	return buildLine(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelPrefix,
+		char,
+		gt.cfg.indentation+msg,
+		fieldsStr,
+	)
 }
 
-// renderSlotBarLine renders a bar-animation frame for a slot. Factored out to
-// keep renderSlotLine focused.
-func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) string {
-	b := s.builder
-	msg := styledMsg(*s.msgPtr.Load(), b.level, s.cfg.styles, s.cfg.noColor)
+// renderTaskBarLine renders a bar-animation frame for a task. Factored out to
+// keep renderTaskLine focused.
+func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) string {
+	b := gt.builder
+	msg := gt.cfg.indentation + styledMsg(*gt.msgPtr.Load(), b.level, gt.cfg.styles, gt.cfg.noColor)
 
 	current := int(b.barProgressPtr.Load())
 	total := int(b.barTotalPtr.Load())
@@ -696,24 +716,24 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) str
 	barStyle := b.barStyle
 	if len(barStyle.ProgressGradient) > 0 {
 		progress := float64(current) / float64(max(total, 1))
-		if !s.gradientValid || s.gradientProgress != progress {
+		if !gt.gradientValid || gt.gradientProgress != progress {
 			c := interpolateGradient(progress, barStyle.ProgressGradient)
-			s.gradientStyle = s.cfg.output.Renderer().
+			gt.gradientStyle = gt.cfg.output.Renderer().
 				NewStyle().
 				Foreground(lipgloss.Color(c.Clamped().Hex()))
-			s.gradientProgress = progress
-			s.gradientValid = true
+			gt.gradientProgress = progress
+			gt.gradientValid = true
 		}
-		barStyle.StyleFill = &s.gradientStyle
+		barStyle.StyleFill = &gt.gradientStyle
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
-	barStr := renderBar(current, total, barStyle, s.cfg.output.Width())
+	barStr := renderBar(current, total, barStyle, gt.cfg.output.Width())
 	sep := b.barStyle.Separator
 	if sep == "" {
 		sep = " "
 	}
 
-	elapsed := now.Sub(s.startTime)
+	elapsed := now.Sub(gt.startTime)
 	var rate float64
 	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
 		rate = float64(current) / secs
@@ -743,26 +763,26 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) str
 	// writeFrame equivalent: build the complete line string.
 	if b.barStyle.Align == BarAlignInline {
 		parts := buildLine(
-			s.cfg.order,
-			s.cfg.reportTS,
+			gt.cfg.order,
+			gt.cfg.reportTS,
 			tsStr,
-			s.cfg.levelPrefix,
-			s.prefix,
+			gt.cfg.levelPrefix,
+			gt.prefix,
 			msg+sep+barFull,
 			fieldsStr,
 		)
 		return parts
 	}
 	parts := buildLine(
-		s.cfg.order,
-		s.cfg.reportTS,
+		gt.cfg.order,
+		gt.cfg.reportTS,
 		tsStr,
-		s.cfg.levelPrefix,
-		s.prefix,
+		gt.cfg.levelPrefix,
+		gt.prefix,
 		msg,
 		fieldsStr,
 	)
-	return alignBarLine(parts, barFull, sep, b.barStyle.Align, s.cfg.output.Width())
+	return alignBarLine(parts, barFull, sep, b.barStyle.Align, gt.cfg.output.Width())
 }
 
 // sendResult logs a success or error event and returns the error.
