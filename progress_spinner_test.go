@@ -21,6 +21,37 @@ func TestSpinnerConstructor(t *testing.T) {
 	assert.Empty(t, b.fields)
 }
 
+func TestBoomerangFrames(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{"a", "b", "c", "d", "c", "b"},
+		boomerangFrames([]string{"a", "b", "c", "d"}),
+	)
+}
+
+func TestBoomerangFramesThree(t *testing.T) {
+	assert.Equal(t, []string{"a", "b", "c", "b"}, boomerangFrames([]string{"a", "b", "c"}))
+}
+
+func TestBoomerangFramesTwoUnchanged(t *testing.T) {
+	assert.Equal(t, []string{"a", "b"}, boomerangFrames([]string{"a", "b"}))
+}
+
+func TestBoomerangFramesOneUnchanged(t *testing.T) {
+	assert.Equal(t, []string{"a"}, boomerangFrames([]string{"a"}))
+}
+
+func TestBoomerangFramesEmpty(t *testing.T) {
+	assert.Empty(t, boomerangFrames(nil))
+}
+
+func TestBoomerangFramesDoesNotMutateInput(t *testing.T) {
+	orig := []string{"a", "b", "c"}
+	_ = boomerangFrames(orig)
+
+	assert.Equal(t, []string{"a", "b", "c"}, orig)
+}
+
 func TestSpinnerBuilderType(t *testing.T) {
 	b := Spinner("test").Style(SpinnerDot)
 

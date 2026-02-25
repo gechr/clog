@@ -553,6 +553,9 @@ func captureSlotConfig(s *groupSlot) {
 	if b.mode == animationSpinner && len(b.spinner.Frames) == 0 {
 		b.spinner.Frames = DefaultSpinnerStyle().Frames
 	}
+	if b.mode == animationSpinner && b.spinner.Boomerang {
+		b.spinner.Frames = boomerangFrames(b.spinner.Frames)
+	}
 	if s.tickRate <= 0 {
 		s.tickRate = DefaultSpinnerStyle().FPS
 	}
