@@ -725,3 +725,163 @@ func TestBarPresetsHaveWidgetRight(t *testing.T) {
 		assert.NotNil(t, style.WidgetRight, "%s: WidgetRight should be set", name)
 	}
 }
+
+func TestWidgetETA(t *testing.T) {
+	t.Run("zero_rate", func(t *testing.T) {
+		w := WidgetETA()
+		assert.Equal(t, "ETA --", w(BarState{Current: 0, Total: 100, Rate: 0}))
+	})
+
+	t.Run("complete", func(t *testing.T) {
+		w := WidgetETA()
+		assert.Empty(t, w(BarState{Current: 100, Total: 100, Rate: 10}))
+	})
+
+	t.Run("seconds", func(t *testing.T) {
+		w := WidgetETA()
+		assert.Equal(t, "ETA 5s", w(BarState{Current: 50, Total: 100, Rate: 10}))
+	})
+
+	t.Run("minutes", func(t *testing.T) {
+		w := WidgetETA()
+		assert.Equal(t, "ETA 1m30s", w(BarState{Current: 100, Total: 1000, Rate: 10}))
+	})
+
+	t.Run("hours", func(t *testing.T) {
+		w := WidgetETA()
+		assert.Equal(t, "ETA 1h", w(BarState{Current: 0, Total: 36000, Rate: 10}))
+	})
+
+	t.Run("padding_stable_as_eta_shrinks", func(t *testing.T) {
+		w := WidgetETA()
+		// First call sets the high-water mark width.
+		first := w(BarState{Current: 100, Total: 1000, Rate: 10}) // "ETA 1m30s" → 9 chars
+		// Later call with shorter ETA pads to same width.
+		second := w(BarState{Current: 950, Total: 1000, Rate: 10}) // "ETA 5s" padded
+		assert.Len(t, second, len(first), "width should stay stable as ETA shrinks")
+		assert.Equal(t, "ETA 1m30s", first)
+		assert.Equal(t, "   ETA 5s", second)
+	})
+
+	t.Run("zero_rate_pads_to_high_water_mark", func(t *testing.T) {
+		w := WidgetETA()
+		first := w(BarState{Current: 100, Total: 1000, Rate: 10}) // "ETA 1m30s"
+		noRate := w(BarState{Current: 100, Total: 1000, Rate: 0}) // "ETA --" padded
+		assert.Len(t, noRate, len(first))
+	})
+}
+
+func TestWidgetRate(t *testing.T) {
+	// Fresh widget per case to avoid high-water mark accumulation.
+	assert.Equal(t, "0/s", WidgetRate()(BarState{Rate: 0}))
+	assert.Equal(t, "1/s", WidgetRate()(BarState{Rate: 1}))
+	assert.Equal(t, "150/s", WidgetRate()(BarState{Rate: 150}))
+	assert.Equal(t, "1.5k/s", WidgetRate()(BarState{Rate: 1500}))
+	assert.Equal(t, "2M/s", WidgetRate()(BarState{Rate: 2_000_000}))
+	assert.Equal(t, "0.5/s", WidgetRate()(BarState{Rate: 0.5}))
+
+	t.Run("padding_stable", func(t *testing.T) {
+		w := WidgetRate()
+		wide := w(BarState{Rate: 1500})  // "1.5k/s" → 6 chars
+		narrow := w(BarState{Rate: 150}) // "150/s" padded to 6
+		assert.Len(t, narrow, len(wide))
+		assert.Equal(t, "1.5k/s", wide)
+		assert.Equal(t, " 150/s", narrow)
+	})
+}
+
+func TestWidgetRateWithUnit(t *testing.T) {
+	assert.Equal(t, "0 ops/s", WidgetRate(WithUnit("ops"))(BarState{Rate: 0}))
+	assert.Equal(t, "150 ops/s", WidgetRate(WithUnit("ops"))(BarState{Rate: 150}))
+	assert.Equal(t, "1.5k ops/s", WidgetRate(WithUnit("ops"))(BarState{Rate: 1500}))
+}
+
+func TestWidgetBytesRate(t *testing.T) {
+	assert.Equal(t, "0 B/s", WidgetBytesRate()(BarState{Rate: 0}))
+	assert.Equal(t, "100 MB/s", WidgetBytesRate()(BarState{Rate: 100_000_000}))
+	assert.Equal(t, "1.5 GB/s", WidgetBytesRate()(BarState{Rate: 1_500_000_000}))
+
+	t.Run("padding_stable", func(t *testing.T) {
+		w := WidgetBytesRate()
+		wide := w(BarState{Rate: 58_300_000})   // "58.3 MB/s" → 9 chars
+		narrow := w(BarState{Rate: 59_000_000}) // "59 MB/s" padded to 9
+		assert.Len(t, narrow, len(wide))
+	})
+}
+
+func TestWidgetIBytesRate(t *testing.T) {
+	assert.Equal(t, "0 B/s", WidgetIBytesRate()(BarState{Rate: 0}))
+	assert.Equal(t, "100 MiB/s", WidgetIBytesRate()(BarState{Rate: 100 * 1024 * 1024}))
+	assert.Equal(t, "1.5 GiB/s", WidgetIBytesRate()(BarState{Rate: 1.5 * 1024 * 1024 * 1024}))
+
+	t.Run("padding_stable", func(t *testing.T) {
+		w := WidgetIBytesRate()
+		wide := w(BarState{Rate: 55.6 * 1024 * 1024}) // "55.6 MiB/s" → 10 chars
+		narrow := w(BarState{Rate: 56 * 1024 * 1024}) // "56 MiB/s" padded to 10
+		assert.Len(t, narrow, len(wide))
+	})
+}
+
+func TestBarStateRate(t *testing.T) {
+	// Rate is set to 0 when elapsed or current is 0.
+	state := BarState{Current: 0, Total: 100, Elapsed: time.Second}
+	assert.InDelta(t, 0, state.Rate, 0.001)
+
+	// Non-zero current and elapsed → rate populated externally.
+	state = BarState{Current: 50, Total: 100, Elapsed: 5 * time.Second, Rate: 10}
+	assert.InDelta(t, 10, state.Rate, 0.001)
+}
+
+func TestAddTotal(t *testing.T) {
+	var tAtom atomic.Int64
+	tAtom.Store(100)
+
+	u := &ProgressUpdate{totalPtr: &tAtom}
+	u.initSelf(u)
+
+	// Add positive delta
+	result := u.AddTotal(50)
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, int64(150), tAtom.Load())
+
+	// Add negative delta
+	u.AddTotal(-30)
+	assert.Equal(t, int64(120), tAtom.Load())
+
+	// Clamp to minimum 1
+	u.AddTotal(-200)
+	assert.Equal(t, int64(1), tAtom.Load())
+}
+
+func TestAddTotalNilNoOp(t *testing.T) {
+	u := &ProgressUpdate{}
+	u.initSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.AddTotal(50)
+	})
+}
+
+func TestFormatRate(t *testing.T) {
+	tests := []struct {
+		rate float64
+		unit string
+		want string
+	}{
+		{0, "", "0/s"},
+		{1, "", "1/s"},
+		{150, "", "150/s"},
+		{1500, "", "1.5k/s"},
+		{2000, "", "2k/s"},
+		{1_500_000, "", "1.5M/s"},
+		{0.5, "", "0.5/s"},
+		{150, "ops", "150 ops/s"},
+		{1500, "files", "1.5k files/s"},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("rate=%.1f_unit=%s", tt.rate, tt.unit), func(t *testing.T) {
+			assert.Equal(t, tt.want, formatRate(tt.rate, tt.unit))
+		})
+	}
+}

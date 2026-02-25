@@ -713,7 +713,12 @@ func renderSlotBarLine(s *groupSlot, fieldsStr, tsStr string, now time.Time) str
 		sep = " "
 	}
 
-	state := BarState{Current: current, Total: total, Elapsed: now.Sub(s.startTime)}
+	elapsed := now.Sub(s.startTime)
+	var rate float64
+	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
+		rate = float64(current) / secs
+	}
+	state := BarState{Current: current, Total: total, Elapsed: elapsed, Rate: rate}
 
 	var leftText, rightText string
 	if b.barStyle.WidgetLeft != nil {

@@ -10,6 +10,7 @@ type BarState struct {
 	Current int
 	Total   int
 	Elapsed time.Duration
+	Rate    float64 // items per second (0 when elapsed or current is 0)
 }
 
 // BarWidget renders a text label from the current bar state.
@@ -21,7 +22,8 @@ type WidgetOption func(*widget)
 
 // widget holds resolved options for widget constructors.
 type widget struct {
-	digits int // significant digits for bytes; decimal places for percent
+	digits int    // significant digits for bytes; decimal places for percent
+	unit   string // unit label for rate widgets (e.g. "ops", "files")
 }
 
 func applyWidgetOpts(w *widget, opts []WidgetOption) {
@@ -37,6 +39,12 @@ func applyWidgetOpts(w *widget, opts []WidgetOption) {
 //     0 → "42%"; 1 → "42.5%"
 func WithDigits(n int) WidgetOption {
 	return func(c *widget) { c.digits = n }
+}
+
+// WithUnit sets a unit label for rate widgets. For example, WithUnit("ops")
+// produces "150 ops/s" instead of "150/s".
+func WithUnit(unit string) WidgetOption {
+	return func(c *widget) { c.unit = unit }
 }
 
 // WidgetNone is a [BarWidget] that always returns "".
@@ -105,6 +113,112 @@ func widgetBytes(
 		cur := format(uint64(max(s.Current, 0)), w.digits)
 		return fmt.Sprintf("%*s / %s", cachedWidth, cur, cachedTotalStr)
 	}
+}
+
+// widgetPad returns a function that right-aligns strings to a stable width.
+// The width ratchets up to the longest string seen so far, preventing the
+// bar from jumping as formatted values change length.
+func widgetPad() func(string) string {
+	var w int
+	return func(s string) string {
+		w = max(w, len(s))
+		return fmt.Sprintf("%*s", w, s)
+	}
+}
+
+// WidgetETA returns a [BarWidget] that displays the estimated time remaining
+// based on elapsed time and current progress (e.g. "ETA 2m30s", "ETA 5s").
+// The result is right-aligned to the widest value seen so far to prevent the
+// bar from jumping as the ETA shrinks. Returns "" when the bar is complete
+// (current >= total), "ETA --" when the rate is zero (no progress yet).
+func WidgetETA(_ ...WidgetOption) BarWidget {
+	pad := widgetPad()
+
+	return func(s BarState) string {
+		if s.Total > 0 && s.Current >= s.Total {
+			return ""
+		}
+		if s.Rate <= 0 {
+			return pad("ETA --")
+		}
+		remaining := float64(s.Total-s.Current) / s.Rate
+		d := time.Duration(remaining * float64(time.Second))
+		return pad("ETA " + formatETA(d))
+	}
+}
+
+// WidgetRate returns a [BarWidget] that displays throughput in items per second
+// (e.g. "150/s", "1.5k/s"). The result is right-aligned to the widest value
+// seen so far to prevent the bar from jumping. Use [WithUnit] to add a label:
+// "150 ops/s".
+func WidgetRate(opts ...WidgetOption) BarWidget {
+	w := widget{}
+	applyWidgetOpts(&w, opts)
+
+	pad := widgetPad()
+
+	return func(s BarState) string {
+		return pad(formatRate(s.Rate, w.unit))
+	}
+}
+
+// WidgetBytesRate returns a [BarWidget] that displays throughput in SI byte
+// units per second (e.g. "82.9 MB/s", "1.5 GB/s"). The result is right-aligned
+// to the widest value seen so far to prevent the bar from jumping. Reuses the
+// SI formatting from [humanBytes].
+func WidgetBytesRate(opts ...WidgetOption) BarWidget {
+	w := widget{digits: 3} //nolint:mnd // default significant digits
+	applyWidgetOpts(&w, opts)
+
+	pad := widgetPad()
+
+	return func(s BarState) string {
+		if s.Rate <= 0 {
+			return pad("0 B/s")
+		}
+		return pad(humanBytes(uint64(s.Rate), w.digits) + "/s")
+	}
+}
+
+// WidgetIBytesRate returns a [BarWidget] that displays throughput in IEC byte
+// units per second (e.g. "82.9 MiB/s", "1.5 GiB/s"). The result is right-aligned
+// to the widest value seen so far to prevent the bar from jumping. Reuses the
+// IEC formatting from [humanIBytes].
+func WidgetIBytesRate(opts ...WidgetOption) BarWidget {
+	w := widget{digits: 3} //nolint:mnd // default significant digits
+	applyWidgetOpts(&w, opts)
+
+	pad := widgetPad()
+
+	return func(s BarState) string {
+		if s.Rate <= 0 {
+			return pad("0 B/s")
+		}
+		return pad(humanIBytes(uint64(s.Rate), w.digits) + "/s")
+	}
+}
+
+// formatRate formats items/second as a compact string: "0/s", "150/s", "1.5k/s".
+// When unit is non-empty it is inserted before the "/s": "150 ops/s".
+func formatRate(rate float64, unit string) string {
+	var num string
+	switch {
+	case rate <= 0:
+		num = "0"
+	case rate >= 1_000_000: //nolint:mnd // million threshold
+		num = trimDecimalZeros(fmt.Sprintf("%.1f", rate/1_000_000)) + "M" //nolint:mnd // million
+	case rate >= 1000: //nolint:mnd // kilo threshold
+		num = trimDecimalZeros(fmt.Sprintf("%.1f", rate/1000)) + "k" //nolint:mnd // kilo
+	case rate >= 1:
+		num = trimDecimalZeros(fmt.Sprintf("%.1f", rate))
+	default:
+		num = trimDecimalZeros(fmt.Sprintf("%.2f", rate))
+	}
+
+	if unit != "" {
+		return num + " " + unit + "/s"
+	}
+	return num + "/s"
 }
 
 // barPercentValue computes the clamped percentage as a float64.

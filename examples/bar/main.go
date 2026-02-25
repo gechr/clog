@@ -11,6 +11,7 @@ import (
 
 func main() {
 	stylesFlag := flag.Bool("styles", false, "show all bar style presets")
+	etaFlag := flag.Bool("eta", false, "show ETA, rate, and dynamic total demos")
 	flag.Parse()
 
 	clog.SetLevel(clog.TraceLevel)
@@ -18,6 +19,10 @@ func main() {
 
 	if *stylesFlag {
 		showStyles()
+		return
+	}
+	if *etaFlag {
+		showETA()
 		return
 	}
 
@@ -60,6 +65,76 @@ func main() {
 		}).
 		Prefix("✅").
 		Msg("Model downloaded")
+
+}
+
+func showETA() {
+	// ETA countdown with item rate.
+	etaStyle := clog.BarThin
+	etaStyle.WidgetLeft = clog.WidgetETA()
+	etaStyle.WidgetRight = clog.WidgetRate(clog.WithUnit("items"))
+
+	_ = clog.Bar("Processing", 500).
+		Style(etaStyle).
+		Elapsed("elapsed").
+		Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+			for i := range 501 {
+				p.SetProgress(i).Send()
+				time.Sleep(5 * time.Millisecond)
+			}
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Processing complete")
+
+	// ETA with byte throughput for a download.
+	downloadStyle := clog.BarSmooth
+	downloadStyle.ProgressGradient = clog.DefaultBarGradient()
+	downloadStyle.WidgetLeft = clog.WidgetETA()
+	downloadStyle.WidgetRight = clog.WidgetBytesRate()
+
+	totalBytes := 200 * 1000 * 1000
+	_ = clog.Bar("Downloading", totalBytes).
+		Style(downloadStyle).
+		Str("file", "dataset.tar.gz").
+		Elapsed("elapsed").
+		Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+			steps := 1000
+			for i := range steps + 1 {
+				p.SetProgress(totalBytes * i / steps).Send()
+				time.Sleep(3 * time.Millisecond)
+			}
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Download complete")
+
+	// Dynamic total with AddTotal — discovers more work mid-task.
+	scanStyle := clog.BarBlock
+	scanStyle.WidgetLeft = clog.WidgetETA()
+	scanStyle.WidgetRight = clog.WidgetPercent()
+
+	_ = clog.Bar("Scanning", 100).
+		Style(scanStyle).
+		Elapsed("elapsed").
+		Progress(context.Background(), func(_ context.Context, p *clog.ProgressUpdate) error {
+			for i := range 101 {
+				p.SetProgress(i).Send()
+				time.Sleep(5 * time.Millisecond)
+				// Halfway through, discover 50 more items.
+				if i == 50 {
+					p.AddTotal(50)
+				}
+			}
+			// Process the extra items.
+			for i := 101; i <= 150; i++ {
+				p.SetProgress(i).Send()
+				time.Sleep(5 * time.Millisecond)
+			}
+			return nil
+		}).
+		Prefix("✅").
+		Msg("Scan complete")
 }
 
 func showStyles() {

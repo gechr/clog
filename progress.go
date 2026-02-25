@@ -78,6 +78,20 @@ func (p *ProgressUpdate) SetTotal(total int) *ProgressUpdate {
 	return p
 }
 
+// AddTotal atomically adds delta to the total progress value for a bar animation.
+// The result is clamped to a minimum of 1. Use positive delta when discovering
+// additional work; negative delta to shrink the total.
+// No-op if this is not a bar animation.
+func (p *ProgressUpdate) AddTotal(delta int) *ProgressUpdate {
+	if p.totalPtr != nil {
+		newVal := p.totalPtr.Add(int64(delta))
+		if newVal < 1 {
+			p.totalPtr.CompareAndSwap(newVal, 1)
+		}
+	}
+	return p
+}
+
 // Msg sets the animation's displayed message.
 func (p *ProgressUpdate) Msg(msg string) *ProgressUpdate {
 	p.msg = msg
