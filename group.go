@@ -489,13 +489,17 @@ func captureTaskConfig(gt *groupTask) {
 	if b.parts != nil {
 		order = *b.parts
 	}
+	combinedTree := l.tree
+	if len(b.tree) > 0 {
+		combinedTree = append(append([]TreePos{}, l.tree...), b.tree...)
+	}
 	gt.cfg = taskConfig{
 		indentation: computeIndent(
 			l.indent+b.depth,
 			l.indentWidth,
 			l.indentPrefixes,
 			l.indentPrefixSep,
-		),
+		) + computeTreeIndent(combinedTree, l.treeChars),
 		isTTY:    l.output.IsTTY(),
 		label:    l.formatLabel(b.level),
 		noColor:  l.output.ColorsDisabled(),

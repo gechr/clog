@@ -32,4 +32,5 @@ type Entry struct {
 	Indent  int       `json:"indent,omitempty"`
 	Message string    `json:"message"`
 	Fields  []Field   `json:"fields,omitempty"`
+	Tree    []TreePos `json:"tree,omitempty"`
 }

@@ -130,6 +130,7 @@ type AnimationBuilder struct {
 	shimmerStops   []ColorStop
 	speed          Speed
 	spinner        SpinnerStyle
+	tree           []TreePos // additional tree levels applied to the animation
 }
 
 // resolveLogger returns the builder's logger, falling back to [Default].
@@ -141,12 +142,19 @@ func (b *AnimationBuilder) resolveLogger() *Logger {
 }
 
 // indentedLogger returns the builder's logger with any builder-level
-// indent depth applied. Used for completion logging so the result message
-// has the same indentation as the animation.
+// indent depth and tree levels applied. Used for completion logging so the
+// result message has the same indentation as the animation.
 func (b *AnimationBuilder) indentedLogger() *Logger {
 	l := b.resolveLogger()
-	if b.depth > 0 {
-		l = l.With().Depth(b.depth).Logger()
+	if b.depth > 0 || len(b.tree) > 0 {
+		ctx := l.With()
+		if b.depth > 0 {
+			ctx = ctx.Depth(b.depth)
+		}
+		for _, pos := range b.tree {
+			ctx = ctx.Tree(pos)
+		}
+		l = ctx.Logger()
 	}
 	return l
 }
@@ -170,6 +178,13 @@ func (b *AnimationBuilder) Depth(n int) *AnimationBuilder {
 // Indent adds one indent level to the animation output. Chainable.
 func (b *AnimationBuilder) Indent() *AnimationBuilder {
 	b.depth++
+	return b
+}
+
+// Tree adds one tree-nesting level with the given position to the animation
+// output. Chainable. See [Context.Tree] for details on tree indentation.
+func (b *AnimationBuilder) Tree(pos TreePos) *AnimationBuilder {
+	b.tree = append(b.tree, pos)
 	return b
 }
 

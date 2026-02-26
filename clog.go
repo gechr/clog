@@ -211,6 +211,41 @@ const (
 	PartFields
 )
 
+// TreePos identifies a node's position among its siblings in a tree.
+type TreePos int
+
+const (
+	// TreeFirst marks the first sibling. Renders the same as [TreeMiddle]
+	// by default, but can be customised via [Logger.SetTreeChars].
+	TreeFirst TreePos = iota
+	// TreeMiddle marks a middle sibling (more siblings follow).
+	TreeMiddle
+	// TreeLast marks the last sibling (no more siblings follow).
+	TreeLast
+)
+
+// TreeChars defines the box-drawing characters used by tree indentation.
+// Override with [Logger.SetTreeChars].
+type TreeChars struct {
+	First    string // connector for [TreeFirst]  (default "├── ")
+	Middle   string // connector for [TreeMiddle] (default "├── ")
+	Last     string // connector for [TreeLast]   (default "└── ")
+	Continue string // ancestor line when parent is First/Middle (default "│   ")
+	Blank    string // ancestor line when parent is Last         (default "    ")
+}
+
+// DefaultTreeChars returns the default box-drawing characters for tree
+// indentation.
+func DefaultTreeChars() TreeChars {
+	return TreeChars{
+		First:    "├── ",
+		Middle:   "├── ",
+		Last:     "└── ",
+		Continue: "│   ",
+		Blank:    "    ",
+	}
+}
+
 // ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
 type ctxKey struct{}
 
@@ -256,6 +291,8 @@ type Logger struct {
 	styles                  *Styles
 	timeFormat              string
 	timeLocation            *time.Location
+	tree                    []TreePos // nil = no tree mode; one entry per tree level
+	treeChars               TreeChars // box-drawing characters for tree indentation
 }
 
 // New creates a new [Logger] that writes to the given [Output].
@@ -281,6 +318,7 @@ func New(output *Output) *Logger {
 		styles:                  DefaultStyles().WithRenderer(output.Renderer()),
 		timeFormat:              "15:04:05.000",
 		timeLocation:            time.Local,
+		treeChars:               DefaultTreeChars(),
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
 	l.labelWidth = computeLabelWidth(l.labels)
@@ -415,6 +453,14 @@ func (l *Logger) SetIndentWidth(width int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.indentWidth = width
+}
+
+// SetTreeChars sets the box-drawing characters used for tree indentation.
+// See [DefaultTreeChars] for the defaults.
+func (l *Logger) SetTreeChars(chars TreeChars) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.treeChars = chars
 }
 
 // SetHandler sets a custom log handler. When set, the handler receives all
@@ -640,6 +686,7 @@ func (l *Logger) With() *Context {
 		indent: l.indent,
 		logger: l,
 		prefix: l.prefix,
+		tree:   append([]TreePos{}, l.tree...),
 	}
 	c.fields = fields
 	c.initSelf(c)
@@ -684,9 +731,18 @@ func (l *Logger) colorsDisabled() bool {
 	return l.output.ColorsDisabled()
 }
 
-// indentation returns the indent string for the current indent level.
+// indentation returns the indent string for the current indent level,
+// including any tree-drawing connectors.
 func (l *Logger) indentation() string {
-	return computeIndent(l.indent, l.indentWidth, l.indentPrefixes, l.indentPrefixSep)
+	return computeIndent(
+		l.indent,
+		l.indentWidth,
+		l.indentPrefixes,
+		l.indentPrefixSep,
+	) + computeTreeIndent(
+		l.tree,
+		l.treeChars,
+	)
 }
 
 // computeIndent builds the indent string for the given depth.
@@ -705,6 +761,37 @@ func computeIndent(depth, width int, prefixes []string, sep *string) string {
 		s += prefixes[(depth-1)%len(prefixes)] + psep
 	}
 	return s
+}
+
+// computeTreeIndent builds the tree-drawing prefix for the given tree
+// positions. Each ancestor level renders a continuation line (│ or blank)
+// and the deepest level renders its connector (├── or └──).
+func computeTreeIndent(tree []TreePos, chars TreeChars) string {
+	if len(tree) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	for i, pos := range tree {
+		if i == len(tree)-1 {
+			// Deepest level — draw the connector.
+			switch pos {
+			case TreeFirst:
+				b.WriteString(chars.First)
+			case TreeMiddle:
+				b.WriteString(chars.Middle)
+			case TreeLast:
+				b.WriteString(chars.Last)
+			}
+		} else {
+			// Ancestor level — draw continuation or blank.
+			if pos == TreeLast {
+				b.WriteString(chars.Blank)
+			} else {
+				b.WriteString(chars.Continue)
+			}
+		}
+	}
+	return b.String()
 }
 
 // exit calls the logger's exit function (used by Fatal-level events).
@@ -800,6 +887,7 @@ func (l *Logger) log(e *Event, msg string) {
 			Indent:  l.indent,
 			Message: msg,
 			Fields:  allFields,
+			Tree:    l.tree,
 		}
 		if !e.timestamp.IsZero() {
 			entry.Time = e.timestamp.In(l.timeLocation)
@@ -858,7 +946,7 @@ func (l *Logger) log(e *Event, msg string) {
 
 			s = prefix
 		case PartMessage:
-			if msg == "" && l.indent == 0 {
+			if msg == "" && l.indent == 0 && len(l.tree) == 0 {
 				continue
 			}
 
@@ -868,7 +956,7 @@ func (l *Logger) log(e *Event, msg string) {
 				s = msg
 			}
 
-			if l.indent > 0 {
+			if l.indent > 0 || len(l.tree) > 0 {
 				s = l.indentation() + s
 			}
 		case PartFields:
@@ -1119,6 +1207,9 @@ func SetSeparatorText(sep string) { Default.SetSeparatorText(sep) }
 
 // SetStyles sets the display styles on the [Default] logger.
 func SetStyles(styles *Styles) { Default.SetStyles(styles) }
+
+// SetTreeChars sets the tree-drawing characters on the [Default] logger.
+func SetTreeChars(chars TreeChars) { Default.SetTreeChars(chars) }
 
 // SetTimeFormat sets the timestamp format on the [Default] logger.
 func SetTimeFormat(format string) { Default.SetTimeFormat(format) }

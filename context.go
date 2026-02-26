@@ -9,7 +9,8 @@ type Context struct {
 
 	indent int // accumulated indent level
 	logger *Logger
-	prefix *string // nil = inherit from parent logger
+	prefix *string   // nil = inherit from parent logger
+	tree   []TreePos // accumulated tree positions
 }
 
 // Dedent removes one indent level from the sub-logger, down to a minimum of
@@ -106,6 +107,7 @@ func (c *Context) Logger() *Logger {
 	l.fields = c.fields                 // override with context fields
 	l.indent = c.indent                 // override with accumulated indent
 	l.prefix = c.prefix                 // override with context prefix
+	l.tree = c.tree                     // override with accumulated tree
 	l.atomicLevel.Store(int32(l.level)) //nolint:gosec // Level values are small constants (0-6)
 	return l
 }
@@ -123,6 +125,15 @@ func (c *Context) Path(key, path string) *Context {
 // Prefix sets a custom prefix for the sub-logger.
 func (c *Context) Prefix(prefix string) *Context {
 	c.prefix = new(prefix)
+	return c
+}
+
+// Tree adds one tree-nesting level with the given position. Each call
+// deepens the tree by one level, drawing box-drawing connectors (├──, └──, │)
+// automatically. Combine with [Context.Indent] to add space-based indent
+// before the tree connectors.
+func (c *Context) Tree(pos TreePos) *Context {
+	c.tree = append(c.tree, pos)
 	return c
 }
 
@@ -179,5 +190,7 @@ func (l *Logger) clone() *Logger {
 		styles:                  l.styles,
 		timeFormat:              l.timeFormat,
 		timeLocation:            l.timeLocation,
+		tree:                    append([]TreePos{}, l.tree...),
+		treeChars:               l.treeChars,
 	}
 }
