@@ -729,7 +729,7 @@ func TestBarPresetsHaveWidgetRight(t *testing.T) {
 func TestWidgetETA(t *testing.T) {
 	t.Run("zero_rate", func(t *testing.T) {
 		w := WidgetETA()
-		assert.Equal(t, "ETA --", w(BarState{Current: 0, Total: 100, Rate: 0}))
+		assert.Equal(t, "ETA ∞", w(BarState{Current: 0, Total: 100, Rate: 0}))
 	})
 
 	t.Run("complete", func(t *testing.T) {
@@ -766,7 +766,7 @@ func TestWidgetETA(t *testing.T) {
 	t.Run("zero_rate_pads_to_high_water_mark", func(t *testing.T) {
 		w := WidgetETA()
 		first := w(BarState{Current: 100, Total: 1000, Rate: 10}) // "ETA 1m30s"
-		noRate := w(BarState{Current: 100, Total: 1000, Rate: 0}) // "ETA --" padded
+		noRate := w(BarState{Current: 100, Total: 1000, Rate: 0}) // "ETA ∞" padded
 		assert.Len(t, noRate, len(first))
 	})
 }
@@ -852,6 +852,61 @@ func TestWidgetSeparator(t *testing.T) {
 	w := WidgetSeparator("│")
 	assert.Equal(t, "│", w(BarState{}))
 	assert.Equal(t, "│", w(BarState{Current: 50, Total: 100}))
+}
+
+func TestWidgetSeparatorWithStyle(t *testing.T) {
+	st := new(lipgloss.NewStyle().Faint(true))
+	w := WidgetSeparator("│", WithStyle(st))
+	assert.Equal(t, st.Render("│"), w(BarState{}))
+	assert.Equal(t, st.Render("│"), w(BarState{Current: 50, Total: 100}))
+}
+
+// TestWithStylePaddingIsPlain verifies that WithStyle styles the content string
+// only - leading alignment spaces must be plain so background colours don't bleed.
+func TestWithStylePaddingIsPlain(t *testing.T) {
+	r := lipgloss.DefaultRenderer()
+	old := r.ColorProfile()
+	r.SetColorProfile(termenv.TrueColor)
+	t.Cleanup(func() { r.SetColorProfile(old) })
+
+	st := new(lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("1")))
+
+	t.Run("WidgetPercent", func(t *testing.T) {
+		w := WidgetPercent(WithStyle(st))
+		// At 0%, padded to "100%" width (4 chars): leading "  " should be plain spaces.
+		result := w(BarState{Current: 0, Total: 100})
+		assert.Equal(t, "  "+st.Render("0%"), result)
+	})
+
+	t.Run("WidgetETA", func(t *testing.T) {
+		w := WidgetETA(WithStyle(st))
+		wide := w(
+			BarState{Current: 0, Total: 100, Rate: 1},
+		) // "ETA 1m40s" - sets high-water mark
+		narrow := w(BarState{Current: 90, Total: 100, Rate: 1}) // "ETA 10s" - padded
+		// The wide value has no leading spaces (it IS the max width).
+		assert.Equal(t, st.Render("ETA 1m40s"), wide)
+		// The narrow value should have plain leading spaces, then styled content.
+		assert.Equal(t, "  "+st.Render("ETA 10s"), narrow)
+	})
+
+	t.Run("WidgetRate", func(t *testing.T) {
+		w := WidgetRate(WithStyle(st))
+		wide := w(BarState{Rate: 1500})  // "1.5k/s" - sets high-water mark
+		narrow := w(BarState{Rate: 150}) // "150/s" padded
+		assert.Equal(t, st.Render("1.5k/s"), wide)
+		assert.Equal(t, " "+st.Render("150/s"), narrow)
+	})
+
+	t.Run("WidgetBytes", func(t *testing.T) {
+		w := WidgetBytes(WithStyle(st))
+		total := 100 * 1000 * 1000
+		// First call sets width; "82.9 MB" is the widest current format.
+		_ = w(BarState{Current: 82_854_982, Total: total})
+		// "50 MB" is shorter → leading spaces, then styled "50 MB / 100 MB".
+		result := w(BarState{Current: 50_000_000, Total: total})
+		assert.Equal(t, "  "+st.Render("50 MB / 100 MB"), result)
+	})
 }
 
 func TestWidgetsWithSeparator(t *testing.T) {

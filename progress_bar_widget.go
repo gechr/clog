@@ -24,6 +24,7 @@ type WidgetOption func(*widget)
 // widget holds resolved options for widget constructors.
 type widget struct {
 	digits int    // significant digits for bytes; decimal places for percent
+	style  Style  // optional lipgloss style applied to the widget's output
 	unit   string // unit label for rate widgets (e.g. "ops", "files")
 }
 
@@ -33,6 +34,15 @@ func applyWidgetOpts(w *widget, opts []WidgetOption) {
 	}
 }
 
+// render applies the widget's style to s, or returns s unchanged when no style
+// is set or s is empty (preserving the empty signal used by [Widgets]).
+func (w widget) render(s string) string {
+	if s == "" || w.style == nil {
+		return s
+	}
+	return w.style.Render(s)
+}
+
 // WithDigits configures the precision of formatted values.
 //   - [WidgetBytes] / [WidgetIBytes]: significant digits (default 3).
 //     3 → "82.9 MB", "1 GB"; 2 → "83 MB", "5.5 GB"
@@ -40,6 +50,13 @@ func applyWidgetOpts(w *widget, opts []WidgetOption) {
 //     0 → "42%"; 1 → "42.5%"
 func WithDigits(n int) WidgetOption {
 	return func(c *widget) { c.digits = n }
+}
+
+// WithStyle sets a lipgloss style applied to the widget's output string.
+// Accepted by all built-in widgets. Empty outputs (e.g. [WidgetETA] when
+// complete) are never styled.
+func WithStyle(style Style) WidgetOption {
+	return func(c *widget) { c.style = style }
 }
 
 // WithUnit sets a unit label for rate widgets. For example, WithUnit("ops")
@@ -72,8 +89,15 @@ func Widgets(widgets ...BarWidget) BarWidget {
 // Use it inside [Widgets] to place a visual divider between other widgets:
 //
 //	style.WidgetRight = clog.Widgets(clog.WidgetETA(), clog.WidgetSeparator("│"), clog.WidgetRate())
-func WidgetSeparator(s string) BarWidget {
-	return func(BarState) string { return s }
+//
+// Pass [WithStyle] to apply a lipgloss style to the separator:
+//
+//	sep := new(lipgloss.NewStyle().Faint(true))
+//	style.WidgetRight = clog.Widgets(clog.WidgetETA(), clog.WidgetSeparator("│", clog.WithStyle(sep)), clog.WidgetRate())
+func WidgetSeparator(s string, opts ...WidgetOption) BarWidget {
+	w := widget{}
+	applyWidgetOpts(&w, opts)
+	return func(BarState) string { return w.render(s) }
 }
 
 // WidgetBytes returns a [BarWidget] that displays download-style progress
@@ -109,7 +133,11 @@ func WidgetPercent(opts ...WidgetOption) BarWidget {
 	return func(s BarState) string {
 		pct := barPercentValue(s.Current, s.Total)
 		str := trimDecimalZeros(fmt.Sprintf("%.*f", w.digits, pct)) + "%"
-		return fmt.Sprintf("%*s", padWidth, str)
+		padding := padWidth - len(str)
+		if padding > 0 {
+			return strings.Repeat(" ", padding) + w.render(str)
+		}
+		return w.render(str)
 	}
 }
 
@@ -136,18 +164,27 @@ func widgetBytes(
 			cachedWidth = maxWidth(tot, w.digits)
 		}
 		cur := format(uint64(max(s.Current, 0)), w.digits)
-		return fmt.Sprintf("%*s / %s", cachedWidth, cur, cachedTotalStr)
+		padding := cachedWidth - len(cur)
+		if padding > 0 {
+			return strings.Repeat(" ", padding) + w.render(cur+" / "+cachedTotalStr)
+		}
+		return w.render(cur + " / " + cachedTotalStr)
 	}
 }
 
-// widgetPad returns a function that right-aligns strings to a stable width.
-// The width ratchets up to the longest string seen so far, preventing the
-// bar from jumping as formatted values change length.
-func widgetPad() func(string) string {
-	var w int
-	return func(s string) string {
-		w = max(w, len(s))
-		return fmt.Sprintf("%*s", w, s)
+// widgetPad returns a function that right-aligns content to a stable width.
+// raw is the unstyled string used for width tracking; content is what is
+// actually displayed (potentially styled). Padding spaces are always plain so
+// that background colours do not bleed into alignment space.
+func widgetPad() func(raw, content string) string {
+	var maxW int
+	return func(raw, content string) string {
+		maxW = max(maxW, len(raw))
+		padding := maxW - len(raw)
+		if padding > 0 {
+			return strings.Repeat(" ", padding) + content
+		}
+		return content
 	}
 }
 
@@ -155,20 +192,25 @@ func widgetPad() func(string) string {
 // based on elapsed time and current progress (e.g. "ETA 2m30s", "ETA 5s").
 // The result is right-aligned to the widest value seen so far to prevent the
 // bar from jumping as the ETA shrinks. Returns "" when the bar is complete
-// (current >= total), "ETA --" when the rate is zero (no progress yet).
-func WidgetETA(_ ...WidgetOption) BarWidget {
+// (current >= total), "ETA ∞" when the rate is zero (no progress yet).
+func WidgetETA(opts ...WidgetOption) BarWidget {
+	w := widget{}
+	applyWidgetOpts(&w, opts)
 	pad := widgetPad()
 
 	return func(s BarState) string {
 		if s.Total > 0 && s.Current >= s.Total {
 			return ""
 		}
+		var raw string
 		if s.Rate <= 0 {
-			return pad("ETA --")
+			raw = "ETA ∞"
+		} else {
+			remaining := float64(s.Total-s.Current) / s.Rate
+			d := time.Duration(remaining * float64(time.Second))
+			raw = "ETA " + formatETA(d)
 		}
-		remaining := float64(s.Total-s.Current) / s.Rate
-		d := time.Duration(remaining * float64(time.Second))
-		return pad("ETA " + formatETA(d))
+		return pad(raw, w.render(raw))
 	}
 }
 
@@ -183,7 +225,8 @@ func WidgetRate(opts ...WidgetOption) BarWidget {
 	pad := widgetPad()
 
 	return func(s BarState) string {
-		return pad(formatRate(s.Rate, w.unit))
+		raw := formatRate(s.Rate, w.unit)
+		return pad(raw, w.render(raw))
 	}
 }
 
@@ -198,10 +241,13 @@ func WidgetBytesRate(opts ...WidgetOption) BarWidget {
 	pad := widgetPad()
 
 	return func(s BarState) string {
+		var raw string
 		if s.Rate <= 0 {
-			return pad("0 B/s")
+			raw = "0 B/s"
+		} else {
+			raw = humanBytes(uint64(s.Rate), w.digits) + "/s"
 		}
-		return pad(humanBytes(uint64(s.Rate), w.digits) + "/s")
+		return pad(raw, w.render(raw))
 	}
 }
 
@@ -216,10 +262,13 @@ func WidgetIBytesRate(opts ...WidgetOption) BarWidget {
 	pad := widgetPad()
 
 	return func(s BarState) string {
+		var raw string
 		if s.Rate <= 0 {
-			return pad("0 B/s")
+			raw = "0 B/s"
+		} else {
+			raw = humanIBytes(uint64(s.Rate), w.digits) + "/s"
 		}
-		return pad(humanIBytes(uint64(s.Rate), w.digits) + "/s")
+		return pad(raw, w.render(raw))
 	}
 }
 
