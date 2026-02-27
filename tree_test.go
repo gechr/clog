@@ -237,7 +237,7 @@ func TestTreeCustomCharsContinuation(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Clone preservation — parent mutation after clone must not affect child
+// Clone preservation - parent mutation after clone must not affect child
 // ---------------------------------------------------------------------------
 
 func TestTreeClonePreservesTree(t *testing.T) {
@@ -454,7 +454,7 @@ func TestComputeTreeIndentMixedAncestors(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Animation tree (non-TTY path — TestOutput is non-TTY)
+// Animation tree (non-TTY path - TestOutput is non-TTY)
 // ---------------------------------------------------------------------------
 
 func TestSpinnerTree(t *testing.T) {

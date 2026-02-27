@@ -822,6 +822,44 @@ func TestWidgetIBytesRate(t *testing.T) {
 	})
 }
 
+func TestWidgets(t *testing.T) {
+	a := func(BarState) string { return "AAA" }
+	b := func(BarState) string { return "BBB" }
+	w := Widgets(a, b)
+	assert.Equal(t, "AAA BBB", w(BarState{}))
+}
+
+func TestWidgetsSkipsEmpty(t *testing.T) {
+	a := func(BarState) string { return "AAA" }
+	empty := func(BarState) string { return "" }
+	b := func(BarState) string { return "BBB" }
+	w := Widgets(a, empty, b)
+	assert.Equal(t, "AAA BBB", w(BarState{}))
+}
+
+func TestWidgetsSingle(t *testing.T) {
+	a := func(BarState) string { return "AAA" }
+	w := Widgets(a)
+	assert.Equal(t, "AAA", w(BarState{}))
+}
+
+func TestWidgetsEmpty(t *testing.T) {
+	w := Widgets()
+	assert.Empty(t, w(BarState{}))
+}
+
+func TestWidgetSeparator(t *testing.T) {
+	w := WidgetSeparator("│")
+	assert.Equal(t, "│", w(BarState{}))
+	assert.Equal(t, "│", w(BarState{Current: 50, Total: 100}))
+}
+
+func TestWidgetsWithSeparator(t *testing.T) {
+	w := Widgets(WidgetETA(), WidgetSeparator("│"), WidgetRate())
+	result := w(BarState{Current: 50, Total: 100, Rate: 10})
+	assert.Equal(t, "ETA 5s │ 10/s", result)
+}
+
 func TestBarStateRate(t *testing.T) {
 	// Rate is set to 0 when elapsed or current is 0.
 	state := BarState{Current: 0, Total: 100, Elapsed: time.Second}

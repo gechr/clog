@@ -773,7 +773,7 @@ func computeTreeIndent(tree []TreePos, chars TreeChars) string {
 	var b strings.Builder
 	for i, pos := range tree {
 		if i == len(tree)-1 {
-			// Deepest level — draw the connector.
+			// Deepest level - draw the connector.
 			switch pos {
 			case TreeFirst:
 				b.WriteString(chars.First)
@@ -783,7 +783,7 @@ func computeTreeIndent(tree []TreePos, chars TreeChars) string {
 				b.WriteString(chars.Last)
 			}
 		} else {
-			// Ancestor level — draw continuation or blank.
+			// Ancestor level - draw continuation or blank.
 			if pos == TreeLast {
 				b.WriteString(chars.Blank)
 			} else {

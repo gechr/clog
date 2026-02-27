@@ -93,7 +93,7 @@ func TestIndentEmptyMessage(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// SetIndent (direct) — bypasses With().Indent() context chain
+// SetIndent (direct) - bypasses With().Indent() context chain
 // ---------------------------------------------------------------------------
 
 func TestSetIndentDirect(t *testing.T) {
@@ -398,7 +398,7 @@ func TestIndentWithEventPrefix(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Clone preservation — child must not be affected by parent mutations
+// Clone preservation - child must not be affected by parent mutations
 // ---------------------------------------------------------------------------
 
 func TestIndentClonePreservesSettings(t *testing.T) {
@@ -522,7 +522,7 @@ func TestIndentAndDepthMixed(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Animation indent (non-TTY path — TestOutput is non-TTY)
+// Animation indent (non-TTY path - TestOutput is non-TTY)
 // ---------------------------------------------------------------------------
 
 func TestSpinnerIndent(t *testing.T) {

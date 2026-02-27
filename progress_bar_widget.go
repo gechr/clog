@@ -2,6 +2,7 @@ package clog
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -50,6 +51,30 @@ func WithUnit(unit string) WidgetOption {
 // WidgetNone is a [BarWidget] that always returns "".
 // Use it to explicitly suppress the default percent display.
 var WidgetNone BarWidget = func(BarState) string { return "" }
+
+// Widgets combines multiple [BarWidget] functions into a single [BarWidget].
+// The outputs are joined with a space separator; empty outputs are skipped.
+//
+//	style.WidgetRight = clog.Widgets(clog.WidgetETA(), clog.WidgetRate())
+func Widgets(widgets ...BarWidget) BarWidget {
+	return func(s BarState) string {
+		var parts []string
+		for _, w := range widgets {
+			if text := w(s); text != "" {
+				parts = append(parts, text)
+			}
+		}
+		return strings.Join(parts, " ")
+	}
+}
+
+// WidgetSeparator returns a [BarWidget] that always renders the given string.
+// Use it inside [Widgets] to place a visual divider between other widgets:
+//
+//	style.WidgetRight = clog.Widgets(clog.WidgetETA(), clog.WidgetSeparator("│"), clog.WidgetRate())
+func WidgetSeparator(s string) BarWidget {
+	return func(BarState) string { return s }
+}
 
 // WidgetBytes returns a [BarWidget] that displays download-style progress
 // in human-readable SI byte units (e.g. "1.5 GB / 2 GB"). The [BarState]

@@ -69,10 +69,13 @@ func main() {
 }
 
 func showETA() {
-	// ETA countdown with item rate.
+	// ETA countdown with item rate composed on the right.
 	etaStyle := clog.BarThin
-	etaStyle.WidgetLeft = clog.WidgetETA()
-	etaStyle.WidgetRight = clog.WidgetRate(clog.WithUnit("items"))
+	etaStyle.WidgetRight = clog.Widgets(
+		clog.WidgetETA(),
+		clog.WidgetSeparator("│"),
+		clog.WidgetRate(clog.WithUnit("items")),
+	)
 
 	_ = clog.Bar("Processing", 500).
 		Style(etaStyle).
@@ -109,7 +112,7 @@ func showETA() {
 		Prefix("✅").
 		Msg("Download complete")
 
-	// Dynamic total with AddTotal — discovers more work mid-task.
+	// Dynamic total with AddTotal - discovers more work mid-task.
 	scanStyle := clog.BarBlock
 	scanStyle.WidgetLeft = clog.WidgetETA()
 	scanStyle.WidgetRight = clog.WidgetPercent()
