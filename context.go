@@ -103,12 +103,14 @@ func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
 	l := c.logger.clone()
-	l.mu = c.logger.mu                  // share mutex
-	l.fields = c.fields                 // override with context fields
-	l.indent = c.indent                 // override with accumulated indent
-	l.prefix = c.prefix                 // override with context prefix
-	l.tree = c.tree                     // override with accumulated tree
-	l.atomicLevel.Store(int32(l.level)) //nolint:gosec // Level values are small constants (0-6)
+	l.mu = c.logger.mu  // share mutex
+	l.fields = c.fields // override with context fields
+	l.indent = c.indent // override with accumulated indent
+	l.prefix = c.prefix // override with context prefix
+	l.tree = c.tree     // override with accumulated tree
+	l.atomicLevel.Store(
+		int32(l.level), //nolint:gosec // Level values are small constants (-10 to 15)
+	)
 	return l
 }
 

@@ -1,6 +1,6 @@
 <h1 align="center"><code>clog</code></h1>
 
-Structured CLI logging for Go with terminal-aware colours, hyperlinks, and animations. A [zerolog](https://github.com/rs/zerolog)-style fluent API designed for command-line tools.
+A highly customizable structured logger for command-line tools with a [zerolog](https://github.com/rs/zerolog)-inspired fluent API, terminal-aware colours, hyperlinks, animations, and custom log levels.
 
 ## Demo
 

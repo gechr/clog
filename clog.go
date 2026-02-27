@@ -77,14 +77,88 @@ var levelLabels = LevelMap{
 type Level int
 
 const (
-	TraceLevel Level = iota
-	DebugLevel
-	InfoLevel
-	DryLevel
-	WarnLevel
-	ErrorLevel
-	FatalLevel
+	TraceLevel Level = -10
+	DebugLevel Level = -5
+	InfoLevel  Level = 0
+	DryLevel   Level = 2 // clog-specific, between Info and Warn
+	WarnLevel  Level = 5
+	ErrorLevel Level = 10
+	FatalLevel Level = 15
 )
+
+// defaultMaxLabelLen is the maximum length of an auto-generated level label.
+const defaultMaxLabelLen = 3
+
+// builtinLevels is the set of built-in levels that cannot be overridden by [RegisterLevel].
+var builtinLevels = map[Level]bool{
+	TraceLevel: true,
+	DebugLevel: true,
+	InfoLevel:  true,
+	DryLevel:   true,
+	WarnLevel:  true,
+	ErrorLevel: true,
+	FatalLevel: true,
+}
+
+// customLevelsMu guards the custom levels registry and the maps it updates.
+var customLevelsMu sync.RWMutex
+
+// customLevels holds custom level registrations.
+var customLevels = map[Level]LevelConfig{}
+
+// LevelConfig configures a custom log level for use with [RegisterLevel].
+type LevelConfig struct {
+	Name   string // canonical name for ParseLevel/MarshalText (e.g., "success") [required]
+	Label  string // short display label (e.g., "SCS") [default: uppercase Name, max 3 chars]
+	Prefix string // emoji prefix (e.g., "✅") [default: ""]
+	Style  Style  // lipgloss style for the level label [default: nil]
+}
+
+// RegisterLevel registers a custom log level with the given numeric value
+// and configuration. The level value must not conflict with a built-in level.
+//
+// After registration the level works with [ParseLevel], [Level.MarshalText],
+// [Level.String], and the [Default] logger's labels, prefixes, and styles.
+//
+// RegisterLevel panics if cfg.Name is empty or level conflicts with a built-in level.
+func RegisterLevel(level Level, cfg LevelConfig) {
+	if cfg.Name == "" {
+		panic("clog: RegisterLevel requires a non-empty Name")
+	}
+	if builtinLevels[level] {
+		panic(fmt.Sprintf("clog: RegisterLevel cannot override built-in level %d", int(level)))
+	}
+
+	// Default label: uppercase name, max 3 chars.
+	if cfg.Label == "" {
+		label := strings.ToUpper(cfg.Name)
+		if len(label) > defaultMaxLabelLen {
+			label = label[:defaultMaxLabelLen]
+		}
+		cfg.Label = label
+	}
+
+	customLevelsMu.Lock()
+	customLevels[level] = cfg
+	levelNames[level] = cfg.Name
+	levelLabels[level] = cfg.Label
+	defaultPrefixes[level] = cfg.Prefix
+	customLevelsMu.Unlock()
+
+	// Update the Default logger.
+	Default.mu.Lock()
+	Default.labels[level] = cfg.Label
+	Default.prefixes[level] = cfg.Prefix
+	Default.labelWidth = computeLabelWidth(Default.labels)
+	Default.recomputePaddedLabels()
+	if cfg.Style != nil {
+		if Default.styles.Levels == nil {
+			Default.styles.Levels = make(LevelStyleMap)
+		}
+		Default.styles.Levels[level] = cfg.Style
+	}
+	Default.mu.Unlock()
+}
 
 // levelNames maps Level constants to their canonical lowercase names.
 var levelNames = map[Level]string{
@@ -144,6 +218,15 @@ func ParseLevel(s string) (Level, error) {
 	case LevelFatal, "critical":
 		return FatalLevel, nil
 	default:
+		// Check custom levels registry.
+		customLevelsMu.RLock()
+		defer customLevelsMu.RUnlock()
+		lower := strings.ToLower(s)
+		for lvl, cfg := range customLevels {
+			if strings.ToLower(cfg.Name) == lower {
+				return lvl, nil
+			}
+		}
 		return 0, fmt.Errorf("unknown level: %q", s)
 	}
 }
@@ -476,7 +559,7 @@ func (l *Logger) SetLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.level = level
-	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (0-6)
+	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (-10 to 15)
 }
 
 // SetLevelAlign sets the alignment mode for level labels.
@@ -697,6 +780,10 @@ func (l *Logger) With() *Context {
 func (l *Logger) WithContext(ctx context.Context) context.Context {
 	return context.WithValue(ctx, ctxKey{}, l)
 }
+
+// Log returns a new [Event] at the given level. Use this for custom levels
+// registered with [RegisterLevel].
+func (l *Logger) Log(level Level) *Event { return l.newEvent(level) }
 
 // Trace returns a new [Event] at trace level, or nil if trace is disabled.
 func (l *Logger) Trace() *Event { return l.newEvent(TraceLevel) }
@@ -1003,7 +1090,7 @@ func (l *Logger) log(e *Event, msg string) {
 func (l *Logger) newEvent(level Level) *Event {
 	// Fast path: lock-free level check to skip disabled events without
 	// acquiring the mutex.
-	//nolint:gosec // Level values are small constants (0-6)
+	//nolint:gosec // Level values are small constants (-10 to 15)
 	if int32(level) < l.atomicLevel.Load() {
 		return nil
 	}
@@ -1072,6 +1159,19 @@ func DefaultParts() []Part {
 // DefaultPrefixes returns a copy of the default emoji prefixes for each level.
 func DefaultPrefixes() LevelMap {
 	return maps.Clone(defaultPrefixes)
+}
+
+// Levels returns all registered levels (built-in and custom) in ascending
+// severity order.
+func Levels() []Level {
+	customLevelsMu.RLock()
+	levels := make([]Level, 0, len(levelNames))
+	for lvl := range levelNames {
+		levels = append(levels, lvl)
+	}
+	customLevelsMu.RUnlock()
+	slices.Sort(levels)
+	return levels
 }
 
 // SetVerbose enables or disables verbose mode on the [Default] logger.
@@ -1243,6 +1343,10 @@ func Dict() *Event { return &Event{} }
 // Divider returns a new [DividerBuilder] for rendering a horizontal rule
 // using the [Default] logger.
 func Divider() *DividerBuilder { return Default.Divider() }
+
+// Log returns a new [Event] at the given level from the [Default] logger.
+// Use this for custom levels registered with [RegisterLevel].
+func Log(level Level) *Event { return Default.Log(level) }
 
 // Trace returns a new trace-level [Event] from the [Default] logger.
 func Trace() *Event { return Default.Trace() }

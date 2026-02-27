@@ -1788,7 +1788,7 @@ func TestLevelUnmarshalTextUnknown(t *testing.T) {
 }
 
 func TestLevelMarshalRoundTrip(t *testing.T) {
-	for level := TraceLevel; level <= FatalLevel; level++ {
+	for _, level := range Levels() {
 		text, err := level.MarshalText()
 		require.NoError(t, err)
 
@@ -2247,4 +2247,154 @@ func TestWithContextAndCtx(t *testing.T) {
 		got := Ctx(ctx)
 		assert.Same(t, Default, got)
 	})
+}
+
+func TestRegisterLevel(t *testing.T) {
+	const testLevel Level = 1 // between Info (0) and Dry (2)
+
+	cleanup := registerTestLevel(t, testLevel, LevelConfig{
+		Name:   "success",
+		Label:  "SCS",
+		Prefix: "✅",
+	})
+	defer cleanup()
+
+	assert.Equal(t, "SCS", testLevel.String())
+
+	text, err := testLevel.MarshalText()
+	require.NoError(t, err)
+	assert.Equal(t, "success", string(text))
+
+	parsed, err := ParseLevel("success")
+	require.NoError(t, err)
+	assert.Equal(t, testLevel, parsed)
+
+	parsed, err = ParseLevel("SUCCESS")
+	require.NoError(t, err)
+	assert.Equal(t, testLevel, parsed)
+}
+
+func TestLogCustomLevel(t *testing.T) {
+	const testLevel Level = 1
+
+	cleanup := registerTestLevel(t, testLevel, LevelConfig{
+		Name:   "success",
+		Label:  "SCS",
+		Prefix: "✅",
+	})
+	defer cleanup()
+
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	l.SetLevel(InfoLevel)
+
+	// Register label/prefix on the test logger.
+	l.mu.Lock()
+	l.labels[testLevel] = "SCS"
+	l.prefixes[testLevel] = "✅"
+	l.labelWidth = computeLabelWidth(l.labels)
+	l.recomputePaddedLabels()
+	l.mu.Unlock()
+
+	l.Log(testLevel).Msg("Build completed")
+	assert.Equal(t, "SCS ✅ Build completed\n", buf.String())
+}
+
+func TestRegisterLevelFiltering(t *testing.T) {
+	const testLevel Level = 1
+
+	cleanup := registerTestLevel(t, testLevel, LevelConfig{
+		Name:  "success",
+		Label: "SCS",
+	})
+	defer cleanup()
+
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+
+	// Register label on the test logger.
+	l.mu.Lock()
+	l.labels[testLevel] = "SCS"
+	l.labelWidth = computeLabelWidth(l.labels)
+	l.recomputePaddedLabels()
+	l.mu.Unlock()
+
+	// Custom level (1) should be visible at InfoLevel (0).
+	l.SetLevel(InfoLevel)
+	l.Log(testLevel).Msg("visible")
+	assert.Contains(t, buf.String(), "visible")
+
+	// Custom level (1) should be hidden at WarnLevel (5).
+	buf.Reset()
+	l.SetLevel(WarnLevel)
+	e := l.Log(testLevel)
+	assert.Nil(t, e, "custom level should be filtered when below minimum")
+}
+
+func TestRegisterLevelPanics(t *testing.T) {
+	t.Run("empty_name", func(t *testing.T) {
+		assert.PanicsWithValue(t, "clog: RegisterLevel requires a non-empty Name", func() {
+			RegisterLevel(99, LevelConfig{})
+		})
+	})
+
+	t.Run("builtin_conflict", func(t *testing.T) {
+		assert.PanicsWithValue(t, "clog: RegisterLevel cannot override built-in level 0", func() {
+			RegisterLevel(InfoLevel, LevelConfig{Name: "custom"})
+		})
+	})
+}
+
+func TestRegisterLevelDefaultLabel(t *testing.T) {
+	const testLevel Level = 3
+
+	cleanup := registerTestLevel(t, testLevel, LevelConfig{
+		Name: "success",
+	})
+	defer cleanup()
+
+	assert.Equal(
+		t,
+		"SUC",
+		testLevel.String(),
+		"default label should be uppercase name truncated to 3 chars",
+	)
+}
+
+func TestLevelsIncludesCustom(t *testing.T) {
+	const testLevel Level = 1
+
+	cleanup := registerTestLevel(t, testLevel, LevelConfig{
+		Name: "success",
+	})
+	defer cleanup()
+
+	levels := Levels()
+	assert.Contains(t, levels, testLevel)
+
+	// Verify sorted order.
+	for i := 1; i < len(levels); i++ {
+		assert.LessOrEqual(t, levels[i-1], levels[i], "Levels() should return sorted levels")
+	}
+}
+
+// registerTestLevel registers a custom level and returns a cleanup function
+// that removes the registration. It is intended for use in tests.
+func registerTestLevel(t *testing.T, level Level, cfg LevelConfig) func() {
+	t.Helper()
+
+	origDefault := Default
+	Default = New(NewOutput(io.Discard, ColorNever))
+
+	RegisterLevel(level, cfg)
+
+	return func() {
+		Default = origDefault
+		customLevelsMu.Lock()
+		delete(customLevels, level)
+		delete(levelNames, level)
+		delete(levelLabels, level)
+		delete(defaultPrefixes, level)
+		customLevelsMu.Unlock()
+	}
 }

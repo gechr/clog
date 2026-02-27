@@ -41,7 +41,7 @@ func (h *SlogHandler) Enabled(_ context.Context, level slog.Level) bool {
 	if h.opts.Level != nil {
 		return level >= h.opts.Level.Level()
 	}
-	//nolint:gosec // Level values are small constants (0-6)
+	//nolint:gosec // Level values are small constants (-10 to 15)
 	return int32(slogLevelToClog(level)) >= h.logger.atomicLevel.Load()
 }
 
