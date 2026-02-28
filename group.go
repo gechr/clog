@@ -166,14 +166,14 @@ func (g *Group) Wait() *GroupResult {
 			// Batch all writes into a single string.
 			frameBuf.Reset()
 			if numLines > 1 {
-				fmt.Fprintf(&frameBuf, "\x1b[%dA", numLines-1)
+				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			for i, t := range tasks {
 				line := renderTaskLine(t, done[i], now)
 				if i < len(tasks)-1 {
-					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s\n", line)
+					fmt.Fprintf(&frameBuf, "%s%s\n", clearLine, line)
 				} else {
-					fmt.Fprintf(&frameBuf, "\x1b[2K\r%s", line)
+					fmt.Fprintf(&frameBuf, "%s%s", clearLine, line)
 				}
 			}
 			writeString(out, frameBuf.String())
@@ -840,16 +840,20 @@ func sendResult(
 	return err
 }
 
-// clearBlock erases n lines above the cursor and repositions the cursor.
+// clearBlock erases n lines starting from the current cursor line and
+// repositions the cursor back to the first cleared line. The cursor is
+// expected to be on the last line of the block (no trailing newline).
 func clearBlock(out io.Writer, n int) {
 	if n == 0 {
 		return
 	}
 	var buf strings.Builder
-	fmt.Fprintf(&buf, "\x1b[%dA", n)
-	for range n {
-		buf.WriteString("\x1b[2K\r\n")
+	if n > 1 {
+		fmt.Fprintf(&buf, cursorUpFmt, n-1)
 	}
-	fmt.Fprintf(&buf, "\x1b[%dA", n)
+	for range n {
+		buf.WriteString(clearLine + "\n")
+	}
+	fmt.Fprintf(&buf, cursorUpFmt, n)
 	writeString(out, buf.String())
 }

@@ -559,8 +559,14 @@ func TestClearBlock(t *testing.T) {
 	assert.Empty(t, buf.String())
 
 	buf.Reset()
-	clearBlock(&buf, 2)
+	clearBlock(&buf, 1)
 	out := buf.String()
-	// Single write: move up, clear lines, then move up again.
-	assert.Equal(t, "\x1b[2A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
+	// Single line: no initial move-up, clear one line, then move up 1.
+	assert.Equal(t, "\x1b[2K\r\n\x1b[1A", out)
+
+	buf.Reset()
+	clearBlock(&buf, 2)
+	out = buf.String()
+	// Two lines: move up 1 (not 2), clear both, then move up 2.
+	assert.Equal(t, "\x1b[1A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }

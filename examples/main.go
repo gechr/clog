@@ -153,7 +153,7 @@ func main() {
 				}
 				return nil
 			})
-		g.Add(clog.Spinner("Processing data").Str("workers", "4")).
+		g.Add(clog.Spinner("Processing data").Int("workers", 4)).
 			Run(func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil

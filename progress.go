@@ -14,6 +14,10 @@ import (
 // followed by a carriage return to reset the cursor to column 0.
 const clearLine = "\x1b[2K\r"
 
+// cursorUpFmt is an fmt format string for the CUU (Cursor Up) escape.
+// Use with fmt.Fprintf(w, cursorUpFmt, n) to move the cursor up n lines.
+const cursorUpFmt = "\x1b[%dA"
+
 // animation is the animation rendering mode for an [AnimationBuilder].
 type animation int
 
