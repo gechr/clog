@@ -4,13 +4,15 @@ import (
 	"io"
 	"testing"
 	"time"
+
+	"github.com/gechr/clog/fx/pulse"
 )
 
 func BenchmarkLogDisabled(b *testing.B) {
 	b.ReportAllocs()
 
 	l := New(NewOutput(io.Discard, ColorNever))
-	l.SetLevel(ErrorLevel)
+	l.SetLevel(LevelError)
 
 	for b.Loop() {
 		l.Info().Str("k", "v").Msg("hello")
@@ -85,10 +87,10 @@ func BenchmarkHighlightJSON(b *testing.B) {
 func BenchmarkPulseText(b *testing.B) {
 	b.ReportAllocs()
 
-	stops := DefaultPulseGradient()
+	stops := pulse.DefaultGradient()
 	text := "pulse benchmark text"
 
 	for b.Loop() {
-		pulseText(text, 0.3, stops)
+		pulse.Text(text, 0.3, stops)
 	}
 }

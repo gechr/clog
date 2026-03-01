@@ -55,7 +55,7 @@ linters:
     errcheck:
       check-type-assertions: true
     exhaustive:
-      ignore-enum-members: UnsetLevel
+      ignore-enum-members: Unset
       check:
         - switch
         - map
@@ -89,6 +89,7 @@ linters:
     recvcheck:
       exclusions:
         - "*.String" # stringer generates value receivers; UnmarshalText requires pointer
+        - "Level.UnmarshalText" # pointer receiver required by encoding.TextUnmarshaler
   exclusions:
     generated: lax
     presets:

@@ -9,7 +9,7 @@ type Context struct {
 
 	indent int // accumulated indent level
 	logger *Logger
-	prefix *string   // nil = inherit from parent logger
+	symbol *string   // nil = inherit from parent logger
 	tree   []TreePos // accumulated tree positions
 }
 
@@ -48,8 +48,8 @@ func (c *Context) Column(key, path string, line, column int) *Context {
 		column = 1
 	}
 
-	c.fields = append(
-		c.fields,
+	c.Fields = append(
+		c.Fields,
 		Field{Key: key, Value: c.logger.Output().pathLink(path, line, column)},
 	)
 	return c
@@ -68,7 +68,7 @@ func (c *Context) Dict(key string, dict *Event) *Context {
 	}
 
 	for _, f := range dict.fields {
-		c.fields = append(c.fields, Field{Key: key + "." + f.Key, Value: f.Value})
+		c.Fields = append(c.Fields, Field{Key: key + "." + f.Key, Value: f.Value})
 	}
 	return c
 }
@@ -80,8 +80,8 @@ func (c *Context) Line(key, path string, line int) *Context {
 		line = 1
 	}
 
-	c.fields = append(
-		c.fields,
+	c.Fields = append(
+		c.Fields,
 		Field{Key: key, Value: c.logger.Output().pathLink(path, line, 0)},
 	)
 	return c
@@ -90,23 +90,23 @@ func (c *Context) Line(key, path string, line int) *Context {
 // Link adds a field as a clickable terminal hyperlink with custom URL and display text.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) Link(key, url, text string) *Context {
-	c.fields = append(
-		c.fields,
+	c.Fields = append(
+		c.Fields,
 		Field{Key: key, Value: c.logger.Output().hyperlink(url, text)},
 	)
 	return c
 }
 
-// Logger returns a new [Logger] with the accumulated fields and prefix.
+// Logger returns a new [Logger] with the accumulated fields and symbol.
 // The returned Logger shares the parent's mutex to prevent interleaved output.
 func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
 	l := c.logger.clone()
 	l.mu = c.logger.mu  // share mutex
-	l.fields = c.fields // override with context fields
+	l.fields = c.Fields // override with context Fields
 	l.indent = c.indent // override with accumulated indent
-	l.prefix = c.prefix // override with context prefix
+	l.symbol = c.symbol // override with context symbol
 	l.tree = c.tree     // override with accumulated tree
 	l.atomicLevel.Store(
 		int32(l.level), //nolint:gosec // Level values are small constants (-10 to 15)
@@ -117,16 +117,16 @@ func (c *Context) Logger() *Logger {
 // Path adds a file path field as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) Path(key, path string) *Context {
-	c.fields = append(
-		c.fields,
+	c.Fields = append(
+		c.Fields,
 		Field{Key: key, Value: c.logger.Output().pathLink(path, 0, 0)},
 	)
 	return c
 }
 
-// Prefix sets a custom prefix for the sub-logger.
-func (c *Context) Prefix(prefix string) *Context {
-	c.prefix = new(prefix)
+// Symbol sets a custom symbol for the sub-logger.
+func (c *Context) Symbol(symbol string) *Context {
+	c.symbol = new(symbol)
 	return c
 }
 
@@ -142,8 +142,8 @@ func (c *Context) Tree(pos TreePos) *Context {
 // URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) URL(key, url string) *Context {
-	c.fields = append(
-		c.fields,
+	c.Fields = append(
+		c.Fields,
 		Field{Key: key, Value: c.logger.Output().hyperlink(url, url)},
 	)
 	return c
@@ -156,44 +156,38 @@ func (l *Logger) clone() *Logger {
 	return &Logger{
 		mu: &sync.Mutex{}, // placeholder; callers typically override
 
-		elapsedFormatFunc:       l.elapsedFormatFunc,
-		elapsedMinimum:          l.elapsedMinimum,
-		elapsedPrecision:        l.elapsedPrecision,
-		elapsedRound:            l.elapsedRound,
-		exitFunc:                l.exitFunc,
-		fieldSort:               l.fieldSort,
-		fieldStyleLevel:         l.fieldStyleLevel,
-		fieldTimeFormat:         l.fieldTimeFormat,
-		fields:                  l.fields,
-		handler:                 l.handler,
-		indent:                  l.indent,
-		indentPrefixes:          l.indentPrefixes,
-		indentPrefixSep:         l.indentPrefixSep,
-		indentWidth:             l.indentWidth,
-		labelWidth:              l.labelWidth,
-		labels:                  l.labels,
-		labelsPadded:            l.labelsPadded,
-		level:                   l.level,
-		levelAlign:              l.levelAlign,
-		nonTTYLevel:             l.nonTTYLevel,
-		omitEmpty:               l.omitEmpty,
-		omitZero:                l.omitZero,
-		output:                  l.output,
-		parts:                   l.parts,
-		percentFormatFunc:       l.percentFormatFunc,
-		percentPrecision:        l.percentPrecision,
-		prefix:                  l.prefix,
-		prefixes:                l.prefixes,
-		quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
-		quoteOpen:               l.quoteOpen,
-		quoteClose:              l.quoteClose,
-		quoteMode:               l.quoteMode,
-		reportTimestamp:         l.reportTimestamp,
-		separatorText:           l.separatorText,
-		styles:                  l.styles,
-		timeFormat:              l.timeFormat,
-		timeLocation:            l.timeLocation,
-		tree:                    append([]TreePos{}, l.tree...),
-		treeChars:               l.treeChars,
+		animationInterval: l.animationInterval,
+		exitFunc:          l.exitFunc,
+		fieldSort:         l.fieldSort,
+		fieldStyleLevel:   l.fieldStyleLevel,
+		fieldTimeFormat:   l.fieldTimeFormat,
+		fields:            l.fields,
+		handler:           l.handler,
+		indent:            l.indent,
+		indentPrefixes:    l.indentPrefixes,
+		indentPrefixSep:   l.indentPrefixSep,
+		indentWidth:       l.indentWidth,
+		labelWidth:        l.labelWidth,
+		labels:            l.labels,
+		labelsPadded:      l.labelsPadded,
+		level:             l.level,
+		levelAlign:        l.levelAlign,
+		nonTTYLevel:       l.nonTTYLevel,
+		omitEmpty:         l.omitEmpty,
+		omitZero:          l.omitZero,
+		output:            l.output,
+		parts:             l.parts,
+		quoteOpen:         l.quoteOpen,
+		quoteClose:        l.quoteClose,
+		quoteMode:         l.quoteMode,
+		reportTimestamp:   l.reportTimestamp,
+		separatorText:     l.separatorText,
+		styles:            l.styles,
+		symbol:            l.symbol,
+		symbols:           l.symbols,
+		timeFormat:        l.timeFormat,
+		timeLocation:      l.timeLocation,
+		tree:              append([]TreePos{}, l.tree...),
+		treeChars:         l.treeChars,
 	}
 }

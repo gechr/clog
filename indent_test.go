@@ -313,7 +313,7 @@ func TestIndentAllLevels(t *testing.T) {
 		name    string
 		method  func(*Logger) *Event
 		wantLvl string
-		prefix  string
+		symbol  string
 	}{
 		{"trace", (*Logger).Trace, "TRC", "🔍"},
 		{"debug", (*Logger).Debug, "DBG", "🐞"},
@@ -328,12 +328,12 @@ func TestIndentAllLevels(t *testing.T) {
 			var buf bytes.Buffer
 
 			l := New(TestOutput(&buf))
-			l.SetLevel(TraceLevel)
+			l.SetLevel(LevelTrace)
 
 			sub := l.With().Indent().Logger()
 			tt.method(sub).Msg("test")
 
-			assert.Equal(t, tt.wantLvl+" "+tt.prefix+"   test\n", buf.String())
+			assert.Equal(t, tt.wantLvl+" "+tt.symbol+"   test\n", buf.String())
 		})
 	}
 }
@@ -374,25 +374,25 @@ func TestIndentWithBothFieldTypes(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Indent combined with custom prefix
+// Indent combined with custom symbol
 // ---------------------------------------------------------------------------
 
-func TestIndentWithCustomPrefix(t *testing.T) {
+func TestIndentWithCustomSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Prefix(">>>").Logger()
+	sub := l.With().Indent().Symbol(">>>").Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF >>>   hello\n", buf.String())
 }
 
-func TestIndentWithEventPrefix(t *testing.T) {
+func TestIndentWithEventSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
 	sub := l.With().Indent().Logger()
-	sub.Info().Prefix(">>>").Msg("hello")
+	sub.Info().Symbol(">>>").Msg("hello")
 
 	assert.Equal(t, "INF >>>   hello\n", buf.String())
 }
@@ -859,7 +859,7 @@ func TestDedentChained(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Dedent on AnimationBuilder
+// Dedent on fx.Builder
 // ---------------------------------------------------------------------------
 
 func TestSpinnerDedent(t *testing.T) {

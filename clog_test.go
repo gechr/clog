@@ -11,6 +11,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/gechr/clog/field/elapsed"
+	"github.com/gechr/clog/field/percent"
+	"github.com/gechr/clog/field/quantity"
+	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/level"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,8 +25,8 @@ func TestNewLogger(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 
-	assert.Equal(t, InfoLevel, l.level)
-	assert.Nil(t, l.prefix)
+	assert.Equal(t, LevelInfo, l.level)
+	assert.Nil(t, l.symbol)
 	assert.NotNil(t, l.mu)
 	assert.Nil(t, l.handler)
 	assert.Equal(t, "15:04:05.000", l.timeFormat)
@@ -29,18 +34,27 @@ func TestNewLogger(t *testing.T) {
 	assert.NotNil(t, l.styles)
 }
 
+func TestNewNilOutput(t *testing.T) {
+	// New(nil) must not panic - it should default to Stderr.
+	require.NotPanics(t, func() {
+		l := New(nil)
+		assert.NotNil(t, l)
+		assert.NotNil(t, l.output)
+	})
+}
+
 func TestLevelString(t *testing.T) {
 	tests := []struct {
 		level Level
 		want  string
 	}{
-		{TraceLevel, "TRC"},
-		{DebugLevel, "DBG"},
-		{InfoLevel, "INF"},
-		{DryLevel, "DRY"},
-		{WarnLevel, "WRN"},
-		{ErrorLevel, "ERR"},
-		{FatalLevel, "FTL"},
+		{LevelTrace, "TRC"},
+		{LevelDebug, "DBG"},
+		{LevelInfo, "INF"},
+		{LevelDry, "DRY"},
+		{LevelWarn, "WRN"},
+		{LevelError, "ERR"},
+		{LevelFatal, "FTL"},
 		{Level(99), "LVL(99)"},
 	}
 
@@ -58,24 +72,24 @@ func TestLevelFiltering(t *testing.T) {
 		method   func(*Logger) *Event
 		wantNil  bool
 	}{
-		{"trace_at_trace", TraceLevel, (*Logger).Trace, false},
-		{"trace_at_debug", DebugLevel, (*Logger).Trace, true},
-		{"trace_at_info", InfoLevel, (*Logger).Trace, true},
-		{"debug_at_info", InfoLevel, (*Logger).Debug, true},
-		{"info_at_info", InfoLevel, (*Logger).Info, false},
-		{"dry_at_info", InfoLevel, (*Logger).Dry, false},
-		{"warn_at_info", InfoLevel, (*Logger).Warn, false},
-		{"error_at_info", InfoLevel, (*Logger).Error, false},
-		{"fatal_at_info", InfoLevel, (*Logger).Fatal, false},
-		{"debug_at_trace", TraceLevel, (*Logger).Debug, false},
-		{"debug_at_debug", DebugLevel, (*Logger).Debug, false},
-		{"info_at_warn", WarnLevel, (*Logger).Info, true},
-		{"dry_at_warn", WarnLevel, (*Logger).Dry, true},
-		{"warn_at_warn", WarnLevel, (*Logger).Warn, false},
-		{"error_at_error", ErrorLevel, (*Logger).Error, false},
-		{"warn_at_error", ErrorLevel, (*Logger).Warn, true},
-		{"error_at_fatal", FatalLevel, (*Logger).Error, true},
-		{"fatal_at_fatal", FatalLevel, (*Logger).Fatal, false},
+		{"trace_at_trace", LevelTrace, (*Logger).Trace, false},
+		{"trace_at_debug", LevelDebug, (*Logger).Trace, true},
+		{"trace_at_info", LevelInfo, (*Logger).Trace, true},
+		{"debug_at_info", LevelInfo, (*Logger).Debug, true},
+		{"info_at_info", LevelInfo, (*Logger).Info, false},
+		{"dry_at_info", LevelInfo, (*Logger).Dry, false},
+		{"warn_at_info", LevelInfo, (*Logger).Warn, false},
+		{"error_at_info", LevelInfo, (*Logger).Error, false},
+		{"fatal_at_info", LevelInfo, (*Logger).Fatal, false},
+		{"debug_at_trace", LevelTrace, (*Logger).Debug, false},
+		{"debug_at_debug", LevelDebug, (*Logger).Debug, false},
+		{"info_at_warn", LevelWarn, (*Logger).Info, true},
+		{"dry_at_warn", LevelWarn, (*Logger).Dry, true},
+		{"warn_at_warn", LevelWarn, (*Logger).Warn, false},
+		{"error_at_error", LevelError, (*Logger).Error, false},
+		{"warn_at_error", LevelError, (*Logger).Warn, true},
+		{"error_at_fatal", LevelFatal, (*Logger).Error, true},
+		{"fatal_at_fatal", LevelFatal, (*Logger).Fatal, false},
 	}
 
 	for _, tt := range tests {
@@ -96,11 +110,11 @@ func TestLevelFiltering(t *testing.T) {
 func TestSetLevel(t *testing.T) {
 	l := NewWriter(io.Discard)
 
-	l.SetLevel(DebugLevel)
-	assert.Equal(t, DebugLevel, l.level)
+	l.SetLevel(LevelDebug)
+	assert.Equal(t, LevelDebug, l.level)
 
-	l.SetLevel(ErrorLevel)
-	assert.Equal(t, ErrorLevel, l.level)
+	l.SetLevel(LevelError)
+	assert.Equal(t, LevelError, l.level)
 }
 
 func TestLoadLogLevelFromEnv(t *testing.T) {
@@ -110,15 +124,15 @@ func TestLoadLogLevelFromEnv(t *testing.T) {
 		wantLevel     Level
 		wantTimestamp bool
 	}{
-		{"trace", "trace", TraceLevel, true},
-		{"debug", "debug", DebugLevel, true},
-		{"info", "info", InfoLevel, false},
-		{"dry", "dry", DryLevel, false},
-		{"warn", "warn", WarnLevel, false},
-		{"warning", "warning", WarnLevel, false},
-		{"error", "error", ErrorLevel, false},
-		{"fatal", "fatal", FatalLevel, false},
-		{"case_insensitive", "DEBUG", DebugLevel, true},
+		{"trace", "trace", LevelTrace, true},
+		{"debug", "debug", LevelDebug, true},
+		{"info", "info", LevelInfo, false},
+		{"dry", "dry", LevelDry, false},
+		{"warn", "warn", LevelWarn, false},
+		{"warning", "warning", LevelWarn, false},
+		{"error", "error", LevelError, false},
+		{"fatal", "fatal", LevelFatal, false},
+		{"case_insensitive", "DEBUG", LevelDebug, true},
 	}
 
 	for _, tt := range tests {
@@ -141,12 +155,12 @@ func TestLoadLogLevelFromEnvNotSet(t *testing.T) {
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	Default.SetLevel(WarnLevel)
+	Default.SetLevel(LevelWarn)
 	t.Setenv("CLOG_LOG_LEVEL", "")
 
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, WarnLevel, Default.level)
+	assert.Equal(t, LevelWarn, Default.level)
 }
 
 func TestGetLevel(t *testing.T) {
@@ -154,9 +168,9 @@ func TestGetLevel(t *testing.T) {
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	Default.SetLevel(WarnLevel)
+	Default.SetLevel(LevelWarn)
 
-	assert.Equal(t, WarnLevel, GetLevel())
+	assert.Equal(t, LevelWarn, GetLevel())
 }
 
 func TestIsVerbose(t *testing.T) {
@@ -165,60 +179,60 @@ func TestIsVerbose(t *testing.T) {
 
 	Default = NewWriter(io.Discard)
 
-	Default.SetLevel(InfoLevel)
-	assert.False(t, IsVerbose(), "expected IsVerbose() false at InfoLevel")
+	Default.SetLevel(LevelInfo)
+	assert.False(t, IsVerbose(), "expected IsVerbose() false at LevelInfo")
 
-	Default.SetLevel(DebugLevel)
-	assert.True(t, IsVerbose(), "expected IsVerbose() true at DebugLevel")
+	Default.SetLevel(LevelDebug)
+	assert.True(t, IsVerbose(), "expected IsVerbose() true at LevelDebug")
 
-	Default.SetLevel(TraceLevel)
-	assert.True(t, IsVerbose(), "expected IsVerbose() true at TraceLevel")
+	Default.SetLevel(LevelTrace)
+	assert.True(t, IsVerbose(), "expected IsVerbose() true at LevelTrace")
 }
 
-func TestResolvePrefix(t *testing.T) {
+func TestResolveSymbol(t *testing.T) {
 	tests := []struct {
 		name         string
-		loggerPrefix *string
-		eventPrefix  *string
+		loggerSymbol *string
+		eventSymbol  *string
 		level        Level
 		want         string
 	}{
-		{name: "default_info", level: InfoLevel, want: "ℹ️"},
-		{name: "default_trace", level: TraceLevel, want: "🔍"},
-		{name: "default_debug", level: DebugLevel, want: "🐞"},
-		{name: "default_warn", level: WarnLevel, want: "⚠️"},
-		{name: "default_error", level: ErrorLevel, want: "❌"},
-		{name: "default_fatal", level: FatalLevel, want: "💥"},
-		{name: "default_dry", level: DryLevel, want: "🚧"},
+		{name: "default_info", level: LevelInfo, want: "ℹ️"},
+		{name: "default_trace", level: LevelTrace, want: "🔍"},
+		{name: "default_debug", level: LevelDebug, want: "🐞"},
+		{name: "default_warn", level: LevelWarn, want: "⚠️"},
+		{name: "default_error", level: LevelError, want: "❌"},
+		{name: "default_fatal", level: LevelFatal, want: "💥"},
+		{name: "default_dry", level: LevelDry, want: "🚧"},
 		{
-			name:         "logger_prefix",
-			loggerPrefix: new("LOG"),
-			level:        InfoLevel,
+			name:         "logger_symbol",
+			loggerSymbol: new("LOG"),
+			level:        LevelInfo,
 			want:         "LOG",
 		},
 		{
 			name:         "event_overrides_logger",
-			loggerPrefix: new("LOG"),
-			eventPrefix:  new("EVT"),
-			level:        InfoLevel,
+			loggerSymbol: new("LOG"),
+			eventSymbol:  new("EVT"),
+			level:        LevelInfo,
 			want:         "EVT",
 		},
 		{
 			name:        "event_overrides_default",
-			eventPrefix: new("EVT"),
-			level:       InfoLevel,
+			eventSymbol: new("EVT"),
+			level:       LevelInfo,
 			want:        "EVT",
 		},
 		{
-			name:         "empty_logger_prefix",
-			loggerPrefix: new(""),
-			level:        InfoLevel,
+			name:         "empty_logger_symbol",
+			loggerSymbol: new(""),
+			level:        LevelInfo,
 			want:         "",
 		},
 		{
-			name:        "empty_event_prefix",
-			eventPrefix: new(""),
-			level:       InfoLevel,
+			name:        "empty_event_symbol",
+			eventSymbol: new(""),
+			level:       LevelInfo,
 			want:        "",
 		},
 	}
@@ -226,11 +240,11 @@ func TestResolvePrefix(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			l := NewWriter(io.Discard)
-			l.prefix = tt.loggerPrefix
+			l.symbol = tt.loggerSymbol
 
-			e := &Event{logger: l, level: tt.level, prefix: tt.eventPrefix}
+			e := &Event{logger: l, level: tt.level, symbol: tt.eventSymbol}
 
-			got := l.resolvePrefix(e)
+			got := l.resolveSymbol(e)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -244,7 +258,7 @@ func TestConfigure(t *testing.T) {
 		Default = NewWriter(io.Discard)
 		Configure(&Config{Verbose: true})
 
-		assert.Equal(t, DebugLevel, Default.level)
+		assert.Equal(t, LevelDebug, Default.level)
 		assert.True(t, Default.reportTimestamp)
 	})
 
@@ -290,13 +304,13 @@ func TestConfigure(t *testing.T) {
 		defer func() { Default = origDefault }()
 
 		Default = NewWriter(io.Discard)
-		Default.SetLevel(DebugLevel)
+		Default.SetLevel(LevelDebug)
 		Default.SetReportTimestamp(true)
 		t.Setenv("CLOG_LOG_LEVEL", "")
 
 		Configure(&Config{Verbose: false})
 
-		assert.Equal(t, InfoLevel, Default.level)
+		assert.Equal(t, LevelInfo, Default.level)
 		assert.False(t, Default.reportTimestamp)
 	})
 
@@ -305,12 +319,12 @@ func TestConfigure(t *testing.T) {
 		defer func() { Default = origDefault }()
 
 		Default = NewWriter(io.Discard)
-		Default.SetLevel(DebugLevel)
+		Default.SetLevel(LevelDebug)
 		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
 		Configure(&Config{Verbose: false})
 
-		assert.Equal(t, DebugLevel, Default.level)
+		assert.Equal(t, LevelDebug, Default.level)
 	})
 }
 
@@ -322,7 +336,7 @@ func TestSetVerbose(t *testing.T) {
 		Default = NewWriter(io.Discard)
 		SetVerbose(true)
 
-		assert.Equal(t, DebugLevel, Default.level)
+		assert.Equal(t, LevelDebug, Default.level)
 		assert.True(t, Default.reportTimestamp)
 	})
 
@@ -331,12 +345,12 @@ func TestSetVerbose(t *testing.T) {
 		defer func() { Default = origDefault }()
 
 		Default = NewWriter(io.Discard)
-		Default.SetLevel(DebugLevel)
+		Default.SetLevel(LevelDebug)
 		t.Setenv("CLOG_LOG_LEVEL", "")
 
 		SetVerbose(false)
 
-		assert.Equal(t, InfoLevel, Default.level)
+		assert.Equal(t, LevelInfo, Default.level)
 	})
 
 	t.Run("disable_with_env", func(t *testing.T) {
@@ -344,12 +358,12 @@ func TestSetVerbose(t *testing.T) {
 		defer func() { Default = origDefault }()
 
 		Default = NewWriter(io.Discard)
-		Default.SetLevel(DebugLevel)
+		Default.SetLevel(LevelDebug)
 		t.Setenv("CLOG_LOG_LEVEL", "debug")
 
 		SetVerbose(false)
 
-		assert.Equal(t, DebugLevel, Default.level)
+		assert.Equal(t, LevelDebug, Default.level)
 	})
 }
 
@@ -358,7 +372,7 @@ func TestPackageLevelConvenienceFunctions(t *testing.T) {
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	Default.SetLevel(TraceLevel)
+	Default.SetLevel(LevelTrace)
 
 	var got Entry
 
@@ -371,12 +385,12 @@ func TestPackageLevelConvenienceFunctions(t *testing.T) {
 		fn    func() *Event
 		level Level
 	}{
-		{"Trace", Trace, TraceLevel},
-		{"Debug", Debug, DebugLevel},
-		{"Info", Info, InfoLevel},
-		{"Dry", Dry, DryLevel},
-		{"Warn", Warn, WarnLevel},
-		{"Error", Error, ErrorLevel},
+		{"Trace", Trace, LevelTrace},
+		{"Debug", Debug, LevelDebug},
+		{"Info", Info, LevelInfo},
+		{"Dry", Dry, LevelDry},
+		{"Warn", Warn, LevelWarn},
+		{"Error", Error, LevelError},
 	}
 
 	for _, tt := range tests {
@@ -405,8 +419,8 @@ func TestPackageLevelSetters(t *testing.T) {
 
 	Default = NewWriter(io.Discard)
 
-	SetLevel(WarnLevel)
-	assert.Equal(t, WarnLevel, Default.level)
+	SetLevel(LevelWarn)
+	assert.Equal(t, LevelWarn, Default.level)
 
 	SetReportTimestamp(true)
 	assert.True(t, Default.reportTimestamp)
@@ -467,9 +481,9 @@ func TestCustomHandlerReceivesEntries(t *testing.T) {
 	l.Warn().Str("b", "2").Msg("second")
 
 	require.Len(t, entries, 2)
-	assert.Equal(t, InfoLevel, entries[0].Level)
+	assert.Equal(t, LevelInfo, entries[0].Level)
 	assert.Equal(t, "first", entries[0].Message)
-	assert.Equal(t, WarnLevel, entries[1].Level)
+	assert.Equal(t, LevelWarn, entries[1].Level)
 	assert.Equal(t, "second", entries[1].Message)
 }
 
@@ -555,56 +569,56 @@ func TestLogFormattedOutputWithFields(t *testing.T) {
 	assert.Equal(t, "INF ℹ️ hello key=val\n", buf.String())
 }
 
-func TestLogFormattedOutputCustomPrefix(t *testing.T) {
+func TestLogFormattedOutputCustomSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.Info().Prefix(">>>").Msg("hello")
+	l.Info().Symbol(">>>").Msg("hello")
 
 	assert.Equal(t, "INF >>> hello\n", buf.String())
 }
 
-func TestPrefixStyle(t *testing.T) {
+func TestSymbolStyle(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(NewOutput(&buf, ColorAlways))
 
 	styles := DefaultStyles()
-	styles.Prefixes[InfoLevel] = new(
+	styles.Symbols[LevelInfo] = new(
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")),
 	)
 	l.SetStyles(styles)
 
-	l.Info().Prefix("warning").Msg("hello")
+	l.Info().Symbol("warning").Msg("hello")
 
 	got := buf.String()
-	// The prefix should appear styled (contain ANSI escapes), not bare.
+	// The symbol should appear styled (contain ANSI escapes), not bare.
 	assert.Contains(t, got, "warning")
 	assert.Contains(t, got, "\x1b[") // ANSI escape present
 }
 
-func TestPrefixStyleNoColor(t *testing.T) {
+func TestSymbolStyleNoColor(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
 
 	styles := DefaultStyles()
-	styles.Prefixes[InfoLevel] = new(
+	styles.Symbols[LevelInfo] = new(
 		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")),
 	)
 	l.SetStyles(styles)
 
-	l.Info().Prefix("warning").Msg("hello")
+	l.Info().Symbol("warning").Msg("hello")
 
 	// No-color output should be plain.
 	assert.Equal(t, "INF warning hello\n", buf.String())
 }
 
-func TestLogFormattedOutputEmptyPrefix(t *testing.T) {
+func TestLogFormattedOutputEmptySymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.Info().Prefix("").Msg("hello")
+	l.Info().Symbol("").Msg("hello")
 
 	assert.Equal(t, "INF hello\n", buf.String())
 }
@@ -651,7 +665,7 @@ func TestLoadLogLevelFromEnvDry(t *testing.T) {
 	t.Setenv("CLOG_LOG_LEVEL", "dry")
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, DryLevel, Default.level)
+	assert.Equal(t, LevelDry, Default.level)
 }
 
 func TestLoadLogLevelFromEnvFatal(t *testing.T) {
@@ -662,7 +676,7 @@ func TestLoadLogLevelFromEnvFatal(t *testing.T) {
 	t.Setenv("CLOG_LOG_LEVEL", "fatal")
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, FatalLevel, Default.level)
+	assert.Equal(t, LevelFatal, Default.level)
 }
 
 func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
@@ -675,16 +689,16 @@ func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 	// Should not change the level, just print to stderr.
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, InfoLevel, Default.level)
+	assert.Equal(t, LevelInfo, Default.level)
 }
 
-func TestSetLevelLabels(t *testing.T) {
+func TestSetLabels(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevelLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
+	l.SetLabels(LabelMap{LevelWarn: "WARN"})
 
-	assert.Equal(t, "WARN", l.labels[WarnLevel])
+	assert.Equal(t, "WARN", l.labels[LevelWarn])
 	// Other labels should retain defaults.
-	assert.Equal(t, "INF", l.labels[InfoLevel])
+	assert.Equal(t, "INF", l.labels[LevelInfo])
 }
 
 func TestSetLevelAlign(t *testing.T) {
@@ -698,76 +712,76 @@ func TestFormatLabelAlignNone(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.SetLevelAlign(AlignNone)
 
-	assert.Equal(t, "INF", l.formatLabel(InfoLevel))
+	assert.Equal(t, "INF", l.formatLabel(LevelInfo))
 }
 
 func TestFormatLabelAlignLeft(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
-		InfoLevel:  "INF",
-		WarnLevel:  "WARN",
-		ErrorLevel: "ERROR",
+	l.SetLabels(LabelMap{
+		LevelInfo:  "INF",
+		LevelWarn:  "WARN",
+		LevelError: "ERROR",
 	})
 	l.SetLevelAlign(AlignLeft)
 
 	// maxLabelWidth is 5 (ERROR), so INF should be left-padded to 5 chars.
-	assert.Equal(t, "INF  ", l.formatLabel(InfoLevel))
+	assert.Equal(t, "INF  ", l.formatLabel(LevelInfo))
 }
 
 func TestFormatLabelAlignRight(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
-		InfoLevel:  "INF",
-		WarnLevel:  "WARN",
-		ErrorLevel: "ERROR",
+	l.SetLabels(LabelMap{
+		LevelInfo:  "INF",
+		LevelWarn:  "WARN",
+		LevelError: "ERROR",
 	})
 	l.SetLevelAlign(AlignRight)
 
 	// maxLabelWidth is 5 (ERROR), so INF should be right-padded.
-	assert.Equal(t, "  INF", l.formatLabel(InfoLevel))
+	assert.Equal(t, "  INF", l.formatLabel(LevelInfo))
 }
 
 func TestFormatLabelAlignCenter(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevelLabels(LevelMap{ //nolint:exhaustive // intentionally partial
-		InfoLevel:  "INF",
-		WarnLevel:  "WARN",
-		ErrorLevel: "ERROR",
+	l.SetLabels(LabelMap{
+		LevelInfo:  "INF",
+		LevelWarn:  "WARN",
+		LevelError: "ERROR",
 	})
 	l.SetLevelAlign(AlignCenter)
 
 	// maxLabelWidth is 5 (ERROR), so INF (3) gets 1 left + 1 right padding.
-	assert.Equal(t, " INF ", l.formatLabel(InfoLevel))
+	assert.Equal(t, " INF ", l.formatLabel(LevelInfo))
 	// WARN (4) gets 0 left + 1 right.
-	assert.Equal(t, "WARN ", l.formatLabel(WarnLevel))
+	assert.Equal(t, "WARN ", l.formatLabel(LevelWarn))
 	// ERROR (5) fits exactly.
-	assert.Equal(t, "ERROR", l.formatLabel(ErrorLevel))
+	assert.Equal(t, "ERROR", l.formatLabel(LevelError))
 }
 
 func TestFormatLabelUnknownAlign(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.levelAlign = Align(99) // invalid value
 
-	assert.Equal(t, "INF", l.formatLabel(InfoLevel))
+	assert.Equal(t, "INF", l.formatLabel(LevelInfo))
 }
 
-func TestSetPrefixes(t *testing.T) {
+func TestSetSymbols(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetPrefixes(LevelMap{InfoLevel: ">>>"}) //nolint:exhaustive // intentionally partial
+	l.SetSymbols(LabelMap{LevelInfo: ">>>"})
 
-	assert.Equal(t, ">>>", l.prefixes[InfoLevel])
-	// Other prefixes should retain defaults.
-	assert.Equal(t, "🐞", l.prefixes[DebugLevel])
+	assert.Equal(t, ">>>", l.symbols[LevelInfo])
+	// Other symbols should retain defaults.
+	assert.Equal(t, "🐞", l.symbols[LevelDebug])
 }
 
-func TestPackageLevelSetPrefixes(t *testing.T) {
+func TestPackageLevelSetSymbols(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	SetPrefixes(LevelMap{InfoLevel: ">>>"}) //nolint:exhaustive // intentionally partial
+	SetSymbols(LabelMap{LevelInfo: ">>>"})
 
-	assert.Equal(t, ">>>", Default.prefixes[InfoLevel])
+	assert.Equal(t, ">>>", Default.symbols[LevelInfo])
 }
 
 func TestSetTimeLocation(t *testing.T) {
@@ -793,36 +807,36 @@ func TestPackageLevelSetTimeLocation(t *testing.T) {
 	assert.Equal(t, loc, got)
 }
 
-func TestDefaultPrefixes(t *testing.T) {
-	p := DefaultPrefixes()
+func TestDefaultSymbols(t *testing.T) {
+	p := DefaultSymbols()
 
-	assert.Equal(t, "ℹ️", p[InfoLevel])
-	assert.Equal(t, "🔍", p[TraceLevel])
-	assert.Equal(t, "🐞", p[DebugLevel])
+	assert.Equal(t, "ℹ️", p[LevelInfo])
+	assert.Equal(t, "🔍", p[LevelTrace])
+	assert.Equal(t, "🐞", p[LevelDebug])
 
 	// Modifying the returned map should not affect defaults.
-	p[InfoLevel] = "CHANGED"
+	p[LevelInfo] = "CHANGED"
 
-	p2 := DefaultPrefixes()
-	assert.Equal(t, "ℹ️", p2[InfoLevel], "DefaultPrefixes should return a copy")
+	p2 := DefaultSymbols()
+	assert.Equal(t, "ℹ️", p2[LevelInfo], "DefaultSymbols should return a copy")
 }
 
-func TestResolvePrefixUsesCustomPrefixes(t *testing.T) {
+func TestResolveSymbolUsesCustomSymbols(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetPrefixes(LevelMap{InfoLevel: "CUSTOM"}) //nolint:exhaustive // intentionally partial
+	l.SetSymbols(LabelMap{LevelInfo: "CUSTOM"})
 
-	e := &Event{logger: l, level: InfoLevel}
-	assert.Equal(t, "CUSTOM", l.resolvePrefix(e))
+	e := &Event{logger: l, level: LevelInfo}
+	assert.Equal(t, "CUSTOM", l.resolveSymbol(e))
 }
 
-func TestPackageLevelSetLevelLabels(t *testing.T) {
+func TestPackageLevelSetLabels(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	SetLevelLabels(LevelMap{WarnLevel: "WARN"}) //nolint:exhaustive // intentionally partial
+	SetLabels(LabelMap{LevelWarn: "WARN"})
 
-	assert.Equal(t, "WARN", Default.labels[WarnLevel])
+	assert.Equal(t, "WARN", Default.labels[LevelWarn])
 }
 
 func TestPackageLevelSetLevelAlign(t *testing.T) {
@@ -874,7 +888,7 @@ func TestPackageLevelFatal(t *testing.T) {
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	// Fatal() should return non-nil event (FatalLevel is always >= any level).
+	// Fatal() should return non-nil event (LevelFatal is always >= any level).
 	e := Fatal()
 
 	assert.NotNil(t, e, "expected non-nil event from Fatal()")
@@ -925,14 +939,14 @@ func TestLogFormattedOutputAllLevels(t *testing.T) {
 			var buf bytes.Buffer
 
 			l := New(TestOutput(&buf))
-			l.SetLevel(TraceLevel)
+			l.SetLevel(LevelTrace)
 			tt.method(l).Msg("test")
 
 			got := buf.String()
 			assert.True(
 				t,
 				strings.HasPrefix(got, tt.wantLvl+" "),
-				"output = %q, expected prefix %q",
+				"output = %q, expected symbol %q",
 				got,
 				tt.wantLvl,
 			)
@@ -948,9 +962,9 @@ func TestLogEmptyMessageNoDoubleSpace(t *testing.T) {
 
 	got := buf.String()
 
-	// Should not have double space between prefix and field.
+	// Should not have double space between symbol and field.
 	assert.NotContains(t, got, "  status")
-	// Should contain the field directly after the prefix.
+	// Should contain the field directly after the symbol.
 	assert.Contains(t, got, "status=ok")
 }
 
@@ -962,7 +976,7 @@ func TestLogEmptyMessageNoFieldsNoTrailingSpace(t *testing.T) {
 
 	got := buf.String()
 
-	// Should end with prefix + newline, no trailing spaces.
+	// Should end with symbol + newline, no trailing spaces.
 	assert.True(t, strings.HasSuffix(got, "ℹ️\n"), "got %q", got)
 }
 
@@ -974,7 +988,7 @@ func TestLogWithMessageHasSpace(t *testing.T) {
 
 	got := buf.String()
 
-	// Message should be separated from prefix and fields.
+	// Message should be separated from symbol and fields.
 	assert.Contains(t, got, "ℹ️ hello k=v")
 }
 
@@ -983,7 +997,7 @@ func TestSetParts(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetParts(PartMessage, PartLevel, PartPrefix)
+		l.SetParts(PartMessage, PartLevel, PartSymbol)
 		l.Info().Msg("hello")
 
 		assert.Equal(t, "hello INF ℹ️\n", buf.String())
@@ -1031,7 +1045,7 @@ func TestSetParts(t *testing.T) {
 
 func TestEventPartsNilOnDisabledLevel(t *testing.T) {
 	l := New(TestOutput(io.Discard))
-	l.SetLevel(ErrorLevel)
+	l.SetLevel(LevelError)
 	e := l.Info() // returns nil
 	assert.Nil(t, e.Parts(PartMessage))
 }
@@ -1052,7 +1066,7 @@ func TestPackageLevelSetParts(t *testing.T) {
 
 func TestDefaultParts(t *testing.T) {
 	order := DefaultParts()
-	assert.Equal(t, []Part{PartTimestamp, PartLevel, PartPrefix, PartMessage, PartFields}, order)
+	assert.Equal(t, []Part{PartTimestamp, PartLevel, PartSymbol, PartMessage, PartFields}, order)
 
 	// Should return a new slice each time.
 	order[0] = PartFields
@@ -1066,11 +1080,11 @@ func TestPerLevelMessageStyle(t *testing.T) {
 
 		l := New(TestOutput(&buf))
 		l.SetParts(PartMessage)
-		l.styles.Messages[ErrorLevel] = l.styles.Levels[ErrorLevel]
+		l.styles.Messages[LevelError] = l.styles.Levels[LevelError]
 
 		l.Error().Msg("boom")
 
-		want := l.styles.Levels[ErrorLevel].Render("boom") + "\n"
+		want := l.styles.Levels[LevelError].Render("boom") + "\n"
 		assert.Equal(t, want, buf.String())
 	})
 
@@ -1091,10 +1105,10 @@ func TestEventPartsOverride(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetParts(PartLevel, PartPrefix, PartMessage, PartFields)
+		l.SetParts(PartLevel, PartSymbol, PartMessage, PartFields)
 
 		// Override to only show message on this one event.
-		l.Info().Parts(PartPrefix, PartMessage).Msg("hello")
+		l.Info().Parts(PartSymbol, PartMessage).Msg("hello")
 
 		assert.Equal(t, "ℹ️ hello\n", buf.String())
 	})
@@ -1439,10 +1453,10 @@ func TestPackageLevelSetQuoteMode(t *testing.T) {
 func TestSetFieldStyleLevel(t *testing.T) {
 	l := NewWriter(io.Discard)
 
-	assert.Equal(t, InfoLevel, l.fieldStyleLevel)
+	assert.Equal(t, LevelInfo, l.fieldStyleLevel)
 
-	l.SetFieldStyleLevel(TraceLevel)
-	assert.Equal(t, TraceLevel, l.fieldStyleLevel)
+	l.SetFieldStyleLevel(LevelTrace)
+	assert.Equal(t, LevelTrace, l.fieldStyleLevel)
 }
 
 func TestPackageLevelSetFieldStyleLevel(t *testing.T) {
@@ -1450,22 +1464,22 @@ func TestPackageLevelSetFieldStyleLevel(t *testing.T) {
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	SetFieldStyleLevel(DebugLevel)
+	SetFieldStyleLevel(LevelDebug)
 
 	Default.mu.Lock()
 	got := Default.fieldStyleLevel
 	Default.mu.Unlock()
 
-	assert.Equal(t, DebugLevel, got)
+	assert.Equal(t, LevelDebug, got)
 }
 
 func TestSubLoggerInheritsFieldStyleLevel(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetFieldStyleLevel(TraceLevel)
+	l.SetFieldStyleLevel(LevelTrace)
 
 	sub := l.With().Str("k", "v").Logger()
 
-	assert.Equal(t, TraceLevel, sub.fieldStyleLevel)
+	assert.Equal(t, LevelTrace, sub.fieldStyleLevel)
 }
 
 func TestSetFieldTimeFormat(t *testing.T) {
@@ -1526,7 +1540,7 @@ func TestConcurrentLogging(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetLevel(TraceLevel)
+	l.SetLevel(LevelTrace)
 
 	const goroutines = 10
 	const iterations = 50
@@ -1558,19 +1572,19 @@ func TestConcurrentLogging(t *testing.T) {
 func TestDefaultLabels(t *testing.T) {
 	labels := DefaultLabels()
 
-	assert.Equal(t, "TRC", labels[TraceLevel])
-	assert.Equal(t, "DBG", labels[DebugLevel])
-	assert.Equal(t, "INF", labels[InfoLevel])
-	assert.Equal(t, "DRY", labels[DryLevel])
-	assert.Equal(t, "WRN", labels[WarnLevel])
-	assert.Equal(t, "ERR", labels[ErrorLevel])
-	assert.Equal(t, "FTL", labels[FatalLevel])
+	assert.Equal(t, "TRC", labels[LevelTrace])
+	assert.Equal(t, "DBG", labels[LevelDebug])
+	assert.Equal(t, "INF", labels[LevelInfo])
+	assert.Equal(t, "DRY", labels[LevelDry])
+	assert.Equal(t, "WRN", labels[LevelWarn])
+	assert.Equal(t, "ERR", labels[LevelError])
+	assert.Equal(t, "FTL", labels[LevelFatal])
 
 	// Modifying the returned map should not affect defaults.
-	labels[InfoLevel] = "CHANGED"
+	labels[LevelInfo] = "CHANGED"
 
 	labels2 := DefaultLabels()
-	assert.Equal(t, "INF", labels2[InfoLevel], "DefaultLabels should return a copy")
+	assert.Equal(t, "INF", labels2[LevelInfo], "DefaultLabels should return a copy")
 }
 
 func TestSetStylesNilDefaultsToDefaultStyles(t *testing.T) {
@@ -1665,22 +1679,22 @@ func TestSetExitFuncNilFatalStillWorks(t *testing.T) {
 
 func TestAtomicLevelFastPath(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevel(WarnLevel)
+	l.SetLevel(LevelWarn)
 
 	// Events below the level should return nil without acquiring the mutex.
-	assert.Nil(t, l.Trace(), "Trace should be nil at WarnLevel")
-	assert.Nil(t, l.Debug(), "Debug should be nil at WarnLevel")
-	assert.Nil(t, l.Info(), "Info should be nil at WarnLevel")
+	assert.Nil(t, l.Trace(), "Trace should be nil at LevelWarn")
+	assert.Nil(t, l.Debug(), "Debug should be nil at LevelWarn")
+	assert.Nil(t, l.Info(), "Info should be nil at LevelWarn")
 
 	// Events at or above the level should return non-nil.
-	assert.NotNil(t, l.Warn(), "Warn should not be nil at WarnLevel")
-	assert.NotNil(t, l.Error(), "Error should not be nil at WarnLevel")
+	assert.NotNil(t, l.Warn(), "Warn should not be nil at LevelWarn")
+	assert.NotNil(t, l.Error(), "Error should not be nil at LevelWarn")
 }
 
 func TestAtomicLevelConcurrent(t *testing.T) {
 	t.Parallel()
 	l := NewWriter(io.Discard)
-	l.SetLevel(ErrorLevel)
+	l.SetLevel(LevelError)
 
 	var wg sync.WaitGroup
 
@@ -1696,8 +1710,8 @@ func TestAtomicLevelConcurrent(t *testing.T) {
 	go func() {
 		defer wg.Done()
 		for range 1000 {
-			l.SetLevel(InfoLevel)
-			l.SetLevel(ErrorLevel)
+			l.SetLevel(LevelInfo)
+			l.SetLevel(LevelError)
 		}
 	}()
 
@@ -1706,17 +1720,17 @@ func TestAtomicLevelConcurrent(t *testing.T) {
 
 func TestNewLoggerAtomicLevelInitialized(t *testing.T) {
 	l := NewWriter(io.Discard)
-	assert.Equal(t, int32(InfoLevel), l.atomicLevel.Load(),
-		"atomicLevel should be initialized to InfoLevel")
+	assert.Equal(t, int32(LevelInfo), l.atomicLevel.Load(),
+		"atomicLevel should be initialized to LevelInfo")
 }
 
 func TestSetLevelUpdatesAtomicLevel(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLevel(DebugLevel)
-	assert.Equal(t, int32(DebugLevel), l.atomicLevel.Load())
+	l.SetLevel(LevelDebug)
+	assert.Equal(t, int32(LevelDebug), l.atomicLevel.Load())
 
-	l.SetLevel(FatalLevel)
-	assert.Equal(t, int32(FatalLevel), l.atomicLevel.Load())
+	l.SetLevel(LevelFatal)
+	assert.Equal(t, int32(LevelFatal), l.atomicLevel.Load())
 }
 
 func TestSetOutput(t *testing.T) {
@@ -1738,20 +1752,20 @@ func TestParseLevel(t *testing.T) {
 		input string
 		want  Level
 	}{
-		{"trace", TraceLevel},
-		{"debug", DebugLevel},
-		{"info", InfoLevel},
-		{"dry", DryLevel},
-		{"warn", WarnLevel},
-		{"warning", WarnLevel},
-		{"error", ErrorLevel},
-		{"fatal", FatalLevel},
-		{"critical", FatalLevel},
-		{"TRACE", TraceLevel},
-		{"Debug", DebugLevel},
-		{"INFO", InfoLevel},
-		{"WARNING", WarnLevel},
-		{"CRITICAL", FatalLevel},
+		{"trace", LevelTrace},
+		{"debug", LevelDebug},
+		{"info", LevelInfo},
+		{"dry", LevelDry},
+		{"warn", LevelWarn},
+		{"warning", LevelWarn},
+		{"error", LevelError},
+		{"fatal", LevelFatal},
+		{"critical", LevelFatal},
+		{"TRACE", LevelTrace},
+		{"Debug", LevelDebug},
+		{"INFO", LevelInfo},
+		{"WARNING", LevelWarn},
+		{"CRITICAL", LevelFatal},
 	}
 
 	for _, tt := range tests {
@@ -1774,13 +1788,13 @@ func TestLevelMarshalText(t *testing.T) {
 		level Level
 		want  string
 	}{
-		{TraceLevel, LevelTrace},
-		{DebugLevel, LevelDebug},
-		{InfoLevel, LevelInfo},
-		{DryLevel, LevelDry},
-		{WarnLevel, LevelWarn},
-		{ErrorLevel, LevelError},
-		{FatalLevel, LevelFatal},
+		{LevelTrace, LevelTraceValue},
+		{LevelDebug, LevelDebugValue},
+		{LevelInfo, LevelInfoValue},
+		{LevelDry, LevelDryValue},
+		{LevelWarn, LevelWarnValue},
+		{LevelError, LevelErrorValue},
+		{LevelFatal, LevelFatalValue},
 	}
 
 	for _, tt := range tests {
@@ -1802,10 +1816,10 @@ func TestLevelUnmarshalText(t *testing.T) {
 		input string
 		want  Level
 	}{
-		{"trace", TraceLevel},
-		{"info", InfoLevel},
-		{"warning", WarnLevel},
-		{"FATAL", FatalLevel},
+		{"trace", LevelTrace},
+		{"info", LevelInfo},
+		{"warning", LevelWarn},
+		{"FATAL", LevelFatal},
 	}
 
 	for _, tt := range tests {
@@ -1840,17 +1854,22 @@ func TestSetElapsedFormatFunc(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetElapsedFormatFunc(func(d time.Duration) string {
+	elapsed.SetFormatFunc(func(d time.Duration) string {
 		return "custom:" + d.String()
 	})
+	t.Cleanup(func() { elapsed.SetFormatFunc(nil) })
 
 	// Disable minimum so elapsed is always shown.
-	l.SetElapsedMinimum(0)
-	l.SetElapsedRound(0)
+	elapsed.SetMinimum(0)
+	elapsed.SetRound(0)
+	t.Cleanup(func() {
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetRound(time.Second)
+	})
 
 	// Directly inject an elapsed field via the logger's fields.
 	l.mu.Lock()
-	l.fields = []Field{{Key: "took", Value: elapsed(3 * time.Second)}}
+	l.fields = []Field{{Key: "took", Value: core.ElapsedField(3 * time.Second)}}
 	l.mu.Unlock()
 
 	l.Info().Msg("test")
@@ -1859,15 +1878,20 @@ func TestSetElapsedFormatFunc(t *testing.T) {
 }
 
 func TestSetElapsedMinimum(t *testing.T) {
+	t.Cleanup(func() {
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetRound(time.Second)
+	})
+
 	t.Run("below_threshold_hidden", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetElapsedMinimum(2 * time.Second)
-		l.SetElapsedRound(0)
+		elapsed.SetMinimum(2 * time.Second)
+		elapsed.SetRound(0)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: elapsed(1 * time.Second)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField(1 * time.Second)}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -1879,11 +1903,11 @@ func TestSetElapsedMinimum(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetElapsedMinimum(1 * time.Second)
-		l.SetElapsedRound(0)
+		elapsed.SetMinimum(1 * time.Second)
+		elapsed.SetRound(0)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: elapsed(2 * time.Second)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField(2 * time.Second)}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -1895,11 +1919,11 @@ func TestSetElapsedMinimum(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetElapsedMinimum(0)
-		l.SetElapsedRound(0)
+		elapsed.SetMinimum(0)
+		elapsed.SetRound(0)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: elapsed(100 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField(100 * time.Millisecond)}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -1909,16 +1933,22 @@ func TestSetElapsedMinimum(t *testing.T) {
 }
 
 func TestSetElapsedPrecision(t *testing.T) {
+	t.Cleanup(func() {
+		elapsed.SetPrecision(0)
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetRound(time.Second)
+	})
+
 	t.Run("precision_0", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetElapsedPrecision(0)
-		l.SetElapsedMinimum(0)
-		l.SetElapsedRound(0)
+		elapsed.SetPrecision(0)
+		elapsed.SetMinimum(0)
+		elapsed.SetRound(0)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: elapsed(3200 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -1930,12 +1960,12 @@ func TestSetElapsedPrecision(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetElapsedPrecision(1)
-		l.SetElapsedMinimum(0)
-		l.SetElapsedRound(0)
+		elapsed.SetPrecision(1)
+		elapsed.SetMinimum(0)
+		elapsed.SetRound(0)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: elapsed(3200 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -1948,12 +1978,17 @@ func TestSetElapsedRound(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetElapsedRound(time.Second)
-	l.SetElapsedMinimum(0)
-	l.SetElapsedPrecision(0)
+	elapsed.SetRound(time.Second)
+	elapsed.SetMinimum(0)
+	elapsed.SetPrecision(0)
+	t.Cleanup(func() {
+		elapsed.SetRound(time.Second)
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetPrecision(0)
+	})
 
 	l.mu.Lock()
-	l.fields = []Field{{Key: "took", Value: elapsed(2600 * time.Millisecond)}}
+	l.fields = []Field{{Key: "took", Value: core.ElapsedField(2600 * time.Millisecond)}}
 	l.mu.Unlock()
 
 	l.Info().Msg("test")
@@ -1994,10 +2029,11 @@ func TestSetPercentFormatFunc(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetPercentFormatFunc(func(f float64) string {
+	percent.SetFormatFunc(func(f float64) string {
 		return "pct:" + strings.TrimRight(strings.TrimRight(
 			strconv.FormatFloat(f, 'f', 1, 64), "0"), ".") + "%"
 	})
+	t.Cleanup(func() { percent.SetFormatFunc(nil) })
 
 	l.Info().Percent("progress", 75).Msg("test")
 
@@ -2005,11 +2041,13 @@ func TestSetPercentFormatFunc(t *testing.T) {
 }
 
 func TestSetPercentPrecision(t *testing.T) {
+	t.Cleanup(func() { percent.SetPrecision(0) })
+
 	t.Run("precision_0", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetPercentPrecision(0)
+		percent.SetPrecision(0)
 		l.Info().Percent("progress", 75).Msg("test")
 
 		assert.Contains(t, buf.String(), "progress=75%")
@@ -2019,7 +2057,7 @@ func TestSetPercentPrecision(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		l.SetPercentPrecision(1)
+		percent.SetPrecision(1)
 		l.Info().Percent("progress", 75).Msg("test")
 
 		assert.Contains(t, buf.String(), "progress=75.0%")
@@ -2027,16 +2065,14 @@ func TestSetPercentPrecision(t *testing.T) {
 }
 
 func TestSetQuantityUnitsIgnoreCase(t *testing.T) {
-	l := NewWriter(io.Discard)
-
 	// Default is true.
-	assert.True(t, l.quantityUnitsIgnoreCase)
+	assert.True(t, quantity.UnitsIgnoreCase())
 
-	l.SetQuantityUnitsIgnoreCase(false)
-	assert.False(t, l.quantityUnitsIgnoreCase)
+	quantity.SetUnitsIgnoreCase(false)
+	assert.False(t, quantity.UnitsIgnoreCase())
 
-	l.SetQuantityUnitsIgnoreCase(true)
-	assert.True(t, l.quantityUnitsIgnoreCase)
+	quantity.SetUnitsIgnoreCase(true)
+	assert.True(t, quantity.UnitsIgnoreCase())
 }
 
 func TestSetSeparatorText(t *testing.T) {
@@ -2051,66 +2087,35 @@ func TestSetSeparatorText(t *testing.T) {
 }
 
 func TestPackageLevelSetElapsedFormatFunc(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = NewWriter(io.Discard)
 	SetElapsedFormatFunc(func(d time.Duration) string {
 		return d.String()
 	})
-
-	Default.mu.Lock()
-	assert.NotNil(t, Default.elapsedFormatFunc)
-	Default.mu.Unlock()
+	assert.NotNil(t, elapsed.FormatFunc())
 
 	// Reset to nil.
 	SetElapsedFormatFunc(nil)
-
-	Default.mu.Lock()
-	assert.Nil(t, Default.elapsedFormatFunc)
-	Default.mu.Unlock()
+	assert.Nil(t, elapsed.FormatFunc())
 }
 
 func TestPackageLevelSetElapsedMinimum(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
 
-	Default = NewWriter(io.Discard)
 	SetElapsedMinimum(5 * time.Second)
-
-	Default.mu.Lock()
-	got := Default.elapsedMinimum
-	Default.mu.Unlock()
-
-	assert.Equal(t, 5*time.Second, got)
+	assert.Equal(t, 5*time.Second, elapsed.Minimum())
 }
 
 func TestPackageLevelSetElapsedPrecision(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	t.Cleanup(func() { elapsed.SetPrecision(0) })
 
-	Default = NewWriter(io.Discard)
 	SetElapsedPrecision(2)
-
-	Default.mu.Lock()
-	got := Default.elapsedPrecision
-	Default.mu.Unlock()
-
-	assert.Equal(t, 2, got)
+	assert.Equal(t, 2, elapsed.Precision())
 }
 
 func TestPackageLevelSetElapsedRound(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	t.Cleanup(func() { elapsed.SetRound(time.Second) })
 
-	Default = NewWriter(io.Discard)
 	SetElapsedRound(time.Minute)
-
-	Default.mu.Lock()
-	got := Default.elapsedRound
-	Default.mu.Unlock()
-
-	assert.Equal(t, time.Minute, got)
+	assert.Equal(t, time.Minute, elapsed.Round())
 }
 
 func TestPackageLevelSetFieldSort(t *testing.T) {
@@ -2128,52 +2133,28 @@ func TestPackageLevelSetFieldSort(t *testing.T) {
 }
 
 func TestPackageLevelSetPercentFormatFunc(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = NewWriter(io.Discard)
 	SetPercentFormatFunc(func(f float64) string {
 		return strconv.FormatFloat(f, 'f', 0, 64) + "%"
 	})
-
-	Default.mu.Lock()
-	assert.NotNil(t, Default.percentFormatFunc)
-	Default.mu.Unlock()
+	assert.NotNil(t, percent.FormatFunc())
 
 	// Reset to nil.
 	SetPercentFormatFunc(nil)
-
-	Default.mu.Lock()
-	assert.Nil(t, Default.percentFormatFunc)
-	Default.mu.Unlock()
+	assert.Nil(t, percent.FormatFunc())
 }
 
 func TestPackageLevelSetPercentPrecision(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	t.Cleanup(func() { percent.SetPrecision(0) })
 
-	Default = NewWriter(io.Discard)
 	SetPercentPrecision(3)
-
-	Default.mu.Lock()
-	got := Default.percentPrecision
-	Default.mu.Unlock()
-
-	assert.Equal(t, 3, got)
+	assert.Equal(t, 3, percent.Precision())
 }
 
 func TestPackageLevelSetQuantityUnitsIgnoreCase(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	t.Cleanup(func() { quantity.SetUnitsIgnoreCase(true) })
 
-	Default = NewWriter(io.Discard)
 	SetQuantityUnitsIgnoreCase(false)
-
-	Default.mu.Lock()
-	got := Default.quantityUnitsIgnoreCase
-	Default.mu.Unlock()
-
-	assert.False(t, got)
+	assert.False(t, quantity.UnitsIgnoreCase())
 }
 
 func TestPackageLevelSetSeparatorText(t *testing.T) {
@@ -2290,9 +2271,8 @@ func TestRegisterLevel(t *testing.T) {
 	const testLevel Level = 1 // between Info (0) and Dry (2)
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name:   "success",
-		Label:  "SCS",
-		Prefix: "✅",
+		Name:  "success",
+		Label: "SCS", Symbol: "✅",
 	})
 	defer cleanup()
 
@@ -2315,20 +2295,19 @@ func TestLogCustomLevel(t *testing.T) {
 	const testLevel Level = 1
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name:   "success",
-		Label:  "SCS",
-		Prefix: "✅",
+		Name:  "success",
+		Label: "SCS", Symbol: "✅",
 	})
 	defer cleanup()
 
 	var buf bytes.Buffer
 	l := New(TestOutput(&buf))
-	l.SetLevel(InfoLevel)
+	l.SetLevel(LevelInfo)
 
-	// Register label/prefix on the test logger.
+	// Register label/symbol on the test logger.
 	l.mu.Lock()
 	l.labels[testLevel] = "SCS"
-	l.prefixes[testLevel] = "✅"
+	l.symbols[testLevel] = "✅"
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	l.mu.Unlock()
@@ -2356,14 +2335,14 @@ func TestRegisterLevelFiltering(t *testing.T) {
 	l.recomputePaddedLabels()
 	l.mu.Unlock()
 
-	// Custom level (1) should be visible at InfoLevel (0).
-	l.SetLevel(InfoLevel)
+	// Custom level (1) should be visible at LevelInfo (0).
+	l.SetLevel(LevelInfo)
 	l.Log(testLevel).Msg("visible")
 	assert.Contains(t, buf.String(), "visible")
 
-	// Custom level (1) should be hidden at WarnLevel (5).
+	// Custom level (1) should be hidden at LevelWarn (5).
 	buf.Reset()
-	l.SetLevel(WarnLevel)
+	l.SetLevel(LevelWarn)
 	e := l.Log(testLevel)
 	assert.Nil(t, e, "custom level should be filtered when below minimum")
 }
@@ -2376,8 +2355,8 @@ func TestRegisterLevelPanics(t *testing.T) {
 	})
 
 	t.Run("builtin_conflict", func(t *testing.T) {
-		assert.PanicsWithValue(t, "clog: RegisterLevel cannot override built-in level 0", func() {
-			RegisterLevel(InfoLevel, LevelConfig{Name: "custom"})
+		assert.PanicsWithValue(t, "level: cannot override built-in level 0", func() {
+			RegisterLevel(LevelInfo, LevelConfig{Name: "custom"})
 		})
 	})
 }
@@ -2417,21 +2396,20 @@ func TestLevelsIncludesCustom(t *testing.T) {
 
 // registerTestLevel registers a custom level and returns a cleanup function
 // that removes the registration. It is intended for use in tests.
-func registerTestLevel(t *testing.T, level Level, cfg LevelConfig) func() {
+func registerTestLevel(t *testing.T, lvl Level, cfg LevelConfig) func() {
 	t.Helper()
 
 	origDefault := Default
 	Default = New(NewOutput(io.Discard, ColorNever))
 
-	RegisterLevel(level, cfg)
+	RegisterLevel(lvl, cfg)
 
 	return func() {
 		Default = origDefault
 		customLevelsMu.Lock()
-		delete(customLevels, level)
-		delete(levelNames, level)
-		delete(levelLabels, level)
-		delete(defaultPrefixes, level)
+		delete(customLevels, lvl)
+		delete(defaultSymbols, lvl)
 		customLevelsMu.Unlock()
+		level.Unregister(lvl)
 	}
 }

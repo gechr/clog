@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/fx/shimmer"
+	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -13,7 +15,7 @@ func main() {
 	directionsFlag := flag.Bool("directions", false, "show all shimmer directions")
 	flag.Parse()
 
-	clog.SetLevel(clog.TraceLevel)
+	clog.SetLevel(clog.LevelTrace)
 	clog.SetReportTimestamp(true)
 
 	if *directionsFlag {
@@ -25,26 +27,26 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Search catalogue rebuilt")
 
 	_ = clog.Shimmer("Deploying service to production cluster",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+		shimmer.WithGradient(
+			style.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+			style.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+			style.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+		),
+		shimmer.WithDirection(shimmer.MiddleIn),
 	).
-		ShimmerDirection(clog.DirectionMiddleIn).
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}).
-		Prefix("🚀").
+		}). Symbol("🚀").
 		Msg("Service deployed")
 }
 
 func showDirections() {
-	rainbow := []clog.ColorStop{
+	rainbow := []style.ColorStop{
 		{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
 		{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
 		{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
@@ -59,24 +61,30 @@ func showDirections() {
 		return nil
 	}
 
-	g := clog.NewGroup(context.Background())
-	g.Add(clog.Shimmer("Right: streaming data to downstream services", rainbow...).
-		ShimmerDirection(clog.DirectionRight)).
+	g := clog.Group(context.Background())
+	g.Add(clog.Shimmer("Right: streaming data to downstream services",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.Right))).
 		Run(sleep)
-	g.Add(clog.Shimmer("Left: rewinding transaction log to checkpoint", rainbow...).
-		ShimmerDirection(clog.DirectionLeft)).
+	g.Add(clog.Shimmer("Left: rewinding transaction log to checkpoint",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.Left))).
 		Run(sleep)
-	g.Add(clog.Shimmer("Middle in: synchronizing upstream dependencies", rainbow...).
-		ShimmerDirection(clog.DirectionMiddleIn)).
+	g.Add(clog.Shimmer("Middle in: synchronizing upstream dependencies",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.MiddleIn))).
 		Run(sleep)
-	g.Add(clog.Shimmer("Middle out: broadcasting config changes to nodes", rainbow...).
-		ShimmerDirection(clog.DirectionMiddleOut)).
+	g.Add(clog.Shimmer("Middle out: broadcasting config changes to nodes",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.MiddleOut))).
 		Run(sleep)
-	g.Add(clog.Shimmer("Bounce in: converging replicas and verifying quorum", rainbow...).
-		ShimmerDirection(clog.DirectionBounceIn)).
+	g.Add(clog.Shimmer("Bounce in: converging replicas and verifying quorum",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.BounceIn))).
 		Run(sleep)
-	g.Add(clog.Shimmer("Bounce out: propagating cache invalidation", rainbow...).
-		ShimmerDirection(clog.DirectionBounceOut)).
+	g.Add(clog.Shimmer("Bounce out: propagating cache invalidation",
+		shimmer.WithGradient(rainbow...),
+		shimmer.WithDirection(shimmer.BounceOut))).
 		Run(sleep)
-	g.Wait().Prefix("✅").Msg("All directions complete")
+	g.Wait().Symbol("✅").Msg("All directions complete")
 }

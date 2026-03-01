@@ -338,7 +338,7 @@ func TestTreeAllLevels(t *testing.T) {
 		name    string
 		method  func(*Logger) *Event
 		wantLvl string
-		prefix  string
+		symbol  string
 	}{
 		{"trace", (*Logger).Trace, "TRC", "🔍"},
 		{"debug", (*Logger).Debug, "DBG", "🐞"},
@@ -353,12 +353,12 @@ func TestTreeAllLevels(t *testing.T) {
 			var buf bytes.Buffer
 
 			l := New(TestOutput(&buf))
-			l.SetLevel(TraceLevel)
+			l.SetLevel(LevelTrace)
 
 			sub := l.With().Tree(TreeMiddle).Logger()
 			tt.method(sub).Msg("test")
 
-			assert.Equal(t, tt.wantLvl+" "+tt.prefix+" ├── test\n", buf.String())
+			assert.Equal(t, tt.wantLvl+" "+tt.symbol+" ├── test\n", buf.String())
 		})
 	}
 }
@@ -388,14 +388,14 @@ func TestTreeWithContextFields(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Tree combined with custom prefix
+// Tree combined with custom symbol
 // ---------------------------------------------------------------------------
 
-func TestTreeWithCustomPrefix(t *testing.T) {
+func TestTreeWithCustomSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeMiddle).Prefix(">>>").Logger()
+	sub := l.With().Tree(TreeMiddle).Symbol(">>>").Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF >>> ├── hello\n", buf.String())

@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"time"
+
+	"github.com/gechr/clog/field/percent"
+	"github.com/gechr/clog/internal/core"
 )
 
 // Event represents a log event being constructed. All methods are safe
@@ -15,14 +17,20 @@ import (
 type Event struct {
 	logger *Logger
 
+	dict         bool      // true for events created by Dict() (must not call Msg/Send)
 	elapsedStart time.Time // set by Elapsed(); zero means no elapsed field
 	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
 	fields       []Field
 	level        Level
+	noExit       bool      // if true, skip exit even for LevelFatal (used by adapters)
 	parts        *[]Part   // nil = use logger's parts
-	prefix       *string   // nil = use logger/default prefix
+	symbol       *string   // nil = use logger/default symbol
 	timestamp    time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
+
+// NOTE: The field methods below intentionally duplicate FieldBuilder[T] methods.
+// Event cannot embed FieldBuilder because it needs nil-receiver no-ops and
+// returns *Event (not *T). Keep both sets in sync when adding new field types.
 
 // Any adds a field with an arbitrary value.
 func (e *Event) Any(key string, val any) *Event {
@@ -63,7 +71,7 @@ func (e *Event) Bytes(key string, val []byte) *Event {
 	}
 
 	if json.Valid(val) {
-		e.fields = append(e.fields, Field{Key: key, Value: rawJSON(val)})
+		e.fields = append(e.fields, Field{Key: key, Value: core.RawJSON(val)})
 	} else {
 		e.fields = append(e.fields, Field{Key: key, Value: string(val)})
 	}
@@ -163,7 +171,7 @@ func (e *Event) Errs(key string, vals []error) *Event {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: errSliceToStrings(vals)})
+	e.fields = append(e.fields, Field{Key: key, Value: core.ErrSliceToStrings(vals)})
 	return e
 }
 
@@ -319,13 +327,13 @@ func (e *Event) Link(key, url, text string) *Event {
 
 // Msg finalises the event and writes the log entry.
 // If [Event.Err] was called, the error is included as an "error" field.
-// For [FatalLevel] events, Msg calls [os.Exit](1) after writing.
+// For [LevelFatal] events, Msg calls [os.Exit](1) after writing.
 func (e *Event) Msg(msg string) {
 	if e == nil {
 		return
 	}
 
-	if e.logger == nil {
+	if e.dict {
 		panic("clog: Msg/Msgf/Send called on a Dict() event -- pass it to Event.Dict() instead")
 	}
 
@@ -337,7 +345,7 @@ func (e *Event) Msg(msg string) {
 
 	e.logger.log(e, msg)
 
-	if e.level == FatalLevel {
+	if e.level == LevelFatal && !e.noExit {
 		e.logger.exit(1)
 	}
 }
@@ -351,40 +359,21 @@ func (e *Event) Msgf(format string, args ...any) {
 	e.Msg(fmt.Sprintf(format, args...))
 }
 
-// PercentOption configures how a [Event.Percent] field is rendered.
-type PercentOption func(*percentValue)
-
-// WithPercentReverseGradient returns a [PercentOption] that flips the gradient
-// direction for this field relative to the logger default. If the logger is
-// using the normal gradient (red=0%, green=100%), the field renders inverted
-// (green=0%, red=100%), and vice versa.
-func WithPercentReverseGradient() PercentOption {
-	return func(p *percentValue) { p.reverse = true }
-}
-
 // Percent adds a percentage field (0–100) with gradient color styling.
 // Values are clamped to the 0–100 range. The color is interpolated from
-// the [Styles.PercentGradient] stops (default: red → yellow → green).
+// the [style.Config.PercentGradient] stops (default: red → yellow → green).
 //
-// Use [WithPercentReverseGradient] to flip the gradient for this field:
+// Use [percent.WithReverseGradient] to flip the gradient for this field:
 //
-//	e.Percent("cpu", usage, clog.WithPercentReverseGradient())
-func (e *Event) Percent(key string, val float64, opts ...PercentOption) *Event {
+//	e.Percent("cpu", usage, percent.WithReverseGradient())
+func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event {
 	if e == nil {
 		return e
 	}
 
-	clamped := clampPercent(val)
-	if len(opts) == 0 {
-		e.fields = append(e.fields, Field{Key: key, Value: percent(clamped)})
-		return e
-	}
-
-	pv := percentValue{val: clamped}
-	for _, o := range opts {
-		o(&pv)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: pv})
+	p := core.Percent{Value: core.ClampPercent(val)}
+	percent.Apply(&p, opts)
+	e.fields = append(e.fields, Field{Key: key, Value: p})
 	return e
 }
 
@@ -414,7 +403,7 @@ func (e *Event) RawJSON(key string, val []byte) *Event {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: rawJSON(val)})
+	e.fields = append(e.fields, Field{Key: key, Value: core.RawJSON(val)})
 	return e
 }
 
@@ -431,7 +420,7 @@ func (e *Event) JSON(key string, val any) *Event {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: rawJSON(b)})
+	e.fields = append(e.fields, Field{Key: key, Value: core.RawJSON(b)})
 	return e
 }
 
@@ -446,26 +435,26 @@ func (e *Event) Parts(parts ...Part) *Event {
 	return e
 }
 
-// Prefix overrides the default emoji prefix for this entry.
-func (e *Event) Prefix(prefix string) *Event {
+// Symbol overrides the default emoji symbol for this entry.
+func (e *Event) Symbol(symbol string) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.prefix = new(prefix)
+	e.symbol = new(symbol)
 	return e
 }
 
 // Quantities adds a quantity string slice field. Each element is styled
-// with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+// with [style.Config.FieldQuantityNumber] and [style.Config.FieldQuantityUnit].
 func (e *Event) Quantities(key string, vals []string) *Event {
 	if e == nil {
 		return e
 	}
 
-	q := make([]quantity, len(vals))
+	q := make([]core.QuantityField, len(vals))
 	for i, v := range vals {
-		q[i] = quantity(v)
+		q[i] = core.QuantityField(v)
 	}
 	e.fields = append(e.fields, Field{Key: key, Value: q})
 	return e
@@ -473,13 +462,13 @@ func (e *Event) Quantities(key string, vals []string) *Event {
 
 // Quantity adds a quantity string field where numeric and unit segments are
 // styled independently (e.g. "5m", "5.1km", "100MB").
-// The value is styled with [Styles.FieldQuantityNumber] and [Styles.FieldQuantityUnit].
+// The value is styled with [style.Config.FieldQuantityNumber] and [style.Config.FieldQuantityUnit].
 func (e *Event) Quantity(key, val string) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: quantity(val)})
+	e.fields = append(e.fields, Field{Key: key, Value: core.QuantityField(val)})
 	return e
 }
 
@@ -513,7 +502,7 @@ func (e *Event) Str(key, val string) *Event {
 
 // Stringer adds a field by calling the value's String method. No-op if val is nil.
 func (e *Event) Stringer(key string, val fmt.Stringer) *Event {
-	if e == nil || isNilStringer(val) {
+	if e == nil || core.IsNilStringer(val) {
 		return e
 	}
 
@@ -529,7 +518,7 @@ func (e *Event) Stringers(key string, vals []fmt.Stringer) *Event {
 
 	strs := make([]string, len(vals))
 	for i, v := range vals {
-		if isNilStringer(v) {
+		if core.IsNilStringer(v) {
 			strs[i] = Nil
 		} else {
 			strs[i] = v.String()
@@ -649,29 +638,49 @@ func (e *Event) withParts(parts *[]Part) *Event {
 	return e
 }
 
-// withPrefix sets the prefix on the event (used internally).
-func (e *Event) withPrefix(prefix string) *Event {
+// withSymbol sets the symbol on the event (used internally).
+func (e *Event) withSymbol(symbol string) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.prefix = new(prefix)
+	e.symbol = new(symbol)
 	return e
 }
 
-// isNilStringer reports whether val is nil, either as an untyped nil interface
-// or as a typed nil whose underlying kind supports IsNil.
-func isNilStringer(val fmt.Stringer) bool {
-	if val == nil {
-		return true
+// Elapsed adds an elapsed-time field at the current position in the field
+// list. The duration is measured from the first Elapsed call on this event
+// until the event is finalised with [Event.Send], [Event.Msg], or
+// [Event.Msgf].
+//
+// The key parameter is the field name (e.g. "elapsed"). The field uses the
+// same formatting and styling as [fx.Builder.Elapsed].
+//
+//	e := clog.Info().Str("step", "migrate").Elapsed("elapsed")
+//	runMigrations()
+//	e.Msg("done")
+//	// Output: INF ℹ️ done step=migrate elapsed=2s
+func (e *Event) Elapsed(key string) *Event {
+	if e == nil {
+		return e
 	}
+	if e.elapsedStart.IsZero() {
+		e.elapsedStart = time.Now()
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: core.ElapsedField(0)})
+	return e
+}
 
-	rv := reflect.ValueOf(val)
-	//nolint:exhaustive // only nilable kinds need checking
-	switch rv.Kind() {
-	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
-		return rv.IsNil()
-	default:
-		return false
+// resolveElapsed replaces any core.ElapsedField(0) placeholder values in the event's
+// fields with the actual elapsed duration since the first [Event.Elapsed] call.
+func (e *Event) resolveElapsed() {
+	if e.elapsedStart.IsZero() {
+		return
+	}
+	dur := core.ElapsedField(time.Since(e.elapsedStart))
+	for i := range e.fields {
+		if v, ok := e.fields[i].Value.(core.ElapsedField); ok && v == 0 {
+			e.fields[i].Value = dur
+		}
 	}
 }

@@ -5,6 +5,9 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+
+	"github.com/gechr/clog/field/hyperlink"
+	"github.com/gechr/clog/level"
 )
 
 // DefaultEnvPrefix is the default environment variable prefix.
@@ -24,8 +27,14 @@ const (
 var envPrefix atomic.Value // stores string; "" means no custom prefix
 
 func init() {
-	hyperlinksEnabled.Store(true)
+	hyperlink.SetEnabled(true)
 	loadAllFromEnv()
+}
+
+func loadAllFromEnv() {
+	loadNoColorFromEnv()
+	loadLogLevelFromEnv()
+	loadHyperlinkFormatsFromEnv()
 }
 
 // SetEnvPrefix sets a custom environment variable prefix. Env vars are
@@ -50,30 +59,24 @@ func getEnv(suffix string) string {
 	return os.Getenv(DefaultEnvPrefix + "_" + suffix)
 }
 
-func loadAllFromEnv() {
-	loadNoColorFromEnv()
-	loadLogLevelFromEnv()
-	loadHyperlinkFormatsFromEnv()
-}
-
 func loadLogLevelFromEnv() {
-	level := strings.TrimSpace(getEnv(envLogLevel))
-	if level == "" {
+	lvl := strings.TrimSpace(getEnv(envLogLevel))
+	if lvl == "" {
 		return
 	}
 
-	parsed, err := ParseLevel(level)
+	parsed, err := level.Parse(lvl)
 	if err != nil {
 		envVar := DefaultEnvPrefix + "_" + envLogLevel
 		if p, ok := envPrefix.Load().(string); ok && p != "" {
 			envVar = p + "_" + envLogLevel
 		}
-		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", level, envVar)
+		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", lvl, envVar)
 		return
 	}
 
 	Default.SetLevel(parsed)
-	if parsed <= DebugLevel {
+	if parsed <= LevelDebug {
 		Default.SetReportTimestamp(true)
 	}
 }
@@ -81,7 +84,7 @@ func loadLogLevelFromEnv() {
 func loadHyperlinkFormatsFromEnv() {
 	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
 	if v := getEnv(envHyperlinkFormat); v != "" {
-		if err := SetHyperlinkPreset(v); err != nil {
+		if err := hyperlink.SetPreset(v); err != nil {
 			envVar := DefaultEnvPrefix + "_" + envHyperlinkFormat
 			if p, ok := envPrefix.Load().(string); ok && p != "" {
 				envVar = p + "_" + envHyperlinkFormat
@@ -91,23 +94,23 @@ func loadHyperlinkFormatsFromEnv() {
 	}
 
 	if v := getEnv(envHyperlinkPathFormat); v != "" {
-		SetHyperlinkPathFormat(v)
+		hyperlink.SetPathFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkFileFormat); v != "" {
-		SetHyperlinkFileFormat(v)
+		hyperlink.SetFileFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkDirFormat); v != "" {
-		SetHyperlinkDirFormat(v)
+		hyperlink.SetDirFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkLineFormat); v != "" {
-		SetHyperlinkLineFormat(v)
+		hyperlink.SetLineFormat(v)
 	}
 
 	if v := getEnv(envHyperlinkColumnFormat); v != "" {
-		SetHyperlinkColumnFormat(v)
+		hyperlink.SetColumnFormat(v)
 	}
 }
 

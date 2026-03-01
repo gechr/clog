@@ -3,6 +3,8 @@ package clog
 import (
 	"strings"
 	"unicode/utf8"
+
+	"github.com/gechr/clog/style"
 )
 
 const (
@@ -93,7 +95,7 @@ func (b *DividerBuilder) render(title string) {
 	writeString(l.output.Writer(), line+"\n")
 }
 
-func renderDividerLine(char rune, width int, noColor bool, styles *Styles) string {
+func renderDividerLine(char rune, width int, noColor bool, styles *style.Config) string {
 	line := strings.Repeat(string(char), width)
 	if !noColor && styles.DividerLine != nil {
 		return styles.DividerLine.Render(line)
@@ -107,7 +109,7 @@ func renderDividerWithTitle(
 	width int,
 	align Align,
 	noColor bool,
-	styles *Styles,
+	styles *style.Config,
 ) string {
 	styledTitle := title
 	if !noColor && styles.DividerTitle != nil {

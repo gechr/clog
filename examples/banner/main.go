@@ -6,29 +6,33 @@ import (
 	"time"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/fx/shimmer"
+	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
 func main() {
-	clog.SetLevel(clog.TraceLevel)
+	clog.SetLevel(clog.LevelTrace)
 	clog.SetReportTimestamp(true)
 
 	_ = clog.Shimmer("Initializing environment and loading configuration modules",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-		clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-		clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-		clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		shimmer.WithGradient(
+			style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		),
+		shimmer.WithDirection(shimmer.MiddleIn),
 	).
-		ShimmerDirection(clog.DirectionMiddleIn).
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Environment initialized")
 
 	_ = clog.Spinner("Validating config").
@@ -41,7 +45,7 @@ func main() {
 
 	_ = clog.Spinner("Deploying").
 		Str("env", "production").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			update.Msg("Building image").Send()
 			time.Sleep(1 * time.Second)
 			update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
@@ -49,13 +53,12 @@ func main() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(1 * time.Second)
 			return nil
-		}).
-		Prefix("🚀").
+		}). Symbol("🚀").
 		Msg("Deployed")
 
 	_ = clog.Spinner("Running migrations").
 		Str("db", "postgres").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			hundred := 100
 			for i := range hundred {
 				progress := min(i+1, hundred)
@@ -63,18 +66,15 @@ func main() {
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Migrations applied")
 
-	_ = clog.Spinner("Downloading artifacts").
-		Style(clog.SpinnerDot).
+	_ = clog.Spinner("Downloading artifacts", spinner.WithStyle(spinner.Dot)).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}).
-		Prefix("📦").
+		}). Symbol("📦").
 		Msg("Artifacts downloaded")
 
 	_ = clog.Spinner("Connecting to database").
@@ -84,6 +84,6 @@ func main() {
 			time.Sleep(2 * time.Second)
 			return errors.New("connection refused")
 		}).
-		OnErrorLevel(clog.FatalLevel).
+		OnErrorLevel(clog.LevelFatal).
 		Send()
 }

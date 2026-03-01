@@ -1,0 +1,53 @@
+package fx
+
+import "github.com/gechr/clog/internal/core"
+
+// resultBase holds common fields and fluent-config methods shared by
+// WaitResult, TaskResult, and GroupResult.
+type resultBase[T any] struct {
+	core.FieldBuilder[T]
+
+	ErrorMsg     *string
+	LevelError   core.Level
+	Log          Logger
+	PartOverride *[]core.Part
+	SuccessLevel core.Level
+	SuccessMsg   string
+	SymbolStr    *string
+}
+
+// OnErrorLevel sets the log level for the error case.
+func (b *resultBase[T]) OnErrorLevel(lvl core.Level) *T {
+	b.LevelError = lvl
+	return b.Self
+}
+
+// OnErrorMessage sets a custom message for the error case.
+func (b *resultBase[T]) OnErrorMessage(msg string) *T {
+	b.ErrorMsg = &msg
+	return b.Self
+}
+
+// OnSuccessLevel sets the log level for the success case.
+func (b *resultBase[T]) OnSuccessLevel(lvl core.Level) *T {
+	b.SuccessLevel = lvl
+	return b.Self
+}
+
+// OnSuccessMessage sets the message for the success case.
+func (b *resultBase[T]) OnSuccessMessage(msg string) *T {
+	b.SuccessMsg = msg
+	return b.Self
+}
+
+// Parts overrides the log-line part order for the completion message.
+func (b *resultBase[T]) Parts(parts ...core.Part) *T {
+	b.PartOverride = new(parts)
+	return b.Self
+}
+
+// Symbol sets a custom emoji symbol for the completion log message.
+func (b *resultBase[T]) Symbol(symbol string) *T {
+	b.SymbolStr = &symbol
+	return b.Self
+}

@@ -10,7 +10,14 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/fx/bar"
+	"github.com/gechr/clog/fx/bar/widget"
+	"github.com/gechr/clog/fx/pulse"
+	"github.com/gechr/clog/fx/shimmer"
+	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
+
 )
 
 func main() {
@@ -26,7 +33,7 @@ func main() {
 		}
 	})
 
-	clog.SetLevel(clog.TraceLevel)
+	clog.SetLevel(clog.LevelTrace)
 	clog.SetReportTimestamp(true)
 
 	if spinnersSet {
@@ -41,14 +48,14 @@ func main() {
 
 	header := func(h string) {
 		fmt.Println()
-		style := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
-		fmt.Println(style.Render(h))
+		s := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
+		fmt.Println(s.Render(h))
 	}
 
 	if !*quickFlag {
 		// --- Shimmer (all directions, rainbow) ---
 		header("Shimmer")
-		rainbow := []clog.ColorStop{
+		rainbow := []style.ColorStop{
 			{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
 			{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
 			{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
@@ -61,45 +68,52 @@ func main() {
 			time.Sleep(5 * time.Second)
 			return nil
 		}
-		shimmerGroup := clog.NewGroup(context.Background())
-		shimmerGroup.Add(clog.Shimmer("Shimmer right: streaming data to downstream services", rainbow...).
-			ShimmerDirection(clog.DirectionRight)).
+		shimmerGroup := clog.Group(context.Background())
+		shimmerGroup.Add(clog.Shimmer("Shimmer right: streaming data to downstream services",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.Right))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Shimmer left: rewinding transaction log to checkpoint", rainbow...).
-			ShimmerDirection(clog.DirectionLeft)).
+		shimmerGroup.Add(clog.Shimmer("Shimmer left: rewinding transaction log to checkpoint",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.Left))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Middle in: synchronizing upstream dependencies and rebuilding", rainbow...).
-			ShimmerDirection(clog.DirectionMiddleIn)).
+		shimmerGroup.Add(clog.Shimmer("Middle in: synchronizing upstream dependencies and rebuilding",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.MiddleIn))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Middle out: broadcasting configuration changes to edge nodes", rainbow...).
-			ShimmerDirection(clog.DirectionMiddleOut)).
+		shimmerGroup.Add(clog.Shimmer("Middle out: broadcasting configuration changes to edge nodes",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.MiddleOut))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Bounce in: converging replicas and verifying quorum", rainbow...).
-			ShimmerDirection(clog.DirectionBounceIn)).
+		shimmerGroup.Add(clog.Shimmer("Bounce in: converging replicas and verifying quorum",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.BounceIn))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Bounce out: propagating cache invalidation to all locations", rainbow...).
-			ShimmerDirection(clog.DirectionBounceOut)).
+		shimmerGroup.Add(clog.Shimmer("Bounce out: propagating cache invalidation to all locations",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithDirection(shimmer.BounceOut))).
 			Run(sleep3s)
-		shimmerGroup.Add(clog.Shimmer("Fast shimmer: rapid gradient cycle at 2× speed", rainbow...).
-			Speed(1.0)).
+		shimmerGroup.Add(clog.Shimmer("Fast shimmer: rapid gradient cycle at 2× speed",
+			shimmer.WithGradient(rainbow...),
+			shimmer.WithSpeed(1.0))).
 			Run(sleep3s)
-		shimmerGroup.Wait().Prefix("✅").Msg("Shimmer demo complete")
+		shimmerGroup.Wait().Symbol("✅").Msg("Shimmer demo complete")
 
 		// --- Group (bar styles + spinner + pulse running concurrently) ---
 		header("Bar")
 
-		thinColored := clog.BarThin
+		thinColored := bar.Thin
 		thinColored.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
 		thinColored.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		thinColored.WidgetLeft = clog.WidgetPercent()
-		thinColored.WidgetRight = clog.WidgetNone
+		thinColored.WidgetLeft = widget.Percent()
+		thinColored.WidgetRight = widget.None()
 
-		gradientBar := clog.BarSmooth
-		gradientBar.ProgressGradient = clog.DefaultBarGradient()
-		gradientBar.WidgetLeft = clog.WidgetPercent()
-		gradientBar.WidgetRight = clog.WidgetNone
+		gradientBar := bar.Smooth
+		gradientBar.ProgressGradient = bar.DefaultGradient()
+		gradientBar.WidgetLeft = widget.Percent()
+		gradientBar.WidgetRight = widget.None()
 
-		barFill := func(_ context.Context, p *clog.ProgressUpdate) error {
+		barFill := func(_ context.Context, p *clog.Update) error {
 			for i := range 1001 {
 				p.SetProgress(i).Send()
 				time.Sleep(3 * time.Millisecond)
@@ -107,45 +121,44 @@ func main() {
 			return nil
 		}
 
-		downloadBar := clog.BarThin
+		downloadBar := bar.Thin
 		downloadBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
 		downloadBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		downloadBar.WidgetLeft = clog.WidgetPercent()
-		downloadBar.WidgetRight = clog.WidgetNone
+		downloadBar.WidgetLeft = widget.Percent()
+		downloadBar.WidgetRight = widget.None()
 
-		g := clog.NewGroup(context.Background())
-		g.Add(clog.Bar("Downloading", 1000).
-			Style(downloadBar).Str("file", "release.tar.gz").Elapsed("elapsed")).
+		g := clog.Group(context.Background())
+		g.Add(clog.Bar("Downloading", 1000, bar.WithStyle(downloadBar)).
+			Str("file", "release.tar.gz").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Installing", 1000).
-			Style(thinColored).Str("pkg", "clog").BarPercent("progress").Elapsed("elapsed")).
+		g.Add(clog.Bar("Installing", 1000, bar.WithStyle(thinColored)).
+			Str("pkg", "clog").BarPercent("progress").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Building", 1000).
-			Style(gradientBar).Str("target", "release").Elapsed("elapsed")).
+		g.Add(clog.Bar("Building", 1000, bar.WithStyle(gradientBar)).
+			Str("target", "release").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Syncing", 1000).
-			Style(clog.BarStyle{
-				Align:        clog.BarAlignInline,
-				CapLeft:      "│",
-				CapRight:     "│",
-				CharEmpty:    ' ',
-				CharFill:     '█',
-				GradientFill: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
-				Separator:    " ",
-				StyleEmpty:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),
-				StyleFill:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
-				WidthMax:     40,
-				WidthMin:     10,
-			}).Str("region", "us-east-1").Elapsed("elapsed")).
+		g.Add(clog.Bar("Syncing", 1000, bar.WithStyle(bar.Style{
+			Placement:  bar.PlaceInline,
+			CapLeft:      "│",
+			CapRight:     "│",
+			CharEmpty:    ' ',
+			CharFill:     '█',
+			GradientFill: []rune{'▏', '▎', '▍', '▌', '▋', '▊', '▉'},
+			Separator:    " ",
+			StyleEmpty:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("8"))),
+			StyleFill:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
+			WidthMax:     40,
+			WidthMin:     10,
+		})).Str("region", "us-east-1").Elapsed("elapsed")).
 			Progress(barFill)
 		fileSize := 150 * 1000 * 1000 // 150 MB
-		bytesBar := clog.BarSmooth
+		bytesBar := bar.Smooth
 		bytesBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))
 		bytesBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
-		bytesBar.WidgetRight = clog.WidgetBytes()
-		g.Add(clog.Bar("Fetching", fileSize).
-			Style(bytesBar).Str("file", "model.bin").Elapsed("elapsed")).
-			Progress(func(_ context.Context, p *clog.ProgressUpdate) error {
+		bytesBar.WidgetRight = widget.Bytes()
+		g.Add(clog.Bar("Fetching", fileSize, bar.WithStyle(bytesBar)).
+			Str("file", "model.bin").Elapsed("elapsed")).
+			Progress(func(_ context.Context, p *clog.Update) error {
 				steps := 1000
 				for i := range steps + 1 {
 					p.SetProgress(fileSize * i / steps).Send()
@@ -163,7 +176,7 @@ func main() {
 				time.Sleep(3 * time.Second)
 				return nil
 			})
-		g.Wait().Prefix("✅").Msg("Group demo complete")
+		g.Wait().Symbol("✅").Msg("Group demo complete")
 
 		// --- Spinner ---
 		header("Spinner")
@@ -172,13 +185,12 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(1 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Demo loaded")
 
 		_ = clog.Spinner("Running migrations").
 			Str("db", "postgres").
-			Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+			Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 				hundred := 100
 				for i := range hundred {
 					progress := min(i+1, hundred)
@@ -186,8 +198,7 @@ func main() {
 					time.Sleep(30 * time.Millisecond)
 				}
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Migrations applied")
 
 		_ = clog.Spinner("Connecting to database").
@@ -201,7 +212,7 @@ func main() {
 
 		_ = clog.Spinner("Deploying").
 			Str("env", "production").
-			Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+			Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 				update.Msg("Building image").Send()
 				time.Sleep(500 * time.Millisecond)
 				update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
@@ -209,8 +220,7 @@ func main() {
 				update.Msg("Starting containers").Send()
 				time.Sleep(500 * time.Millisecond)
 				return nil
-			}).
-			Prefix("🚀").
+			}). Symbol("🚀").
 			Msg("Deployed")
 
 		// --- Pulse ---
@@ -219,21 +229,21 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Inference engine ready")
 
 		header("Pulse (custom gradient)")
 		_ = clog.Pulse("Replicating data across regions",
-			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
-			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
-			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+			pulse.WithGradient(
+				style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 0.3}},
+				style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.2, B: 0.2}},
+			),
 		).
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Data replicated")
 
 		// --- Shimmer ---
@@ -242,56 +252,58 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Search catalogue rebuilt")
 
 		header("Shimmer (custom gradient)")
 		_ = clog.Shimmer("Deploying service to production cluster and running health checks",
-			clog.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
-			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
-			clog.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+			shimmer.WithGradient(
+				style.ColorStop{Position: 0, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 1, G: 1, B: 1}},
+				style.ColorStop{Position: 1, Color: colorful.Color{R: 0.3, G: 0.3, B: 0.8}},
+			),
 		).
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("🚀").
+			}). Symbol("🚀").
 			Msg("Service deployed and health checks passed")
 
 		header("Shimmer (middle direction, rainbow)")
 		_ = clog.Shimmer("Synchronizing upstream dependencies and rebuilding artifacts",
-			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			shimmer.WithGradient(
+				style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+				style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+				style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+				style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+				style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+				style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			),
+			shimmer.WithDirection(shimmer.MiddleIn),
 		).
-			ShimmerDirection(clog.DirectionMiddleIn).
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Dependencies synced and artifacts rebuilt")
 
 		_ = clog.Shimmer("Broadcasting configuration changes to all edge nodes",
-			clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-			clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-			clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-			clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-			clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-			clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			shimmer.WithGradient(
+				style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+				style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+				style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+				style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+				style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+				style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			),
+			shimmer.WithDirection(shimmer.MiddleOut),
 		).
-			ShimmerDirection(clog.DirectionMiddleOut).
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Configuration broadcast complete")
 
 		// --- Elapsed timer ---
@@ -303,8 +315,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(2 * time.Second)
 				return nil
-			}).
-			Prefix("✅").
+			}). Symbol("✅").
 			Msg("Batch processed")
 	}
 
@@ -419,14 +430,14 @@ func main() {
 	header("Formatted Messages")
 	clog.Info().Msgf("Processed %d items in %s", 150, 2*time.Second)
 	clog.Info().Str("status", "ok").Send()
-	// --- Custom prefix ---
-	header("Custom Prefix")
-	clog.Info().Prefix("🎉").Str("version", "1.0.0").Msg("Released")
-	clog.Info().Prefix("📦").Str("pkg", "clog").Msg("Installed")
-	clog.Warn().Prefix("🐌").Str("query", "SELECT *").Msg("Slow query")
+	// --- Custom symbol ---
+	header("Custom Symbol")
+	clog.Info().Symbol("🎉").Str("version", "1.0.0").Msg("Released")
+	clog.Info().Symbol("📦").Str("pkg", "clog").Msg("Installed")
+	clog.Warn().Symbol("🐌").Str("query", "SELECT *").Msg("Slow query")
 	// --- Sub-loggers ---
 	header("Sub-loggers")
-	auth := clog.With().Str("component", "auth").Prefix("🔒").Logger()
+	auth := clog.With().Str("component", "auth").Symbol("🔒").Logger()
 	auth.Info().Str("user", "alice").Msg("Login successful")
 	auth.Warn().Str("user", "bob").Str("reason", "bad password").Msg("Login failed")
 	auth.Debug().Str("token", "eyJ...").Msg("Token issued")
@@ -436,11 +447,11 @@ func main() {
 	db.Debug().Duration("latency", 2*time.Millisecond).Msg("Query executed")
 	// --- Level alignment ---
 	header("Level Alignment (Right, default)")
-	clog.SetLevelLabels(clog.LevelMap{
-		clog.DebugLevel: "DEBUG",
-		clog.InfoLevel:  "I",
-		clog.WarnLevel:  "WARNING",
-		clog.ErrorLevel: "ERR",
+	clog.SetLabels(clog.LabelMap{
+		clog.LevelDebug: "DEBUG",
+		clog.LevelInfo:  "I",
+		clog.LevelWarn:  "WARNING",
+		clog.LevelError: "ERR",
 	})
 	clog.Debug().Msg("aligned right")
 	clog.Info().Msg("aligned right")
@@ -448,11 +459,11 @@ func main() {
 	clog.Error().Msg("aligned right")
 
 	header("Level Alignment (Left)")
-	clog.SetLevelLabels(clog.LevelMap{
-		clog.DebugLevel: "DEBUG",
-		clog.InfoLevel:  "I",
-		clog.WarnLevel:  "WARNING",
-		clog.ErrorLevel: "ERR",
+	clog.SetLabels(clog.LabelMap{
+		clog.LevelDebug: "DEBUG",
+		clog.LevelInfo:  "I",
+		clog.LevelWarn:  "WARNING",
+		clog.LevelError: "ERR",
 	})
 	clog.SetLevelAlign(clog.AlignLeft)
 	clog.Debug().Msg("aligned left")
@@ -462,11 +473,11 @@ func main() {
 	clog.SetLevelAlign(clog.AlignRight) // reset
 
 	header("Level Alignment (Center)")
-	clog.SetLevelLabels(clog.LevelMap{
-		clog.DebugLevel: "DEBUG",
-		clog.InfoLevel:  "I",
-		clog.WarnLevel:  "WARNING",
-		clog.ErrorLevel: "ERR",
+	clog.SetLabels(clog.LabelMap{
+		clog.LevelDebug: "DEBUG",
+		clog.LevelInfo:  "I",
+		clog.LevelWarn:  "WARNING",
+		clog.LevelError: "ERR",
 	})
 	clog.SetLevelAlign(clog.AlignCenter)
 	clog.Debug().Msg("centered")
@@ -484,31 +495,31 @@ func main() {
 	clog.SetLevelAlign(clog.AlignRight) // reset
 	// --- Custom labels ---
 	header("Custom Labels")
-	clog.SetLevelLabels(clog.LevelMap{
-		clog.TraceLevel: "A",
-		clog.DebugLevel: "B",
-		clog.InfoLevel:  "C",
-		clog.DryLevel:   "D",
-		clog.WarnLevel:  "E",
-		clog.ErrorLevel: "F",
-		clog.FatalLevel: "G",
+	clog.SetLabels(clog.LabelMap{
+		clog.LevelTrace: "A",
+		clog.LevelDebug: "B",
+		clog.LevelInfo:  "C",
+		clog.LevelDry:   "D",
+		clog.LevelWarn:  "E",
+		clog.LevelError: "F",
+		clog.LevelFatal: "G",
 	})
 	clog.Debug().Msg("with custom labels")
 	clog.Info().Msg("with custom labels")
 	clog.Warn().Msg("with custom labels")
 	clog.Error().Msg("with custom labels")
-	clog.SetLevelLabels(clog.DefaultLabels()) // reset
-	// --- Custom prefixes ---
-	header("Custom Prefixes")
-	clog.SetPrefixes(clog.LevelMap{
-		clog.InfoLevel:  ">>",
-		clog.WarnLevel:  "!!",
-		clog.ErrorLevel: "XX",
+	clog.SetLabels(clog.DefaultLabels()) // reset
+	// --- Custom symbols ---
+	header("Custom Symbols")
+	clog.SetSymbols(clog.LabelMap{
+		clog.LevelInfo:  ">>",
+		clog.LevelWarn:  "!!",
+		clog.LevelError: "XX",
 	})
-	clog.Info().Msg("custom prefix")
-	clog.Warn().Msg("custom prefix")
-	clog.Error().Msg("custom prefix")
-	clog.SetPrefixes(clog.DefaultPrefixes()) // reset
+	clog.Info().Msg("custom symbol")
+	clog.Warn().Msg("custom symbol")
+	clog.Error().Msg("custom symbol")
+	clog.SetSymbols(clog.DefaultSymbols()) // reset
 	// --- Hyperlinks ---
 	header("Hyperlinks")
 	clog.Info().
@@ -530,22 +541,22 @@ func main() {
 	header("Custom Part Order (fields before message)")
 	partStyles := clog.DefaultStyles()
 	italic := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("4"))
-	partStyles.Messages[clog.InfoLevel] = new(italic)
-	partStyles.Messages[clog.WarnLevel] = new(italic)
+	partStyles.Messages[clog.LevelInfo] = new(italic)
+	partStyles.Messages[clog.LevelWarn] = new(italic)
 	clog.SetStyles(partStyles)
-	clog.SetParts(clog.PartTimestamp, clog.PartLevel, clog.PartPrefix, clog.PartFields, clog.PartMessage)
+	clog.SetParts(clog.PartTimestamp, clog.PartLevel, clog.PartSymbol, clog.PartFields, clog.PartMessage)
 	clog.Info().Str("user", "alice").Int("status", 200).Msg("Request handled")
 	clog.Warn().Str("query", "SELECT *").Duration("latency", 5*time.Second).Msg("Slow query")
 	clog.SetStyles(clog.DefaultStyles())  // reset
 	clog.SetParts(clog.DefaultParts()...) // reset
 
 	header("Hide Log Level")
-	clog.SetParts(clog.PartTimestamp, clog.PartPrefix, clog.PartMessage, clog.PartFields)
+	clog.SetParts(clog.PartTimestamp, clog.PartSymbol, clog.PartMessage, clog.PartFields)
 	clog.Info().Str("user", "alice").Msg("Login")
 	clog.Error().Err(errors.New("timeout")).Msg("Request failed")
 	clog.SetParts(clog.DefaultParts()...) // reset
 
-	header("Hide Prefix")
+	header("Hide Symbol")
 	clog.SetParts(clog.PartTimestamp, clog.PartLevel, clog.PartMessage, clog.PartFields)
 	clog.Info().Str("status", "ok").Msg("Health check")
 	clog.Warn().Str("disk", "92%").Msg("Low disk space")
@@ -554,7 +565,7 @@ func main() {
 	header("Minimal (message only)")
 	clog.SetParts(clog.PartMessage)
 	minimalStyles := clog.DefaultStyles()
-	minimalStyles.Messages[clog.ErrorLevel] = new(lipgloss.NewStyle().Strikethrough(true).Foreground(lipgloss.Color("1")))
+	minimalStyles.Messages[clog.LevelError] = new(lipgloss.NewStyle().Strikethrough(true).Foreground(lipgloss.Color("1")))
 	clog.SetStyles(minimalStyles)
 	clog.Info().Msg("Just the message, nothing else")
 	clog.Error().Msg("Look Ma, an error!")
@@ -563,18 +574,18 @@ func main() {
 
 	header("No Timestamp (default)")
 	clog.SetReportTimestamp(false)
-	clog.Info().Str("mode", "clean").Msg("No timestamp prefix")
+	clog.Info().Str("mode", "clean").Msg("No timestamp symbol")
 	clog.SetReportTimestamp(true) // reset
 	// --- Per-level message styles ---
 	header("Per-Level Message Styles")
 	styles := clog.DefaultStyles()
-	styles.Messages[clog.TraceLevel] = new(lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("6"))) // dim cyan
-	styles.Messages[clog.DebugLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))             // cyan
-	styles.Messages[clog.InfoLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))              // green
-	styles.Messages[clog.DryLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))               // magenta
-	styles.Messages[clog.WarnLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))              // yellow
-	styles.Messages[clog.ErrorLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
-	styles.Messages[clog.FatalLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
+	styles.Messages[clog.LevelTrace] = new(lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("6"))) // dim cyan
+	styles.Messages[clog.LevelDebug] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))             // cyan
+	styles.Messages[clog.LevelInfo] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))              // green
+	styles.Messages[clog.LevelDry] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))               // magenta
+	styles.Messages[clog.LevelWarn] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))              // yellow
+	styles.Messages[clog.LevelError] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
+	styles.Messages[clog.LevelFatal] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
 	clog.SetStyles(styles)
 	clog.Trace().Msg("Trace message is dim cyan")
 	clog.Debug().Msg("Debug message is cyan")
@@ -670,7 +681,7 @@ func main() {
 		Msg("Resource fetched")
 
 	header("RawJSON (custom styles)")
-	customStyles := clog.DefaultJSONStyles()
+	customStyles := style.DefaultJSON()
 	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))              // green keys
 	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true)) // red dim null
 	customStyleSet := clog.DefaultStyles()
@@ -683,8 +694,8 @@ func main() {
 
 	header("RawJSON (human mode)")
 	humanStyles := clog.DefaultStyles()
-	humanStyles.FieldJSON = clog.DefaultJSONStyles()
-	humanStyles.FieldJSON.Mode = clog.JSONModeHuman
+	humanStyles.FieldJSON = style.DefaultJSON()
+	humanStyles.FieldJSON.Mode = style.JSONModeHuman
 	clog.SetStyles(humanStyles)
 	clog.Info().
 		RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
@@ -693,8 +704,8 @@ func main() {
 
 	header("RawJSON (flat mode)")
 	flatStyles := clog.DefaultStyles()
-	flatStyles.FieldJSON = clog.DefaultJSONStyles()
-	flatStyles.FieldJSON.Mode = clog.JSONModeFlat
+	flatStyles.FieldJSON = style.DefaultJSON()
+	flatStyles.FieldJSON.Mode = style.JSONModeFlat
 	clog.SetStyles(flatStyles)
 	clog.Error().
 		Str("batch", "1/1").
@@ -768,39 +779,39 @@ func main() {
 func spinners(filter string) {
 	type entry struct {
 		name    string
-		spinner clog.SpinnerStyle
+		s       spinner.Style
 	}
 
 	all := []entry{
-		{"Aesthetic", clog.SpinnerAesthetic},
-		{"Arc", clog.SpinnerArc},
-		{"Arrow3", clog.SpinnerArrow3},
-		{"BetaWave", clog.SpinnerBetaWave},
-		{"BouncingBall", clog.SpinnerBouncingBall},
-		{"Circle", clog.SpinnerCircle},
-		{"Dots", clog.SpinnerDots},
-		{"Dots8Bit", clog.SpinnerDots8Bit},
-		{"Dots12", clog.SpinnerDots12},
-		{"Flip", clog.SpinnerFlip},
-		{"Globe", clog.SpinnerGlobe},
-		{"GrowVertical", clog.SpinnerGrowVertical},
-		{"Layer", clog.SpinnerLayer},
-		{"Line", clog.SpinnerLine},
-		{"Material", clog.SpinnerMaterial},
-		{"Meter", clog.SpinnerMeter},
-		{"Moon", clog.SpinnerMoon},
-		{"Noise", clog.SpinnerNoise},
-		{"Pipe", clog.SpinnerPipe},
-		{"Pong", clog.SpinnerPong},
-		{"Runner", clog.SpinnerRunner},
-		{"Shark", clog.SpinnerShark},
-		{"Smiley", clog.SpinnerSmiley},
-		{"SoccerHeader", clog.SpinnerSoccerHeader},
-		{"SquareCorners", clog.SpinnerSquareCorners},
-		{"Star2", clog.SpinnerStar2},
-		{"Toggle", clog.SpinnerToggle},
-		{"Triangle", clog.SpinnerTriangle},
-		{"Weather", clog.SpinnerWeather},
+		{"Aesthetic", spinner.Aesthetic},
+		{"Arc", spinner.Arc},
+		{"Arrow3", spinner.Arrow3},
+		{"BetaWave", spinner.BetaWave},
+		{"BouncingBall", spinner.BouncingBall},
+		{"Circle", spinner.Circle},
+		{"Dots", spinner.Dots},
+		{"Dots8Bit", spinner.Dots8Bit},
+		{"Dots12", spinner.Dots12},
+		{"Flip", spinner.Flip},
+		{"Globe", spinner.Globe},
+		{"GrowVertical", spinner.GrowVertical},
+		{"Layer", spinner.Layer},
+		{"Line", spinner.Line},
+		{"Material", spinner.Material},
+		{"Meter", spinner.Meter},
+		{"Moon", spinner.Moon},
+		{"Noise", spinner.Noise},
+		{"Pipe", spinner.Pipe},
+		{"Pong", spinner.Pong},
+		{"Runner", spinner.Runner},
+		{"Shark", spinner.Shark},
+		{"Smiley", spinner.Smiley},
+		{"SoccerHeader", spinner.SoccerHeader},
+		{"SquareCorners", spinner.SquareCorners},
+		{"Star2", spinner.Star2},
+		{"Toggle", spinner.Toggle},
+		{"Triangle", spinner.Triangle},
+		{"Weather", spinner.Weather},
 	}
 
 	if filter != "" {
@@ -818,10 +829,10 @@ func spinners(filter string) {
 	}
 
 	clog.SetReportTimestamp(false)
-	clog.SetParts(clog.PartMessage, clog.PartPrefix)
+	clog.SetParts(clog.PartMessage, clog.PartSymbol)
 	styles := clog.DefaultStyles()
 	orange := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
-	styles.Messages[clog.InfoLevel] = &orange
+	styles.Messages[clog.LevelInfo] = &orange
 	clog.SetStyles(styles)
 
 	green := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
@@ -833,12 +844,11 @@ func spinners(filter string) {
 	}
 
 	ctx := context.Background()
-	g := clog.NewGroup(ctx)
+	g := clog.Group(ctx)
 	results := make([]*clog.TaskResult, len(all))
 	for i, e := range all {
 		name := fmt.Sprintf("%-*s", maxName, e.name)
-		results[i] = g.Add(clog.Spinner(name).
-			Style(e.spinner)).
+		results[i] = g.Add(clog.Spinner(name, spinner.WithStyle(e.s))).
 			Run(func(_ context.Context) error {
 				time.Sleep(10 * time.Second)
 				return nil
@@ -846,7 +856,7 @@ func spinners(filter string) {
 	}
 	g.Wait()
 	for i, e := range all {
-		results[i].Prefix(check).Msg(e.name)
+		results[i].Symbol(check).Msg(e.name)
 	}
 }
 
@@ -857,21 +867,22 @@ func handleRequest(ctx context.Context) {
 
 func demo() {
 	_ = clog.Shimmer("Initializing environment and loading configuration modules",
-		clog.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		clog.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-		clog.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-		clog.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-		clog.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-		clog.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-		clog.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		shimmer.WithGradient(
+			style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+			style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+			style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+			style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+			style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+			style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+			style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+		),
+		shimmer.WithDirection(shimmer.MiddleIn),
 	).
-		ShimmerDirection(clog.DirectionMiddleIn).
 		Str("eta", "Soon™").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Environment initialized")
 
 	_ = clog.Spinner("Validating config").
@@ -884,7 +895,7 @@ func demo() {
 
 	_ = clog.Spinner("Deploying").
 		Str("env", "production").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			update.Msg("Building image").Send()
 			time.Sleep(1 * time.Second)
 			update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
@@ -892,13 +903,12 @@ func demo() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(1 * time.Second)
 			return nil
-		}).
-		Prefix("🚀").
+		}). Symbol("🚀").
 		Msg("Deployed")
 
 	_ = clog.Spinner("Running migrations").
 		Str("db", "postgres").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			hundred := 100
 			for i := range hundred {
 				progress := min(i+1, hundred)
@@ -906,18 +916,15 @@ func demo() {
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Migrations applied")
 
-	_ = clog.Spinner("Downloading artifacts").
-		Style(clog.SpinnerDot).
+	_ = clog.Spinner("Downloading artifacts", spinner.WithStyle(spinner.Dot)).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}).
-		Prefix("📦").
+		}). Symbol("📦").
 		Msg("Artifacts downloaded")
 
 	_ = clog.Spinner("Connecting to database").
@@ -927,6 +934,6 @@ func demo() {
 			time.Sleep(2 * time.Second)
 			return errors.New("connection refused")
 		}).
-		OnErrorLevel(clog.FatalLevel).
+		OnErrorLevel(clog.LevelFatal).
 		Send()
 }

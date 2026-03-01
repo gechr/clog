@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -13,8 +14,8 @@ import (
 // can assert exact output. The elapsed field always renders as "1s".
 func newTimerTestLogger(buf *bytes.Buffer) *Logger {
 	l := New(TestOutput(buf))
-	l.SetElapsedMinimum(0)
-	l.SetElapsedFormatFunc(func(time.Duration) string { return "1s" })
+	elapsed.SetMinimum(0)
+	elapsed.SetFormatFunc(func(time.Duration) string { return "1s" })
 	return l
 }
 
@@ -115,7 +116,7 @@ func TestElapsedCalledTwice(t *testing.T) {
 func TestElapsedLevelFiltering(t *testing.T) {
 	var buf bytes.Buffer
 	l := newTimerTestLogger(&buf)
-	l.SetLevel(WarnLevel)
+	l.SetLevel(LevelWarn)
 
 	l.Info().Elapsed("elapsed").Msg("ignored")
 
@@ -125,8 +126,8 @@ func TestElapsedLevelFiltering(t *testing.T) {
 func TestElapsedEventFormatFunc(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(TestOutput(&buf))
-	l.SetElapsedMinimum(0)
-	l.SetElapsedFormatFunc(func(time.Duration) string { return "custom" })
+	elapsed.SetMinimum(0)
+	elapsed.SetFormatFunc(func(time.Duration) string { return "custom" })
 
 	l.Info().Elapsed("elapsed").Msg("test")
 

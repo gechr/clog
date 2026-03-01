@@ -9,6 +9,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/fx/spinner"
 )
 
 func main() {
@@ -16,7 +17,7 @@ func main() {
 	stylesPage := flag.Int("styles-page", 0, "show a specific page of spinner presets (1-indexed, 10 per page)")
 	flag.Parse()
 
-	clog.SetLevel(clog.TraceLevel)
+	clog.SetLevel(clog.LevelTrace)
 	clog.SetReportTimestamp(true)
 
 	if *stylesFlag || *stylesPage > 0 {
@@ -29,20 +30,18 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Configuration loaded")
 
 	_ = clog.Spinner("Running migrations").
 		Str("db", "postgres").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			for i := range 100 {
 				update.Msg("Applying migrations").Percent("progress", float64(i+1)).Send()
 				time.Sleep(20 * time.Millisecond)
 			}
 			return nil
-		}).
-		Prefix("✅").
+		}). Symbol("✅").
 		Msg("Migrations applied")
 
 	_ = clog.Spinner("Connecting to database").
@@ -56,7 +55,7 @@ func main() {
 
 	_ = clog.Spinner("Deploying").
 		Str("env", "production").
-		Progress(context.Background(), func(_ context.Context, update *clog.ProgressUpdate) error {
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			update.Msg("Building image").Send()
 			time.Sleep(1 * time.Second)
 			update.Msg("Pushing image").Str("tag", "v1.2.3").Send()
@@ -64,107 +63,106 @@ func main() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(500 * time.Millisecond)
 			return nil
-		}).
-		Prefix("🚀").
+		}). Symbol("🚀").
 		Msg("Deployed")
 }
 
 func showStyles(page int) {
 	type entry struct {
-		name    string
-		spinner clog.SpinnerStyle
+		name string
+		s    spinner.Style
 	}
 
 	all := []entry{
-		{"Aesthetic", clog.SpinnerAesthetic},
-		{"Arc", clog.SpinnerArc},
-		{"Arrow2", clog.SpinnerArrow2},
-		{"Arrow3", clog.SpinnerArrow3},
-		{"Balloon", clog.SpinnerBalloon},
-		{"Balloon2", clog.SpinnerBalloon2},
-		{"BetaWave", clog.SpinnerBetaWave},
-		{"Binary", clog.SpinnerBinary},
-		{"BluePulse", clog.SpinnerBluePulse},
-		{"BouncingBall", clog.SpinnerBouncingBall},
-		{"BoxBounce", clog.SpinnerBoxBounce},
-		{"BoxBounce2", clog.SpinnerBoxBounce2},
-		{"Christmas", clog.SpinnerChristmas},
-		{"Circle", clog.SpinnerCircle},
-		{"CircleHalves", clog.SpinnerCircleHalves},
-		{"CircleQuarters", clog.SpinnerCircleQuarters},
-		{"Dot", clog.SpinnerDot},
-		{"Dots", clog.SpinnerDots},
-		{"Dots3", clog.SpinnerDots3},
-		{"Dots4", clog.SpinnerDots4},
-		{"Dots5", clog.SpinnerDots5},
-		{"Dots6", clog.SpinnerDots6},
-		{"Dots7", clog.SpinnerDots7},
-		{"Dots8", clog.SpinnerDots8},
-		{"Dots8Bit", clog.SpinnerDots8Bit},
-		{"Dots9", clog.SpinnerDots9},
-		{"Dots11", clog.SpinnerDots11},
-		{"Dots12", clog.SpinnerDots12},
-		{"Dots13", clog.SpinnerDots13},
-		{"Dots14", clog.SpinnerDots14},
-		{"DotsCircle", clog.SpinnerDotsCircle},
-		{"Dqpb", clog.SpinnerDqpb},
-		{"DwarfFortress", clog.SpinnerDwarfFortress},
-		{"Ellipsis", clog.SpinnerEllipsis},
-		{"FingerDance", clog.SpinnerFingerDance},
-		{"Fish", clog.SpinnerFish},
-		{"FistBump", clog.SpinnerFistBump},
-		{"Flip", clog.SpinnerFlip},
-		{"Globe", clog.SpinnerGlobe},
-		{"Grenade", clog.SpinnerGrenade},
-		{"GrowHorizontal", clog.SpinnerGrowHorizontal},
-		{"GrowVertical", clog.SpinnerGrowVertical},
-		{"Hamburger", clog.SpinnerHamburger},
-		{"Jump", clog.SpinnerJump},
-		{"Layer", clog.SpinnerLayer},
-		{"Line", clog.SpinnerLine},
-		{"Line2", clog.SpinnerLine2},
-		{"Material", clog.SpinnerMaterial},
-		{"Meter", clog.SpinnerMeter},
-		{"Mindblown", clog.SpinnerMindblown},
-		{"MiniDot", clog.SpinnerMiniDot},
-		{"Monkey", clog.SpinnerMonkey},
-		{"Moon", clog.SpinnerMoon},
-		{"Noise", clog.SpinnerNoise},
-		{"OrangeBluePulse", clog.SpinnerOrangeBluePulse},
-		{"OrangePulse", clog.SpinnerOrangePulse},
-		{"Pipe", clog.SpinnerPipe},
-		{"Point", clog.SpinnerPoint},
-		{"Points", clog.SpinnerPoints},
-		{"Pong", clog.SpinnerPong},
-		{"Pulse", clog.SpinnerPulse},
-		{"RollingLine", clog.SpinnerRollingLine},
-		{"Runner", clog.SpinnerRunner},
-		{"Sand", clog.SpinnerSand},
-		{"Shark", clog.SpinnerShark},
-		{"SimpleDots", clog.SpinnerSimpleDots},
-		{"SimpleDotsScrolling", clog.SpinnerSimpleDotsScrolling},
-		{"Smiley", clog.SpinnerSmiley},
-		{"SoccerHeader", clog.SpinnerSoccerHeader},
-		{"Speaker", clog.SpinnerSpeaker},
-		{"SquareCorners", clog.SpinnerSquareCorners},
-		{"Squish", clog.SpinnerSquish},
-		{"Star2", clog.SpinnerStar2},
-		{"TimeTravel", clog.SpinnerTimeTravel},
-		{"Toggle", clog.SpinnerToggle},
-		{"Toggle2", clog.SpinnerToggle2},
-		{"Toggle3", clog.SpinnerToggle3},
-		{"Toggle4", clog.SpinnerToggle4},
-		{"Toggle5", clog.SpinnerToggle5},
-		{"Toggle6", clog.SpinnerToggle6},
-		{"Toggle7", clog.SpinnerToggle7},
-		{"Toggle8", clog.SpinnerToggle8},
-		{"Toggle9", clog.SpinnerToggle9},
-		{"Toggle10", clog.SpinnerToggle10},
-		{"Toggle11", clog.SpinnerToggle11},
-		{"Toggle12", clog.SpinnerToggle12},
-		{"Toggle13", clog.SpinnerToggle13},
-		{"Triangle", clog.SpinnerTriangle},
-		{"Weather", clog.SpinnerWeather},
+		{"Aesthetic", spinner.Aesthetic},
+		{"Arc", spinner.Arc},
+		{"Arrow2", spinner.Arrow2},
+		{"Arrow3", spinner.Arrow3},
+		{"Balloon", spinner.Balloon},
+		{"Balloon2", spinner.Balloon2},
+		{"BetaWave", spinner.BetaWave},
+		{"Binary", spinner.Binary},
+		{"BluePulse", spinner.BluePulse},
+		{"BouncingBall", spinner.BouncingBall},
+		{"BoxBounce", spinner.BoxBounce},
+		{"BoxBounce2", spinner.BoxBounce2},
+		{"Christmas", spinner.Christmas},
+		{"Circle", spinner.Circle},
+		{"CircleHalves", spinner.CircleHalves},
+		{"CircleQuarters", spinner.CircleQuarters},
+		{"Dot", spinner.Dot},
+		{"Dots", spinner.Dots},
+		{"Dots3", spinner.Dots3},
+		{"Dots4", spinner.Dots4},
+		{"Dots5", spinner.Dots5},
+		{"Dots6", spinner.Dots6},
+		{"Dots7", spinner.Dots7},
+		{"Dots8", spinner.Dots8},
+		{"Dots8Bit", spinner.Dots8Bit},
+		{"Dots9", spinner.Dots9},
+		{"Dots11", spinner.Dots11},
+		{"Dots12", spinner.Dots12},
+		{"Dots13", spinner.Dots13},
+		{"Dots14", spinner.Dots14},
+		{"DotsCircle", spinner.DotsCircle},
+		{"Dqpb", spinner.Dqpb},
+		{"DwarfFortress", spinner.DwarfFortress},
+		{"Ellipsis", spinner.Ellipsis},
+		{"FingerDance", spinner.FingerDance},
+		{"Fish", spinner.Fish},
+		{"FistBump", spinner.FistBump},
+		{"Flip", spinner.Flip},
+		{"Globe", spinner.Globe},
+		{"Grenade", spinner.Grenade},
+		{"GrowHorizontal", spinner.GrowHorizontal},
+		{"GrowVertical", spinner.GrowVertical},
+		{"Hamburger", spinner.Hamburger},
+		{"Jump", spinner.Jump},
+		{"Layer", spinner.Layer},
+		{"Line", spinner.Line},
+		{"Line2", spinner.Line2},
+		{"Material", spinner.Material},
+		{"Meter", spinner.Meter},
+		{"Mindblown", spinner.Mindblown},
+		{"MiniDot", spinner.MiniDot},
+		{"Monkey", spinner.Monkey},
+		{"Moon", spinner.Moon},
+		{"Noise", spinner.Noise},
+		{"OrangeBluePulse", spinner.OrangeBluePulse},
+		{"OrangePulse", spinner.OrangePulse},
+		{"Pipe", spinner.Pipe},
+		{"Point", spinner.Point},
+		{"Points", spinner.Points},
+		{"Pong", spinner.Pong},
+		{"Pulse", spinner.Pulse},
+		{"RollingLine", spinner.RollingLine},
+		{"Runner", spinner.Runner},
+		{"Sand", spinner.Sand},
+		{"Shark", spinner.Shark},
+		{"SimpleDots", spinner.SimpleDots},
+		{"SimpleDotsScrolling", spinner.SimpleDotsScrolling},
+		{"Smiley", spinner.Smiley},
+		{"SoccerHeader", spinner.SoccerHeader},
+		{"Speaker", spinner.Speaker},
+		{"SquareCorners", spinner.SquareCorners},
+		{"Squish", spinner.Squish},
+		{"Star2", spinner.Star2},
+		{"TimeTravel", spinner.TimeTravel},
+		{"Toggle", spinner.Toggle},
+		{"Toggle2", spinner.Toggle2},
+		{"Toggle3", spinner.Toggle3},
+		{"Toggle4", spinner.Toggle4},
+		{"Toggle5", spinner.Toggle5},
+		{"Toggle6", spinner.Toggle6},
+		{"Toggle7", spinner.Toggle7},
+		{"Toggle8", spinner.Toggle8},
+		{"Toggle9", spinner.Toggle9},
+		{"Toggle10", spinner.Toggle10},
+		{"Toggle11", spinner.Toggle11},
+		{"Toggle12", spinner.Toggle12},
+		{"Toggle13", spinner.Toggle13},
+		{"Triangle", spinner.Triangle},
+		{"Weather", spinner.Weather},
 	}
 
 	const pageSize = 10
@@ -178,10 +176,10 @@ func showStyles(page int) {
 	}
 
 	clog.SetReportTimestamp(false)
-	clog.SetParts(clog.PartMessage, clog.PartPrefix)
+	clog.SetParts(clog.PartMessage, clog.PartSymbol)
 	styles := clog.DefaultStyles()
 	orange := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("208"))
-	styles.Messages[clog.InfoLevel] = &orange
+	styles.Messages[clog.LevelInfo] = &orange
 	clog.SetStyles(styles)
 
 	maxName := 0
@@ -190,12 +188,11 @@ func showStyles(page int) {
 	}
 
 	ctx := context.Background()
-	g := clog.NewGroup(ctx)
+	g := clog.Group(ctx)
 	results := make([]*clog.TaskResult, len(all))
 	for i, e := range all {
 		name := fmt.Sprintf("%-*s", maxName, e.name)
-		results[i] = g.Add(clog.Spinner(name).
-			Style(e.spinner)).
+		results[i] = g.Add(clog.Spinner(name, spinner.WithStyle(e.s))).
 			Run(func(_ context.Context) error {
 				time.Sleep(10 * time.Second)
 				return nil

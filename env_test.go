@@ -4,6 +4,7 @@ import (
 	"io"
 	"testing"
 
+	"github.com/gechr/clog/field/hyperlink"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -73,7 +74,7 @@ func TestSetEnvPrefix(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, DebugLevel, Default.level)
+	assert.Equal(t, LevelDebug, Default.level)
 	assert.True(t, Default.reportTimestamp)
 }
 
@@ -89,7 +90,7 @@ func TestSetEnvPrefixFallbackToClog(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, WarnLevel, Default.level)
+	assert.Equal(t, LevelWarn, Default.level)
 }
 
 func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
@@ -112,11 +113,11 @@ func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
 		value string
 		want  Level
 	}{
-		{"leading space", " debug", DebugLevel},
-		{"trailing space", "debug ", DebugLevel},
-		{"both spaces", " debug ", DebugLevel},
-		{"tabs", "\tdebug\t", DebugLevel},
-		{"newline", "warn\n", WarnLevel},
+		{"leading space", " debug", LevelDebug},
+		{"trailing space", "debug ", LevelDebug},
+		{"both spaces", " debug ", LevelDebug},
+		{"tabs", "\tdebug\t", LevelDebug},
+		{"newline", "warn\n", LevelWarn},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			Default = NewWriter(io.Discard)
@@ -152,10 +153,7 @@ func TestEnvLoadAllFromEnvReChecksNoColor(t *testing.T) {
 
 func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 	saveEnvPrefix(t)
-	saveFormats(t)
-
-	hyperlinkPathFormat.Store(nil)
-	hyperlinkLineFormat.Store(nil)
+	clearFormats(t)
 
 	t.Setenv("MYAPP_HYPERLINK_PATH_FORMAT", "vscode://file{path}")
 	t.Setenv("MYAPP_HYPERLINK_LINE_FORMAT", "vscode://file{path}:{line}")
@@ -164,13 +162,11 @@ func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	gotPath := hyperlinkPathFormat.Load()
-	if assert.NotNil(t, gotPath) {
-		assert.Equal(t, "vscode://file{path}", *gotPath)
-	}
+	// Path format applied to file-only URL.
+	got := hyperlink.ResolvePathURL("/test/file.go", 0, 0)
+	assert.Equal(t, "vscode://file/test/file.go", got)
 
-	gotLine := hyperlinkLineFormat.Load()
-	if assert.NotNil(t, gotLine) {
-		assert.Equal(t, "vscode://file{path}:{line}", *gotLine)
-	}
+	// Line format applied to file+line URL.
+	got = hyperlink.ResolvePathURL("/test/file.go", 42, 0)
+	assert.Equal(t, "vscode://file/test/file.go:42", got)
 }

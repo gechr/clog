@@ -10,6 +10,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gechr/clog/field/elapsed"
+	"github.com/gechr/clog/fx"
+	"github.com/gechr/clog/fx/bar"
+	"github.com/gechr/clog/fx/spinner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -46,15 +50,15 @@ func TestGroupProgress(t *testing.T) {
 	g := logger.Group(context.Background())
 	var capturedProgress int64
 	r := g.Add(logger.Bar("downloading", 100)).
-		Progress(func(_ context.Context, p *ProgressUpdate) error {
+		Progress(func(_ context.Context, p *fx.Update) error {
 			p.SetProgress(75)
-			capturedProgress = p.progressPtr.Load()
+			capturedProgress = p.ProgressPtr.Load()
 			return nil
 		})
 	g.Wait()
 
 	assert.Equal(t, int64(75), capturedProgress)
-	require.NoError(t, r.Prefix("✅").Msg("download complete"))
+	require.NoError(t, r.Symbol("✅").Msg("download complete"))
 
 	out := buf.String()
 	assert.Contains(t, out, "download complete")
@@ -70,7 +74,7 @@ func TestGroupMixedAnimations(t *testing.T) {
 			return nil
 		})
 	r2 := g.Add(logger.Bar("barring", 50)).
-		Progress(func(_ context.Context, p *ProgressUpdate) error {
+		Progress(func(_ context.Context, p *fx.Update) error {
 			p.SetProgress(50).Send()
 			return nil
 		})
@@ -166,14 +170,15 @@ func TestGroupNonTTY(t *testing.T) {
 func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	logger.SetElapsedMinimum(0)
+	elapsed.SetMinimum(0)
+	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Bar("downloading", 100).
 		Str("file", "release.tar.gz").
 		BarPercent("progress").
 		Elapsed("elapsed")).
-		Progress(func(_ context.Context, p *ProgressUpdate) error {
+		Progress(func(_ context.Context, p *fx.Update) error {
 			p.SetProgress(50).Send()
 			return nil
 		})
@@ -229,7 +234,7 @@ func TestGroupTaskResultOnError(t *testing.T) {
 		})
 	g.Wait()
 
-	err := r.OnErrorLevel(WarnLevel).OnErrorMessage("custom error msg").Send()
+	err := r.OnErrorLevel(LevelWarn).OnErrorMessage("custom error msg").Send()
 	require.ErrorIs(t, err, testErr)
 
 	out := buf.String()
@@ -240,7 +245,8 @@ func TestGroupTaskResultOnError(t *testing.T) {
 func TestGroupTaskResultElapsed(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	logger.SetElapsedMinimum(0) // show all elapsed values
+	elapsed.SetMinimum(0) // show all elapsed values
+	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("timed").Elapsed("elapsed")).
@@ -256,16 +262,16 @@ func TestGroupTaskResultElapsed(t *testing.T) {
 	assert.Contains(t, out, "elapsed=")
 }
 
-func TestGroupProgressUpdate(t *testing.T) {
+func TestGroupUpdate(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
 	g := logger.Group(context.Background())
 	var lastMsg atomic.Value
 	r := g.Add(logger.Spinner("updating")).
-		Progress(func(_ context.Context, p *ProgressUpdate) error {
+		Progress(func(_ context.Context, p *fx.Update) error {
 			p.Msg("step 1").Send()
-			lastMsg.Store(*p.msgPtr.Load())
+			lastMsg.Store(*p.MsgPtr.Load())
 			p.Msg("step 2").Str("key", "val").Send()
 			return nil
 		})
@@ -282,7 +288,7 @@ func TestGroupDefaultLogger(t *testing.T) {
 	defer func() { Default = origDefault }()
 	Default = NewWriter(io.Discard)
 
-	g := NewGroup(context.Background())
+	g := Group(context.Background())
 	r := g.Add(Spinner("default")).
 		Run(func(_ context.Context) error {
 			return nil
@@ -295,7 +301,7 @@ func TestGroupDefaultLogger(t *testing.T) {
 func TestGroupTaskResultOnSuccessLevel(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	logger.SetLevel(DebugLevel)
+	logger.SetLevel(LevelDebug)
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("test")).
@@ -304,7 +310,7 @@ func TestGroupTaskResultOnSuccessLevel(t *testing.T) {
 		})
 	g.Wait()
 
-	require.NoError(t, r.OnSuccessLevel(DebugLevel).OnSuccessMessage("debug msg").Send())
+	require.NoError(t, r.OnSuccessLevel(LevelDebug).OnSuccessMessage("debug msg").Send())
 
 	out := buf.String()
 	assert.Contains(t, out, "debug msg")
@@ -335,7 +341,7 @@ func TestGroupResultMsg(t *testing.T) {
 	g.Add(logger.Spinner("task two")).
 		Run(func(_ context.Context) error { return nil })
 
-	require.NoError(t, g.Wait().Prefix("✅").Msg("All done"))
+	require.NoError(t, g.Wait().Symbol("✅").Msg("All done"))
 
 	out := buf.String()
 	assert.Contains(t, out, "All done")
@@ -397,7 +403,7 @@ func TestGroupResultOnError(t *testing.T) {
 	g.Add(logger.Spinner("fail")).
 		Run(func(_ context.Context) error { return testErr })
 
-	err := g.Wait().OnErrorLevel(WarnLevel).OnErrorMessage("custom").Send()
+	err := g.Wait().OnErrorLevel(LevelWarn).OnErrorMessage("custom").Send()
 	require.ErrorIs(t, err, testErr)
 
 	out := buf.String()
@@ -413,7 +419,7 @@ func TestGroupResultFields(t *testing.T) {
 	g.Add(logger.Spinner("task")).
 		Run(func(_ context.Context) error { return nil })
 
-	require.NoError(t, g.Wait().Str("total", "1").Prefix("✅").Msg("Done"))
+	require.NoError(t, g.Wait().Str("total", "1").Symbol("✅").Msg("Done"))
 
 	out := buf.String()
 	assert.Contains(t, out, "total=1")
@@ -450,15 +456,15 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		logger.SetAnimationInterval(200 * time.Millisecond)
 
 		b := logger.Bar("downloading", 100)
-		s := &groupTask{
-			builder:   b,
-			fieldsPtr: new(atomic.Pointer[[]Field]),
-			msgPtr:    new(atomic.Pointer[string]),
-		}
+		msgPtr := &atomic.Pointer[string]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "downloading"
 		fields := []Field{}
-		s.msgPtr.Store(&msg)
-		s.fieldsPtr.Store(&fields)
+		msgPtr.Store(&msg)
+		fieldsPtr.Store(&fields)
+		s := &groupTask{
+			GroupTask: &fx.GroupTask{Builder: b, FieldsPtr: fieldsPtr, MsgPtr: msgPtr},
+		}
 		captureTaskConfig(s)
 
 		assert.Equal(t, 200*time.Millisecond, s.tickRate)
@@ -468,19 +474,19 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		logger := NewWriter(io.Discard)
 		logger.SetAnimationInterval(200 * time.Millisecond)
 
-		b := logger.Spinner("loading").Style(SpinnerStyle{
-			Frames: []string{".", "..", "..."},
-			FPS:    17 * time.Millisecond,
-		})
-		s := &groupTask{
-			builder:   b,
-			fieldsPtr: new(atomic.Pointer[[]Field]),
-			msgPtr:    new(atomic.Pointer[string]),
-		}
+		b := logger.Spinner("loading", spinner.WithStyle(spinner.Style{
+			Frames:   []string{".", "..", "..."},
+			Interval: 17 * time.Millisecond,
+		}))
+		msgPtr := &atomic.Pointer[string]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "loading"
 		fields := []Field{}
-		s.msgPtr.Store(&msg)
-		s.fieldsPtr.Store(&fields)
+		msgPtr.Store(&msg)
+		fieldsPtr.Store(&fields)
+		s := &groupTask{
+			GroupTask: &fx.GroupTask{Builder: b, FieldsPtr: fieldsPtr, MsgPtr: msgPtr},
+		}
 		captureTaskConfig(s)
 
 		assert.Equal(t, 200*time.Millisecond, s.tickRate)
@@ -491,18 +497,18 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		logger.SetAnimationInterval(0) // disable clamping
 
 		b := logger.Bar("downloading", 100)
-		s := &groupTask{
-			builder:   b,
-			fieldsPtr: new(atomic.Pointer[[]Field]),
-			msgPtr:    new(atomic.Pointer[string]),
-		}
+		msgPtr := &atomic.Pointer[string]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "downloading"
 		fields := []Field{}
-		s.msgPtr.Store(&msg)
-		s.fieldsPtr.Store(&fields)
+		msgPtr.Store(&msg)
+		fieldsPtr.Store(&fields)
+		s := &groupTask{
+			GroupTask: &fx.GroupTask{Builder: b, FieldsPtr: fieldsPtr, MsgPtr: msgPtr},
+		}
 		captureTaskConfig(s)
 
-		assert.Equal(t, barTickRate, s.tickRate)
+		assert.Equal(t, bar.TickRate, s.tickRate)
 	})
 }
 

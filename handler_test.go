@@ -18,15 +18,15 @@ func TestHandlerFuncAdapter(t *testing.T) {
 	})
 
 	h.Log(Entry{
-		Level:   WarnLevel,
+		Level:   LevelWarn,
 		Message: "test message",
-		Prefix:  "warning",
+		Symbol:  "warning",
 		Fields:  []Field{{Key: "k", Value: "v"}},
 	})
 
-	assert.Equal(t, WarnLevel, got.Level)
+	assert.Equal(t, LevelWarn, got.Level)
 	assert.Equal(t, "test message", got.Message)
-	assert.Equal(t, "warning", got.Prefix)
+	assert.Equal(t, "warning", got.Symbol)
 	require.Len(t, got.Fields, 1)
 	assert.Equal(t, "k", got.Fields[0].Key)
 	assert.Equal(t, "v", got.Fields[0].Value)
@@ -44,10 +44,10 @@ func TestEntryFieldsPopulated(t *testing.T) {
 
 	l.Info().Str("key", "val").Msg("hello")
 
-	assert.Equal(t, InfoLevel, got.Level)
+	assert.Equal(t, LevelInfo, got.Level)
 	assert.Equal(t, "hello", got.Message)
 	assert.False(t, got.Time.IsZero(), "expected non-zero Time when reportTimestamp is true")
-	assert.Equal(t, defaultPrefixes[InfoLevel], got.Prefix)
+	assert.Equal(t, defaultSymbols[LevelInfo], got.Symbol)
 	require.Len(t, got.Fields, 1)
 	assert.Equal(t, "key", got.Fields[0].Key)
 	assert.Equal(t, "val", got.Fields[0].Value)
@@ -70,7 +70,7 @@ func TestEntryTimeZeroWhenTimestampDisabled(t *testing.T) {
 func TestEntryJSONMarshal(t *testing.T) {
 	t.Run("lowercase_keys_and_string_level", func(t *testing.T) {
 		e := Entry{
-			Level:   InfoLevel,
+			Level:   LevelInfo,
 			Message: "Server started",
 			Fields:  []Field{{Key: "port", Value: "8080"}},
 		}
@@ -93,7 +93,7 @@ func TestEntryJSONMarshal(t *testing.T) {
 
 	t.Run("omit_zero_time", func(t *testing.T) {
 		e := Entry{
-			Level:   WarnLevel,
+			Level:   LevelWarn,
 			Message: "test",
 		}
 
@@ -109,7 +109,7 @@ func TestEntryJSONMarshal(t *testing.T) {
 	t.Run("include_nonzero_time", func(t *testing.T) {
 		ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 		e := Entry{
-			Level:   InfoLevel,
+			Level:   LevelInfo,
 			Message: "test",
 			Time:    ts,
 		}
@@ -123,9 +123,9 @@ func TestEntryJSONMarshal(t *testing.T) {
 		assert.Contains(t, m, "time", "non-zero time should be present")
 	})
 
-	t.Run("omit_empty_fields_and_prefix", func(t *testing.T) {
+	t.Run("omit_empty_fields_and_symbol", func(t *testing.T) {
 		e := Entry{
-			Level:   ErrorLevel,
+			Level:   LevelError,
 			Message: "fail",
 		}
 
@@ -136,12 +136,12 @@ func TestEntryJSONMarshal(t *testing.T) {
 		require.NoError(t, json.Unmarshal(data, &m))
 
 		assert.NotContains(t, m, "fields", "nil fields should be omitted")
-		assert.NotContains(t, m, "prefix", "empty prefix should be omitted")
+		assert.NotContains(t, m, "symbol", "empty symbol should be omitted")
 	})
 
 	t.Run("full_roundtrip", func(t *testing.T) {
 		e := Entry{
-			Level:   InfoLevel,
+			Level:   LevelInfo,
 			Message: "Server started",
 			Fields:  []Field{{Key: "port", Value: "8080"}},
 		}

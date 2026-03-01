@@ -11,7 +11,6 @@ package clog
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"maps"
 	"os"
@@ -20,398 +19,121 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/level"
+	"github.com/gechr/clog/style"
 )
-
-// ErrorKey is the default field key used by [Event.Err] and [Context.Err].
-const ErrorKey = "error"
-
-const (
-	// LevelTrace is the "trace" level string.
-	LevelTrace = "trace"
-	// LevelDebug is the "debug" level string.
-	LevelDebug = "debug"
-	// LevelInfo is the "info" level string.
-	LevelInfo = "info"
-	// LevelDry is the "dry" level string.
-	LevelDry = "dry"
-	// LevelWarn is the "warn" level string.
-	LevelWarn = "warn"
-	// LevelError is the "error" level string.
-	LevelError = "error"
-	// LevelFatal is the "fatal" level string.
-	LevelFatal = "fatal"
-)
-
-// Nil is the string representation used for nil values (e.g. in [DefaultValueStyles]).
-const Nil = "<nil>"
-
-// Default is the default logger instance.
-var Default = New(Stdout(ColorAuto))
-
-// Default emoji prefixes for each level.
-var defaultPrefixes = LevelMap{
-	TraceLevel: "🔍",
-	DebugLevel: "🐞",
-	InfoLevel:  "ℹ️",
-	DryLevel:   "🚧",
-	WarnLevel:  "⚠️",
-	ErrorLevel: "❌",
-	FatalLevel: "💥",
-}
-
-// levelLabels are the short text labels for each level.
-var levelLabels = LevelMap{
-	TraceLevel: "TRC",
-	DebugLevel: "DBG",
-	InfoLevel:  "INF",
-	DryLevel:   "DRY",
-	WarnLevel:  "WRN",
-	ErrorLevel: "ERR",
-	FatalLevel: "FTL",
-}
 
 // Level represents a log level.
 //
 // Level implements [encoding.TextMarshaler] and [encoding.TextUnmarshaler],
 // so it works directly with [flag.TextVar] and most flag libraries.
-type Level int
+type Level = level.Level
 
 const (
-	TraceLevel Level = -10
-	DebugLevel Level = -5
-	InfoLevel  Level = 0
-	DryLevel   Level = 2 // clog-specific, between Info and Warn
-	WarnLevel  Level = 5
-	ErrorLevel Level = 10
-	FatalLevel Level = 15
+	LevelTrace = level.Trace
+	LevelDebug = level.Debug
+	LevelInfo  = level.Info
+	LevelDry   = level.Dry
+	LevelWarn  = level.Warn
+	LevelError = level.Error
+	LevelFatal = level.Fatal
 
 	// UnsetLevel is passed to [SetNonTTYLevel] to disable the non-TTY level
 	// filter. Its value is intentionally below all real log levels so the
 	// check e.level < nonTTYLevel is always false, meaning no restriction.
-	UnsetLevel Level = -1 << 30
+	UnsetLevel = level.Unset
 )
-
-// defaultMaxLabelLen is the maximum length of an auto-generated level label.
-const defaultMaxLabelLen = 3
-
-// builtinLevels is the set of built-in levels that cannot be overridden by [RegisterLevel].
-var builtinLevels = map[Level]bool{
-	TraceLevel: true,
-	DebugLevel: true,
-	InfoLevel:  true,
-	DryLevel:   true,
-	WarnLevel:  true,
-	ErrorLevel: true,
-	FatalLevel: true,
-}
-
-// customLevelsMu guards the custom levels registry and the maps it updates.
-var customLevelsMu sync.RWMutex
-
-// customLevels holds custom level registrations.
-var customLevels = map[Level]LevelConfig{}
-
-// LevelConfig configures a custom log level for use with [RegisterLevel].
-type LevelConfig struct {
-	Name   string // canonical name for ParseLevel/MarshalText (e.g., "success") [required]
-	Label  string // short display label (e.g., "SCS") [default: uppercase Name, max 3 chars]
-	Prefix string // emoji prefix (e.g., "✅") [default: ""]
-	Style  Style  // lipgloss style for the level label [default: nil]
-}
-
-// RegisterLevel registers a custom log level with the given numeric value
-// and configuration. The level value must not conflict with a built-in level.
-//
-// After registration the level works with [ParseLevel], [Level.MarshalText],
-// [Level.String], and the [Default] logger's labels, prefixes, and styles.
-//
-// RegisterLevel panics if cfg.Name is empty or level conflicts with a built-in level.
-func RegisterLevel(level Level, cfg LevelConfig) {
-	if cfg.Name == "" {
-		panic("clog: RegisterLevel requires a non-empty Name")
-	}
-	if builtinLevels[level] {
-		panic(fmt.Sprintf("clog: RegisterLevel cannot override built-in level %d", int(level)))
-	}
-
-	// Default label: uppercase name, max 3 chars.
-	if cfg.Label == "" {
-		label := strings.ToUpper(cfg.Name)
-		if len(label) > defaultMaxLabelLen {
-			label = label[:defaultMaxLabelLen]
-		}
-		cfg.Label = label
-	}
-
-	customLevelsMu.Lock()
-	customLevels[level] = cfg
-	levelNames[level] = cfg.Name
-	levelLabels[level] = cfg.Label
-	defaultPrefixes[level] = cfg.Prefix
-	customLevelsMu.Unlock()
-
-	// Update the Default logger.
-	Default.mu.Lock()
-	Default.labels[level] = cfg.Label
-	Default.prefixes[level] = cfg.Prefix
-	Default.labelWidth = computeLabelWidth(Default.labels)
-	Default.recomputePaddedLabels()
-	if cfg.Style != nil {
-		if Default.styles.Levels == nil {
-			Default.styles.Levels = make(LevelStyleMap)
-		}
-		Default.styles.Levels[level] = cfg.Style
-	}
-	Default.mu.Unlock()
-}
-
-// levelNames maps Level constants to their canonical lowercase names.
-var levelNames = map[Level]string{
-	TraceLevel: LevelTrace,
-	DebugLevel: LevelDebug,
-	InfoLevel:  LevelInfo,
-	DryLevel:   LevelDry,
-	WarnLevel:  LevelWarn,
-	ErrorLevel: LevelError,
-	FatalLevel: LevelFatal,
-}
-
-// String returns the short label for the level (e.g. "INF", "ERR").
-func (l Level) String() string {
-	if s, ok := levelLabels[l]; ok {
-		return s
-	}
-	return fmt.Sprintf("LVL(%d)", int(l))
-}
-
-// MarshalText implements [encoding.TextMarshaler].
-func (l Level) MarshalText() ([]byte, error) {
-	if name, ok := levelNames[l]; ok {
-		return []byte(name), nil
-	}
-	return nil, fmt.Errorf("unknown level: %d", int(l))
-}
-
-// UnmarshalText implements [encoding.TextUnmarshaler].
-func (l *Level) UnmarshalText(text []byte) error {
-	parsed, err := ParseLevel(string(text))
-	if err != nil {
-		return err
-	}
-	*l = parsed
-	return nil
-}
-
-// ParseLevel maps a level name string to a [Level] value.
-// It accepts the canonical names ("trace", "debug", "info", "dry", "warn",
-// "error", "fatal") plus aliases ("warning" → Warn, "critical" → Fatal).
-// Matching is case-insensitive.
-func ParseLevel(s string) (Level, error) {
-	switch strings.ToLower(s) {
-	case LevelTrace:
-		return TraceLevel, nil
-	case LevelDebug:
-		return DebugLevel, nil
-	case LevelInfo:
-		return InfoLevel, nil
-	case LevelDry:
-		return DryLevel, nil
-	case LevelWarn, "warning":
-		return WarnLevel, nil
-	case LevelError:
-		return ErrorLevel, nil
-	case LevelFatal, "critical":
-		return FatalLevel, nil
-	default:
-		// Check custom levels registry.
-		customLevelsMu.RLock()
-		defer customLevelsMu.RUnlock()
-		lower := strings.ToLower(s)
-		for lvl, cfg := range customLevels {
-			if strings.ToLower(cfg.Name) == lower {
-				return lvl, nil
-			}
-		}
-		return 0, fmt.Errorf("unknown level: %q", s)
-	}
-}
-
-// LevelMap maps levels to strings (used for labels, prefixes, etc.).
-type LevelMap map[Level]string
-
-// Align controls how text is aligned within a fixed-width column.
-type Align int
 
 const (
-	// AlignNone disables alignment padding.
-	AlignNone Align = iota
-	// AlignLeft left-aligns text (pads with trailing spaces).
-	AlignLeft
-	// AlignRight right-aligns text (pads with leading spaces).
-	AlignRight
-	// AlignCenter center-aligns text (pads with leading and trailing spaces).
-	AlignCenter
+	LevelTraceValue = level.TraceValue
+	LevelDebugValue = level.DebugValue
+	LevelInfoValue  = level.InfoValue
+	LevelDryValue   = level.DryValue
+	LevelWarnValue  = level.WarnValue
+	LevelErrorValue = level.ErrorValue
+	LevelFatalValue = level.FatalValue
 )
 
-// ColorMode controls how a [Logger] determines colour and hyperlink output.
-//
-// ColorMode implements [encoding.TextMarshaler] and [encoding.TextUnmarshaler],
-// so it works directly with [flag.TextVar] and most flag libraries.
-//
-//go:generate go tool golang.org/x/tools/cmd/stringer -type=ColorMode -linecomment
-type ColorMode int
+// ErrorKey is the default field key used by [Event.Err] and [Context.Err].
+const ErrorKey = core.ErrorKey
 
-const (
-	// ColorAuto uses global detection (terminal, NO_COLOR, etc.). This is the default.
-	ColorAuto ColorMode = iota // auto
-	// ColorAlways forces colours and hyperlinks, even when output is not a TTY.
-	ColorAlways // always
-	// ColorNever disables colours and hyperlinks.
-	ColorNever // never
-)
+// Nil is the string representation used for nil values.
+const Nil = core.Nil
 
-// QuoteMode controls how field values are quoted in log output.
-type QuoteMode int
-
-const (
-	// QuoteAuto quotes values only when they contain spaces, unprintable
-	// characters, or embedded quotes. This is the default.
-	QuoteAuto QuoteMode = iota
-	// QuoteAlways quotes all string, error, and default-kind values.
-	QuoteAlways
-	// QuoteNever disables quoting entirely.
-	QuoteNever
-)
-
-// Part identifies a component of a formatted log line.
-type Part int
-
-const (
-	// PartTimestamp is the timestamp component.
-	PartTimestamp Part = iota
-	// PartLevel is the level label component.
-	PartLevel
-	// PartPrefix is the emoji prefix component.
-	PartPrefix
-	// PartMessage is the log message component.
-	PartMessage
-	// PartFields is the structured fields component.
-	PartFields
-)
-
-// TreePos identifies a node's position among its siblings in a tree.
-type TreePos int
-
-const (
-	// TreeFirst marks the first sibling. Renders the same as [TreeMiddle]
-	// by default, but can be customised via [Logger.SetTreeChars].
-	TreeFirst TreePos = iota
-	// TreeMiddle marks a middle sibling (more siblings follow).
-	TreeMiddle
-	// TreeLast marks the last sibling (no more siblings follow).
-	TreeLast
-)
-
-// TreeChars defines the box-drawing characters used by tree indentation.
-// Override with [Logger.SetTreeChars].
-type TreeChars struct {
-	First    string // connector for [TreeFirst]  (default "├── ")
-	Middle   string // connector for [TreeMiddle] (default "├── ")
-	Last     string // connector for [TreeLast]   (default "└── ")
-	Continue string // ancestor line when parent is First/Middle (default "│   ")
-	Blank    string // ancestor line when parent is Last         (default "    ")
-}
-
-// DefaultTreeChars returns the default box-drawing characters for tree
-// indentation.
-func DefaultTreeChars() TreeChars {
-	return TreeChars{
-		First:    "├── ",
-		Middle:   "├── ",
-		Last:     "└── ",
-		Continue: "│   ",
-		Blank:    "    ",
-	}
-}
-
-// ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
-type ctxKey struct{}
+// Default is the default logger instance.
+var Default = New(Stdout(ColorAuto))
 
 // Logger is the main structured logger.
 type Logger struct {
 	mu *sync.Mutex
 
-	animationInterval       time.Duration
-	atomicLevel             atomic.Int32 // lock-free level check for newEvent() hot path
-	elapsedFormatFunc       func(time.Duration) string
-	elapsedMinimum          time.Duration
-	elapsedPrecision        int
-	elapsedRound            time.Duration
-	exitFunc                func(int) // called by Fatal-level events; defaults to os.Exit
-	fieldSort               Sort
-	fieldStyleLevel         Level
-	fieldTimeFormat         string
-	fields                  []Field
-	handler                 Handler
-	indent                  int      // number of indent levels for nested output
-	indentPrefixes          []string // per-depth decorations cycled after space indent
-	indentPrefixSep         *string  // separator after prefix; nil = default " "
-	indentWidth             int      // spaces per indent level (default 2)
-	labelWidth              int
-	labels                  LevelMap
-	labelsPadded            LevelMap
-	level                   Level
-	levelAlign              Align
-	nonTTYLevel             Level // events below this level are suppressed on non-TTY writers
-	omitEmpty               bool
-	omitZero                bool
-	output                  *Output
-	parts                   []Part
-	percentFormatFunc       func(float64) string
-	percentReverse          bool
-	percentPrecision        int
-	prefix                  *string // nil = use default emoji for level
-	prefixes                LevelMap
-	quantityUnitsIgnoreCase bool
-	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
-	quoteClose              rune // 0 means same as quoteOpen (or default)
-	quoteMode               QuoteMode
-	reportTimestamp         bool
-	separatorText           string
-	styles                  *Styles
-	timeFormat              string
-	timeLocation            *time.Location
-	tree                    []TreePos // nil = no tree mode; one entry per tree level
-	treeChars               TreeChars // box-drawing characters for tree indentation
+	animationInterval time.Duration
+	atomicLevel       atomic.Int32 // lock-free level check for newEvent() hot path
+	exitFunc          func(int)    // called by Fatal-level events; defaults to os.Exit
+	fieldSort         Sort
+	fieldStyleLevel   Level
+	fieldTimeFormat   string
+	fields            []Field
+	handler           Handler
+	indent            int      // number of indent levels for nested output
+	indentPrefixes    []string // per-depth decorations cycled after space indent
+	indentPrefixSep   *string  // separator after indent prefix; nil = default " "
+	indentWidth       int      // spaces per indent level (default 2)
+	labelWidth        int
+	labels            LabelMap
+	labelsPadded      LabelMap
+	level             Level
+	levelAlign        Align
+	nonTTYLevel       Level // events below this level are suppressed on non-TTY writers
+	omitEmpty         bool
+	omitZero          bool
+	output            *Output
+	parts             []Part
+	quoteOpen         rune // 0 means default ('"' via strconv.Quote)
+	quoteClose        rune // 0 means same as quoteOpen (or default)
+	quoteMode         QuoteMode
+	reportTimestamp   bool
+	separatorText     string
+	styles            *style.Config
+	symbol            *string // nil = use default emoji for level
+	symbols           LabelMap
+	timeFormat        string
+	timeLocation      *time.Location
+	tree              []TreePos // nil = no tree mode; one entry per tree level
+	treeChars         TreeChars // box-drawing characters for tree indentation
 }
 
 // New creates a new [Logger] that writes to the given [Output].
+// If output is nil, it defaults to [Stdout] with [ColorAuto].
 func New(output *Output) *Logger {
+	if output == nil {
+		output = Stdout(ColorAuto)
+	}
 	l := &Logger{
 		mu: &sync.Mutex{},
 
-		animationInterval:       67 * time.Millisecond, //nolint:mnd // ~15fps
-		elapsedMinimum:          time.Second,
-		elapsedRound:            time.Second,
-		exitFunc:                os.Exit,
-		fieldStyleLevel:         InfoLevel,
-		indentWidth:             2, //nolint:mnd // default indent: 2 spaces per level
-		fieldTimeFormat:         time.RFC3339,
-		labels:                  DefaultLabels(),
-		level:                   InfoLevel,
-		levelAlign:              AlignRight,
-		output:                  output,
-		parts:                   DefaultParts(),
-		prefixes:                DefaultPrefixes(),
-		quantityUnitsIgnoreCase: true,
-		separatorText:           "=",
-		styles:                  DefaultStyles().WithRenderer(output.Renderer()),
-		timeFormat:              "15:04:05.000",
-		timeLocation:            time.Local,
-		treeChars:               DefaultTreeChars(),
+		animationInterval: 67 * time.Millisecond, //nolint:mnd // ~15fps
+		exitFunc:          os.Exit,
+		fieldStyleLevel:   LevelInfo,
+		indentWidth:       2, //nolint:mnd // default indent: 2 spaces per level
+		fieldTimeFormat:   time.RFC3339,
+		labels:            DefaultLabels(),
+		level:             LevelInfo,
+		levelAlign:        AlignRight,
+		output:            output,
+		parts:             DefaultParts(),
+		symbols:           DefaultSymbols(),
+		separatorText:     "=",
+		styles:            DefaultStyles().WithRenderer(output.Renderer()),
+		timeFormat:        "15:04:05.000",
+		timeLocation:      time.Local,
+		treeChars:         DefaultTreeChars(),
 	}
-	l.atomicLevel.Store(int32(InfoLevel))
+	l.atomicLevel.Store(int32(LevelInfo))
 	l.nonTTYLevel = UnsetLevel
+
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	return l
@@ -420,6 +142,153 @@ func New(output *Output) *Logger {
 // NewWriter creates a new [Logger] that writes to w with [ColorAuto].
 func NewWriter(w io.Writer) *Logger {
 	return New(NewOutput(w, ColorAuto))
+}
+
+// Log returns a new [Event] at the given level. Use this for custom levels
+// registered with [RegisterLevel].
+func (l *Logger) Log(level Level) *Event { return l.newEvent(level) }
+
+// Trace returns a new [Event] at trace level, or nil if trace is disabled.
+func (l *Logger) Trace() *Event { return l.newEvent(LevelTrace) }
+
+// Debug returns a new [Event] at debug level, or nil if debug is disabled.
+func (l *Logger) Debug() *Event { return l.newEvent(LevelDebug) }
+
+// Info returns a new [Event] at info level, or nil if info is disabled.
+func (l *Logger) Info() *Event { return l.newEvent(LevelInfo) }
+
+// Dry returns a new [Event] at dry level, or nil if dry is disabled.
+func (l *Logger) Dry() *Event { return l.newEvent(LevelDry) }
+
+// Warn returns a new [Event] at warn level, or nil if warn is disabled.
+func (l *Logger) Warn() *Event { return l.newEvent(LevelWarn) }
+
+// Error returns a new [Event] at error level, or nil if error is disabled.
+func (l *Logger) Error() *Event { return l.newEvent(LevelError) }
+
+// Fatal returns a new [Event] at fatal level.
+func (l *Logger) Fatal() *Event { return l.newEvent(LevelFatal) }
+
+// Level returns the current minimum log level.
+func (l *Logger) Level() Level {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.level
+}
+
+// LevelEnabled reports whether the logger handles records at the given level.
+func (l *Logger) LevelEnabled(level Level) bool {
+	//nolint:gosec // Level values are small constants (-10 to 15)
+	return int32(level) >= l.atomicLevel.Load()
+}
+
+// With returns a [Context] for building a sub-logger with preset fields.
+//
+//	logger := clog.With().Str("component", "auth").Logger()
+//	logger.Info().Str("user", "john").Msg("Authenticated")
+func (l *Logger) With() *Context {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	fields := make([]Field, len(l.fields))
+	copy(fields, l.fields)
+
+	c := &Context{
+		indent: l.indent,
+		logger: l,
+		symbol: l.symbol,
+		tree:   append([]TreePos{}, l.tree...),
+	}
+	c.Fields = fields
+	c.InitSelf(c)
+	return c
+}
+
+// WithContext returns a copy of ctx with the logger stored as a value.
+func (l *Logger) WithContext(ctx context.Context) context.Context {
+	return context.WithValue(ctx, ctxKey{}, l)
+}
+
+// LogFields logs a message at the given level with the provided timestamp and fields.
+// This is used by adapters (e.g. [sloghandler]) that build fields externally.
+// Unlike direct Fatal() calls, LogFields does not trigger [os.Exit] for
+// [LevelFatal] events -- adapters should not cause process termination.
+func (l *Logger) LogFields(level Level, ts time.Time, msg string, fields []Field) {
+	e := l.newEvent(level)
+	if e == nil {
+		return
+	}
+	e.timestamp = ts
+	e.fields = fields
+	e.noExit = true
+	e.Msg(msg)
+}
+
+// Log returns a new [Event] at the given level from the [Default] logger.
+// Use this for custom levels registered with [RegisterLevel].
+func Log(level Level) *Event { return Default.Log(level) }
+
+// Trace returns a new trace-level [Event] from the [Default] logger.
+func Trace() *Event { return Default.Trace() }
+
+// Debug returns a new debug-level [Event] from the [Default] logger.
+func Debug() *Event { return Default.Debug() }
+
+// Info returns a new info-level [Event] from the [Default] logger.
+func Info() *Event { return Default.Info() }
+
+// Dry returns a new dry-level [Event] from the [Default] logger.
+func Dry() *Event { return Default.Dry() }
+
+// Warn returns a new warn-level [Event] from the [Default] logger.
+func Warn() *Event { return Default.Warn() }
+
+// Error returns a new error-level [Event] from the [Default] logger.
+func Error() *Event { return Default.Error() }
+
+// Fatal returns a new fatal-level [Event] from the [Default] logger.
+func Fatal() *Event { return Default.Fatal() }
+
+// With returns a [Context] for building a sub-logger from the [Default] logger.
+func With() *Context { return Default.With() }
+
+// WithContext stores the [Default] logger in ctx.
+func WithContext(ctx context.Context) context.Context {
+	return Default.WithContext(ctx)
+}
+
+// Ctx retrieves the logger from ctx. Returns [Default] if ctx is nil
+// or contains no logger.
+func Ctx(ctx context.Context) *Logger {
+	if ctx == nil {
+		return Default
+	}
+	if l, ok := ctx.Value(ctxKey{}).(*Logger); ok {
+		return l
+	}
+	return Default
+}
+
+// Dict returns a new detached [Event] for use as a nested dictionary field.
+// The event uses the [Default] logger's output for hyperlink/color resolution.
+func Dict() *Event { return Default.Dict() }
+
+// Dict returns a new detached [Event] for use as a nested dictionary field.
+// The event uses the logger's output for hyperlink/color resolution.
+func (l *Logger) Dict() *Event { return &Event{logger: l, dict: true} }
+
+// Divider returns a new [DividerBuilder] for rendering a horizontal rule
+// using the [Default] logger.
+func Divider() *DividerBuilder { return Default.Divider() }
+
+// GetLevel returns the current log level of the [Default] logger.
+func GetLevel() Level {
+	return Default.Level()
+}
+
+// IsVerbose returns true if verbose/debug mode is enabled on the [Default] logger.
+// Returns true for both [LevelTrace] and [LevelDebug].
+func IsVerbose() bool {
+	return GetLevel() <= LevelDebug
 }
 
 // SetAnimationInterval sets a minimum refresh interval for all animations
@@ -440,39 +309,6 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 	w := l.output.Writer()
 	l.output = NewOutput(w, mode)
 	l.styles.WithRenderer(l.output.Renderer())
-}
-
-// SetElapsedFormatFunc sets a custom format function for Elapsed fields.
-// When set to nil (the default), the built-in [formatElapsed] is used.
-func (l *Logger) SetElapsedFormatFunc(fn func(time.Duration) string) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.elapsedFormatFunc = fn
-}
-
-// SetElapsedMinimum sets the minimum duration for Elapsed fields to be displayed.
-// Elapsed values below this threshold are hidden. Defaults to [time.Second].
-// Set to 0 to show all values.
-func (l *Logger) SetElapsedMinimum(d time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.elapsedMinimum = d
-}
-
-// SetElapsedPrecision sets the number of decimal places for Elapsed display.
-// For example, 0 = "3s", 1 = "3.2s", 2 = "3.21s". Defaults to 0.
-func (l *Logger) SetElapsedPrecision(precision int) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.elapsedPrecision = precision
-}
-
-// SetElapsedRound sets the rounding granularity for Elapsed values.
-// Defaults to [time.Second]. Set to 0 to disable rounding.
-func (l *Logger) SetElapsedRound(d time.Duration) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.elapsedRound = d
 }
 
 // SetExitFunc sets the function called by Fatal-level events.
@@ -497,7 +333,7 @@ func (l *Logger) SetFieldSort(sort Sort) {
 
 // SetFieldStyleLevel sets the minimum log level at which field values are
 // styled (coloured). Events below this level render fields as plain text.
-// Defaults to [InfoLevel].
+// Defaults to [LevelInfo].
 func (l *Logger) SetFieldStyleLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -510,6 +346,14 @@ func (l *Logger) SetFieldTimeFormat(format string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.fieldTimeFormat = format
+}
+
+// SetHandler sets a custom log handler. When set, the handler receives all
+// log entries instead of the built-in pretty formatter.
+func (l *Logger) SetHandler(h Handler) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.handler = h
 }
 
 // SetIndent sets the indent depth (number of indent levels) on the logger.
@@ -546,20 +390,16 @@ func (l *Logger) SetIndentWidth(width int) {
 	l.indentWidth = width
 }
 
-// SetTreeChars sets the box-drawing characters used for tree indentation.
-// See [DefaultTreeChars] for the defaults.
-func (l *Logger) SetTreeChars(chars TreeChars) {
+// SetLabelWidth sets an explicit minimum width for level labels.
+// If width is 0, the width is computed automatically from the current labels.
+func (l *Logger) SetLabelWidth(width int) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.treeChars = chars
-}
-
-// SetHandler sets a custom log handler. When set, the handler receives all
-// log entries instead of the built-in pretty formatter.
-func (l *Logger) SetHandler(h Handler) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.handler = h
+	if width <= 0 {
+		width = computeLabelWidth(l.labels)
+	}
+	l.labelWidth = width
+	l.recomputePaddedLabels()
 }
 
 // SetLevel sets the minimum log level.
@@ -588,22 +428,10 @@ func (l *Logger) SetLevelAlign(align Align) {
 	l.recomputePaddedLabels()
 }
 
-// SetLabelWidth sets an explicit minimum width for level labels.
-// If width is 0, the width is computed automatically from the current labels.
-func (l *Logger) SetLabelWidth(width int) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if width <= 0 {
-		width = computeLabelWidth(l.labels)
-	}
-	l.labelWidth = width
-	l.recomputePaddedLabels()
-}
-
-// SetLevelLabels sets the level labels used in log output.
-// Pass a map from [Level] to label string (e.g. {WarnLevel: "WARN"}).
+// SetLabels sets the level labels used in log output.
+// Pass a map from [Level] to label string (e.g. {LevelWarn: "WARN"}).
 // Missing levels fall back to the defaults.
-func (l *Logger) SetLevelLabels(labels LevelMap) {
+func (l *Logger) SetLabels(labels LabelMap) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	merged := DefaultLabels()
@@ -663,50 +491,15 @@ func (l *Logger) SetParts(parts ...Part) {
 	l.parts = parts
 }
 
-// SetPercentFormatFunc sets a custom format function for Percent fields.
-// When set to nil (the default), the built-in format is used.
-func (l *Logger) SetPercentFormatFunc(fn func(float64) string) {
+// SetSymbols sets the emoji symbols used for each level.
+// Pass a map from [Level] to symbol string. Missing levels fall back to the defaults.
+func (l *Logger) SetSymbols(symbols LabelMap) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.percentFormatFunc = fn
-}
+	merged := DefaultSymbols()
+	maps.Copy(merged, symbols)
 
-// SetPercentReverseGradient reverses the gradient direction for Percent fields.
-// By default the gradient runs red (0%) → green (100%) - suitable for
-// metrics where higher is better. Set reverse=true to flip it to
-// green (0%) → red (100%) - suitable for metrics like CPU or disk usage
-// where lower is better.
-func (l *Logger) SetPercentReverseGradient(reverse bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.percentReverse = reverse
-}
-
-// SetPercentPrecision sets the number of decimal places for Percent display.
-// For example, 0 = "75%", 1 = "75.0%". Defaults to 0.
-func (l *Logger) SetPercentPrecision(precision int) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.percentPrecision = precision
-}
-
-// SetPrefixes sets the emoji prefixes used for each level.
-// Pass a map from [Level] to prefix string. Missing levels fall back to the defaults.
-func (l *Logger) SetPrefixes(prefixes LevelMap) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	merged := DefaultPrefixes()
-	maps.Copy(merged, prefixes)
-
-	l.prefixes = merged
-}
-
-// SetQuantityUnitsIgnoreCase sets whether quantity unit matching is
-// case-insensitive. Defaults to true.
-func (l *Logger) SetQuantityUnitsIgnoreCase(ignoreCase bool) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.quantityUnitsIgnoreCase = ignoreCase
+	l.symbols = merged
 }
 
 // SetQuoteChar sets the character used to quote field values that contain
@@ -756,7 +549,7 @@ func (l *Logger) SetSeparatorText(sep string) {
 }
 
 // SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.
-func (l *Logger) SetStyles(styles *Styles) {
+func (l *Logger) SetStyles(styles *style.Config) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if styles == nil {
@@ -784,63 +577,92 @@ func (l *Logger) SetTimeLocation(loc *time.Location) {
 	l.timeLocation = loc
 }
 
-// With returns a [Context] for building a sub-logger with preset fields.
+// SetTreeChars sets the box-drawing characters used for tree indentation.
+// See [DefaultTreeChars] for the defaults.
+func (l *Logger) SetTreeChars(chars TreeChars) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.treeChars = chars
+}
+
+// LevelConfig configures a custom log level for use with [RegisterLevel].
+type LevelConfig struct {
+	Label  string // short display label (e.g. "SCS") [default: uppercase Name, max 3 chars]
+	Name   string // canonical name for ParseLevel/MarshalText (e.g. "success") [required]
+	Style  Style  // lipgloss style for the level label [default: nil]
+	Symbol string // emoji symbol (e.g. "✅") [default: ""]
+}
+
+// RegisterLevel registers a custom log level with the given numeric value
+// and configuration. The level value must not conflict with a built-in level.
 //
-//	logger := clog.With().Str("component", "auth").Logger()
-//	logger.Info().Str("user", "john").Msg("Authenticated")
-func (l *Logger) With() *Context {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	fields := make([]Field, len(l.fields))
-	copy(fields, l.fields)
-
-	c := &Context{
-		indent: l.indent,
-		logger: l,
-		prefix: l.prefix,
-		tree:   append([]TreePos{}, l.tree...),
+// After registration the level works with [ParseLevel], [Level.MarshalText],
+// [Level.String], and the [Default] logger's labels, symbols, and styles.
+//
+// RegisterLevel panics if cfg.Name is empty or level conflicts with a built-in level.
+func RegisterLevel(lvl Level, cfg LevelConfig) {
+	if cfg.Name == "" {
+		panic("clog: RegisterLevel requires a non-empty Name")
 	}
-	c.fields = fields
-	c.initSelf(c)
-	return c
+
+	// Default label: uppercase name, max 3 chars.
+	if cfg.Label == "" {
+		lbl := strings.ToUpper(cfg.Name)
+		if len(lbl) > defaultMaxLabelLen {
+			lbl = lbl[:defaultMaxLabelLen]
+		}
+		cfg.Label = lbl
+	}
+
+	// Register name and label in the level package (panics on built-in conflict).
+	level.Register(lvl, cfg.Name, cfg.Label)
+
+	customLevelsMu.Lock()
+	customLevels[lvl] = cfg
+	defaultSymbols[lvl] = cfg.Symbol
+	customLevelsMu.Unlock()
+
+	// Update the Default logger.
+	Default.mu.Lock()
+	Default.labels[lvl] = cfg.Label
+	Default.symbols[lvl] = cfg.Symbol
+	Default.labelWidth = computeLabelWidth(Default.labels)
+	Default.recomputePaddedLabels()
+	if cfg.Style != nil {
+		if Default.styles.Levels == nil {
+			Default.styles.Levels = make(style.LevelMap)
+		}
+		Default.styles.Levels[lvl] = cfg.Style
+	}
+	Default.mu.Unlock()
 }
 
-// WithContext returns a copy of ctx with the logger stored as a value.
-func (l *Logger) WithContext(ctx context.Context) context.Context {
-	return context.WithValue(ctx, ctxKey{}, l)
+// ParseLevel maps a level name string to a [Level] value.
+// It accepts the canonical names ("trace", "debug", "info", "dry", "warn",
+// "error", "fatal") plus aliases ("warning" → Warn, "critical" → Fatal).
+// Matching is case-insensitive.
+func ParseLevel(s string) (Level, error) { return level.Parse(s) }
+
+// Levels returns all registered levels (built-in and custom) in ascending
+// severity order.
+func Levels() []Level {
+	all := level.All()
+	levels := make([]Level, 0, len(all))
+	for _, lvl := range all {
+		levels = append(levels, lvl)
+	}
+	slices.Sort(levels)
+	return levels
 }
 
-// Log returns a new [Event] at the given level. Use this for custom levels
-// registered with [RegisterLevel].
-func (l *Logger) Log(level Level) *Event { return l.newEvent(level) }
+// customLevelsMu guards the custom levels registry and the maps it updates.
+var customLevelsMu sync.RWMutex
 
-// Trace returns a new [Event] at trace level, or nil if trace is disabled.
-func (l *Logger) Trace() *Event { return l.newEvent(TraceLevel) }
+// customLevels holds custom level registrations.
+var customLevels = map[Level]LevelConfig{}
 
-// Debug returns a new [Event] at debug level, or nil if debug is disabled.
-func (l *Logger) Debug() *Event { return l.newEvent(DebugLevel) }
-
-// Info returns a new [Event] at info level, or nil if info is disabled.
-func (l *Logger) Info() *Event { return l.newEvent(InfoLevel) }
-
-// Dry returns a new [Event] at dry level, or nil if dry is disabled.
-func (l *Logger) Dry() *Event { return l.newEvent(DryLevel) }
-
-// Warn returns a new [Event] at warn level, or nil if warn is disabled.
-func (l *Logger) Warn() *Event { return l.newEvent(WarnLevel) }
-
-// Error returns a new [Event] at error level, or nil if error is disabled.
-func (l *Logger) Error() *Event { return l.newEvent(ErrorLevel) }
-
-// Fatal returns a new [Event] at fatal level.
-func (l *Logger) Fatal() *Event { return l.newEvent(FatalLevel) }
-
-// Level returns the current minimum log level.
-func (l *Logger) Level() Level {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.level
-}
+// ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
+type ctxKey struct{}
 
 // colorsDisabled returns true if this logger should suppress colours.
 func (l *Logger) colorsDisabled() bool {
@@ -859,55 +681,6 @@ func (l *Logger) indentation() string {
 		l.tree,
 		l.treeChars,
 	)
-}
-
-// computeIndent builds the indent string for the given depth.
-// It is indentWidth*depth spaces followed by the cycled prefix from
-// prefixes (if set) and the separator.
-func computeIndent(depth, width int, prefixes []string, sep *string) string {
-	if depth <= 0 {
-		return ""
-	}
-	s := strings.Repeat(" ", depth*width)
-	if len(prefixes) > 0 {
-		psep := " "
-		if sep != nil {
-			psep = *sep
-		}
-		s += prefixes[(depth-1)%len(prefixes)] + psep
-	}
-	return s
-}
-
-// computeTreeIndent builds the tree-drawing prefix for the given tree
-// positions. Each ancestor level renders a continuation line (│ or blank)
-// and the deepest level renders its connector (├── or └──).
-func computeTreeIndent(tree []TreePos, chars TreeChars) string {
-	if len(tree) == 0 {
-		return ""
-	}
-	var b strings.Builder
-	for i, pos := range tree {
-		if i == len(tree)-1 {
-			// Deepest level - draw the connector.
-			switch pos {
-			case TreeFirst:
-				b.WriteString(chars.First)
-			case TreeMiddle:
-				b.WriteString(chars.Middle)
-			case TreeLast:
-				b.WriteString(chars.Last)
-			}
-		} else {
-			// Ancestor level - draw continuation or blank.
-			if pos == TreeLast {
-				b.WriteString(chars.Blank)
-			} else {
-				b.WriteString(chars.Continue)
-			}
-		}
-	}
-	return b.String()
 }
 
 // exit calls the logger's exit function (used by Fatal-level events).
@@ -930,7 +703,7 @@ func (l *Logger) formatLabel(level Level) string {
 // recomputePaddedLabels rebuilds the labelsPadded cache from the current
 // labels, labelWidth, and levelAlign settings. Must be called with l.mu held.
 func (l *Logger) recomputePaddedLabels() {
-	m := make(LevelMap, len(l.labels))
+	m := make(LabelMap, len(l.labels))
 	maxW := l.labelWidth
 	for lvl, label := range l.labels {
 		switch l.levelAlign {
@@ -999,13 +772,13 @@ func (l *Logger) log(e *Event, msg string) {
 		})
 	}
 
-	prefix := l.resolvePrefix(e)
+	symbol := l.resolveSymbol(e)
 
 	// Delegate to custom handler if set.
 	if l.handler != nil {
 		entry := Entry{
 			Level:   e.level,
-			Prefix:  prefix,
+			Symbol:  symbol,
 			Indent:  l.indent,
 			Message: msg,
 			Fields:  allFields,
@@ -1061,15 +834,15 @@ func (l *Logger) log(e *Event, msg string) {
 			} else {
 				s = label
 			}
-		case PartPrefix:
-			if prefix == "" {
+		case PartSymbol:
+			if symbol == "" {
 				continue
 			}
 
-			if style := l.styles.Prefixes[e.level]; !noColor && style != nil {
-				s = style.Render(prefix)
+			if style := l.styles.Symbols[e.level]; !noColor && style != nil {
+				s = style.Render(symbol)
 			} else {
-				s = prefix
+				s = symbol
 			}
 		case PartMessage:
 			if msg == "" && l.indent == 0 && len(l.tree) == 0 {
@@ -1087,24 +860,16 @@ func (l *Logger) log(e *Event, msg string) {
 			}
 		case PartFields:
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
-				elapsedFormatFunc:       l.elapsedFormatFunc,
-				elapsedMinimum:          l.elapsedMinimum,
-				elapsedPrecision:        l.elapsedPrecision,
-				elapsedRound:            l.elapsedRound,
-				fieldSort:               l.fieldSort,
-				fieldStyleLevel:         l.fieldStyleLevel,
-				level:                   e.level,
-				noColor:                 noColor,
-				percentFormatFunc:       l.percentFormatFunc,
-				percentReverse:          l.percentReverse,
-				percentPrecision:        l.percentPrecision,
-				quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
-				quoteOpen:               l.quoteOpen,
-				quoteClose:              l.quoteClose,
-				quoteMode:               l.quoteMode,
-				separatorText:           l.separatorText,
-				styles:                  l.styles,
-				timeFormat:              l.fieldTimeFormat,
+				fieldSort:       l.fieldSort,
+				fieldStyleLevel: l.fieldStyleLevel,
+				level:           e.level,
+				noColor:         noColor,
+				quoteOpen:       l.quoteOpen,
+				quoteClose:      l.quoteClose,
+				quoteMode:       l.quoteMode,
+				separatorText:   l.separatorText,
+				styles:          l.styles,
+				timeFormat:      l.fieldTimeFormat,
 			}), " ")
 		}
 
@@ -1140,296 +905,64 @@ func (l *Logger) newEvent(level Level) *Event {
 	}
 }
 
-// resolvePrefix returns the appropriate prefix for a log entry, checking
+// resolveSymbol returns the appropriate symbol for a log entry, checking
 // event override -> logger preset -> default for level.
-func (l *Logger) resolvePrefix(e *Event) string {
-	if e.prefix != nil {
-		return *e.prefix
+func (l *Logger) resolveSymbol(e *Event) string {
+	if e.symbol != nil {
+		return *e.symbol
 	}
 
-	if l.prefix != nil {
-		return *l.prefix
+	if l.symbol != nil {
+		return *l.symbol
 	}
-	return l.prefixes[e.level]
+	return l.symbols[e.level]
 }
 
-// Config holds configuration options for the [Default] logger.
-type Config struct {
-	// Output is the output to use (defaults to [Stdout]([ColorAuto])).
-	Output *Output
-	// Styles allows customising the visual styles.
-	Styles *Styles
-	// Verbose enables debug level logging and timestamps.
-	Verbose bool
-}
-
-// Configure sets up the [Default] logger with the given configuration.
-// Call this once at application startup.
-//
-// Note: this respects the log level environment variable - it won't reset
-// the level if CLOG_LOG_LEVEL (or a custom prefix equivalent) was set and
-// cfg.Verbose is false.
-func Configure(cfg *Config) {
-	if cfg == nil {
-		return
+// computeIndent builds the indent string for the given depth.
+// It is indentWidth*depth spaces followed by the cycled prefix from
+// prefixes (if set) and the separator.
+func computeIndent(depth, width int, prefixes []string, sep *string) string {
+	if depth <= 0 {
+		return ""
 	}
-
-	if cfg.Output != nil {
-		Default.SetOutput(cfg.Output)
+	s := strings.Repeat(" ", depth*width)
+	if len(prefixes) > 0 {
+		psep := " "
+		if sep != nil {
+			psep = *sep
+		}
+		s += prefixes[(depth-1)%len(prefixes)] + psep
 	}
+	return s
+}
 
-	if cfg.Styles != nil {
-		Default.SetStyles(cfg.Styles)
+// computeTreeIndent builds the tree-drawing prefix for the given tree
+// positions. Each ancestor level renders a continuation line (│ or blank)
+// and the deepest level renders its connector (├── or └──).
+func computeTreeIndent(tree []TreePos, chars TreeChars) string {
+	if len(tree) == 0 {
+		return ""
 	}
-
-	SetVerbose(cfg.Verbose)
-}
-
-// DefaultLabels returns a copy of the default level labels.
-func DefaultLabels() LevelMap {
-	return maps.Clone(levelLabels)
-}
-
-// DefaultParts returns the default ordering of log line parts:
-// timestamp, level, prefix, message, fields.
-func DefaultParts() []Part {
-	return []Part{PartTimestamp, PartLevel, PartPrefix, PartMessage, PartFields}
-}
-
-// DefaultPrefixes returns a copy of the default emoji prefixes for each level.
-func DefaultPrefixes() LevelMap {
-	return maps.Clone(defaultPrefixes)
-}
-
-// Levels returns all registered levels (built-in and custom) in ascending
-// severity order.
-func Levels() []Level {
-	customLevelsMu.RLock()
-	levels := make([]Level, 0, len(levelNames))
-	for lvl := range levelNames {
-		levels = append(levels, lvl)
-	}
-	customLevelsMu.RUnlock()
-	slices.Sort(levels)
-	return levels
-}
-
-// SetVerbose enables or disables verbose mode on the [Default] logger.
-// When verbose is true, it always enables debug logging. When false, it
-// respects the log level environment variable if set.
-func SetVerbose(verbose bool) {
-	if verbose {
-		Default.SetLevel(DebugLevel)
-		Default.SetReportTimestamp(true)
-		return
-	}
-
-	// Respect the env var if set (custom prefix or CLOG_LOG_LEVEL).
-	if getEnv(envLogLevel) != "" {
-		return
-	}
-
-	Default.SetLevel(InfoLevel)
-	Default.SetReportTimestamp(false)
-}
-
-// GetLevel returns the current log level of the [Default] logger.
-func GetLevel() Level {
-	return Default.Level()
-}
-
-// IsVerbose returns true if verbose/debug mode is enabled on the [Default] logger.
-// Returns true for both [TraceLevel] and [DebugLevel].
-func IsVerbose() bool {
-	return GetLevel() <= DebugLevel
-}
-
-// Package-level convenience functions that use the [Default] logger.
-
-// SetAnimationInterval sets the minimum animation refresh interval on the [Default] logger.
-func SetAnimationInterval(d time.Duration) { Default.SetAnimationInterval(d) }
-
-// SetColorMode sets the colour mode on the [Default] logger by recreating
-// its [Output] with the given mode.
-func SetColorMode(mode ColorMode) {
-	Default.SetColorMode(mode)
-}
-
-// SetElapsedFormatFunc sets the elapsed format function on the [Default] logger.
-func SetElapsedFormatFunc(fn func(time.Duration) string) { Default.SetElapsedFormatFunc(fn) }
-
-// SetElapsedMinimum sets the elapsed minimum threshold on the [Default] logger.
-func SetElapsedMinimum(d time.Duration) { Default.SetElapsedMinimum(d) }
-
-// SetElapsedPrecision sets the elapsed precision on the [Default] logger.
-func SetElapsedPrecision(precision int) { Default.SetElapsedPrecision(precision) }
-
-// SetElapsedRound sets the elapsed rounding granularity on the [Default] logger.
-func SetElapsedRound(d time.Duration) { Default.SetElapsedRound(d) }
-
-// SetExitFunc sets the fatal-exit function on the [Default] logger.
-func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
-
-// SetFieldSort sets the field sort order on the [Default] logger.
-func SetFieldSort(sort Sort) { Default.SetFieldSort(sort) }
-
-// SetFieldStyleLevel sets the minimum level for styled fields on the [Default] logger.
-func SetFieldStyleLevel(level Level) { Default.SetFieldStyleLevel(level) }
-
-// SetFieldTimeFormat sets the time format for time fields on the [Default] logger.
-func SetFieldTimeFormat(format string) { Default.SetFieldTimeFormat(format) }
-
-// SetHandler sets the log handler on the [Default] logger.
-func SetHandler(h Handler) { Default.SetHandler(h) }
-
-// SetIndent sets the indent depth on the [Default] logger.
-func SetIndent(levels int) { Default.SetIndent(levels) }
-
-// SetIndentPrefixes sets per-depth indent prefixes on the [Default] logger.
-func SetIndentPrefixes(prefixes []string) { Default.SetIndentPrefixes(prefixes) }
-
-// SetIndentPrefixSeparator sets the indent prefix separator on the [Default] logger.
-func SetIndentPrefixSeparator(sep string) { Default.SetIndentPrefixSeparator(sep) }
-
-// SetIndentWidth sets the indent width on the [Default] logger.
-func SetIndentWidth(width int) { Default.SetIndentWidth(width) }
-
-// SetLevel sets the minimum log level on the [Default] logger.
-func SetLevel(level Level) { Default.SetLevel(level) }
-
-// SetLevelAlign sets the level-label alignment on the [Default] logger.
-func SetLevelAlign(align Align) { Default.SetLevelAlign(align) }
-
-// SetLevelLabels sets the level labels on the [Default] logger.
-func SetLevelLabels(labels LevelMap) { Default.SetLevelLabels(labels) }
-
-// SetNonTTYLevel sets the non-TTY level filter on the [Default] logger.
-func SetNonTTYLevel(level Level) { Default.SetNonTTYLevel(level) }
-
-// SetOmitEmpty enables or disables omitting empty fields on the [Default] logger.
-func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
-
-// SetOmitZero enables or disables omitting zero-value fields on the [Default] logger.
-func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
-
-// SetOutput sets the output on the [Default] logger.
-func SetOutput(out *Output) { Default.SetOutput(out) }
-
-// SetOutputWriter sets the output writer on the [Default] logger with [ColorAuto].
-func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
-
-// SetParts sets the log-line part order on the [Default] logger.
-func SetParts(order ...Part) { Default.SetParts(order...) }
-
-// SetPercentFormatFunc sets the percent format function on the [Default] logger.
-func SetPercentFormatFunc(fn func(float64) string) { Default.SetPercentFormatFunc(fn) }
-
-// SetPercentReverseGradient sets the percent gradient inversion on the [Default] logger.
-func SetPercentReverseGradient(reverse bool) { Default.SetPercentReverseGradient(reverse) }
-
-// SetPercentPrecision sets the percent precision on the [Default] logger.
-func SetPercentPrecision(precision int) { Default.SetPercentPrecision(precision) }
-
-// SetPrefixes sets the level prefixes on the [Default] logger.
-func SetPrefixes(prefixes LevelMap) { Default.SetPrefixes(prefixes) }
-
-// SetQuantityUnitsIgnoreCase sets case-insensitive quantity unit matching on the [Default] logger.
-func SetQuantityUnitsIgnoreCase(ignoreCase bool) { Default.SetQuantityUnitsIgnoreCase(ignoreCase) }
-
-// SetQuoteChar sets the quote character on the [Default] logger.
-func SetQuoteChar(char rune) { Default.SetQuoteChar(char) }
-
-// SetQuoteChars sets the opening and closing quote characters on the [Default] logger.
-func SetQuoteChars(openChar, closeChar rune) { Default.SetQuoteChars(openChar, closeChar) }
-
-// SetQuoteMode sets the quoting behaviour on the [Default] logger.
-func SetQuoteMode(mode QuoteMode) { Default.SetQuoteMode(mode) }
-
-// SetReportTimestamp enables or disables timestamps on the [Default] logger.
-func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
-
-// SetSeparatorText sets the key/value separator on the [Default] logger.
-func SetSeparatorText(sep string) { Default.SetSeparatorText(sep) }
-
-// SetStyles sets the display styles on the [Default] logger.
-func SetStyles(styles *Styles) { Default.SetStyles(styles) }
-
-// SetTreeChars sets the tree-drawing characters on the [Default] logger.
-func SetTreeChars(chars TreeChars) { Default.SetTreeChars(chars) }
-
-// SetTimeFormat sets the timestamp format on the [Default] logger.
-func SetTimeFormat(format string) { Default.SetTimeFormat(format) }
-
-// SetTimeLocation sets the timestamp timezone on the [Default] logger.
-func SetTimeLocation(loc *time.Location) { Default.SetTimeLocation(loc) }
-
-// Ctx retrieves the logger from ctx. Returns [Default] if ctx is nil
-// or contains no logger.
-func Ctx(ctx context.Context) *Logger {
-	if ctx == nil {
-		return Default
-	}
-	if l, ok := ctx.Value(ctxKey{}).(*Logger); ok {
-		return l
-	}
-	return Default
-}
-
-// WithContext stores the [Default] logger in ctx.
-func WithContext(ctx context.Context) context.Context {
-	return Default.WithContext(ctx)
-}
-
-// With returns a [Context] for building a sub-logger from the [Default] logger.
-func With() *Context { return Default.With() }
-
-// Dict returns a new detached [Event] for use as a nested dictionary field.
-func Dict() *Event { return &Event{} }
-
-// Divider returns a new [DividerBuilder] for rendering a horizontal rule
-// using the [Default] logger.
-func Divider() *DividerBuilder { return Default.Divider() }
-
-// Log returns a new [Event] at the given level from the [Default] logger.
-// Use this for custom levels registered with [RegisterLevel].
-func Log(level Level) *Event { return Default.Log(level) }
-
-// Trace returns a new trace-level [Event] from the [Default] logger.
-func Trace() *Event { return Default.Trace() }
-
-// Debug returns a new debug-level [Event] from the [Default] logger.
-func Debug() *Event { return Default.Debug() }
-
-// Info returns a new info-level [Event] from the [Default] logger.
-func Info() *Event { return Default.Info() }
-
-// Dry returns a new dry-level [Event] from the [Default] logger.
-func Dry() *Event { return Default.Dry() }
-
-// Warn returns a new warn-level [Event] from the [Default] logger.
-func Warn() *Event { return Default.Warn() }
-
-// Error returns a new error-level [Event] from the [Default] logger.
-func Error() *Event { return Default.Error() }
-
-// Fatal returns a new fatal-level [Event] from the [Default] logger.
-func Fatal() *Event { return Default.Fatal() }
-
-// computeLabelWidth returns the length of the longest label in the map.
-func computeLabelWidth(labels LevelMap) int {
-	maxWidth := 0
-	for _, lbl := range labels {
-		if len(lbl) > maxWidth {
-			maxWidth = len(lbl)
+	var b strings.Builder
+	for i, pos := range tree {
+		if i == len(tree)-1 {
+			// Deepest level - draw the connector.
+			switch pos {
+			case TreeFirst:
+				b.WriteString(chars.First)
+			case TreeMiddle:
+				b.WriteString(chars.Middle)
+			case TreeLast:
+				b.WriteString(chars.Last)
+			}
+		} else {
+			// Ancestor level - draw continuation or blank.
+			if pos == TreeLast {
+				b.WriteString(chars.Blank)
+			} else {
+				b.WriteString(chars.Continue)
+			}
 		}
 	}
-	return maxWidth
-}
-
-// centerPad centres s within width, padding with spaces.
-func centerPad(s string, width int) string {
-	pad := width - len(s)
-	left := pad / 2 //nolint:mnd // half the padding goes left
-	right := pad - left
-	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
+	return b.String()
 }

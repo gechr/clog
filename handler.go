@@ -1,6 +1,10 @@
 package clog
 
-import "time"
+import (
+	"time"
+
+	"github.com/gechr/clog/internal/core"
+)
 
 // Handler processes log entries. Implement this interface to customise
 // how log entries are formatted and output (e.g. JSON logging).
@@ -19,16 +23,13 @@ type HandlerFunc func(Entry)
 func (f HandlerFunc) Log(e Entry) { f(e) }
 
 // Field is a typed key-value pair attached to a log entry.
-type Field struct {
-	Key   string `json:"key"`
-	Value any    `json:"value"`
-}
+type Field = core.Field
 
 // Entry represents a completed log entry passed to a [Handler].
 type Entry struct {
 	Time    time.Time `json:"time,omitzero"`
 	Level   Level     `json:"level"`
-	Prefix  string    `json:"prefix,omitempty"`
+	Symbol  string    `json:"symbol,omitempty"`
 	Indent  int       `json:"indent,omitempty"`
 	Message string    `json:"message"`
 	Fields  []Field   `json:"fields,omitempty"`
