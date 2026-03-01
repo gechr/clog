@@ -23,6 +23,13 @@ type elapsed time.Duration
 // for percentage styling with gradient colors.
 type percent float64
 
+// percentValue wraps a percent with per-field rendering options set via
+// [PercentOption] values passed to [Event.Percent].
+type percentValue struct {
+	val     float64
+	reverse bool
+}
+
 // quantity wraps a string value with numeric and unit segments (e.g. "5m",
 // "5.1km", "100MB") so [formatValue] can identify it for quantity styling.
 type quantity string
@@ -42,6 +49,7 @@ type formatFieldsOpts struct {
 	level                   Level
 	noColor                 bool
 	percentFormatFunc       func(float64) string
+	percentReverse          bool
 	percentPrecision        int
 	quantityUnitsIgnoreCase bool
 	quoteOpen               rune // 0 means default ('"' via strconv.Quote)
@@ -151,6 +159,12 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				kind = kindPercent
 				customFormatted = true
 			}
+		case percentValue:
+			if opts.percentFormatFunc != nil {
+				valStr = opts.percentFormatFunc(val.val)
+				kind = kindPercent
+				customFormatted = true
+			}
 		}
 		if !customFormatted {
 			valStr, kind = formatValue(
@@ -208,6 +222,8 @@ func formatValue(
 		return strconv.FormatBool(val), kindBool
 	case percent:
 		return strconv.FormatFloat(float64(val), 'f', percentPrecision, 64) + "%", kindPercent
+	case percentValue:
+		return strconv.FormatFloat(val.val, 'f', percentPrecision, 64) + "%", kindPercent
 	case quantity:
 		return string(val), kindQuantity
 	case time.Duration:
@@ -236,7 +252,7 @@ func formatValue(
 	case []bool:
 		return formatBoolSlice(val, nil), kindSlice
 	case []any:
-		return formatAnySlice(val, nil, false, quoteMode, quoteOpen, quoteClose), kindSlice
+		return formatAnySlice(val, nil, false, quoteMode, quoteOpen, quoteClose, false), kindSlice
 	default:
 		return fmt.Sprintf("%v", v), kindDefault
 	}
@@ -250,6 +266,7 @@ func formatAnySlice(
 	ignoreCase bool,
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
+	percentReverse bool,
 ) string {
 	var buf strings.Builder
 
@@ -270,7 +287,7 @@ func formatAnySlice(
 		}
 
 		if styles != nil {
-			styled := styleAnyElement(s, v, kind, styles, ignoreCase)
+			styled := styleAnyElement(s, v, kind, styles, ignoreCase, percentReverse)
 			if styled != "" {
 				buf.WriteString(styled)
 
@@ -563,6 +580,7 @@ func styleAnyElement(
 	kind valueKind,
 	styles *Styles,
 	ignoreCase bool,
+	percentReverse bool,
 ) string {
 	// Per-value styling (typed key lookup - bool true ≠ string "true").
 	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
@@ -591,7 +609,7 @@ func styleAnyElement(
 			return styled
 		}
 	case kindPercent:
-		if styled := stylePercent(s, originalValue, styles); styled != "" {
+		if styled := stylePercent(s, originalValue, styles, percentReverse); styled != "" {
 			return styled
 		}
 	case kindQuantity:
@@ -671,6 +689,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 			opts.quoteMode,
 			opts.quoteOpen,
 			opts.quoteClose,
+			opts.percentReverse,
 		)
 	}
 
@@ -681,6 +700,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		kind,
 		opts.styles,
 		opts.quantityUnitsIgnoreCase,
+		opts.percentReverse,
 	); styled != "" {
 		return styled
 	}
@@ -694,6 +714,7 @@ func styledSlice(
 	ignoreCase bool,
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
+	percentReverse bool,
 ) string {
 	switch vals := v.(type) {
 	case []bool:
@@ -715,7 +736,15 @@ func styledSlice(
 	case []string:
 		return formatStringSlice(vals, styles, quoteMode, quoteOpen, quoteClose)
 	case []any:
-		return formatAnySlice(vals, styles, ignoreCase, quoteMode, quoteOpen, quoteClose)
+		return formatAnySlice(
+			vals,
+			styles,
+			ignoreCase,
+			quoteMode,
+			quoteOpen,
+			quoteClose,
+			percentReverse,
+		)
 	default:
 		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "", 0, 1)
 		return s
@@ -838,10 +867,20 @@ func styleNumberUnit(
 // value. The color is interpolated from the [Styles.PercentGradient] stops and
 // applied as the foreground on top of [Styles.FieldPercent] (if set).
 // originalValue must be a [percent] typed value.
+// When reverse is true the gradient position is flipped (1-t), making 0% green
+// and 100% red - suitable for metrics where a low value is good.
 // Returns "" when both FieldPercent and PercentGradient are nil/empty.
-func stylePercent(valStr string, originalValue any, styles *Styles) string {
-	p, ok := originalValue.(percent)
-	if !ok {
+func stylePercent(valStr string, originalValue any, styles *Styles, reverse bool) string {
+	var p percent
+	switch v := originalValue.(type) {
+	case percent:
+		p = v
+	case percentValue:
+		p = percent(v.val)
+		if v.reverse {
+			reverse = !reverse // toggle whatever the logger default is
+		}
+	default:
 		return ""
 	}
 
@@ -861,11 +900,16 @@ func stylePercent(valStr string, originalValue any, styles *Styles) string {
 
 	// Apply gradient foreground on top of the base style.
 	if hasGradient {
+		t := float64(p) / percentMax
+		if reverse {
+			t = 1 - t
+		}
+
 		var c colorful.Color
 		if len(styles.PercentGradient) == 1 {
 			c = styles.PercentGradient[0].Color
 		} else {
-			c = interpolateGradient(float64(p)/percentMax, styles.PercentGradient)
+			c = interpolateGradient(t, styles.PercentGradient)
 		}
 
 		style = style.Foreground(lipgloss.Color(c.Clamped().Hex()))
@@ -899,6 +943,7 @@ func styleValue(
 	kind valueKind,
 	styles *Styles,
 	ignoreCase bool,
+	percentReverse bool,
 ) string {
 	// Per-key styling takes priority.
 	if style := styles.Keys[key]; style != nil {
@@ -933,7 +978,7 @@ func styleValue(
 			return styled
 		}
 	case kindPercent:
-		if styled := stylePercent(valStr, originalValue, styles); styled != "" {
+		if styled := stylePercent(valStr, originalValue, styles, percentReverse); styled != "" {
 			return styled
 		}
 	case kindQuantity:

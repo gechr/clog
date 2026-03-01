@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"strconv"
@@ -639,28 +640,32 @@ func TestStyleValuePriority(t *testing.T) {
 	styles.Keys["count"] = new(keyStyle)
 
 	// Key style should win over number style.
-	assert.Equal(t, keyStyle.Render("42"), styleValue("42", 42, "count", kindNumber, styles, true))
+	assert.Equal(
+		t,
+		keyStyle.Render("42"),
+		styleValue("42", 42, "count", kindNumber, styles, true, false),
+	)
 
 	// Without key style, number style should apply.
 	assert.Equal(
 		t,
 		styles.FieldNumber.Render("42"),
-		styleValue("42", 42, "other", kindNumber, styles, true),
+		styleValue("42", 42, "other", kindNumber, styles, true, false),
 	)
 
 	// Value style should apply for matching values (typed bool key).
 	assert.Equal(
 		t,
 		styles.Values[true].Render("true"),
-		styleValue("true", true, "field", kindBool, styles, true),
+		styleValue("true", true, "field", kindBool, styles, true, false),
 	)
 
 	// No style for unrecognised default kind values.
-	assert.Empty(t, styleValue("something", "something", "field", kindDefault, styles, true))
+	assert.Empty(t, styleValue("something", "something", "field", kindDefault, styles, true, false))
 
 	// No style for slices (styledFieldValue handles slices before calling
 	// styleValue, but if it does reach here the slice itself is not styled).
-	assert.Empty(t, styleValue("[1, 2]", []int{1, 2}, "field", kindSlice, styles, true))
+	assert.Empty(t, styleValue("[1, 2]", []int{1, 2}, "field", kindSlice, styles, true, false))
 }
 
 func TestFormatFieldsIntSliceStyled(t *testing.T) {
@@ -841,7 +846,7 @@ func TestFormatFieldsStylesSkippedBelowInfo(t *testing.T) {
 
 func TestStyledSliceBool(t *testing.T) {
 	styles := DefaultStyles()
-	got := styledSlice([]bool{true, false}, styles, true, QuoteAuto, 0, 0)
+	got := styledSlice([]bool{true, false}, styles, true, QuoteAuto, 0, 0, false)
 
 	trueStyled := styles.Values[true].Render("true")
 	falseStyled := styles.Values[false].Render("false")
@@ -853,7 +858,7 @@ func TestStyledSliceBool(t *testing.T) {
 func TestStyledSliceFloat64(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldNumber = nil // disable number styling so output is plain
-	got := styledSlice([]float64{1.5, 2.5}, styles, true, QuoteAuto, 0, 0)
+	got := styledSlice([]float64{1.5, 2.5}, styles, true, QuoteAuto, 0, 0, false)
 
 	assert.Equal(t, "[1.5, 2.5]", got)
 }
@@ -912,7 +917,7 @@ func TestFormatFieldsAnySliceKeyStylePriority(t *testing.T) {
 
 func TestStyledSliceAny(t *testing.T) {
 	styles := DefaultStyles()
-	got := styledSlice([]any{true, 42, "text"}, styles, true, QuoteAuto, 0, 0)
+	got := styledSlice([]any{true, 42, "text"}, styles, true, QuoteAuto, 0, 0, false)
 
 	trueStyled := styles.Values[true].Render("true")
 	numStyled := styles.FieldNumber.Render("42")
@@ -975,7 +980,7 @@ func TestReflectValueKind(t *testing.T) {
 func TestStyledSliceDefault(t *testing.T) {
 	styles := DefaultStyles()
 	// Pass an unsupported slice type to exercise the default branch.
-	got := styledSlice([]byte{1, 2}, styles, true, QuoteAuto, 0, 0)
+	got := styledSlice([]byte{1, 2}, styles, true, QuoteAuto, 0, 0, false)
 
 	assert.Equal(t, "[1 2]", got)
 }
@@ -1103,7 +1108,7 @@ func TestMergeFields(t *testing.T) {
 
 func TestStyleValueDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true, false)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -1114,14 +1119,14 @@ func TestStyleValueDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true, false)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueTime(t *testing.T) {
 	styles := DefaultStyles()
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
-	got := styleValue("2025-06-15 10:30:00", ts, "ts", kindTime, styles, true)
+	got := styleValue("2025-06-15 10:30:00", ts, "ts", kindTime, styles, true, false)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15 10:30:00"), got)
 }
 
@@ -1135,20 +1140,21 @@ func TestStyleValueTimeNil(t *testing.T) {
 		kindTime,
 		styles,
 		true,
+		false,
 	)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true, false)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleValueErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true, false)
 	assert.Empty(t, got)
 }
 
@@ -1157,7 +1163,7 @@ func TestStyleValuePerKeyMatch(t *testing.T) {
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styles.Keys["status"] = new(keyStyle)
 
-	got := styleValue("running", "running", "status", kindString, styles, true)
+	got := styleValue("running", "running", "status", kindString, styles, true, false)
 	assert.Equal(t, keyStyle.Render("running"), got)
 }
 
@@ -1167,26 +1173,26 @@ func TestStyleValuePerValueMatch(t *testing.T) {
 	styles.Values["running"] = new(valStyle)
 
 	// No key style set, so value style should apply.
-	got := styleValue("running", "running", "status", kindString, styles, true)
+	got := styleValue("running", "running", "status", kindString, styles, true, false)
 	assert.Equal(t, valStyle.Render("running"), got)
 }
 
 func TestStyleAnyElementError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true, false)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleAnyElementErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true, false)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true, false)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -1197,20 +1203,20 @@ func TestStyleAnyElementDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true, false)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementTime(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true, false)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15"), got)
 }
 
 func TestStyleAnyElementTimeNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldTime = nil
-	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true, false)
 	assert.Empty(t, got)
 }
 
@@ -1328,7 +1334,7 @@ func TestStyleValueQuantityFallbackToString(t *testing.T) {
 	styles := DefaultStyles()
 
 	// "hello" is not a valid quantity, so styleValue should fall back to FieldString.
-	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles, true)
+	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles, true, false)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
 
@@ -1337,14 +1343,14 @@ func TestStyleValueQuantityFallbackNilString(t *testing.T) {
 	styles.FieldString = nil
 
 	// No quantity match, no string style - should return "".
-	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles, true)
+	got := styleValue("hello", quantity("hello"), "field", kindQuantity, styles, true, false)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementQuantityFallbackToString(t *testing.T) {
 	styles := DefaultStyles()
 
-	got := styleAnyElement("hello", quantity("hello"), kindQuantity, styles, true)
+	got := styleAnyElement("hello", quantity("hello"), kindQuantity, styles, true, false)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
 
@@ -1685,7 +1691,7 @@ func TestStyleValueNilViaAny(t *testing.T) {
 
 	// Any("k", nil) -> formatValue returns "<nil>", kindDefault.
 	// styleValue should find the nil value style via lookupValueStyle.
-	got := styleValue("<nil>", nil, "k", kindDefault, styles, true)
+	got := styleValue("<nil>", nil, "k", kindDefault, styles, true, false)
 	assert.NotEmpty(t, got, "nil value should be styled via Values[nil]")
 }
 
@@ -1699,12 +1705,12 @@ func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	styles.FieldString = new(strStyle)
 
 	// Bool field true -> styled via typed Values[true].
-	got := styleValue("true", true, "ok", kindBool, styles, true)
+	got := styleValue("true", true, "ok", kindBool, styles, true, false)
 	assert.Equal(t, boolStyle.Render("true"), got)
 
 	// String field "true" -> NOT styled via Values (no string "true" key).
 	// Should fall through to FieldString styling.
-	got = styleValue("true", "true", "ok", kindString, styles, true)
+	got = styleValue("true", "true", "ok", kindString, styles, true, false)
 	assert.Equal(t, strStyle.Render("true"), got)
 }
 
@@ -1779,7 +1785,7 @@ func TestInterpolateGradientMidpoint(t *testing.T) {
 
 func TestStylePercentOutput(t *testing.T) {
 	styles := DefaultStyles()
-	got := stylePercent("75%", percent(75), styles)
+	got := stylePercent("75%", percent(75), styles, false)
 
 	// Should contain ANSI escape codes (color applied).
 	assert.NotEmpty(t, got)
@@ -1789,13 +1795,13 @@ func TestStylePercentOutput(t *testing.T) {
 func TestStylePercentNoGradient(t *testing.T) {
 	styles := DefaultStyles()
 	styles.PercentGradient = nil
-	got := stylePercent("50%", percent(50), styles)
+	got := stylePercent("50%", percent(50), styles, false)
 	assert.Empty(t, got, "nil gradient should return empty")
 }
 
 func TestStylePercentWrongType(t *testing.T) {
 	styles := DefaultStyles()
-	got := stylePercent("50%", "not a percent", styles)
+	got := stylePercent("50%", "not a percent", styles, false)
 	assert.Empty(t, got, "non-percent originalValue should return empty")
 }
 
@@ -1803,7 +1809,7 @@ func TestStylePercentSingleStop(t *testing.T) {
 	styles := DefaultStyles()
 	blue := colorful.Color{R: 0, G: 0, B: 1}
 	styles.PercentGradient = []ColorStop{{Position: 0.5, Color: blue}}
-	got := stylePercent("50%", percent(50), styles)
+	got := stylePercent("50%", percent(50), styles, false)
 
 	// Should use the single stop's color for any value.
 	assert.NotEmpty(t, got)
@@ -1812,15 +1818,62 @@ func TestStylePercentSingleStop(t *testing.T) {
 
 func TestStyleValuePercent(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("75%", percent(75), "progress", kindPercent, styles, true)
+	got := styleValue("75%", percent(75), "progress", kindPercent, styles, true, false)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
+}
+
+func TestStylePercentReverse(t *testing.T) {
+	// Default gradient: 0=red, 100=green.
+	// At 0% with no reverse the gradient position is 0 (red end).
+	// With reverse the position flips to 1 (green end).
+	// We verify that reverse=true yields a different color than reverse=false.
+	out := NewOutput(&bytes.Buffer{}, ColorAlways)
+	styles := DefaultStyles().WithRenderer(out.Renderer())
+	normal := stylePercent("0%", percent(0), styles, false)
+	reversed := stylePercent("0%", percent(0), styles, true)
+
+	assert.NotEmpty(t, normal)
+	assert.NotEmpty(t, reversed)
+	assert.NotEqual(t, normal, reversed, "reversed gradient should produce a different color")
+}
+
+func TestPercentReverseLogger(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(NewOutput(&buf, ColorAlways))
+	l.SetPercentReverseGradient(true)
+	l.Info().Percent("cpu", 0).Send()
+
+	got := buf.String()
+	assert.Contains(t, got, "0%")
+	// Reversed 0% should render green-ish (not red).
+	assert.Contains(t, got, "\x1b[")
+}
+
+func TestPercentReverseFieldTogglesLoggerDefault(t *testing.T) {
+	out := NewOutput(&bytes.Buffer{}, ColorAlways)
+	styles := DefaultStyles().WithRenderer(out.Renderer())
+
+	// Logger default = normal (reverse=false).
+	// percentValue{reverse:true} should flip to reverse=true → same as stylePercent(..., true).
+	normalAt0 := stylePercent("0%", percent(0), styles, false)
+	fieldFlippedAt0 := stylePercent("0%", percentValue{val: 0, reverse: true}, styles, false)
+	assert.Equal(t, stylePercent("0%", percent(0), styles, true), fieldFlippedAt0,
+		"WithPercentReverseGradient on a normal logger should match logger reverse=true")
+	assert.NotEqual(t, normalAt0, fieldFlippedAt0,
+		"flipped field should differ from non-flipped")
+
+	// Logger default = reverse=true.
+	// percentValue{reverse:true} should flip back to reverse=false → same as stylePercent(..., false).
+	fieldFlippedBack := stylePercent("0%", percentValue{val: 0, reverse: true}, styles, true)
+	assert.Equal(t, normalAt0, fieldFlippedBack,
+		"WithPercentReverseGradient on a reversed logger should flip back to normal")
 }
 
 func TestStyleValuePercentNilGradient(t *testing.T) {
 	styles := DefaultStyles()
 	styles.PercentGradient = nil
-	got := styleValue("50%", percent(50), "progress", kindPercent, styles, true)
+	got := styleValue("50%", percent(50), "progress", kindPercent, styles, true, false)
 	assert.Empty(t, got)
 }
 
@@ -1829,7 +1882,7 @@ func TestStylePercentBaseStyle(t *testing.T) {
 	bold := lipgloss.NewStyle().Bold(true)
 	styles.FieldPercent = new(bold)
 
-	got := stylePercent("75%", percent(75), styles)
+	got := stylePercent("75%", percent(75), styles, false)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
 }
@@ -1840,13 +1893,13 @@ func TestStylePercentBaseStyleOnly(t *testing.T) {
 	styles.FieldPercent = new(bold)
 	styles.PercentGradient = nil // no gradient, base style only
 
-	got := stylePercent("50%", percent(50), styles)
+	got := stylePercent("50%", percent(50), styles, false)
 	assert.Equal(t, bold.Render("50%"), got)
 }
 
 func TestStyleAnyElementPercent(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("75%", percent(75), kindPercent, styles, true)
+	got := styleAnyElement("75%", percent(75), kindPercent, styles, true, false)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
 }

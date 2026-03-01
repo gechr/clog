@@ -362,6 +362,7 @@ type Logger struct {
 	output                  *Output
 	parts                   []Part
 	percentFormatFunc       func(float64) string
+	percentReverse          bool
 	percentPrecision        int
 	prefix                  *string // nil = use default emoji for level
 	prefixes                LevelMap
@@ -651,6 +652,17 @@ func (l *Logger) SetPercentFormatFunc(fn func(float64) string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.percentFormatFunc = fn
+}
+
+// SetPercentReverseGradient reverses the gradient direction for Percent fields.
+// By default the gradient runs red (0%) → green (100%) - suitable for
+// metrics where higher is better. Set reverse=true to flip it to
+// green (0%) → red (100%) - suitable for metrics like CPU or disk usage
+// where lower is better.
+func (l *Logger) SetPercentReverseGradient(reverse bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.percentReverse = reverse
 }
 
 // SetPercentPrecision sets the number of decimal places for Percent display.
@@ -1061,6 +1073,7 @@ func (l *Logger) log(e *Event, msg string) {
 				level:                   e.level,
 				noColor:                 noColor,
 				percentFormatFunc:       l.percentFormatFunc,
+				percentReverse:          l.percentReverse,
 				percentPrecision:        l.percentPrecision,
 				quantityUnitsIgnoreCase: l.quantityUnitsIgnoreCase,
 				quoteOpen:               l.quoteOpen,
@@ -1284,6 +1297,9 @@ func SetParts(order ...Part) { Default.SetParts(order...) }
 
 // SetPercentFormatFunc sets the percent format function on the [Default] logger.
 func SetPercentFormatFunc(fn func(float64) string) { Default.SetPercentFormatFunc(fn) }
+
+// SetPercentReverseGradient sets the percent gradient inversion on the [Default] logger.
+func SetPercentReverseGradient(reverse bool) { Default.SetPercentReverseGradient(reverse) }
 
 // SetPercentPrecision sets the percent precision on the [Default] logger.
 func SetPercentPrecision(precision int) { Default.SetPercentPrecision(precision) }

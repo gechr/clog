@@ -351,15 +351,40 @@ func (e *Event) Msgf(format string, args ...any) {
 	e.Msg(fmt.Sprintf(format, args...))
 }
 
+// PercentOption configures how a [Event.Percent] field is rendered.
+type PercentOption func(*percentValue)
+
+// WithPercentReverseGradient returns a [PercentOption] that flips the gradient
+// direction for this field relative to the logger default. If the logger is
+// using the normal gradient (red=0%, green=100%), the field renders inverted
+// (green=0%, red=100%), and vice versa.
+func WithPercentReverseGradient() PercentOption {
+	return func(p *percentValue) { p.reverse = true }
+}
+
 // Percent adds a percentage field (0–100) with gradient color styling.
 // Values are clamped to the 0–100 range. The color is interpolated from
 // the [Styles.PercentGradient] stops (default: red → yellow → green).
-func (e *Event) Percent(key string, val float64) *Event {
+//
+// Use [WithPercentReverseGradient] to flip the gradient for this field:
+//
+//	e.Percent("cpu", usage, clog.WithPercentReverseGradient())
+func (e *Event) Percent(key string, val float64, opts ...PercentOption) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: percent(clampPercent(val))})
+	clamped := clampPercent(val)
+	if len(opts) == 0 {
+		e.fields = append(e.fields, Field{Key: key, Value: percent(clamped)})
+		return e
+	}
+
+	pv := percentValue{val: clamped}
+	for _, o := range opts {
+		o(&pv)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: pv})
 	return e
 }
 
