@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -561,6 +562,42 @@ func TestLogFormattedOutputCustomPrefix(t *testing.T) {
 	l.Info().Prefix(">>>").Msg("hello")
 
 	assert.Equal(t, "INF >>> hello\n", buf.String())
+}
+
+func TestPrefixStyle(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(NewOutput(&buf, ColorAlways))
+
+	styles := DefaultStyles()
+	styles.Prefixes[InfoLevel] = new(
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")),
+	)
+	l.SetStyles(styles)
+
+	l.Info().Prefix("warning").Msg("hello")
+
+	got := buf.String()
+	// The prefix should appear styled (contain ANSI escapes), not bare.
+	assert.Contains(t, got, "warning")
+	assert.Contains(t, got, "\x1b[") // ANSI escape present
+}
+
+func TestPrefixStyleNoColor(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+
+	styles := DefaultStyles()
+	styles.Prefixes[InfoLevel] = new(
+		lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")),
+	)
+	l.SetStyles(styles)
+
+	l.Info().Prefix("warning").Msg("hello")
+
+	// No-color output should be plain.
+	assert.Equal(t, "INF warning hello\n", buf.String())
 }
 
 func TestLogFormattedOutputEmptyPrefix(t *testing.T) {

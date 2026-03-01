@@ -21,6 +21,9 @@ func main() {
 	styles.Messages[clog.WarnLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))
 	styles.Messages[clog.ErrorLevel] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
 
+	// Per-level prefix styles (works with any prefix, not just emojis)
+	styles.Prefixes[clog.WarnLevel] = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")))
+
 	// Custom key style
 	styles.KeyDefault = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")))
 
@@ -33,6 +36,6 @@ func main() {
 	clog.Trace().Prefix("🔍").Str("module", "auth").Msg("Token validation started")
 	clog.Debug().Prefix("🐛").Str("query", "SELECT *").Duration("latency", 2*time.Millisecond).Msg("Query executed")
 	clog.Info().Prefix("🚀").Str("env", "production").Int("port", 8080).Msg("Server started")
-	clog.Warn().Prefix("⚡").Str("disk", "92%").Msg("Low disk space")
+	clog.Warn().Prefix("!!").Percent("usage", 99).Msg("Low disk space")
 	clog.Error().Prefix("💥").Err(errors.New("connection refused")).Str("host", "db.internal").Msg("Connection failed")
 }

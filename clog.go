@@ -1031,7 +1031,11 @@ func (l *Logger) log(e *Event, msg string) {
 				continue
 			}
 
-			s = prefix
+			if style := l.styles.Prefixes[e.level]; !noColor && style != nil {
+				s = style.Render(prefix)
+			} else {
+				s = prefix
+			}
 		case PartMessage:
 			if msg == "" && l.indent == 0 && len(l.tree) == 0 {
 				continue

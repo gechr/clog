@@ -229,6 +229,9 @@ type Styles struct {
 	Levels LevelStyleMap
 	// Message text style per level.
 	Messages LevelStyleMap
+	// Prefix text style per level (e.g. make "warning" bold yellow).
+	// nil entries render the prefix unstyled.
+	Prefixes LevelStyleMap
 	// Gradient stops for Percent fields (default: red → yellow → green).
 	PercentGradient []ColorStop
 	// Quantity unit -> thresholds (evaluated high->low).
@@ -305,6 +308,7 @@ func DefaultStyles() *Styles {
 		DurationThresholds: make(ThresholdMap),
 		DurationUnits:      make(StyleMap),
 		Messages:           DefaultMessageStyles(),
+		Prefixes:           make(LevelStyleMap),
 		PercentGradient:    DefaultPercentGradient(),
 		QuantityThresholds: make(ThresholdMap),
 		QuantityUnits:      make(StyleMap),
@@ -409,6 +413,7 @@ func (s *Styles) WithRenderer(r *lipgloss.Renderer) *Styles {
 	// LevelStyleMap fields.
 	rebindStyleMap(r, s.Levels)
 	rebindStyleMap(r, s.Messages)
+	rebindStyleMap(r, s.Prefixes)
 
 	// ValueStyleMap.
 	for k, v := range s.Values {
