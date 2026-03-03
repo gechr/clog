@@ -85,10 +85,10 @@ const (
 	ErrorLevel Level = 10
 	FatalLevel Level = 15
 
-	// DefaultLevel is passed to [SetNonTTYLevel] to disable the non-TTY level
+	// UnsetLevel is passed to [SetNonTTYLevel] to disable the non-TTY level
 	// filter. Its value is intentionally below all real log levels so the
 	// check e.level < nonTTYLevel is always false, meaning no restriction.
-	DefaultLevel Level = -1 << 30
+	UnsetLevel Level = -1 << 30
 )
 
 // defaultMaxLabelLen is the maximum length of an auto-generated level label.
@@ -411,7 +411,7 @@ func New(output *Output) *Logger {
 		treeChars:               DefaultTreeChars(),
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
-	l.nonTTYLevel = DefaultLevel
+	l.nonTTYLevel = UnsetLevel
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	return l
@@ -573,7 +573,7 @@ func (l *Logger) SetLevel(level Level) {
 // SetNonTTYLevel sets the minimum log level for non-TTY writers (CI, piped
 // output, etc.). Events below this level are suppressed when the logger's
 // output is not connected to a terminal, including animation progress lines.
-// Pass [DefaultLevel] to restore the default behaviour.
+// Pass [UnsetLevel] to restore the default behaviour.
 func (l *Logger) SetNonTTYLevel(level Level) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -963,7 +963,7 @@ func (l *Logger) log(e *Event, msg string) {
 	defer l.mu.Unlock()
 
 	// Suppress events below the non-TTY level threshold on non-terminal writers.
-	if l.nonTTYLevel != DefaultLevel && !l.output.IsTTY() && e.level < l.nonTTYLevel {
+	if l.nonTTYLevel != UnsetLevel && !l.output.IsTTY() && e.level < l.nonTTYLevel {
 		return
 	}
 

@@ -443,7 +443,7 @@ type taskConfig struct {
 	label        string    // pre-computed padded label
 	levelPrefix  string    // styled label (via styles.Levels[level])
 	noColor      bool      // output.ColorsDisabled()
-	nonTTYSilent bool      // logger.animationNonTTYSilent || builder.nonTTYSilent
+	nonTTYSilent bool      // builder.nonTTYSilent || level < logger.nonTTYLevel
 	order        []Part    // l.parts
 	out          io.Writer // output.Writer()
 	output       *Output   // for Width() in bar mode
@@ -507,7 +507,7 @@ func captureTaskConfig(gt *groupTask) {
 		isTTY:        l.output.IsTTY(),
 		label:        l.formatLabel(b.level),
 		noColor:      l.output.ColorsDisabled(),
-		nonTTYSilent: b.nonTTYSilent || (l.nonTTYLevel != DefaultLevel && b.level < l.nonTTYLevel),
+		nonTTYSilent: b.nonTTYSilent || (l.nonTTYLevel != UnsetLevel && b.level < l.nonTTYLevel),
 		order:        order,
 		out:          l.output.Writer(),
 		output:       l.output,

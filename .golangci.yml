@@ -55,7 +55,7 @@ linters:
     errcheck:
       check-type-assertions: true
     exhaustive:
-      ignore-enum-members: DefaultLevel
+      ignore-enum-members: UnsetLevel
       check:
         - switch
         - map

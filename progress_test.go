@@ -164,14 +164,14 @@ func TestNonTTYLevelSuppressesLogEvents(t *testing.T) {
 	assert.NotEmpty(t, buf.String(), "Error should pass through at ErrorLevel threshold")
 }
 
-func TestNonTTYLevelResetWithDefaultLevel(t *testing.T) {
+func TestNonTTYLevelResetWithUnsetLevel(t *testing.T) {
 	var buf bytes.Buffer
 	l := NewWriter(&buf)
 	l.SetNonTTYLevel(ErrorLevel)
-	l.SetNonTTYLevel(DefaultLevel)
+	l.SetNonTTYLevel(UnsetLevel)
 
 	l.Info().Msg("should appear after reset")
-	assert.NotEmpty(t, buf.String(), "DefaultLevel restores normal non-TTY output")
+	assert.NotEmpty(t, buf.String(), "UnsetLevel restores normal non-TTY output")
 }
 
 func TestElapsedFieldOrdering(t *testing.T) {
