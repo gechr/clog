@@ -87,11 +87,14 @@ func (g *Group) Wait() *GroupResult {
 		return result
 	}
 
-	// Non-TTY: print each task's initial line, then block on all results.
-	// Dynamic fields (elapsed, bar percent) are stripped because their
-	// initial zero values are meaningless without live updates.
+	// Non-TTY: print each task's initial line (unless NonTTYSilent is set),
+	// then block on all results. Dynamic fields (elapsed, bar percent) are
+	// stripped because their initial zero values are meaningless without live updates.
 	if !tasks[0].cfg.isTTY {
 		for _, t := range tasks {
+			if t.cfg.nonTTYSilent {
+				continue
+			}
 			fieldsStr := strings.TrimLeft(
 				formatFields(t.builder.stripDynamicFields(*t.fieldsPtr.Load()), t.fieldOpts), " ",
 			)
@@ -435,19 +438,20 @@ func (r *GroupResult) joinErrors() error {
 // logger's mutex. It stores exactly the fields needed for per-tick rendering
 // so the animation loop never touches the logger after the initial capture.
 type taskConfig struct {
-	indentation string    // pre-computed indent string for message prefix
-	isTTY       bool      // output.IsTTY()
-	label       string    // pre-computed padded label
-	levelPrefix string    // styled label (via styles.Levels[level])
-	noColor     bool      // output.ColorsDisabled()
-	order       []Part    // l.parts
-	out         io.Writer // output.Writer()
-	output      *Output   // for Width() in bar mode
-	reportTS    bool
-	styles      *Styles
-	termOut     *termenv.Output // output.Renderer().Output()
-	timeFmt     string
-	timeLoc     *time.Location
+	indentation  string    // pre-computed indent string for message prefix
+	isTTY        bool      // output.IsTTY()
+	label        string    // pre-computed padded label
+	levelPrefix  string    // styled label (via styles.Levels[level])
+	noColor      bool      // output.ColorsDisabled()
+	nonTTYSilent bool      // logger.animationNonTTYSilent || builder.nonTTYSilent
+	order        []Part    // l.parts
+	out          io.Writer // output.Writer()
+	output       *Output   // for Width() in bar mode
+	reportTS     bool
+	styles       *Styles
+	termOut      *termenv.Output // output.Renderer().Output()
+	timeFmt      string
+	timeLoc      *time.Location
 }
 
 // groupTask holds per-animation mutable state for both the single-animation
@@ -500,17 +504,18 @@ func captureTaskConfig(gt *groupTask) {
 			l.indentPrefixes,
 			l.indentPrefixSep,
 		) + computeTreeIndent(combinedTree, l.treeChars),
-		isTTY:    l.output.IsTTY(),
-		label:    l.formatLabel(b.level),
-		noColor:  l.output.ColorsDisabled(),
-		order:    order,
-		out:      l.output.Writer(),
-		output:   l.output,
-		reportTS: l.reportTimestamp,
-		styles:   l.styles,
-		termOut:  l.output.Renderer().Output(),
-		timeFmt:  l.timeFormat,
-		timeLoc:  l.timeLocation,
+		isTTY:        l.output.IsTTY(),
+		label:        l.formatLabel(b.level),
+		noColor:      l.output.ColorsDisabled(),
+		nonTTYSilent: b.nonTTYSilent || (l.nonTTYLevel != DefaultLevel && b.level < l.nonTTYLevel),
+		order:        order,
+		out:          l.output.Writer(),
+		output:       l.output,
+		reportTS:     l.reportTimestamp,
+		styles:       l.styles,
+		termOut:      l.output.Renderer().Output(),
+		timeFmt:      l.timeFormat,
+		timeLoc:      l.timeLocation,
 	}
 	gt.fieldOpts = formatFieldsOpts{
 		elapsedFormatFunc:       l.elapsedFormatFunc,

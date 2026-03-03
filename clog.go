@@ -84,6 +84,11 @@ const (
 	WarnLevel  Level = 5
 	ErrorLevel Level = 10
 	FatalLevel Level = 15
+
+	// DefaultLevel is passed to [SetNonTTYLevel] to disable the non-TTY level
+	// filter. Its value is intentionally below all real log levels so the
+	// check e.level < nonTTYLevel is always false, meaning no restriction.
+	DefaultLevel Level = -1 << 30
 )
 
 // defaultMaxLabelLen is the maximum length of an auto-generated level label.
@@ -357,6 +362,7 @@ type Logger struct {
 	labelsPadded            LevelMap
 	level                   Level
 	levelAlign              Align
+	nonTTYLevel             Level // events below this level are suppressed on non-TTY writers
 	omitEmpty               bool
 	omitZero                bool
 	output                  *Output
@@ -405,6 +411,7 @@ func New(output *Output) *Logger {
 		treeChars:               DefaultTreeChars(),
 	}
 	l.atomicLevel.Store(int32(InfoLevel))
+	l.nonTTYLevel = DefaultLevel
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	return l
@@ -561,6 +568,16 @@ func (l *Logger) SetLevel(level Level) {
 	defer l.mu.Unlock()
 	l.level = level
 	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (-10 to 15)
+}
+
+// SetNonTTYLevel sets the minimum log level for non-TTY writers (CI, piped
+// output, etc.). Events below this level are suppressed when the logger's
+// output is not connected to a terminal, including animation progress lines.
+// Pass [DefaultLevel] to restore the default behaviour.
+func (l *Logger) SetNonTTYLevel(level Level) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.nonTTYLevel = level
 }
 
 // SetLevelAlign sets the alignment mode for level labels.
@@ -944,6 +961,12 @@ func (l *Logger) recomputePaddedLabels() {
 func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	// Suppress events below the non-TTY level threshold on non-terminal writers.
+	if l.nonTTYLevel != DefaultLevel && !l.output.IsTTY() && e.level < l.nonTTYLevel {
+		return
+	}
+
 	// Merge logger context fields with event fields.
 	var allFields []Field
 	needsFilter := l.omitZero || l.omitEmpty
@@ -1279,6 +1302,9 @@ func SetLevelAlign(align Align) { Default.SetLevelAlign(align) }
 
 // SetLevelLabels sets the level labels on the [Default] logger.
 func SetLevelLabels(labels LevelMap) { Default.SetLevelLabels(labels) }
+
+// SetNonTTYLevel sets the non-TTY level filter on the [Default] logger.
+func SetNonTTYLevel(level Level) { Default.SetNonTTYLevel(level) }
 
 // SetOmitEmpty enables or disables omitting empty fields on the [Default] logger.
 func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }

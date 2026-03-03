@@ -175,6 +175,7 @@ func (l *Logger) clone() *Logger {
 		labelsPadded:            l.labelsPadded,
 		level:                   l.level,
 		levelAlign:              l.levelAlign,
+		nonTTYLevel:             l.nonTTYLevel,
 		omitEmpty:               l.omitEmpty,
 		omitZero:                l.omitZero,
 		output:                  l.output,

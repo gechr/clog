@@ -127,6 +127,7 @@ type AnimationBuilder struct {
 	logger         *Logger
 	mode           animation
 	msg            string
+	nonTTYSilent   bool    // when set, suppress all output (including the static line) on non-TTY writers
 	parts          *[]Part // nil = use logger's parts
 	prefix         string  // icon shown during animation; defaults to "⏳" for pulse/shimmer/bar
 	pulseStops     []ColorStop
@@ -198,6 +199,15 @@ func (b *AnimationBuilder) Tree(pos TreePos) *AnimationBuilder {
 // the animation only appears when needed, avoiding visual noise.
 func (b *AnimationBuilder) After(d time.Duration) *AnimationBuilder {
 	b.delay = d
+	return b
+}
+
+// NonTTYSilent controls whether all output - including the static progress
+// line that is normally printed on non-TTY writers (CI, piped output, etc.) -
+// is suppressed when the logger's output is not connected to a terminal.
+// The task still runs; only the status line is hidden.
+func (b *AnimationBuilder) NonTTYSilent(silent bool) *AnimationBuilder {
+	b.nonTTYSilent = silent
 	return b
 }
 
@@ -555,24 +565,27 @@ func runAnimation(
 	captureTaskConfig(gt)
 
 	// Don't animate if not a TTY (CI, piped output, etc.).
-	// Print the initial message so the user knows something is in progress.
+	// Print the initial message so the user knows something is in progress,
+	// unless NonTTYSilent() was set, in which case suppress all output.
 	// Dynamic fields (elapsed, bar percent) are stripped because their
 	// initial zero values are meaningless without live updates.
 	if !gt.cfg.isTTY {
-		fieldsStr := strings.TrimLeft(
-			formatFields(b.stripDynamicFields(*fields.Load()), gt.fieldOpts),
-			" ",
-		)
-		line := buildLine(
-			gt.cfg.order,
-			gt.cfg.reportTS,
-			time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
-			gt.cfg.label,
-			gt.prefix,
-			gt.cfg.indentation+*msgPtr.Load(),
-			fieldsStr,
-		)
-		writeString(gt.cfg.out, line+"\n")
+		if !gt.cfg.nonTTYSilent {
+			fieldsStr := strings.TrimLeft(
+				formatFields(b.stripDynamicFields(*fields.Load()), gt.fieldOpts),
+				" ",
+			)
+			line := buildLine(
+				gt.cfg.order,
+				gt.cfg.reportTS,
+				time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
+				gt.cfg.label,
+				gt.prefix,
+				gt.cfg.indentation+*msgPtr.Load(),
+				fieldsStr,
+			)
+			writeString(gt.cfg.out, line+"\n")
+		}
 		select {
 		case err := <-done:
 			return err

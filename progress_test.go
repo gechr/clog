@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"testing"
@@ -87,6 +88,90 @@ func TestAfterContextCancelledDuringDelay(t *testing.T) {
 		})
 
 	require.ErrorIs(t, result.err, context.Canceled)
+}
+
+func TestNonTTYSilentSetsField(t *testing.T) {
+	b := Spinner("test").NonTTYSilent(true)
+	assert.True(t, b.nonTTYSilent)
+
+	b2 := Spinner("test").NonTTYSilent(false)
+	assert.False(t, b2.nonTTYSilent)
+}
+
+func TestNonTTYSilentSuppressesOutput(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf) // &bytes.Buffer has no Fd(), so isTTY = false
+
+	result := l.Spinner("loading").
+		NonTTYSilent(true).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(20 * time.Millisecond) // long enough to pass the delay gate
+			return nil
+		})
+
+	require.NoError(t, result.Silent())
+	assert.Empty(t, buf.String(), "NonTTYSilent(true) should produce no output on a non-TTY writer")
+}
+
+func TestNonTTYSilentFalseStillPrints(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+
+	result := l.Spinner("loading").
+		NonTTYSilent(false).
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		})
+
+	require.NoError(t, result.Silent())
+	assert.NotEmpty(
+		t,
+		buf.String(),
+		"NonTTYSilent(false) should still print the static line on a non-TTY writer",
+	)
+}
+
+func TestNonTTYLevelViaLogger(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.SetNonTTYLevel(ErrorLevel)
+
+	result := l.Spinner("loading").
+		Wait(context.Background(), func(_ context.Context) error {
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		})
+
+	require.NoError(t, result.Silent())
+	assert.Empty(
+		t,
+		buf.String(),
+		"SetNonTTYLevel(ErrorLevel) should suppress info-level animation output",
+	)
+}
+
+func TestNonTTYLevelSuppressesLogEvents(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.SetNonTTYLevel(ErrorLevel)
+
+	l.Info().Msg("should be suppressed")
+	l.Warn().Msg("should be suppressed")
+	assert.Empty(t, buf.String(), "Info and Warn should be suppressed below ErrorLevel on non-TTY")
+
+	l.Error().Msg("should appear")
+	assert.NotEmpty(t, buf.String(), "Error should pass through at ErrorLevel threshold")
+}
+
+func TestNonTTYLevelResetWithDefaultLevel(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.SetNonTTYLevel(ErrorLevel)
+	l.SetNonTTYLevel(DefaultLevel)
+
+	l.Info().Msg("should appear after reset")
+	assert.NotEmpty(t, buf.String(), "DefaultLevel restores normal non-TTY output")
 }
 
 func TestElapsedFieldOrdering(t *testing.T) {
