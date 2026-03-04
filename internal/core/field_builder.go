@@ -144,10 +144,10 @@ func (fb *FieldBuilder[T]) JSON(key string, val any) *T {
 	return fb.Self
 }
 
-// Percent adds a percentage field (0–100) with gradient color styling.
-// Values are clamped to the 0–100 range.
+// Percent adds a percentage field with gradient color styling.
+// The value is stored as-is; use [Event.Percent] for clamped input.
 func (fb *FieldBuilder[T]) Percent(key string, val float64, opts ...func(*Percent)) *T {
-	p := Percent{Value: ClampPercent(val)}
+	p := Percent{Value: val}
 	for _, o := range opts {
 		o(&p)
 	}

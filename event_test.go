@@ -1161,20 +1161,20 @@ func TestEventDurationsOutput(t *testing.T) {
 
 func TestEventPercent(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
-	e.Percent("progress", 75)
+	e.Percent("progress", 0.75)
 
 	require.Len(t, e.fields, 1)
 	assert.Equal(t, "progress", e.fields[0].Key)
 
 	p, ok := e.fields[0].Value.(core.Percent)
 	require.True(t, ok, "expected percent value")
-	assert.InDelta(t, 75.0, p.Value, 0)
+	assert.InDelta(t, 0.75, p.Value, 0)
 }
 
 func TestEventPercentClamping(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
-	e.Percent("low", -10)
-	e.Percent("high", 150)
+	e.Percent("low", -0.10)
+	e.Percent("high", 1.50)
 
 	require.Len(t, e.fields, 2)
 
@@ -1184,14 +1184,14 @@ func TestEventPercentClamping(t *testing.T) {
 
 	high, ok := e.fields[1].Value.(core.Percent)
 	require.True(t, ok)
-	assert.InDelta(t, 100.0, high.Value, 0, "over 100 should clamp to 100")
+	assert.InDelta(t, 1.0, high.Value, 0, "over scale should clamp to scale")
 }
 
 func TestEventPercentOutput(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.Info().Percent("progress", 75).Msg("done")
+	l.Info().Percent("progress", 0.75).Msg("done")
 
 	assert.Equal(t, "INF ℹ️ done progress=75%\n", buf.String())
 }

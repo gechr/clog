@@ -76,11 +76,11 @@ func TestFieldBuilderPercent(t *testing.T) {
 		input    float64
 		expected float64
 	}{
-		{"normal value", 50.0, 50.0},
+		{"normal value", 0.50, 0.50},
 		{"zero", 0.0, 0.0},
-		{"hundred", 100.0, 100.0},
-		{"negative clamped to zero", -10.0, 0.0},
-		{"over 100 clamped", 150.0, 100.0},
+		{"one", 1.0, 1.0},
+		{"negative stored as-is", -0.10, -0.10},
+		{"over scale stored as-is", 1.50, 1.50},
 	}
 
 	for _, tt := range tests {

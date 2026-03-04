@@ -214,23 +214,23 @@ func TestFormatValue(t *testing.T) {
 }
 
 func TestFormatValuePercent(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 75}, QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(core.Percent{Value: 0.75}, QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "75%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentDecimal(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 33.333}, QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 0, 1)
 	assert.Equal(t, "33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentPrecision(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 33.333}, QuoteAuto, 0, 0, "", 1, 1)
+	got, kind := formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 1, 1)
 	assert.Equal(t, "33.3%", got)
 	assert.Equal(t, kindPercent, kind)
 
-	got, kind = formatValue(core.Percent{Value: 33.333}, QuoteAuto, 0, 0, "", 2, 1)
+	got, kind = formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 2, 1)
 	assert.Equal(t, "33.33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
@@ -1741,23 +1741,30 @@ func TestStyleValueBoolMatchesTyped(t *testing.T) {
 }
 
 func TestClampPercent(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(-10), 0)
-	assert.InDelta(t, 0.0, core.ClampPercent(0), 0)
-	assert.InDelta(t, 50.0, core.ClampPercent(50), 0)
-	assert.InDelta(t, 100.0, core.ClampPercent(100), 0)
-	assert.InDelta(t, 100.0, core.ClampPercent(200), 0)
+	assert.InDelta(t, 0.0, core.ClampPercent(-10, 1), 0)
+	assert.InDelta(t, 0.0, core.ClampPercent(0, 1), 0)
+	assert.InDelta(t, 0.5, core.ClampPercent(0.5, 1), 0)
+	assert.InDelta(t, 1.0, core.ClampPercent(1, 1), 0)
+	assert.InDelta(t, 1.0, core.ClampPercent(2, 1), 0)
+}
+
+func TestClampPercentScale100(t *testing.T) {
+	assert.InDelta(t, 0.0, core.ClampPercent(-10, 100), 0)
+	assert.InDelta(t, 50.0, core.ClampPercent(50, 100), 0)
+	assert.InDelta(t, 100.0, core.ClampPercent(100, 100), 0)
+	assert.InDelta(t, 100.0, core.ClampPercent(200, 100), 0)
 }
 
 func TestClampPercentNaN(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(math.NaN()), 0)
+	assert.InDelta(t, 0.0, core.ClampPercent(math.NaN(), 1), 0)
 }
 
 func TestClampPercentPositionInf(t *testing.T) {
-	assert.InDelta(t, 100.0, core.ClampPercent(math.Inf(1)), 0)
+	assert.InDelta(t, 1.0, core.ClampPercent(math.Inf(1), 1), 0)
 }
 
 func TestClampPercentNegInf(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(math.Inf(-1)), 0)
+	assert.InDelta(t, 0.0, core.ClampPercent(math.Inf(-1), 1), 0)
 }
 
 func TestInterpolateGradientEmpty(t *testing.T) {
@@ -1811,7 +1818,7 @@ func TestInterpolateGradientMidpoint(t *testing.T) {
 
 func TestStylePercentOutput(t *testing.T) {
 	styles := DefaultStyles()
-	got := stylePercent("75%", core.Percent{Value: 75}, styles, false)
+	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
 
 	// Should contain ANSI escape codes (color applied).
 	assert.NotEmpty(t, got)
@@ -1821,7 +1828,7 @@ func TestStylePercentOutput(t *testing.T) {
 func TestStylePercentNoGradient(t *testing.T) {
 	styles := DefaultStyles()
 	styles.PercentGradient = nil
-	got := stylePercent("50%", core.Percent{Value: 50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
 	assert.Empty(t, got, "nil gradient should return empty")
 }
 
@@ -1835,7 +1842,7 @@ func TestStylePercentSingleStop(t *testing.T) {
 	styles := DefaultStyles()
 	blue := colorful.Color{R: 0, G: 0, B: 1}
 	styles.PercentGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
-	got := stylePercent("50%", core.Percent{Value: 50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
 
 	// Should use the single stop's color for any value.
 	assert.NotEmpty(t, got)
@@ -1846,7 +1853,7 @@ func TestStyleValuePercent(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleValue(
 		"75%",
-		core.Percent{Value: 75},
+		core.Percent{Value: 0.75},
 		"progress",
 		kindPercent,
 		styles,
@@ -1877,7 +1884,7 @@ func TestPercentReverseLogger(t *testing.T) {
 	l := New(NewOutput(&buf, ColorAlways))
 	percent.SetReverseGradient(true)
 	t.Cleanup(func() { percent.SetReverseGradient(false) })
-	l.Info().Percent("cpu", 0).Send()
+	l.Info().Percent("cpu", 0.0).Send()
 
 	got := buf.String()
 	assert.Contains(t, got, "0%")
@@ -1920,7 +1927,7 @@ func TestStyleValuePercentNilGradient(t *testing.T) {
 	styles.PercentGradient = nil
 	got := styleValue(
 		"50%",
-		core.Percent{Value: 50},
+		core.Percent{Value: 0.50},
 		"progress",
 		kindPercent,
 		styles,
@@ -1935,7 +1942,7 @@ func TestStylePercentBaseStyle(t *testing.T) {
 	bold := lipgloss.NewStyle().Bold(true)
 	styles.FieldPercent = new(bold)
 
-	got := stylePercent("75%", core.Percent{Value: 75}, styles, false)
+	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
 }
@@ -1946,13 +1953,13 @@ func TestStylePercentBaseStyleOnly(t *testing.T) {
 	styles.FieldPercent = new(bold)
 	styles.PercentGradient = nil // no gradient, base style only
 
-	got := stylePercent("50%", core.Percent{Value: 50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
 	assert.Equal(t, bold.Render("50%"), got)
 }
 
 func TestStyleAnyElementPercent(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("75%", core.Percent{Value: 75}, kindPercent, styles, true, false)
+	got := styleAnyElement("75%", core.Percent{Value: 0.75}, kindPercent, styles, true, false)
 	assert.NotEmpty(t, got)
 	assert.Contains(t, got, "75%")
 }
@@ -2163,7 +2170,7 @@ func TestPercentFormatFunc(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "done", Value: core.Percent{Value: 75}},
+		{Key: "done", Value: core.Percent{Value: 0.75}},
 	}, opts)
 	assert.Equal(t, " done=75 pct", got)
 }
@@ -2190,7 +2197,7 @@ func TestPercentFormatFuncNilFallsBack(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "done", Value: core.Percent{Value: 75}},
+		{Key: "done", Value: core.Percent{Value: 0.75}},
 	}, opts)
 	assert.Equal(t, " done=75%", got)
 }

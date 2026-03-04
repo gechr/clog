@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog/field/elapsed"
+	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
@@ -127,7 +128,7 @@ func stylePercent(valStr string, originalValue any, styles *style.Config, revers
 
 	// Apply gradient foreground on top of the base style.
 	if hasGradient {
-		t := p.Value / percentMax
+		t := p.Value / percent.Scale()
 		if reverse {
 			t = 1 - t
 		}

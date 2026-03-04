@@ -2035,7 +2035,7 @@ func TestSetPercentFormatFunc(t *testing.T) {
 	})
 	t.Cleanup(func() { percent.SetFormatFunc(nil) })
 
-	l.Info().Percent("progress", 75).Msg("test")
+	l.Info().Percent("progress", 0.75).Msg("test")
 
 	assert.Contains(t, buf.String(), "progress=pct:75%")
 }
@@ -2048,7 +2048,7 @@ func TestSetPercentPrecision(t *testing.T) {
 
 		l := New(TestOutput(&buf))
 		percent.SetPrecision(0)
-		l.Info().Percent("progress", 75).Msg("test")
+		l.Info().Percent("progress", 0.75).Msg("test")
 
 		assert.Contains(t, buf.String(), "progress=75%")
 	})
@@ -2058,7 +2058,7 @@ func TestSetPercentPrecision(t *testing.T) {
 
 		l := New(TestOutput(&buf))
 		percent.SetPrecision(1)
-		l.Info().Percent("progress", 75).Msg("test")
+		l.Info().Percent("progress", 0.75).Msg("test")
 
 		assert.Contains(t, buf.String(), "progress=75.0%")
 	})

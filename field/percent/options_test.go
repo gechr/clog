@@ -78,7 +78,7 @@ func TestSetPrecision(t *testing.T) {
 
 func TestWithReverseGradient(t *testing.T) {
 	// WithReverseGradient sets Reverse=true on a percent.Percent.
-	p := &percent.Percent{Value: 50, Reverse: false}
+	p := &percent.Percent{Value: 0.50, Reverse: false}
 	opt := percent.WithReverseGradient()
 	percent.Apply(p, []percent.Option{opt})
 	assert.True(t, p.Reverse, "expected Reverse=true after applying WithReverseGradient")
@@ -87,7 +87,7 @@ func TestWithReverseGradient(t *testing.T) {
 func TestWithReverseGradientNoMutationWithoutApply(t *testing.T) {
 	// Calling WithReverseGradient() creates the option but applying zero options
 	// leaves Reverse unchanged.
-	p := &percent.Percent{Value: 50, Reverse: false}
+	p := &percent.Percent{Value: 0.50, Reverse: false}
 	percent.Apply(p, []percent.Option{})
 	assert.False(t, p.Reverse, "expected Reverse=false when no options applied")
 }
@@ -97,8 +97,31 @@ func TestApplyMultipleOptions(t *testing.T) {
 	t.Cleanup(func() { percent.Restore(snap) })
 
 	// Apply multiple options in sequence.
-	p := &percent.Percent{Value: 75}
+	p := &percent.Percent{Value: 0.75}
 	opt1 := percent.WithReverseGradient()
 	percent.Apply(p, []percent.Option{opt1})
 	assert.True(t, p.Reverse)
+}
+
+func TestSetScale(t *testing.T) {
+	snap := percent.Save()
+	t.Cleanup(func() { percent.Restore(snap) })
+
+	assert.InDelta(t, 1.0, percent.Scale(), 0, "default scale should be 1.0")
+	percent.SetScale(100)
+	assert.InDelta(t, 100.0, percent.Scale(), 0)
+	percent.SetScale(1)
+	assert.InDelta(t, 1.0, percent.Scale(), 0)
+}
+
+func TestScaleSaveRestore(t *testing.T) {
+	snap := percent.Save()
+	t.Cleanup(func() { percent.Restore(snap) })
+
+	percent.SetScale(100)
+	snap2 := percent.Save()
+	percent.SetScale(50)
+	assert.InDelta(t, 50.0, percent.Scale(), 0)
+	percent.Restore(snap2)
+	assert.InDelta(t, 100.0, percent.Scale(), 0)
 }

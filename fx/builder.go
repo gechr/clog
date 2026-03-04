@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/fx/spinner"
@@ -169,8 +170,9 @@ func (b *Builder) BarPercent(key string) *Builder {
 func (b *Builder) BarPercentValue() core.Percent {
 	cur := int(b.BarProgressPtr.Load())
 	tot := int(b.BarTotalPtr.Load())
-	pct := float64(cur) / float64(max(tot, 1)) * bar.PercentMax
-	return core.Percent{Value: min(pct, bar.PercentMax)}
+	s := percent.Scale()
+	pct := float64(cur) / float64(max(tot, 1)) * s
+	return core.Percent{Value: min(pct, s)}
 }
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.

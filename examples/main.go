@@ -191,10 +191,9 @@ func main() {
 		_ = clog.Spinner("Running migrations").
 			Str("db", "postgres").
 			Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
-				hundred := 100
-				for i := range hundred {
-					progress := min(i+1, hundred)
-					update.Msg("Applying migrations").Percent("progress", float64(progress)).Send()
+				steps := 100
+				for i := range steps {
+					update.Msg("Applying migrations").Percent("progress", float64(i+1)/float64(steps)).Send()
 					time.Sleep(30 * time.Millisecond)
 				}
 				return nil
@@ -757,7 +756,7 @@ func main() {
 		return fmt.Sprintf("%.0f/100", v)
 	})
 	clog.Info().
-		Percent("progress", 75).
+		Percent("progress", 0.75).
 		Msg("Custom format hooks")
 	clog.SetElapsedFormatFunc(nil) // reset
 	clog.SetPercentFormatFunc(nil) // reset
@@ -923,10 +922,9 @@ func demo() {
 	_ = clog.Spinner("Running migrations").
 		Str("db", "postgres").
 		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
-			hundred := 100
-			for i := range hundred {
-				progress := min(i+1, hundred)
-				update.Msg("Applying migrations").Percent("progress", float64(progress)).Send()
+			steps := 100
+			for i := range steps {
+				update.Msg("Applying migrations").Percent("progress", float64(i+1)/float64(steps)).Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil

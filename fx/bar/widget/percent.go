@@ -18,7 +18,7 @@ func Percent(opts ...Option) bar.Widget {
 	applyOptions(&c, opts)
 
 	// Unstripped width of "100%" at the given digits for stable padding.
-	padWidth := len(fmt.Sprintf("%.*f%%", c.digits, bar.PercentMax))
+	padWidth := len(fmt.Sprintf("%.*f%%", c.digits, bar.PercentDisplayMax))
 
 	return func(s bar.State) string {
 		pct := bar.PercentValue(s.Current, s.Total)

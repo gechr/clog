@@ -16,6 +16,9 @@ var reverse atomic.Bool
 // precision holds the decimal precision for formatting.
 var precision atomic.Int32
 
+// scale holds the percent scale. A nil pointer means the default (1.0).
+var scale atomic.Pointer[float64]
+
 // Percent is the value type for percent fields.
 type Percent = core.Percent
 
@@ -64,6 +67,21 @@ func SetPrecision(n int) {
 	precision.Store(int32(n)) //nolint:gosec // precision is a small positive integer
 }
 
+// SetScale sets the percent scale. The default is 1.0, meaning percent
+// values are passed as fractions (e.g. 0.75 → "75%"). Set to 100 for
+// legacy 0–100 input (e.g. 75 → "75%").
+func SetScale(s float64) {
+	scale.Store(&s)
+}
+
+// Scale returns the current percent scale (default 1.0).
+func Scale() float64 {
+	if p := scale.Load(); p != nil {
+		return *p
+	}
+	return 1
+}
+
 // FormatFunc returns the current custom format function, or nil if using default.
 func FormatFunc() func(float64) string {
 	p := formatFunc.Load()
@@ -89,6 +107,7 @@ type Snapshot struct {
 	formatFunc *func(float64) string
 	reverse    bool
 	precision  int32
+	scale      *float64
 }
 
 // Save captures the current percent configuration so it can be
@@ -101,6 +120,7 @@ func Save() Snapshot {
 		formatFunc: formatFunc.Load(),
 		reverse:    reverse.Load(),
 		precision:  precision.Load(),
+		scale:      scale.Load(),
 	}
 }
 
@@ -109,4 +129,5 @@ func Restore(s Snapshot) {
 	formatFunc.Store(s.formatFunc)
 	reverse.Store(s.reverse)
 	precision.Store(s.precision)
+	scale.Store(s.scale)
 }

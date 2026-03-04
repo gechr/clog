@@ -359,9 +359,10 @@ func (e *Event) Msgf(format string, args ...any) {
 	e.Msg(fmt.Sprintf(format, args...))
 }
 
-// Percent adds a percentage field (0–100) with gradient color styling.
-// Values are clamped to the 0–100 range. The color is interpolated from
-// the [style.Config.PercentGradient] stops (default: red → yellow → green).
+// Percent adds a percentage field with gradient color styling.
+// Values are clamped to [0, Scale] (default scale is 1, so 0.75 → "75%").
+// The color is interpolated from the [style.Config.PercentGradient] stops
+// (default: red → yellow → green).
 //
 // Use [percent.WithReverseGradient] to flip the gradient for this field:
 //
@@ -371,7 +372,7 @@ func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event 
 		return e
 	}
 
-	p := core.Percent{Value: core.ClampPercent(val)}
+	p := core.Percent{Value: core.ClampPercent(val, percent.Scale())}
 	percent.Apply(&p, opts)
 	e.fields = append(e.fields, Field{Key: key, Value: p})
 	return e

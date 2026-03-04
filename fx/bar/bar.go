@@ -21,9 +21,10 @@ const (
 	DefaultWidthMin = 10 // default minimum auto-sized inner width
 	DefaultWidthMax = 40 // default maximum auto-sized inner width
 	WidthDivisor    = 4  // terminal width fraction used for auto-sizing
-
-	PercentMax = 100.0 // maximum percent value
 )
+
+// PercentDisplayMax is the maximum display percentage (always 100).
+const PercentDisplayMax = 100.0
 
 // Placement controls the horizontal placement of the progress bar within the terminal line.
 type Placement int
@@ -195,14 +196,14 @@ func writeStyled(buf *strings.Builder, s string, st *lipgloss.Style) {
 func FormatPercent(current, total, digits int, pad bool) string {
 	var pct float64
 	if total > 0 {
-		pct = float64(current) / float64(total) * PercentMax
-		if pct > PercentMax {
-			pct = PercentMax
+		pct = float64(current) / float64(total) * PercentDisplayMax
+		if pct > PercentDisplayMax {
+			pct = PercentDisplayMax
 		}
 	}
 	s := numfmt.TrimDecimalZeros(fmt.Sprintf("%.*f", digits, pct)) + "%"
 	if pad {
-		padWidth := len(fmt.Sprintf("%.*f%%", digits, PercentMax))
+		padWidth := len(fmt.Sprintf("%.*f%%", digits, PercentDisplayMax))
 		return fmt.Sprintf("%*s", padWidth, s)
 	}
 	return s
@@ -266,6 +267,6 @@ func PercentValue(current, total int) float64 {
 	if total <= 0 {
 		return 0
 	}
-	pct := float64(current) / float64(total) * PercentMax
-	return min(pct, PercentMax)
+	pct := float64(current) / float64(total) * PercentDisplayMax
+	return min(pct, PercentDisplayMax)
 }

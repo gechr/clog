@@ -51,11 +51,11 @@ const (
 )
 
 const (
-	percentMax = 100.0
-
 	sliceOpen  = '['
 	sliceClose = ']'
 	sliceSep   = ", "
+
+	percentDisplayMax = 100.0
 )
 
 // formatFields formats fields for display.
@@ -127,7 +127,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			}
 		case core.Percent:
 			if fn := percent.FormatFunc(); fn != nil {
-				valStr = fn(val.Value)
+				valStr = fn(val.Value / percent.Scale() * percentDisplayMax)
 				kind = kindPercent
 				customFormatted = true
 			}
@@ -187,7 +187,8 @@ func formatValue(
 	case bool:
 		return strconv.FormatBool(val), kindBool
 	case core.Percent:
-		return strconv.FormatFloat(val.Value, 'f', percentPrecision, 64) + "%", kindPercent
+		display := val.Value / percent.Scale() * percentDisplayMax
+		return strconv.FormatFloat(display, 'f', percentPrecision, 64) + "%", kindPercent
 	case core.QuantityField:
 		return string(val), kindQuantity
 	case time.Duration:
