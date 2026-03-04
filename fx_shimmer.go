@@ -8,7 +8,7 @@ import (
 
 // Shimmer creates a new [fx.Builder] using the [Default] logger with an
 // animated gradient shimmer on the message text.
-// Each character is coloured independently based on its position in the wave.
+// Each character is colored independently based on its position in the wave.
 // With no options, the default shimmer gradient, direction, and speed are used.
 // Use [shimmer.WithGradient], [shimmer.WithDirection], and [shimmer.WithSpeed]
 // to customise the animation.
@@ -17,7 +17,7 @@ func Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
 }
 
 // Shimmer creates a new [fx.Builder] with an animated gradient shimmer on the message text.
-// Each character is coloured independently based on its position in the wave.
+// Each character is colored independently based on its position in the wave.
 // With no options, the default shimmer gradient, direction, and speed are used.
 // Use [shimmer.WithGradient], [shimmer.WithDirection], and [shimmer.WithSpeed]
 // to customise the animation.

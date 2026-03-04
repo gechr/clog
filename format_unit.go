@@ -3,9 +3,11 @@ package clog
 import (
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
@@ -25,11 +27,18 @@ func styleDuration(s string, styles *style.Config) string {
 	)
 }
 
-// styleElapsed renders an elapsed-time string with separate styles for
-// numeric and unit segments using [style.Config.FieldElapsedNumber] and
-// [style.Config.FieldElapsedUnit], falling back to [style.Config.FieldDurationNumber]
-// and [style.Config.FieldDurationUnit]. Returns "" when no styles apply.
-func styleElapsed(s string, styles *style.Config) string {
+// styleElapsed renders an elapsed-time string. When the elapsed gradient is
+// active ([style.Config.ElapsedGradient] non-empty and [elapsed.GradientMax] > 0),
+// the entire string is colored by interpolating the gradient based on
+// elapsed/max. Otherwise it falls back to the number/unit split path using
+// [style.Config.FieldElapsedNumber] and [style.Config.FieldElapsedUnit].
+// Returns "" when no styles apply.
+func styleElapsed(s string, originalValue any, styles *style.Config) string {
+	if styled := styleElapsedGradient(s, originalValue, styles); styled != "" {
+		return styled
+	}
+
+	// Number/unit split path.
 	numStyle := styles.FieldElapsedNumber
 	if numStyle == nil {
 		numStyle = styles.FieldDurationNumber
@@ -48,6 +57,42 @@ func styleElapsed(s string, styles *style.Config) string {
 		styles.DurationThresholds,
 		true,
 	)
+}
+
+// styleElapsedGradient colors the entire elapsed string based on elapsed/max.
+// Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
+func styleElapsedGradient(s string, originalValue any, styles *style.Config) string {
+	if len(styles.ElapsedGradient) == 0 {
+		return ""
+	}
+
+	gm := elapsed.GradientMax()
+	if gm <= 0 {
+		return ""
+	}
+
+	ef, ok := originalValue.(core.ElapsedField)
+	if !ok {
+		return ""
+	}
+
+	t := core.Clamp01(float64(time.Duration(ef)) / float64(gm))
+
+	var c colorful.Color
+	switch {
+	case len(styles.ElapsedGradient) == 1:
+		c = styles.ElapsedGradient[0].Color
+	case styles.ElapsedGradientMode == style.GradientStep:
+		c = style.StepGradient(t, styles.ElapsedGradient)
+	default:
+		c = style.InterpolateGradient(t, styles.ElapsedGradient)
+	}
+
+	var ls lipgloss.Style
+	if styles.Renderer != nil {
+		ls = styles.Renderer.NewStyle()
+	}
+	return ls.Foreground(lipgloss.Color(c.Clamped().Hex())).Render(s)
 }
 
 // stylePercent renders a percentage string with a gradient color based on the

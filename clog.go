@@ -1,4 +1,4 @@
-// Package clog provides structured CLI logging with terminal-aware colours,
+// Package clog provides structured CLI logging with terminal-aware colors,
 // hyperlinks, and spinners.
 //
 // It uses a zerolog-style fluent API for building log entries:
@@ -301,7 +301,7 @@ func (l *Logger) SetAnimationInterval(d time.Duration) {
 	l.animationInterval = d
 }
 
-// SetColorMode sets the colour mode by recreating the logger's [Output]
+// SetColorMode sets the color mode by recreating the logger's [Output]
 // with the given mode.
 func (l *Logger) SetColorMode(mode ColorMode) {
 	l.mu.Lock()
@@ -332,7 +332,7 @@ func (l *Logger) SetFieldSort(sort Sort) {
 }
 
 // SetFieldStyleLevel sets the minimum log level at which field values are
-// styled (coloured). Events below this level render fields as plain text.
+// styled (colored). Events below this level render fields as plain text.
 // Defaults to [LevelInfo].
 func (l *Logger) SetFieldStyleLevel(level Level) {
 	l.mu.Lock()
@@ -664,7 +664,7 @@ var customLevels = map[Level]LevelConfig{}
 // ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
 type ctxKey struct{}
 
-// colorsDisabled returns true if this logger should suppress colours.
+// colorsDisabled returns true if this logger should suppress colors.
 func (l *Logger) colorsDisabled() bool {
 	return l.output.ColorsDisabled()
 }

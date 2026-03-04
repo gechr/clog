@@ -1,6 +1,6 @@
 <h1 align="center"><code>clog</code></h1>
 
-A highly customizable structured logger for command-line tools with a [zerolog](https://github.com/rs/zerolog)-inspired fluent API, terminal-aware colours, hyperlinks, animations, and custom log levels.
+A highly customizable structured logger for command-line tools with a [zerolog](https://github.com/rs/zerolog)-inspired fluent API, terminal-aware colors, hyperlinks, animations, and custom log levels.
 
 ## Demo
 

@@ -9,7 +9,7 @@ import (
 	"github.com/gechr/clog/style"
 )
 
-// DefaultStyles returns the default colour styles.
+// DefaultStyles returns the default color styles.
 func DefaultStyles() *style.Config {
 	return style.Default()
 }
@@ -70,7 +70,7 @@ func SetVerbose(verbose bool) {
 // SetAnimationInterval sets the minimum animation refresh interval on the [Default] logger.
 func SetAnimationInterval(d time.Duration) { Default.SetAnimationInterval(d) }
 
-// SetColorMode sets the colour mode on the [Default] logger by recreating
+// SetColorMode sets the color mode on the [Default] logger by recreating
 // its [Output] with the given mode.
 func SetColorMode(mode ColorMode) {
 	Default.SetColorMode(mode)

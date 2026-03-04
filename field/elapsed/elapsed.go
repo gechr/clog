@@ -15,12 +15,23 @@ var minimum atomic.Int64
 // precision holds the decimal precision for formatting.
 var precision atomic.Int32
 
+// gradientMax holds the max duration (in nanoseconds) for gradient mapping.
+// 0 means gradient is disabled.
+var gradientMax atomic.Int64
+
 // round holds the rounding duration (in nanoseconds).
 var round atomic.Int64
 
 func init() {
 	minimum.Store(int64(time.Second))
 	round.Store(int64(time.Second))
+}
+
+// SetGradientMax sets the max duration for elapsed gradient coloring.
+// The gradient maps 0 → max onto the configured color stops.
+// Set to 0 (the default) to disable gradient coloring.
+func SetGradientMax(d time.Duration) {
+	gradientMax.Store(int64(d))
 }
 
 // SetFormatFunc configures a custom format function for elapsed durations.
@@ -52,6 +63,12 @@ func SetRound(d time.Duration) {
 	round.Store(int64(d))
 }
 
+// GradientMax returns the current gradient max duration.
+// 0 means gradient is disabled.
+func GradientMax() time.Duration {
+	return time.Duration(gradientMax.Load())
+}
+
 // FormatFunc returns the current custom format function, or nil if using default.
 func FormatFunc() func(time.Duration) string {
 	p := formatFunc.Load()
@@ -79,10 +96,11 @@ func Round() time.Duration {
 // Snapshot captures the current state of all elapsed configuration.
 // Use [Restore] to reset the state in test cleanup.
 type Snapshot struct {
-	formatFunc *func(time.Duration) string
-	minimum    int64
-	precision  int32
-	round      int64
+	formatFunc  *func(time.Duration) string
+	gradientMax int64
+	minimum     int64
+	precision   int32
+	round       int64
 }
 
 // Save captures the current elapsed configuration so it can be
@@ -92,16 +110,18 @@ type Snapshot struct {
 //	t.Cleanup(func() { elapsed.Restore(snap) })
 func Save() Snapshot {
 	return Snapshot{
-		formatFunc: formatFunc.Load(),
-		minimum:    minimum.Load(),
-		precision:  precision.Load(),
-		round:      round.Load(),
+		formatFunc:  formatFunc.Load(),
+		gradientMax: gradientMax.Load(),
+		minimum:     minimum.Load(),
+		precision:   precision.Load(),
+		round:       round.Load(),
 	}
 }
 
 // Restore resets the elapsed configuration to a previously saved [Snapshot].
 func Restore(s Snapshot) {
 	formatFunc.Store(s.formatFunc)
+	gradientMax.Store(s.gradientMax)
 	minimum.Store(s.minimum)
 	precision.Store(s.precision)
 	round.Store(s.round)

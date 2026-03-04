@@ -103,17 +103,57 @@ func TestSetRound(t *testing.T) {
 	}
 }
 
+func TestSetGradientMax(t *testing.T) {
+	tests := []struct {
+		name string
+		d    time.Duration
+	}{
+		{"zero_disables", 0},
+		{"ten_seconds", 10 * time.Second},
+		{"thirty_seconds", 30 * time.Second},
+		{"one_minute", time.Minute},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			snap := elapsed.Save()
+			t.Cleanup(func() { elapsed.Restore(snap) })
+
+			elapsed.SetGradientMax(tt.d)
+			assert.Equal(t, tt.d, elapsed.GradientMax())
+		})
+	}
+}
+
+func TestGradientMaxSaveRestore(t *testing.T) {
+	snap := elapsed.Save()
+	t.Cleanup(func() { elapsed.Restore(snap) })
+
+	elapsed.SetGradientMax(30 * time.Second)
+	saved := elapsed.Save()
+
+	// Change after save.
+	elapsed.SetGradientMax(time.Minute)
+	assert.Equal(t, time.Minute, elapsed.GradientMax())
+
+	// Restore brings back the saved value.
+	elapsed.Restore(saved)
+	assert.Equal(t, 30*time.Second, elapsed.GradientMax())
+}
+
 func TestDefaultValues(t *testing.T) {
 	snap := elapsed.Save()
 	t.Cleanup(func() { elapsed.Restore(snap) })
 
 	// Restore defaults explicitly.
 	elapsed.SetFormatFunc(nil)
+	elapsed.SetGradientMax(0)
 	elapsed.SetMinimum(time.Second)
 	elapsed.SetPrecision(0)
 	elapsed.SetRound(time.Second)
 
 	assert.Nil(t, elapsed.FormatFunc(), "default FormatFunc should be nil")
+	assert.Equal(t, time.Duration(0), elapsed.GradientMax(), "default GradientMax should be 0")
 	assert.Equal(t, time.Second, elapsed.Minimum(), "default Minimum should be 1s")
 	assert.Equal(t, 0, elapsed.Precision(), "default Precision should be 0")
 	assert.Equal(t, time.Second, elapsed.Round(), "default Round should be 1s")

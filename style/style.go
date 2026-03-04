@@ -42,6 +42,16 @@ type LevelMap = map[level.Level]*lipgloss.Style
 // (e.g. bool true != string "true").
 type ValueMap = map[any]*lipgloss.Style
 
+// GradientMode controls how gradient colors transition between stops.
+type GradientMode int
+
+const (
+	// GradientFade smoothly interpolates between color stops.
+	GradientFade GradientMode = iota
+	// GradientStep uses discrete color jumps at stop boundaries.
+	GradientStep
+)
+
 // Config holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Config struct {
@@ -62,6 +72,11 @@ type Config struct {
 	FieldElapsedNumber *lipgloss.Style
 	// Style for the unit segments of elapsed-time values [nil = falls back to FieldDurationUnit]
 	FieldElapsedUnit *lipgloss.Style
+	// Gradient stops for Elapsed fields (default: green -> yellow -> red).
+	// Active only when [elapsed.GradientMax] > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
+	ElapsedGradient []ColorStop
+	// How elapsed gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
+	ElapsedGradientMode GradientMode
 	// Style for error field values [nil = plain text]
 	FieldError *lipgloss.Style
 	// Per-token styles for JSON syntax highlighting.

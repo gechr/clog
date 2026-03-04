@@ -435,7 +435,7 @@ func styleValue(
 			return styled
 		}
 	case kindElapsed:
-		if styled := styleElapsed(valStr, styles); styled != "" {
+		if styled := styleElapsed(valStr, originalValue, styles); styled != "" {
 			return styled
 		}
 	case kindPercent:

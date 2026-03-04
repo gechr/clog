@@ -664,7 +664,7 @@ func TestWidgetSeparatorWithStyle(t *testing.T) {
 }
 
 // TestWithStylePaddingIsPlain verifies that WithStyle styles the content string
-// only - leading alignment spaces must be plain so background colours don't bleed.
+// only - leading alignment spaces must be plain so background colors don't bleed.
 func TestWithStylePaddingIsPlain(t *testing.T) {
 	r := lipgloss.DefaultRenderer()
 	old := r.ColorProfile()

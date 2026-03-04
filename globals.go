@@ -8,6 +8,11 @@ import (
 	"github.com/gechr/clog/field/quantity"
 )
 
+// SetElapsedGradientMax sets the max duration for elapsed gradient coloring (process-global).
+// The gradient maps 0 → max onto the configured color stops; 0 disables the gradient.
+// Delegates to [elapsed.SetGradientMax].
+func SetElapsedGradientMax(d time.Duration) { elapsed.SetGradientMax(d) }
+
 // SetElapsedFormatFunc sets the elapsed format function for all loggers (process-global).
 // Delegates to [elapsed.SetFormatFunc].
 func SetElapsedFormatFunc(fn func(time.Duration) string) { elapsed.SetFormatFunc(fn) }

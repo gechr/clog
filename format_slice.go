@@ -271,7 +271,7 @@ func styleAnyElement(
 			return styled
 		}
 	case kindElapsed:
-		if styled := styleElapsed(s, styles); styled != "" {
+		if styled := styleElapsed(s, originalValue, styles); styled != "" {
 			return styled
 		}
 	case kindPercent:

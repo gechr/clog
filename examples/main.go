@@ -333,6 +333,20 @@ func main() {
 	time.Sleep(1 * time.Second)
 	e.Int("items", 150).Msg("processed all items")
 
+	// --- Elapsed gradient ---
+	header("Elapsed Gradient")
+	clog.SetElapsedGradientMax(3 * time.Second)
+	e = clog.Info().Elapsed("elapsed")
+	time.Sleep(1 * time.Second)
+	e.Msg("fast operation (green)")
+	e = clog.Info().Elapsed("elapsed")
+	time.Sleep(2 * time.Second)
+	e.Msg("medium operation (yellow)")
+	e = clog.Info().Elapsed("elapsed")
+	time.Sleep(3 * time.Second)
+	e.Msg("slow operation (red)")
+	clog.SetElapsedGradientMax(0) // reset
+
 	// --- Context propagation ---
 	header("Context Propagation")
 	ctxLogger := clog.With().Str("request_id", "abc-123").Logger()
@@ -385,13 +399,13 @@ func main() {
 			e.Str("role", "admin").Int("login_count", 42)
 		}).
 		Msg("User authenticated")
-	// --- Value colouring ---
-	header("Value Colouring")
+	// --- Value coloring ---
+	header("Value Coloring")
 	clog.Info().
 		Bool("enabled", true).
 		Bool("cached", false).
 		Int("count", 42).
-		Msg("Booleans and numbers get coloured automatically")
+		Msg("Booleans and numbers get colored automatically")
 
 	clog.Info().
 		Any("value", nil).

@@ -1724,7 +1724,7 @@ func TestStyleValueNilViaAny(t *testing.T) {
 func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	styles := DefaultStyles()
 
-	// Use distinct styles so we can tell them apart without ANSI colour codes.
+	// Use distinct styles so we can tell them apart without ANSI color codes.
 	boolStyle := lipgloss.NewStyle().Bold(true).Underline(true)
 	strStyle := lipgloss.NewStyle().Italic(true)
 	styles.Values[true] = new(boolStyle)
@@ -2387,7 +2387,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = new(elapsedNum)
 		styles.FieldElapsedUnit = new(elapsedUnit)
 
-		got := styleElapsed("5s", styles)
+		got := styleElapsed("5s", nil, styles)
 		want := elapsedNum.Render("5") + elapsedUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2399,7 +2399,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = nil
 		styles.FieldElapsedUnit = nil
 
-		got := styleElapsed("5s", styles)
+		got := styleElapsed("5s", nil, styles)
 		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2410,7 +2410,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = new(elapsedNum)
 		styles.FieldElapsedUnit = nil // falls back to FieldDurationUnit
 
-		got := styleElapsed("5s", styles)
+		got := styleElapsed("5s", nil, styles)
 		want := elapsedNum.Render("5") + styles.FieldDurationUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2421,7 +2421,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = nil // falls back to FieldDurationNumber
 		styles.FieldElapsedUnit = new(elapsedUnit)
 
-		got := styleElapsed("5s", styles)
+		got := styleElapsed("5s", nil, styles)
 		want := styles.FieldDurationNumber.Render("5") + elapsedUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2433,8 +2433,171 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldDurationNumber = nil
 		styles.FieldDurationUnit = nil
 
-		got := styleElapsed("5s", styles)
+		got := styleElapsed("5s", nil, styles)
 		assert.Empty(t, got)
+	})
+}
+
+func TestStyleElapsedGradient(t *testing.T) {
+	snap := elapsed.Save()
+	t.Cleanup(func() { elapsed.Restore(snap) })
+
+	t.Run("active_gradient", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+
+		val := core.ElapsedField(15 * time.Second) // t=0.5 → yellow
+		got := styleElapsed("15s", val, styles)
+
+		assert.NotEmpty(t, got)
+		assert.Contains(t, got, "15s")
+	})
+
+	t.Run("gradient_at_zero", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+
+		val := core.ElapsedField(0)
+		got := styleElapsed("0s", val, styles)
+
+		assert.NotEmpty(t, got)
+		assert.Contains(t, got, "0s")
+	})
+
+	t.Run("gradient_clamped_beyond_max", func(t *testing.T) {
+		elapsed.SetGradientMax(10 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+
+		val := core.ElapsedField(60 * time.Second) // way beyond max
+		got := styleElapsed("60s", val, styles)
+
+		// Should use the t=1.0 end color (red), not crash.
+		assert.NotEmpty(t, got)
+		assert.Contains(t, got, "60s")
+
+		// Should produce the same result as exactly at max.
+		atMax := core.ElapsedField(10 * time.Second)
+		gotAtMax := styleElapsed("10s", atMax, styles)
+		assert.NotEmpty(t, gotAtMax)
+	})
+
+	t.Run("inactive_zero_max", func(t *testing.T) {
+		elapsed.SetGradientMax(0) // disabled
+		styles := DefaultStyles()
+
+		val := core.ElapsedField(5 * time.Second)
+		got := styleElapsed("5s", val, styles)
+
+		// Should fall through to number/unit path (non-empty with default styles).
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("inactive_nil_stops", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		styles := DefaultStyles()
+		styles.ElapsedGradient = nil
+
+		val := core.ElapsedField(5 * time.Second)
+		got := styleElapsed("5s", val, styles)
+
+		// Should fall through to number/unit path.
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("inactive_wrong_type", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		styles := DefaultStyles()
+
+		// Pass a non-ElapsedField value - gradient path should not apply.
+		got := styleElapsed("5s", "not elapsed", styles)
+
+		// Falls through to number/unit path.
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("single_stop", func(t *testing.T) {
+		elapsed.SetGradientMax(10 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+		blue := colorful.Color{R: 0, G: 0, B: 1}
+		styles.ElapsedGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
+
+		val := core.ElapsedField(5 * time.Second)
+		got := styleElapsed("5s", val, styles)
+
+		assert.NotEmpty(t, got)
+		assert.Contains(t, got, "5s")
+	})
+
+	t.Run("different_positions_different_colors", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+
+		earlyVal := core.ElapsedField(1 * time.Second) // t≈0.03 → green
+		lateVal := core.ElapsedField(29 * time.Second) // t≈0.97 → red
+
+		early := styleElapsed("1s", earlyVal, styles)
+		late := styleElapsed("29s", lateVal, styles)
+
+		assert.NotEqual(t, early, late, "different elapsed values should produce different colors")
+	})
+
+	t.Run("step_mode", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles.ElapsedGradientMode = style.GradientStep
+
+		// Two values in the same step region should produce the same color.
+		val1 := core.ElapsedField(1 * time.Second)  // t≈0.03 → first stop (green)
+		val2 := core.ElapsedField(10 * time.Second) // t≈0.33 → still first stop (green)
+
+		got1 := styleElapsed("1s", val1, styles)
+		got2 := styleElapsed("10s", val2, styles)
+
+		// Both should be styled (non-empty).
+		assert.NotEmpty(t, got1)
+		assert.NotEmpty(t, got2)
+
+		// Values crossing a step boundary should differ.
+		val3 := core.ElapsedField(20 * time.Second) // t≈0.67 → second stop (yellow)
+		got3 := styleElapsed("20s", val3, styles)
+		assert.NotEqual(
+			t,
+			got1,
+			got3,
+			"values in different step regions should have different colors",
+		)
+	})
+
+	t.Run("step_mode_vs_fade_mode", func(t *testing.T) {
+		elapsed.SetGradientMax(30 * time.Second)
+		out := NewOutput(&bytes.Buffer{}, ColorAlways)
+
+		fadeStyles := DefaultStyles().WithRenderer(out.Renderer())
+		fadeStyles.ElapsedGradientMode = style.GradientFade
+
+		stepStyles := DefaultStyles().WithRenderer(out.Renderer())
+		stepStyles.ElapsedGradientMode = style.GradientStep
+
+		// At a midpoint, fade and step should produce different colors.
+		val := core.ElapsedField(10 * time.Second) // t≈0.33
+		fade := styleElapsed("10s", val, fadeStyles)
+		step := styleElapsed("10s", val, stepStyles)
+
+		assert.NotEqual(
+			t,
+			fade,
+			step,
+			"fade and step modes should produce different colors at non-boundary positions",
+		)
 	})
 }
 

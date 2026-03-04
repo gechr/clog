@@ -116,7 +116,7 @@ func loadHyperlinkFormatsFromEnv() {
 
 func loadNoColorFromEnv() {
 	// Check NO_COLOR per https://no-color.org/ -> presence of the variable
-	// (regardless of value, including empty) disables colours.
+	// (regardless of value, including empty) disables colors.
 	_, set := os.LookupEnv("NO_COLOR")
 	noColorEnvSet.Store(set)
 }

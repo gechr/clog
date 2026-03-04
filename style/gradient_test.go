@@ -180,6 +180,47 @@ func TestInterpolateGradientDefaultPercentStops(t *testing.T) {
 	assert.Greater(t, at075.G, 0.0, "t=0.75 G should be > 0 (toward green)")
 }
 
+func TestStepGradientEmptyStops(t *testing.T) {
+	got := style.StepGradient(0.5, nil)
+	colorEqual(t, colorful.Color{R: 1, G: 1, B: 1}, got, 0.001, "empty stops should return white")
+}
+
+func TestStepGradientSingleStop(t *testing.T) {
+	blue := colorful.Color{R: 0, G: 0, B: 1}
+	stops := []style.ColorStop{
+		{Position: 0.5, Color: blue},
+	}
+
+	for _, tt := range []float64{0.0, 0.5, 1.0} {
+		got := style.StepGradient(tt, stops)
+		colorEqual(t, blue, got, 0.001, "single stop should always return that color")
+	}
+}
+
+func TestStepGradientDiscreteJumps(t *testing.T) {
+	green := colorful.Color{R: 0, G: 1, B: 0}
+	yellow := colorful.Color{R: 1, G: 1, B: 0}
+	red := colorful.Color{R: 1, G: 0, B: 0}
+	stops := []style.ColorStop{
+		{Position: 0.0, Color: green},
+		{Position: 0.5, Color: yellow},
+		{Position: 1.0, Color: red},
+	}
+
+	// Before second stop → green.
+	colorEqual(t, green, style.StepGradient(0.0, stops), 0.001, "t=0.0 should be green")
+	colorEqual(t, green, style.StepGradient(0.3, stops), 0.001, "t=0.3 should be green")
+	colorEqual(t, green, style.StepGradient(0.49, stops), 0.001, "t=0.49 should be green")
+
+	// At and after second stop → yellow.
+	colorEqual(t, yellow, style.StepGradient(0.5, stops), 0.001, "t=0.5 should be yellow")
+	colorEqual(t, yellow, style.StepGradient(0.7, stops), 0.001, "t=0.7 should be yellow")
+	colorEqual(t, yellow, style.StepGradient(0.99, stops), 0.001, "t=0.99 should be yellow")
+
+	// At last stop → red.
+	colorEqual(t, red, style.StepGradient(1.0, stops), 0.001, "t=1.0 should be red")
+}
+
 func TestInterpolateGradientTwoStopsFullRange(t *testing.T) {
 	red := colorful.Color{R: 1, G: 0, B: 0}
 	green := colorful.Color{R: 0, G: 1, B: 0}

@@ -3,7 +3,7 @@ package clog
 import "github.com/gechr/clog/field/hyperlink"
 
 // Hyperlink wraps text in an OSC 8 terminal hyperlink escape sequence.
-// Returns plain text when colours or hyperlinks are disabled globally.
+// Returns plain text when colors or hyperlinks are disabled globally.
 func Hyperlink(url, text string) string {
 	if !hyperlink.Enabled() || ColorsDisabled() {
 		return text
@@ -22,19 +22,19 @@ func PathLink(path string, line int) string {
 	return Hyperlink(hyperlink.ResolvePathURL(path, line, 0), display)
 }
 
-// Hyperlink wraps text in an OSC 8 terminal hyperlink, using the Output's colour settings.
+// Hyperlink wraps text in an OSC 8 terminal hyperlink, using the Output's color settings.
 // Satisfies [fx.Output].
 func (o *Output) Hyperlink(url, text string) string {
 	return o.hyperlink(url, text)
 }
 
-// PathLink creates a clickable terminal hyperlink for a file path, using the Output's colour settings.
+// PathLink creates a clickable terminal hyperlink for a file path, using the Output's color settings.
 // Satisfies [fx.Output].
 func (o *Output) PathLink(path string, line, column int) string {
 	return o.pathLink(path, line, column)
 }
 
-// hyperlink is like [Hyperlink] but uses the Output's colour settings.
+// hyperlink is like [Hyperlink] but uses the Output's color settings.
 func (o *Output) hyperlink(url, text string) string {
 	if !hyperlink.Enabled() || o.ColorsDisabled() {
 		return text
@@ -42,7 +42,7 @@ func (o *Output) hyperlink(url, text string) string {
 	return hyperlink.OSC8(url, text)
 }
 
-// pathLink is like [PathLink] but uses the Output's colour settings.
+// pathLink is like [PathLink] but uses the Output's color settings.
 func (o *Output) pathLink(path string, line, column int) string {
 	display := hyperlink.PathDisplayText(path, line, column)
 

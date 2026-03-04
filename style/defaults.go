@@ -6,7 +6,7 @@ import (
 	"github.com/lucasb-eyer/go-colorful"
 )
 
-// Default returns the default colour styles.
+// Default returns the default color styles.
 func Default() *Config {
 	return &Config{
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
@@ -67,6 +67,7 @@ func Default() *Config {
 		DurationThresholds: make(ThresholdMap),
 		DurationUnits:      make(Map),
 		Messages:           DefaultMessages(),
+		ElapsedGradient:    DefaultElapsedGradient(),
 		PercentGradient:    DefaultPercentGradient(),
 		QuantityThresholds: make(ThresholdMap),
 		QuantityUnits:      make(Map),
@@ -74,6 +75,26 @@ func Default() *Config {
 		Symbols:            make(LevelMap),
 		Timestamp:          new(lipgloss.NewStyle().Faint(true)),
 		Values:             DefaultValues(),
+	}
+}
+
+// DefaultElapsedGradient returns the default green -> yellow -> red gradient
+// used for [Config.ElapsedGradient].
+func DefaultElapsedGradient() []ColorStop {
+	start, middle, end := 0.0, 0.5, 1.0
+	return []ColorStop{
+		{
+			Position: start,
+			Color:    colorful.Color{R: 0, G: 1, B: 0}, // green
+		},
+		{
+			Position: middle,
+			Color:    colorful.Color{R: 1, G: 1, B: 0}, // yellow
+		},
+		{
+			Position: end,
+			Color:    colorful.Color{R: 1, G: 0, B: 0}, // red
+		},
 	}
 }
 

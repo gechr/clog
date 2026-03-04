@@ -89,7 +89,7 @@ func Widgets(widgets ...bar.Widget) bar.Widget {
 // pad returns a function that right-aligns content to a stable width.
 // raw is the unstyled string used for width tracking; content is what is
 // actually displayed (potentially styled). Padding spaces are always plain so
-// that background colours do not bleed into alignment space.
+// that background colors do not bleed into alignment space.
 func pad() func(raw, content string) string {
 	var maxW int
 	return func(raw, content string) string {

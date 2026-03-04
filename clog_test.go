@@ -857,7 +857,7 @@ func TestColorsDisabledPerOutput(t *testing.T) {
 	assert.True(t, never.colorsDisabled())
 
 	auto := New(NewOutput(io.Discard, ColorAuto))
-	// ColorAuto on a non-TTY writer -> colours disabled.
+	// ColorAuto on a non-TTY writer -> colors disabled.
 	assert.True(t, auto.colorsDisabled())
 }
 

@@ -5,8 +5,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"math"
-	"reflect"
 	"time"
 )
 
@@ -306,35 +304,4 @@ func MergeFields(base, overrides []Field) []Field {
 		}
 	}
 	return result
-}
-
-const percentMax = 100.0
-
-// ClampPercent restricts val to the 0–100 range.
-// NaN and negative infinity clamp to 0; positive infinity clamps to 100.
-func ClampPercent(val float64) float64 {
-	if math.IsNaN(val) || math.IsInf(val, -1) {
-		return 0
-	}
-	if math.IsInf(val, 1) {
-		return percentMax
-	}
-	return max(0, min(percentMax, val))
-}
-
-// IsNilStringer reports whether val is nil, either as an untyped nil interface
-// or as a typed nil whose underlying kind supports IsNil.
-func IsNilStringer(val fmt.Stringer) bool {
-	if val == nil {
-		return true
-	}
-
-	rv := reflect.ValueOf(val)
-	//nolint:exhaustive // only nilable kinds need checking
-	switch rv.Kind() {
-	case reflect.Pointer, reflect.Interface, reflect.Map, reflect.Slice, reflect.Chan, reflect.Func:
-		return rv.IsNil()
-	default:
-		return false
-	}
 }

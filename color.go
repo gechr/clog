@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 )
 
-// ColorMode controls how a [Logger] determines colour and hyperlink output.
+// ColorMode controls how a [Logger] determines color and hyperlink output.
 //
 // ColorMode implements [encoding.TextMarshaler] and [encoding.TextUnmarshaler],
 // so it works directly with [flag.TextVar] and most flag libraries.
@@ -18,9 +18,9 @@ type ColorMode int
 const (
 	// ColorAuto uses global detection (terminal, NO_COLOR, etc.). This is the default.
 	ColorAuto ColorMode = iota // auto
-	// ColorAlways forces colours and hyperlinks, even when output is not a TTY.
+	// ColorAlways forces colors and hyperlinks, even when output is not a TTY.
 	ColorAlways // always
-	// ColorNever disables colours and hyperlinks.
+	// ColorNever disables colors and hyperlinks.
 	ColorNever // never
 )
 
@@ -56,7 +56,7 @@ func (m *ColorMode) UnmarshalText(text []byte) error {
 	return nil
 }
 
-// ColorsDisabled returns true if colours are disabled on the [Default] logger.
+// ColorsDisabled returns true if colors are disabled on the [Default] logger.
 func ColorsDisabled() bool {
 	return Default.Output().ColorsDisabled()
 }
