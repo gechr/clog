@@ -106,6 +106,10 @@ func SetIndentWidth(width int) { Default.SetIndentWidth(width) }
 // SetLevel sets the minimum log level on the [Default] logger.
 func SetLevel(level Level) { Default.SetLevel(level) }
 
+// SetNonTTYLevel sets the minimum log level for non-TTY writers on the [Default] logger.
+// Pass [UnsetLevel] to restore the default behaviour.
+func SetNonTTYLevel(level Level) { Default.SetNonTTYLevel(level) }
+
 // SetLevelAlign sets the level-label alignment on the [Default] logger.
 func SetLevelAlign(align Align) { Default.SetLevelAlign(align) }
 
