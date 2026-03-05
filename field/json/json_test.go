@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/json"
 	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
@@ -1332,5 +1332,7 @@ func TestHighlightJSONNumberSubStyles(t *testing.T) {
 	assert.Contains(t, result, pos.Render("42"))
 	assert.Contains(t, result, neg.Render("-7"))
 	assert.Contains(t, result, zero.Render("0"))
-	assert.Contains(t, result, float.Render("3.14"))
+	// Sign-based styles take priority over type-based styles, so 3.14
+	// (positive) uses NumberPositive, not NumberFloat.
+	assert.Contains(t, result, pos.Render("3.14"))
 }

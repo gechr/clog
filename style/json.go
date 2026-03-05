@@ -1,6 +1,6 @@
 package style
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // JSONSpacing is a bitmask controlling where spaces are inserted in JSON output.
 type JSONSpacing uint
@@ -125,28 +125,5 @@ func DefaultJSON() *JSON {
 //	styles.FieldJSON = style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
 func (s *JSON) WithSpacing(spacing JSONSpacing) *JSON {
 	s.Spacing = spacing
-	return s
-}
-
-// WithRenderer rebinds all token styles to the given renderer. It mutates
-// and returns the receiver for fluent chaining.
-func (s *JSON) WithRenderer(r *lipgloss.Renderer) *JSON {
-	s.BoolFalse = rebind(r, s.BoolFalse)
-	s.BoolTrue = rebind(r, s.BoolTrue)
-	s.Key = rebind(r, s.Key)
-	s.Null = rebind(r, s.Null)
-	s.Number = rebind(r, s.Number)
-	s.NumberFloat = rebind(r, s.NumberFloat)
-	s.NumberInteger = rebind(r, s.NumberInteger)
-	s.NumberNegative = rebind(r, s.NumberNegative)
-	s.NumberPositive = rebind(r, s.NumberPositive)
-	s.NumberZero = rebind(r, s.NumberZero)
-	s.String = rebind(r, s.String)
-	s.Brace = rebind(r, s.Brace)
-	s.BraceRoot = rebind(r, s.BraceRoot)
-	s.Bracket = rebind(r, s.Bracket)
-	s.BracketRoot = rebind(r, s.BracketRoot)
-	s.Colon = rebind(r, s.Colon)
-	s.Comma = rebind(r, s.Comma)
 	return s
 }

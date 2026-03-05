@@ -2,7 +2,7 @@
 package style
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/level"
 )
@@ -55,7 +55,6 @@ const (
 // Config holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Config struct {
-	Renderer *lipgloss.Renderer
 	// Style for divider line characters (see [clog.DividerBuilder]) [nil = plain text]
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]
@@ -118,84 +117,4 @@ type Config struct {
 	// Values maps typed values to styles. Keys use Go equality.
 	// Allows differentiating between e.g. `true` (bool) and "true" (string).
 	Values ValueMap
-}
-
-// WithRenderer rebinds all styles to the given renderer. This ensures styles
-// render correctly when the logger's output differs from os.Stdout (e.g.
-// logging to stderr while stdout is piped). It mutates and returns the
-// receiver for fluent chaining.
-func (s *Config) WithRenderer(r *lipgloss.Renderer) *Config {
-	s.Renderer = r
-
-	// Simple style fields.
-	s.DividerLine = rebind(r, s.DividerLine)
-	s.DividerTitle = rebind(r, s.DividerTitle)
-	s.FieldDurationNumber = rebind(r, s.FieldDurationNumber)
-	s.FieldDurationUnit = rebind(r, s.FieldDurationUnit)
-	s.FieldElapsedNumber = rebind(r, s.FieldElapsedNumber)
-	s.FieldElapsedUnit = rebind(r, s.FieldElapsedUnit)
-	s.FieldError = rebind(r, s.FieldError)
-	s.FieldNumber = rebind(r, s.FieldNumber)
-	s.FieldPercent = rebind(r, s.FieldPercent)
-	s.FieldQuantityNumber = rebind(r, s.FieldQuantityNumber)
-	s.FieldQuantityUnit = rebind(r, s.FieldQuantityUnit)
-	s.FieldString = rebind(r, s.FieldString)
-	s.FieldTime = rebind(r, s.FieldTime)
-	s.KeyDefault = rebind(r, s.KeyDefault)
-	s.Separator = rebind(r, s.Separator)
-	s.Timestamp = rebind(r, s.Timestamp)
-
-	// Map fields.
-	rebindStyleMap(r, s.Keys)
-	rebindStyleMap(r, s.DurationUnits)
-	rebindStyleMap(r, s.QuantityUnits)
-
-	// LevelMap fields.
-	rebindStyleMap(r, s.Levels)
-	rebindStyleMap(r, s.Messages)
-	rebindStyleMap(r, s.Symbols)
-
-	// ValueMap.
-	for k, v := range s.Values {
-		s.Values[k] = rebind(r, v)
-	}
-
-	// ThresholdMap fields.
-	for unit, thresholds := range s.DurationThresholds {
-		for i := range thresholds {
-			thresholds[i].Style.Number = rebind(r, thresholds[i].Style.Number)
-			thresholds[i].Style.Unit = rebind(r, thresholds[i].Style.Unit)
-		}
-		s.DurationThresholds[unit] = thresholds
-	}
-	for unit, thresholds := range s.QuantityThresholds {
-		for i := range thresholds {
-			thresholds[i].Style.Number = rebind(r, thresholds[i].Style.Number)
-			thresholds[i].Style.Unit = rebind(r, thresholds[i].Style.Unit)
-		}
-		s.QuantityThresholds[unit] = thresholds
-	}
-
-	// Delegate to JSON.
-	if s.FieldJSON != nil {
-		s.FieldJSON.WithRenderer(r)
-	}
-
-	return s
-}
-
-// rebindStyleMap rebinds all style values in a map to the given renderer.
-func rebindStyleMap[K comparable](r *lipgloss.Renderer, m map[K]*lipgloss.Style) {
-	for k, s := range m {
-		m[k] = rebind(r, s)
-	}
-}
-
-// rebind rebinds a lipgloss style to the given renderer. Returns nil for nil styles.
-func rebind(r *lipgloss.Renderer, s *lipgloss.Style) *lipgloss.Style {
-	if s == nil {
-		return nil
-	}
-	ns := s.Renderer(r)
-	return &ns
 }

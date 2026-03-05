@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/internal/numfmt"
 	"github.com/gechr/clog/style"

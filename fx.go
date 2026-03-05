@@ -25,6 +25,12 @@ const clearLine = "\x1b[2K\r"
 // Use with fmt.Fprintf(w, cursorUpFmt, n) to move the cursor up n lines.
 const cursorUpFmt = "\x1b[%dA"
 
+// hideCursor is the ANSI escape sequence to hide the cursor (DECTCEM reset).
+const hideCursor = "\x1b[?25l"
+
+// showCursor is the ANSI escape sequence to show the cursor (DECTCEM set).
+const showCursor = "\x1b[?25h"
+
 // fxLogger adapts *Logger to the fx.Logger interface. This allows the fx
 // package types (Builder, WaitResult, Group, etc.) to call back into root
 // clog's logging and animation infrastructure without importing root clog.
@@ -150,8 +156,8 @@ func runAnimation(
 	}
 
 	// Hide cursor during animation.
-	gt.cfg.termOut.HideCursor()
-	defer gt.cfg.termOut.ShowCursor()
+	writeString(gt.cfg.out, hideCursor)
+	defer writeString(gt.cfg.out, showCursor)
 
 	ticker := time.NewTicker(gt.tickRate)
 	defer ticker.Stop()

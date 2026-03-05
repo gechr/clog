@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/json"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
@@ -680,7 +680,10 @@ func TestHighlightJSONWithSpacingMethod(t *testing.T) {
 	styles := style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
 	result := json.Highlight(`{"n":1}`, styles)
 
-	assert.Contains(t, result, `"n": 1`)
+	// With JSONSpacingAll a space is inserted after the colon.
+	// Tokens are styled, so check for colon-space-number using rendered values.
+	assert.Contains(t, result, styles.Colon.Render(":"))
+	assert.Contains(t, result, " "+styles.Number.Render("1"))
 }
 
 func TestHighlightJSONFlatNestedObject(t *testing.T) {

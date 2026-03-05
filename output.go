@@ -5,8 +5,7 @@ import (
 	"os"
 	"sync"
 
-	"github.com/charmbracelet/lipgloss"
-	"github.com/muesli/termenv"
+	"github.com/charmbracelet/colorprofile"
 	"golang.org/x/term"
 )
 
@@ -14,10 +13,10 @@ import (
 // (TTY, width, color profile). Each [Logger] holds an *Output so that
 // capability detection is per-writer instead of per-process.
 type Output struct {
-	w        io.Writer
-	fd       int // -1 for non-fd writers
-	isTTY    bool
-	renderer *lipgloss.Renderer
+	w       io.Writer
+	fd      int // -1 for non-fd writers
+	isTTY   bool
+	profile colorprofile.Profile
 
 	widthMu   sync.Mutex
 	widthDone bool
@@ -39,7 +38,7 @@ func NewOutput(w io.Writer, mode ColorMode) *Output {
 		o.isTTY = term.IsTerminal(o.fd)
 	}
 
-	o.renderer = buildRenderer(w, o.isTTY, mode)
+	o.profile = detectProfile(w, o.isTTY, mode)
 
 	return o
 }
@@ -67,7 +66,7 @@ func (o *Output) IsTTY() bool { return o.isTTY }
 
 // ColorsDisabled returns true if this output should suppress colors.
 func (o *Output) ColorsDisabled() bool {
-	return o.renderer.ColorProfile() == termenv.Ascii
+	return o.profile == colorprofile.NoTTY
 }
 
 // Width returns the terminal width, or 0 for non-TTY writers.
@@ -99,34 +98,25 @@ func (o *Output) RefreshWidth() {
 	o.width = 0
 }
 
-// Renderer returns the [lipgloss.Renderer] configured for this output.
-func (o *Output) Renderer() *lipgloss.Renderer { return o.renderer }
-
 // writeString writes s to w, discarding the return values.
 func writeString(w io.Writer, s string) {
 	_, _ = io.WriteString(w, s)
 }
 
-// buildRenderer creates a [lipgloss.Renderer] with the appropriate
-// [termenv.Profile] for the given writer, TTY state, and color mode.
-func buildRenderer(w io.Writer, isTTY bool, mode ColorMode) *lipgloss.Renderer {
+// detectProfile determines the [colorprofile.Profile] for the given writer,
+// TTY state, and color mode.
+func detectProfile(w io.Writer, isTTY bool, mode ColorMode) colorprofile.Profile {
 	switch mode {
 	case ColorAlways:
-		r := lipgloss.NewRenderer(w, termenv.WithUnsafe(), termenv.WithProfile(termenv.TrueColor))
-		r.SetColorProfile(termenv.TrueColor)
-		return r
+		return colorprofile.TrueColor
 	case ColorNever:
-		r := lipgloss.NewRenderer(w, termenv.WithProfile(termenv.Ascii))
-		r.SetColorProfile(termenv.Ascii)
-		return r
+		return colorprofile.NoTTY
 	case ColorAuto:
 		if !isTTY || noColorEnvSet.Load() {
-			r := lipgloss.NewRenderer(w, termenv.WithProfile(termenv.Ascii))
-			r.SetColorProfile(termenv.Ascii)
-			return r
+			return colorprofile.NoTTY
 		}
 	}
-	return lipgloss.NewRenderer(w)
+	return colorprofile.Detect(w, os.Environ())
 }
 
 // IsTerminal returns true if the [Default] logger's output is connected to a terminal.

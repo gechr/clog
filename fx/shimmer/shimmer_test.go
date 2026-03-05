@@ -4,26 +4,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// withTrueColor forces the default lipgloss renderer to TrueColor for the
-// duration of the test so that shimmer.Text emits ANSI escapes.
-func withTrueColor(t *testing.T) {
-	t.Helper()
-	r := lipgloss.DefaultRenderer()
-	old := r.ColorProfile()
-	r.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() {
-		r.SetColorProfile(old)
-	})
-}
 
 func TestDefaultShimmerGradient(t *testing.T) {
 	stops := shimmer.DefaultGradient()
@@ -54,7 +40,6 @@ func TestShimmerTextEmpty(t *testing.T) {
 }
 
 func TestShimmerTextSpacesUnstyled(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 
 	got := shimmer.Text("a b c", 0, shimmer.Right, lut, nil)
@@ -69,7 +54,6 @@ func TestShimmerTextSpacesUnstyled(t *testing.T) {
 }
 
 func TestShimmerTextContainsANSI(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 
 	got := shimmer.Text("hello", 0, shimmer.Right, lut, nil)
@@ -78,7 +62,6 @@ func TestShimmerTextContainsANSI(t *testing.T) {
 }
 
 func TestShimmerTextDifferentPhases(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 
 	a := shimmer.Text("hello world", 0.0, shimmer.Right, lut, nil)
@@ -88,7 +71,6 @@ func TestShimmerTextDifferentPhases(t *testing.T) {
 }
 
 func TestShimmerTextAllDirectionsProduce(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 	text := "hello world"
 
@@ -99,7 +81,6 @@ func TestShimmerTextAllDirectionsProduce(t *testing.T) {
 }
 
 func TestShimmerTextDirectionsDiffer(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 	text := "hello world testing"
 
@@ -123,7 +104,6 @@ func TestShimmerTextDirectionsDiffer(t *testing.T) {
 }
 
 func TestShimmerTextBounceInPingPong(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 	text := "hello world testing"
 
@@ -139,7 +119,6 @@ func TestShimmerTextBounceInPingPong(t *testing.T) {
 }
 
 func TestShimmerTextBounceOutPingPong(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 	text := "hello world testing"
 
@@ -152,8 +131,6 @@ func TestShimmerTextBounceOutPingPong(t *testing.T) {
 }
 
 func TestShimmerTextMiddleInSymmetric(t *testing.T) {
-	withTrueColor(t)
-
 	// MiddleIn maps pos via fold = |2*pos - 1|, so edges get high fold values
 	// and the center gets low fold values. With a symmetric gradient the first
 	// and last characters should receive similar (though not identical) colors
@@ -178,7 +155,6 @@ func TestShimmerTextMiddleInSymmetric(t *testing.T) {
 }
 
 func TestShimmerTextSingleChar(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 
 	got := shimmer.Text("x", 0, shimmer.Right, lut, nil)
@@ -188,7 +164,6 @@ func TestShimmerTextSingleChar(t *testing.T) {
 }
 
 func TestShimmerTextUnicode(t *testing.T) {
-	withTrueColor(t)
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 
 	got := shimmer.Text("héllo wörld", 0, shimmer.Right, lut, nil)
@@ -199,14 +174,14 @@ func TestShimmerTextUnicode(t *testing.T) {
 
 func TestBuildShimmerStyleLUT(t *testing.T) {
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
-	styleLUT := shimmer.BuildStyleLUT(lut, nil)
+	styleLUT := shimmer.BuildStyleLUT(lut)
 
 	assert.NotNil(t, styleLUT)
 }
 
 func BenchmarkShimmerText(b *testing.B) {
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
-	styleLUT := shimmer.BuildStyleLUT(lut, nil)
+	styleLUT := shimmer.BuildStyleLUT(lut)
 	text := "hello world shimmer benchmark"
 
 	b.ResetTimer()

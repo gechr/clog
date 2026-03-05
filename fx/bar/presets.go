@@ -1,6 +1,6 @@
 package bar
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // defaultCapStyle is the bold white style used for bar caps in all presets.
 var defaultCapStyle = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")))

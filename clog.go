@@ -126,7 +126,7 @@ func New(output *Output) *Logger {
 		parts:             DefaultParts(),
 		symbols:           DefaultSymbols(),
 		separatorText:     "=",
-		styles:            DefaultStyles().WithRenderer(output.Renderer()),
+		styles:            DefaultStyles(),
 		timeFormat:        "15:04:05.000",
 		timeLocation:      time.Local,
 		treeChars:         DefaultTreeChars(),
@@ -308,7 +308,6 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 	defer l.mu.Unlock()
 	w := l.output.Writer()
 	l.output = NewOutput(w, mode)
-	l.styles.WithRenderer(l.output.Renderer())
 }
 
 // SetExitFunc sets the function called by Fatal-level events.
@@ -463,7 +462,6 @@ func (l *Logger) SetOutput(out *Output) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output = out
-	l.styles.WithRenderer(out.Renderer())
 }
 
 // SetOutputWriter sets the output writer with [ColorAuto].
@@ -555,7 +553,6 @@ func (l *Logger) SetStyles(styles *style.Config) {
 	if styles == nil {
 		styles = DefaultStyles()
 	}
-	styles.WithRenderer(l.output.Renderer())
 	l.styles = styles
 }
 

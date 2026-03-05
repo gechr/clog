@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
@@ -518,7 +518,7 @@ func TestFormatFieldsWithColors(t *testing.T) {
 		"k",
 	) + styles.Separator.Render(
 		"=",
-	) + "v"
+	) + styles.FieldString.Render("v")
 	assert.Equal(t, want, got)
 }
 
@@ -892,7 +892,7 @@ func TestFormatFieldsAnySliceStyled(t *testing.T) {
 		"mixed",
 	) + styles.Separator.Render(
 		"=",
-	) + "[hello, " + n(
+	) + "[" + styles.FieldString.Render("hello") + ", " + n(
 		"42",
 	) + ", " + trueStyled + "]"
 	assert.Equal(t, want, got)
@@ -931,7 +931,7 @@ func TestStyledSliceAny(t *testing.T) {
 
 	trueStyled := styles.Values[true].Render("true")
 	numStyled := styles.FieldNumber.Render("42")
-	want := "[" + trueStyled + ", " + numStyled + ", text]"
+	want := "[" + trueStyled + ", " + numStyled + ", " + styles.FieldString.Render("text") + "]"
 
 	assert.Equal(t, want, got)
 }
@@ -1869,8 +1869,7 @@ func TestStylePercentReverse(t *testing.T) {
 	// At 0% with no reverse the gradient position is 0 (red end).
 	// With reverse the position flips to 1 (green end).
 	// We verify that reverse=true yields a different color than reverse=false.
-	out := NewOutput(&bytes.Buffer{}, ColorAlways)
-	styles := DefaultStyles().WithRenderer(out.Renderer())
+	styles := DefaultStyles()
 	normal := stylePercent("0%", core.Percent{Value: 0}, styles, false)
 	reversed := stylePercent("0%", core.Percent{Value: 0}, styles, true)
 
@@ -1893,8 +1892,7 @@ func TestPercentReverseLogger(t *testing.T) {
 }
 
 func TestPercentReverseFieldTogglesLoggerDefault(t *testing.T) {
-	out := NewOutput(&bytes.Buffer{}, ColorAlways)
-	styles := DefaultStyles().WithRenderer(out.Renderer())
+	styles := DefaultStyles()
 
 	// Logger default = normal (reverse=false).
 	// percentValue{reverse:true} should flip to reverse=true → same as stylePercent(..., true).
@@ -2451,8 +2449,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("active_gradient", func(t *testing.T) {
 		elapsed.SetGradientMax(30 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 
 		val := core.ElapsedField(15 * time.Second) // t=0.5 → yellow
 		got := styleElapsed("15s", val, styles)
@@ -2463,8 +2460,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("gradient_at_zero", func(t *testing.T) {
 		elapsed.SetGradientMax(30 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 
 		val := core.ElapsedField(0)
 		got := styleElapsed("0s", val, styles)
@@ -2475,8 +2471,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("gradient_clamped_beyond_max", func(t *testing.T) {
 		elapsed.SetGradientMax(10 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 
 		val := core.ElapsedField(60 * time.Second) // way beyond max
 		got := styleElapsed("60s", val, styles)
@@ -2530,8 +2525,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("single_stop", func(t *testing.T) {
 		elapsed.SetGradientMax(10 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 		blue := colorful.Color{R: 0, G: 0, B: 1}
 		styles.ElapsedGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
 
@@ -2544,8 +2538,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("different_positions_different_colors", func(t *testing.T) {
 		elapsed.SetGradientMax(30 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 
 		earlyVal := core.ElapsedField(1 * time.Second) // t≈0.03 → green
 		lateVal := core.ElapsedField(29 * time.Second) // t≈0.97 → red
@@ -2558,8 +2551,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("step_mode", func(t *testing.T) {
 		elapsed.SetGradientMax(30 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
-		styles := DefaultStyles().WithRenderer(out.Renderer())
+		styles := DefaultStyles()
 		styles.ElapsedGradientMode = style.GradientStep
 
 		// Two values in the same step region should produce the same color.
@@ -2586,12 +2578,11 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 	t.Run("step_mode_vs_fade_mode", func(t *testing.T) {
 		elapsed.SetGradientMax(30 * time.Second)
-		out := NewOutput(&bytes.Buffer{}, ColorAlways)
 
-		fadeStyles := DefaultStyles().WithRenderer(out.Renderer())
+		fadeStyles := DefaultStyles()
 		fadeStyles.ElapsedGradientMode = style.GradientFade
 
-		stepStyles := DefaultStyles().WithRenderer(out.Renderer())
+		stepStyles := DefaultStyles()
 		stepStyles.ElapsedGradientMode = style.GradientStep
 
 		// At a midpoint, fade and step should produce different colors.

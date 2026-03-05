@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
@@ -89,11 +89,8 @@ func styleElapsedGradient(s string, originalValue any, styles *style.Config) str
 		c = style.InterpolateGradient(t, styles.ElapsedGradient)
 	}
 
-	var ls lipgloss.Style
-	if styles.Renderer != nil {
-		ls = styles.Renderer.NewStyle()
-	}
-	return ls.Foreground(lipgloss.Color(c.Clamped().Hex())).Render(s)
+	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+	return ls.Render(s)
 }
 
 // stylePercent renders a percentage string with a gradient color based on the
@@ -122,8 +119,6 @@ func stylePercent(valStr string, originalValue any, styles *style.Config, revers
 	var ls lipgloss.Style
 	if styles.FieldPercent != nil {
 		ls = *styles.FieldPercent
-	} else if styles.Renderer != nil {
-		ls = styles.Renderer.NewStyle()
 	}
 
 	// Apply gradient foreground on top of the base style.

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/pulse"
@@ -16,7 +16,6 @@ import (
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
-	"github.com/muesli/termenv"
 )
 
 // taskConfig is an immutable snapshot of logger settings captured under the
@@ -34,7 +33,6 @@ type taskConfig struct {
 	output       *Output   // for Width() in bar mode
 	reportTS     bool
 	styles       *style.Config
-	termOut      *termenv.Output // output.Renderer().Output()
 	timeFmt      string
 	timeLoc      *time.Location
 }
@@ -95,7 +93,6 @@ func captureTaskConfig(gt *groupTask) {
 		output:       l.output,
 		reportTS:     l.reportTimestamp,
 		styles:       l.styles,
-		termOut:      l.output.Renderer().Output(),
 		timeFmt:      l.timeFormat,
 		timeLoc:      l.timeLocation,
 	}
@@ -135,7 +132,7 @@ func captureTaskConfig(gt *groupTask) {
 	case fx.AnimationShimmer:
 		gt.tickRate = shimmer.TickRate
 		gt.hexLUT = shimmer.BuildLUT(b.ShimmerStops)
-		gt.styleLUT = shimmer.BuildStyleLUT(gt.hexLUT, gt.cfg.output.Renderer())
+		gt.styleLUT = shimmer.BuildStyleLUT(gt.hexLUT)
 	case fx.AnimationBar:
 		gt.tickRate = bar.TickRate
 	}
@@ -269,7 +266,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
 	case fx.AnimationPulse:
 		char = gt.symbol
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.Speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
-		msg = pulse.TextCached(msg, t, b.PulseStops, &gt.pCache, gt.cfg.output.Renderer())
+		msg = pulse.TextCached(msg, t, b.PulseStops, &gt.pCache)
 	case fx.AnimationShimmer:
 		char = gt.symbol
 		phase := math.Mod(dur.Seconds()*b.Speed, 1.0)
@@ -302,8 +299,7 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 		progress := float64(current) / float64(max(total, 1))
 		if !gt.gradientValid || gt.gradientProgress != progress {
 			c := style.InterpolateGradient(progress, barStyle.ProgressGradient)
-			gt.gradientStyle = gt.cfg.output.Renderer().
-				NewStyle().
+			gt.gradientStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color(c.Clamped().Hex()))
 			gt.gradientProgress = progress
 			gt.gradientValid = true
@@ -427,11 +423,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		tickRate = min(tickRate, gt.tickRate)
 	}
 
-	termOut := gts[0].cfg.termOut
-	termOut.HideCursor()
-	defer termOut.ShowCursor()
-
 	out := gts[0].cfg.out
+
+	writeString(out, hideCursor)
+	defer writeString(out, showCursor)
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 

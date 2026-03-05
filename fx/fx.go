@@ -8,7 +8,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog/internal/core"
 )
 
@@ -38,7 +37,6 @@ type Output interface {
 	Writer() io.Writer
 	Width() int
 	ColorsDisabled() bool
-	Renderer() *lipgloss.Renderer
 	PathLink(path string, line, column int) string
 	Hyperlink(url, text string) string
 }

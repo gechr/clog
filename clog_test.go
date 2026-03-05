@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/field/quantity"
@@ -1078,7 +1078,7 @@ func TestPerLevelMessageStyle(t *testing.T) {
 	t.Run("uses_per_level_style", func(t *testing.T) {
 		var buf bytes.Buffer
 
-		l := New(TestOutput(&buf))
+		l := New(NewOutput(&buf, ColorAlways))
 		l.SetParts(PartMessage)
 		l.styles.Messages[LevelError] = l.styles.Levels[LevelError]
 
@@ -1599,7 +1599,7 @@ func TestSetStylesNilDefaultsToDefaultStyles(t *testing.T) {
 	l.mu.Unlock()
 
 	assert.NotNil(t, got, "styles should not be nil after SetStyles(nil)")
-	assert.Equal(t, DefaultStyles().WithRenderer(l.output.Renderer()), got)
+	assert.Equal(t, DefaultStyles(), got)
 	// Should be a new instance, not the original pointer.
 	assert.NotSame(t, original, got)
 }

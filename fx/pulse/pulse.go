@@ -6,7 +6,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/lucasb-eyer/go-colorful"
 )
@@ -72,14 +72,12 @@ func Text(text string, phase float64, stops []gradient.ColorStop) string {
 // TextCached is like [Text] but reuses the cached style when the
 // interpolated hex color matches the previous call. Pass a persistent
 // *Cache across frames to avoid style allocations when the color is
-// stable between ticks. When r is non-nil, styles are bound to that renderer
-// instead of the global default; pass nil to use [lipgloss.NewStyle].
+// stable between ticks.
 func TextCached(
 	text string,
 	phase float64,
 	stops []gradient.ColorStop,
 	cache *Cache,
-	r *lipgloss.Renderer,
 ) string {
 	if len(text) == 0 {
 		return text
@@ -87,11 +85,7 @@ func TextCached(
 	c := gradient.Interpolate(phase, stops)
 	hex := c.Clamped().Hex()
 	if hex != cache.Hex {
-		if r != nil {
-			cache.Style = r.NewStyle().Foreground(lipgloss.Color(hex))
-		} else {
-			cache.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
-		}
+		cache.Style = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
 		cache.Hex = hex
 	}
 	return applyStyle(text, cache.Style)

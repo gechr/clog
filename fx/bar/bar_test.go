@@ -6,17 +6,17 @@ import (
 	"testing"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/style"
-	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestRenderBarThinDefault(t *testing.T) {
 	s := bar.DefaultStyle()
 	s.Width = 10
+	s.CapStyle = nil
 
 	// 50%: 10 half-cells, even -> trail char
 	assert.Equal(t, "[━━━━━╺────]", bar.Render(5, 10, s, 0))
@@ -31,6 +31,7 @@ func TestRenderBarThinDefault(t *testing.T) {
 func TestRenderBarBlock(t *testing.T) {
 	s := bar.Block
 	s.Width = 10
+	s.CapStyle = nil
 
 	assert.Equal(t, "│█████░░░░░│", bar.Render(5, 10, s, 0))
 	assert.Equal(t, "│░░░░░░░░░░│", bar.Render(0, 10, s, 0))
@@ -40,6 +41,7 @@ func TestRenderBarBlock(t *testing.T) {
 func TestRenderBarSmooth(t *testing.T) {
 	s := bar.Smooth
 	s.Width = 10
+	s.CapStyle = nil
 
 	// 45%: odd halves -> half head, no trail (HalfEmpty is 0)
 	assert.Equal(t, "│████▌     │", bar.Render(9, 20, s, 0))
@@ -54,6 +56,7 @@ func TestRenderBarSmooth(t *testing.T) {
 func TestRenderBarBasic(t *testing.T) {
 	s := bar.Basic
 	s.Width = 10
+	s.CapStyle = nil
 
 	// CharHead '>' at leading edge
 	assert.Equal(t, "[====>     ]", bar.Render(5, 10, s, 0))
@@ -64,6 +67,7 @@ func TestRenderBarBasic(t *testing.T) {
 func TestRenderBarGradient(t *testing.T) {
 	s := bar.Gradient
 	s.Width = 10
+	s.CapStyle = nil
 
 	// 0%: all empty
 	assert.Equal(t, "│          │", bar.Render(0, 100, s, 0))
@@ -123,6 +127,7 @@ func TestRenderBarGradientOverridesHalfFilled(t *testing.T) {
 func TestRenderBarEdgeCases(t *testing.T) {
 	s := bar.DefaultStyle()
 	s.Width = 10
+	s.CapStyle = nil
 
 	// total <= 0 treated as 1 (so 0/1 = 0%)
 	assert.Equal(t, "[──────────]", bar.Render(0, 0, s, 0))
@@ -150,6 +155,7 @@ func TestRenderBarCharHead(t *testing.T) {
 	// CharHead is only used when HalfFilled is 0.
 	s := bar.Block
 	s.Width = 10
+	s.CapStyle = nil
 	s.CharHead = '>'
 
 	// at 50%: 5 filled, head takes one slot -> 4 filled + head + 5 empty
@@ -164,6 +170,7 @@ func TestRenderBarCharHead(t *testing.T) {
 
 func TestRenderBarAutoWidth(t *testing.T) {
 	s := bar.DefaultStyle()
+	s.CapStyle = nil
 	// WidthMin=10, WidthMax=40; termWidth=80 -> 80/4=20, clamped to [10,40] -> 20
 	result := bar.Render(10, 20, s, 80)
 	// 20 inner cells, 10/20 = 50%: 20 half-cells, even -> trail char
@@ -172,6 +179,7 @@ func TestRenderBarAutoWidth(t *testing.T) {
 
 func TestRenderBarAutoWidthClampMin(t *testing.T) {
 	s := bar.DefaultStyle()
+	s.CapStyle = nil
 	// termWidth=0 -> fallback to WidthMin=10
 	result := bar.Render(5, 10, s, 0)
 	assert.Equal(t, "[━━━━━╺────]", result)
@@ -360,12 +368,6 @@ func TestFormatLineExactFit(t *testing.T) {
 }
 
 func TestRenderBarProgressGradient(t *testing.T) {
-	// Force TrueColor so lipgloss emits ANSI escapes in the test runner.
-	r := lipgloss.DefaultRenderer()
-	old := r.ColorProfile()
-	r.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { r.SetColorProfile(old) })
-
 	gradient := bar.DefaultGradient()
 	s := bar.Style{
 		CapLeft:          "[",
@@ -666,11 +668,6 @@ func TestWidgetSeparatorWithStyle(t *testing.T) {
 // TestWithStylePaddingIsPlain verifies that WithStyle styles the content string
 // only - leading alignment spaces must be plain so background colors don't bleed.
 func TestWithStylePaddingIsPlain(t *testing.T) {
-	r := lipgloss.DefaultRenderer()
-	old := r.ColorProfile()
-	r.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() { r.SetColorProfile(old) })
-
 	st := new(lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("1")))
 
 	t.Run("WidgetPercent", func(t *testing.T) {

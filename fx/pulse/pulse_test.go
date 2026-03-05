@@ -3,27 +3,13 @@ package pulse_test
 import (
 	"testing"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/gechr/clog/fx/pulse"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
-	"github.com/muesli/termenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// withTrueColor forces the default lipgloss renderer to TrueColor for the
-// duration of the test so that pulse.Text emits ANSI escapes.
-func withTrueColor(t *testing.T) {
-	t.Helper()
-	r := lipgloss.DefaultRenderer()
-	old := r.ColorProfile()
-	r.SetColorProfile(termenv.TrueColor)
-	t.Cleanup(func() {
-		r.SetColorProfile(old)
-	})
-}
 
 func TestDefaultPulseGradient(t *testing.T) {
 	stops := pulse.DefaultGradient()
@@ -41,7 +27,6 @@ func TestPulseTextEmpty(t *testing.T) {
 }
 
 func TestPulseTextSpacesUnstyled(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	got := pulse.Text("a b c", 0.5, stops)
@@ -51,7 +36,6 @@ func TestPulseTextSpacesUnstyled(t *testing.T) {
 }
 
 func TestPulseTextContainsANSI(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	got := pulse.Text("hello", 0.5, stops)
@@ -60,7 +44,6 @@ func TestPulseTextContainsANSI(t *testing.T) {
 }
 
 func TestPulseTextDifferentPhases(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	a := pulse.Text("hello world", 0.0, stops)
@@ -70,8 +53,6 @@ func TestPulseTextDifferentPhases(t *testing.T) {
 }
 
 func TestPulseTextUniformColor(t *testing.T) {
-	withTrueColor(t)
-
 	// All non-space characters should get the same color at a given phase.
 	stops := []style.ColorStop{
 		{Position: 0, Color: colorful.Color{R: 1, G: 0, B: 0}},
@@ -89,7 +70,6 @@ func TestPulseTextUniformColor(t *testing.T) {
 }
 
 func TestPulseTextSingleChar(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	got := pulse.Text("x", 0.5, stops)
@@ -99,7 +79,6 @@ func TestPulseTextSingleChar(t *testing.T) {
 }
 
 func TestPulseTextUnicode(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	got := pulse.Text("héllo wörld", 0.5, stops)
@@ -108,13 +87,12 @@ func TestPulseTextUnicode(t *testing.T) {
 }
 
 func TestPulseTextCached(t *testing.T) {
-	withTrueColor(t)
 	stops := pulse.DefaultGradient()
 
 	t.Run("non_empty_result", func(t *testing.T) {
 		cache := &pulse.Cache{}
 
-		got := pulse.TextCached("hello", 0.5, stops, cache, nil)
+		got := pulse.TextCached("hello", 0.5, stops, cache)
 
 		assert.NotEmpty(t, got)
 		assert.NotEmpty(t, cache.Hex)
@@ -123,10 +101,10 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("cache_hit_same_phase", func(t *testing.T) {
 		cache := &pulse.Cache{}
 
-		first := pulse.TextCached("hello", 0.5, stops, cache, nil)
+		first := pulse.TextCached("hello", 0.5, stops, cache)
 		hexAfterFirst := cache.Hex
 
-		second := pulse.TextCached("hello", 0.5, stops, cache, nil)
+		second := pulse.TextCached("hello", 0.5, stops, cache)
 
 		assert.Equal(t, first, second)
 		assert.Equal(t, hexAfterFirst, cache.Hex, "cache hex should not change on same phase")
@@ -135,7 +113,7 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("empty_text", func(t *testing.T) {
 		cache := &pulse.Cache{}
 
-		got := pulse.TextCached("", 0.5, stops, cache, nil)
+		got := pulse.TextCached("", 0.5, stops, cache)
 
 		assert.Empty(t, got)
 	})
@@ -143,10 +121,10 @@ func TestPulseTextCached(t *testing.T) {
 	t.Run("cache_miss_different_phase", func(t *testing.T) {
 		cache := &pulse.Cache{}
 
-		pulse.TextCached("hello", 0.0, stops, cache, nil)
+		pulse.TextCached("hello", 0.0, stops, cache)
 		hexFirst := cache.Hex
 
-		pulse.TextCached("hello", 1.0, stops, cache, nil)
+		pulse.TextCached("hello", 1.0, stops, cache)
 		hexSecond := cache.Hex
 
 		assert.NotEqual(

@@ -8,7 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/lucasb-eyer/go-colorful"
 )
@@ -100,18 +100,12 @@ func BuildLUT(stops []gradient.ColorStop) *LUT {
 
 // BuildStyleLUT pre-computes a lipgloss style for every entry in the
 // hex LUT. Call once after [BuildLUT] and pass the result to
-// [Text] to avoid style allocations in the render loop. When r is
-// non-nil, styles are bound to that renderer instead of the global default;
-// pass nil to use [lipgloss.NewStyle].
-func BuildStyleLUT(lut *LUT, r *lipgloss.Renderer) *StyleLUT {
+// [Text] to avoid style allocations in the render loop.
+func BuildStyleLUT(lut *LUT) *StyleLUT {
 	var s StyleLUT
 	for i, hex := range lut {
 		//nolint:gosec // i is bounded by range lut
-		if r != nil {
-			s[i] = r.NewStyle().Foreground(lipgloss.Color(hex))
-		} else {
-			s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
-		}
+		s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
 	}
 	return &s
 }
