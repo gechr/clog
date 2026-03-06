@@ -138,7 +138,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			}
 		case core.Percent:
 			if fn := percent.FormatFunc(); fn != nil {
-				valStr = fn(val.Value / percent.Scale() * percentDisplayMax)
+				valStr = fn(val.Value / percent.EffectiveMaximum(val) * percentDisplayMax)
 				kind = kindPercent
 				customFormatted = true
 			}
@@ -198,7 +198,7 @@ func formatValue(
 	case bool:
 		return strconv.FormatBool(val), kindBool
 	case core.Percent:
-		display := val.Value / percent.Scale() * percentDisplayMax
+		display := val.Value / percent.EffectiveMaximum(val) * percentDisplayMax
 		return strconv.FormatFloat(display, 'f', percentPrecision, 64) + "%", kindPercent
 	case core.QuantityField:
 		return string(val), kindQuantity

@@ -170,9 +170,9 @@ func (b *Builder) BarPercent(key string) *Builder {
 func (b *Builder) BarPercentValue() core.Percent {
 	cur := int(b.BarProgressPtr.Load())
 	tot := int(b.BarTotalPtr.Load())
-	s := percent.Scale()
-	pct := float64(cur) / float64(max(tot, 1)) * s
-	return core.Percent{Value: min(pct, s)}
+	m := percent.Maximum()
+	pct := float64(cur) / float64(max(tot, 1)) * m
+	return core.Percent{Value: min(pct, m)}
 }
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.

@@ -163,7 +163,7 @@ func stylePercent(valStr string, originalValue any, styles *style.Config, revers
 
 	// Apply gradient foreground on top of the base style.
 	if hasGradient {
-		t := p.Value / percent.Scale()
+		t := p.Value / percent.EffectiveMaximum(p)
 		if reverse {
 			t = 1 - t
 		}

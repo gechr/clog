@@ -1749,7 +1749,7 @@ func TestClampPercent(t *testing.T) {
 	assert.InDelta(t, 1.0, core.ClampPercent(2, 1), 0)
 }
 
-func TestClampPercentScale100(t *testing.T) {
+func TestClampPercentMaximum100(t *testing.T) {
 	assert.InDelta(t, 0.0, core.ClampPercent(-10, 100), 0)
 	assert.InDelta(t, 50.0, core.ClampPercent(50, 100), 0)
 	assert.InDelta(t, 100.0, core.ClampPercent(100, 100), 0)

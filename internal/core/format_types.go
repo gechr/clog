@@ -16,8 +16,10 @@ type ElapsedField time.Duration
 
 // Percent holds a percentage value (0–100) with an optional reverse
 // gradient flag. When Reverse is true, the gradient is flipped relative
-// to the logger's default direction.
+// to the logger's default direction. Maximum overrides the global maximum
+// for this field when non-nil.
 type Percent struct {
 	Value   float64
 	Reverse bool
+	Maximum *float64
 }

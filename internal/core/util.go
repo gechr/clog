@@ -6,16 +6,16 @@ import (
 	"reflect"
 )
 
-// ClampPercent restricts val to the [0, scale] range.
-// NaN and negative infinity clamp to 0; positive infinity clamps to scale.
-func ClampPercent(val, scale float64) float64 {
+// ClampPercent restricts val to the [0, r] range.
+// NaN and negative infinity clamp to 0; positive infinity clamps to r.
+func ClampPercent(val, r float64) float64 {
 	if math.IsNaN(val) || math.IsInf(val, -1) {
 		return 0
 	}
 	if math.IsInf(val, 1) {
-		return scale
+		return r
 	}
-	return max(0, min(scale, val))
+	return max(0, min(r, val))
 }
 
 // Clamp01 restricts val to the 0–1 range.

@@ -1,0 +1,14 @@
+[book]
+authors = ["clog contributors"]
+description = "Structured CLI logging for Go with terminal-aware colors, hyperlinks, and animations."
+language = "en"
+src = "."
+title = "clog"
+
+[output.html]
+git-repository-url = "https://github.com/gechr/clog"
+edit-url-template = "https://github.com/gechr/clog/edit/main/docs/{path}"
+default-theme = "latte"
+preferred-dark-theme = "mocha"
+additional-css = ["./theme/catppuccin.css", "./theme/zoom.css"]
+additional-js = ["./theme/medium-zoom.min.js", "./theme/zoom.js"]

@@ -103,25 +103,48 @@ func TestApplyMultipleOptions(t *testing.T) {
 	assert.True(t, p.Reverse)
 }
 
-func TestSetScale(t *testing.T) {
+func TestSetMaximum(t *testing.T) {
 	snap := percent.Save()
 	t.Cleanup(func() { percent.Restore(snap) })
 
-	assert.InDelta(t, 1.0, percent.Scale(), 0, "default scale should be 1.0")
-	percent.SetScale(100)
-	assert.InDelta(t, 100.0, percent.Scale(), 0)
-	percent.SetScale(1)
-	assert.InDelta(t, 1.0, percent.Scale(), 0)
+	assert.InDelta(t, 1.0, percent.Maximum(), 0, "default maximum should be 1.0")
+	percent.SetMaximum(100)
+	assert.InDelta(t, 100.0, percent.Maximum(), 0)
+	percent.SetMaximum(1)
+	assert.InDelta(t, 1.0, percent.Maximum(), 0)
 }
 
-func TestScaleSaveRestore(t *testing.T) {
+func TestMaximumSaveRestore(t *testing.T) {
 	snap := percent.Save()
 	t.Cleanup(func() { percent.Restore(snap) })
 
-	percent.SetScale(100)
+	percent.SetMaximum(100)
 	snap2 := percent.Save()
-	percent.SetScale(50)
-	assert.InDelta(t, 50.0, percent.Scale(), 0)
+	percent.SetMaximum(50)
+	assert.InDelta(t, 50.0, percent.Maximum(), 0)
 	percent.Restore(snap2)
-	assert.InDelta(t, 100.0, percent.Scale(), 0)
+	assert.InDelta(t, 100.0, percent.Maximum(), 0)
+}
+
+func TestWithMaximum(t *testing.T) {
+	p := &percent.Percent{Value: 75}
+	opt := percent.WithMaximum(100)
+	percent.Apply(p, []percent.Option{opt})
+	assert.NotNil(t, p.Maximum)
+	assert.InDelta(t, 100.0, *p.Maximum, 0)
+}
+
+func TestEffectiveMaximum(t *testing.T) {
+	snap := percent.Save()
+	t.Cleanup(func() { percent.Restore(snap) })
+
+	// Without per-field override, uses global.
+	percent.SetMaximum(100)
+	p := percent.Percent{Value: 75}
+	assert.InDelta(t, 100.0, percent.EffectiveMaximum(p), 0)
+
+	// Per-field override takes precedence.
+	m := 1.0
+	p.Maximum = &m
+	assert.InDelta(t, 1.0, percent.EffectiveMaximum(p), 0)
 }

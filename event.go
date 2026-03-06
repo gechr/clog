@@ -360,20 +360,25 @@ func (e *Event) Msgf(format string, args ...any) {
 }
 
 // Percent adds a percentage field with gradient color styling.
-// Values are clamped to [0, Scale] (default scale is 1, so 0.75 → "75%").
+// Values are clamped to [0, Maximum] (default maximum is 1, so 0.75 → "75%").
 // The color is interpolated from the [style.Config.PercentGradient] stops
 // (default: red → yellow → green).
 //
 // Use [percent.WithReverseGradient] to flip the gradient for this field:
 //
 //	e.Percent("cpu", usage, percent.WithReverseGradient())
+//
+// Use [percent.WithMaximum] to override the input range for this field:
+//
+//	e.Percent("progress", 75, percent.WithMaximum(100))
 func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event {
 	if e == nil {
 		return e
 	}
 
-	p := core.Percent{Value: core.ClampPercent(val, percent.Scale())}
+	p := core.Percent{Value: val}
 	percent.Apply(&p, opts)
+	p.Value = core.ClampPercent(p.Value, percent.EffectiveMaximum(p))
 	e.fields = append(e.fields, Field{Key: key, Value: p})
 	return e
 }

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/style"
@@ -62,7 +63,7 @@ func main() {
 			hundred := 100
 			for i := range hundred {
 				progress := min(i+1, hundred)
-				update.Msg("Applying migrations").Percent("progress", float64(progress)).Send()
+				update.Msg("Applying migrations").Percent("progress", float64(progress), percent.WithMaximum(100)).Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil

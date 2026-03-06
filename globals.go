@@ -86,11 +86,11 @@ func SetPercentPrecision(precision int) { percent.SetPrecision(precision) }
 // Delegates to [percent.SetReverseGradient].
 func SetPercentReverseGradient(reverse bool) { percent.SetReverseGradient(reverse) }
 
-// SetPercentScale sets the percent scale for all loggers (process-global).
+// SetPercentMaximum sets the percent maximum for all loggers (process-global).
 // The default is 1.0, meaning percent values are passed as fractions
-// (e.g. 0.75 → "75%"). Set to 100 for legacy 0–100 input.
-// Delegates to [percent.SetScale].
-func SetPercentScale(s float64) { percent.SetScale(s) }
+// (e.g. 0.75 → "75%"). Set to 100 for 0–100 input.
+// Delegates to [percent.SetMaximum].
+func SetPercentMaximum(m float64) { percent.SetMaximum(m) }
 
 // SetQuantityUnitsIgnoreCase sets case-insensitive quantity unit matching for all loggers (process-global).
 // Delegates to [quantity.SetUnitsIgnoreCase].

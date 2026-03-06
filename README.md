@@ -5,7 +5,7 @@ A highly customizable structured logger for command-line tools with a [zerolog](
 ## Demo
 
 <p align="center">
-  <img src="./assets/demo.gif" alt="clog demo" />
+  <img src="./assets/banner.gif" alt="clog demo" />
 </p>
 
 ## Installation

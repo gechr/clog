@@ -1,0 +1,7 @@
+.content img {
+  cursor: zoom-in;
+}
+
+.medium-zoom-image--opened {
+  cursor: zoom-out;
+}

@@ -80,7 +80,7 @@ func TestFieldBuilderPercent(t *testing.T) {
 		{"zero", 0.0, 0.0},
 		{"one", 1.0, 1.0},
 		{"negative stored as-is", -0.10, -0.10},
-		{"over scale stored as-is", 1.50, 1.50},
+		{"over maximum stored as-is", 1.50, 1.50},
 	}
 
 	for _, tt := range tests {

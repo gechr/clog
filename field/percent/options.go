@@ -16,8 +16,8 @@ var reverse atomic.Bool
 // precision holds the decimal precision for formatting.
 var precision atomic.Int32
 
-// scale holds the percent scale. A nil pointer means the default (1.0).
-var scale atomic.Pointer[float64]
+// maximum holds the percent maximum. A nil pointer means the default (1.0).
+var maximum atomic.Pointer[float64]
 
 // Percent is the value type for percent fields.
 type Percent = core.Percent
@@ -32,6 +32,15 @@ type Option func(*Percent)
 func WithReverseGradient() Option {
 	return func(p *Percent) {
 		p.Reverse = true
+	}
+}
+
+// WithMaximum returns an [Option] that overrides the global percent maximum
+// for this field. For example, use WithMaximum(100) when passing values
+// in the 0–100 range instead of the default 0–1 range.
+func WithMaximum(m float64) Option {
+	return func(p *Percent) {
+		p.Maximum = &m
 	}
 }
 
@@ -67,19 +76,27 @@ func SetPrecision(n int) {
 	precision.Store(int32(n)) //nolint:gosec // precision is a small positive integer
 }
 
-// SetScale sets the percent scale. The default is 1.0, meaning percent
+// SetMaximum sets the percent maximum. The default is 1.0, meaning percent
 // values are passed as fractions (e.g. 0.75 → "75%"). Set to 100 for
-// legacy 0–100 input (e.g. 75 → "75%").
-func SetScale(s float64) {
-	scale.Store(&s)
+// 0–100 input (e.g. 75 → "75%").
+func SetMaximum(m float64) {
+	maximum.Store(&m)
 }
 
-// Scale returns the current percent scale (default 1.0).
-func Scale() float64 {
-	if p := scale.Load(); p != nil {
+// Maximum returns the current global percent maximum (default 1.0).
+func Maximum() float64 {
+	if p := maximum.Load(); p != nil {
 		return *p
 	}
 	return 1
+}
+
+// EffectiveMaximum returns the per-field maximum if set, otherwise the global maximum.
+func EffectiveMaximum(p Percent) float64 {
+	if p.Maximum != nil {
+		return *p.Maximum
+	}
+	return Maximum()
 }
 
 // FormatFunc returns the current custom format function, or nil if using default.
@@ -107,7 +124,7 @@ type Snapshot struct {
 	formatFunc *func(float64) string
 	reverse    bool
 	precision  int32
-	scale      *float64
+	maximum    *float64
 }
 
 // Save captures the current percent configuration so it can be
@@ -120,7 +137,7 @@ func Save() Snapshot {
 		formatFunc: formatFunc.Load(),
 		reverse:    reverse.Load(),
 		precision:  precision.Load(),
-		scale:      scale.Load(),
+		maximum:    maximum.Load(),
 	}
 }
 
@@ -129,5 +146,5 @@ func Restore(s Snapshot) {
 	formatFunc.Store(s.formatFunc)
 	reverse.Store(s.reverse)
 	precision.Store(s.precision)
-	scale.Store(s.scale)
+	maximum.Store(s.maximum)
 }

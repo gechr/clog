@@ -1187,7 +1187,7 @@ func TestEventPercentClamping(t *testing.T) {
 
 	high, ok := e.fields[1].Value.(core.Percent)
 	require.True(t, ok)
-	assert.InDelta(t, 1.0, high.Value, 0, "over scale should clamp to scale")
+	assert.InDelta(t, 1.0, high.Value, 0, "anything beyond the maximum should clamp to the maximum")
 }
 
 func TestEventPercentOutput(t *testing.T) {
