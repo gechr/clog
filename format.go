@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/json"
 	"github.com/gechr/clog/field/percent"
@@ -120,9 +121,19 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		var customFormatted bool
 		switch val := f.Value.(type) {
 		case core.ElapsedField:
-			if fn := elapsed.FormatFunc(); fn != nil {
+			fn := elapsed.FormatFunc()
+			if fn == nil {
+				fn = duration.FormatFunc()
+			}
+			if fn != nil {
 				valStr = fn(time.Duration(val))
 				kind = kindElapsed
+				customFormatted = true
+			}
+		case time.Duration:
+			if fn := duration.FormatFunc(); fn != nil {
+				valStr = fn(val)
+				kind = kindDuration
 				customFormatted = true
 			}
 		case core.Percent:

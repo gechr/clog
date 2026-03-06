@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 )
@@ -70,10 +71,14 @@ func formatBoolSlice(vals []bool, styles *style.Config) string {
 // formatDurationSlice formats a [time.Duration] slice with comma separation.
 // When styles is non-nil, individual elements are styled via [styleDuration].
 func formatDurationSlice(vals []time.Duration, styles *style.Config) string {
+	stringify := time.Duration.String
+	if fn := duration.FormatFunc(); fn != nil {
+		stringify = fn
+	}
 	return formatSlice(
 		vals,
 		styles,
-		time.Duration.String,
+		stringify,
 		func(_ time.Duration, s string, st *style.Config) string {
 			if st == nil {
 				return ""

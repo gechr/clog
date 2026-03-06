@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
@@ -2133,6 +2134,97 @@ func TestFormatFieldsSortNone(t *testing.T) {
 		{Key: "a", Value: "1"},
 	}, opts)
 	assert.Equal(t, " c=3 a=1", got)
+}
+
+func TestDurationFormatFunc(t *testing.T) {
+	snap := duration.Save()
+	t.Cleanup(func() { duration.Restore(snap) })
+
+	duration.SetFormatFunc(func(d time.Duration) string {
+		return "~" + d.Truncate(time.Second).String()
+	})
+
+	opts := formatFieldsOpts{noColor: true}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: 3456 * time.Millisecond},
+	}, opts)
+	assert.Equal(t, " took=~3s", got)
+}
+
+func TestDurationFormatFuncAppliesSlice(t *testing.T) {
+	snap := duration.Save()
+	t.Cleanup(func() { duration.Restore(snap) })
+
+	duration.SetFormatFunc(func(d time.Duration) string {
+		return d.Truncate(time.Second).String() + "!"
+	})
+
+	opts := formatFieldsOpts{noColor: true}
+
+	got := formatFields([]Field{
+		{Key: "times", Value: []time.Duration{time.Second, 2 * time.Second}},
+	}, opts)
+	assert.Equal(t, " times=[1s!, 2s!]", got)
+}
+
+func TestDurationFormatFuncFallbackForElapsed(t *testing.T) {
+	snap := duration.Save()
+	t.Cleanup(func() { duration.Restore(snap) })
+
+	duration.SetFormatFunc(func(d time.Duration) string {
+		return "dur:" + d.Truncate(time.Second).String()
+	})
+	elapsed.SetMinimum(0)
+	elapsed.SetRound(0)
+	t.Cleanup(func() {
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetRound(time.Second)
+	})
+
+	opts := formatFieldsOpts{noColor: true}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: core.ElapsedField(3456 * time.Millisecond)},
+	}, opts)
+	assert.Equal(t, " took=dur:3s", got)
+}
+
+func TestDurationFormatFuncElapsedSpecificOverrides(t *testing.T) {
+	// elapsed.SetFormatFunc takes priority over duration.SetFormatFunc for elapsed fields.
+	dsnap := duration.Save()
+	t.Cleanup(func() { duration.Restore(dsnap) })
+
+	duration.SetFormatFunc(func(d time.Duration) string { return "dur:" + d.String() })
+	elapsed.SetFormatFunc(func(d time.Duration) string { return "ela:" + d.String() })
+	elapsed.SetMinimum(0)
+	elapsed.SetRound(0)
+	t.Cleanup(func() {
+		elapsed.SetFormatFunc(nil)
+		elapsed.SetMinimum(time.Second)
+		elapsed.SetRound(time.Second)
+	})
+
+	opts := formatFieldsOpts{noColor: true}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: core.ElapsedField(3 * time.Second)},
+	}, opts)
+	assert.Equal(t, " took=ela:3s", got)
+}
+
+func TestDurationFormatFuncNilFallsBack(t *testing.T) {
+	// duration.FormatFunc is nil - plain Duration fields should use val.String().
+	snap := duration.Save()
+	t.Cleanup(func() { duration.Restore(snap) })
+	duration.SetFormatFunc(nil)
+
+	opts := formatFieldsOpts{noColor: true}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: 3200 * time.Millisecond},
+	}, opts)
+	assert.Equal(t, " took=3.2s", got)
 }
 
 func TestElapsedFormatFunc(t *testing.T) {

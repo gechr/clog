@@ -3,11 +3,18 @@ package clog
 import (
 	"time"
 
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/hyperlink"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/field/quantity"
 )
+
+// SetDurationFormatFunc sets the duration format function for all loggers (process-global).
+// It applies to both [Event.Duration] fields and [Event.Elapsed] fields.
+// For elapsed fields, [SetElapsedFormatFunc] takes priority when both are set.
+// Delegates to [duration.SetFormatFunc].
+func SetDurationFormatFunc(fn func(time.Duration) string) { duration.SetFormatFunc(fn) }
 
 // SetElapsedFormatFunc sets the elapsed format function for all loggers (process-global).
 // Delegates to [elapsed.SetFormatFunc].
