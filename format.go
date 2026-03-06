@@ -443,7 +443,7 @@ func styleValue(
 			return styles.FieldError.Render(valStr)
 		}
 	case kindDuration:
-		if styled := styleDuration(valStr, styles); styled != "" {
+		if styled := styleDuration(valStr, originalValue, styles); styled != "" {
 			return styled
 		}
 	case kindElapsed:

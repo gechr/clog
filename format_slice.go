@@ -79,11 +79,11 @@ func formatDurationSlice(vals []time.Duration, styles *style.Config) string {
 		vals,
 		styles,
 		stringify,
-		func(_ time.Duration, s string, st *style.Config) string {
+		func(v time.Duration, s string, st *style.Config) string {
 			if st == nil {
 				return ""
 			}
-			return styleDuration(s, st)
+			return styleDuration(s, v, st)
 		},
 	)
 }
@@ -272,7 +272,7 @@ func styleAnyElement(
 			return styles.FieldError.Render(s)
 		}
 	case kindDuration:
-		if styled := styleDuration(s, styles); styled != "" {
+		if styled := styleDuration(s, originalValue, styles); styled != "" {
 			return styled
 		}
 	case kindElapsed:

@@ -1644,11 +1644,11 @@ func TestStyleDurationThreshold(t *testing.T) {
 	}
 
 	// 45s exceeds 30s threshold.
-	got := styleDuration("45s", styles)
+	got := styleDuration("45s", time.Duration(0), styles)
 	assert.Equal(t, redNum.Render("45")+redUnit.Render("s"), got)
 
 	// 5s does not exceed threshold - uses default.
-	got = styleDuration("5s", styles)
+	got = styleDuration("5s", time.Duration(0), styles)
 	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
 }
 

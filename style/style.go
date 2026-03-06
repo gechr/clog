@@ -59,10 +59,20 @@ type Config struct {
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]
 	DividerTitle *lipgloss.Style
+	// Gradient stops for Duration fields (default: green -> yellow -> red).
+	// Active only when [duration.GradientMax] > 0; overrides FieldDurationNumber/FieldDurationUnit.
+	DurationGradient []ColorStop
+	// How duration gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
+	DurationGradientMode GradientMode
 	// Duration unit -> thresholds (evaluated high->low).
 	DurationThresholds ThresholdMap
 	// Duration unit -> style override (e.g. "s" -> yellow).
 	DurationUnits Map
+	// Gradient stops for Elapsed fields (default: green -> yellow -> red).
+	// Active only when [elapsed.GradientMax] > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
+	ElapsedGradient []ColorStop
+	// How elapsed gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
+	ElapsedGradientMode GradientMode
 	// Style for the numeric segments of duration values (e.g. "1" in "1m30s") [nil = plain text]
 	FieldDurationNumber *lipgloss.Style
 	// Style for the unit segments of duration values (e.g. "m" in "1m30s") [nil = plain text]
@@ -71,11 +81,6 @@ type Config struct {
 	FieldElapsedNumber *lipgloss.Style
 	// Style for the unit segments of elapsed-time values [nil = falls back to FieldDurationUnit]
 	FieldElapsedUnit *lipgloss.Style
-	// Gradient stops for Elapsed fields (default: green -> yellow -> red).
-	// Active only when [elapsed.GradientMax] > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
-	ElapsedGradient []ColorStop
-	// How elapsed gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
-	ElapsedGradientMode GradientMode
 	// Style for error field values [nil = plain text]
 	FieldError *lipgloss.Style
 	// Per-token styles for JSON syntax highlighting.

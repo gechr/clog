@@ -64,6 +64,7 @@ func Default() *Config {
 				Bold(true).
 				Foreground(lipgloss.Color("1"))), // red
 		},
+		DurationGradient:   DefaultElapsedGradient(),
 		DurationThresholds: make(ThresholdMap),
 		DurationUnits:      make(Map),
 		Messages:           DefaultMessages(),

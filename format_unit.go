@@ -7,6 +7,7 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
@@ -15,9 +16,15 @@ import (
 )
 
 // styleDuration renders a duration string (from [time.Duration.String]) with
-// separate styles for numeric and unit segments using [style.Config.FieldDurationNumber]
-// and [style.Config.FieldDurationUnit]. Returns "" when both styles are nil.
-func styleDuration(s string, styles *style.Config) string {
+// gradient coloring when active ([style.Config.DurationGradient] non-empty and
+// [duration.GradientMax] > 0), otherwise with separate styles for numeric and
+// unit segments using [style.Config.FieldDurationNumber] and
+// [style.Config.FieldDurationUnit]. Returns "" when no styles apply.
+func styleDuration(s string, originalValue any, styles *style.Config) string {
+	if styled := styleDurationGradient(s, originalValue, styles); styled != "" {
+		return styled
+	}
+
 	return styleNumberUnit(
 		s,
 		styles.FieldDurationNumber,
@@ -26,6 +33,39 @@ func styleDuration(s string, styles *style.Config) string {
 		styles.DurationThresholds,
 		true,
 	)
+}
+
+// styleDurationGradient colors the entire duration string based on value/max.
+// Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
+func styleDurationGradient(s string, originalValue any, styles *style.Config) string {
+	if len(styles.DurationGradient) == 0 {
+		return ""
+	}
+
+	gm := duration.GradientMax()
+	if gm <= 0 {
+		return ""
+	}
+
+	d, ok := originalValue.(time.Duration)
+	if !ok {
+		return ""
+	}
+
+	t := core.Clamp01(float64(d) / float64(gm))
+
+	var c colorful.Color
+	switch {
+	case len(styles.DurationGradient) == 1:
+		c = styles.DurationGradient[0].Color
+	case styles.DurationGradientMode == style.GradientStep:
+		c = style.StepGradient(t, styles.DurationGradient)
+	default:
+		c = style.InterpolateGradient(t, styles.DurationGradient)
+	}
+
+	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+	return ls.Render(s)
 }
 
 // styleElapsed renders an elapsed-time string. When the elapsed gradient is

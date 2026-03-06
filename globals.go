@@ -20,6 +20,11 @@ func SetDurationFormatFunc(fn func(time.Duration) string) { duration.SetFormatFu
 // Delegates to [elapsed.SetFormatFunc].
 func SetElapsedFormatFunc(fn func(time.Duration) string) { elapsed.SetFormatFunc(fn) }
 
+// SetDurationGradientMax sets the max duration for Duration field gradient coloring (process-global).
+// The gradient maps 0 → max onto the configured color stops; 0 disables the gradient.
+// Delegates to [duration.SetGradientMax].
+func SetDurationGradientMax(d time.Duration) { duration.SetGradientMax(d) }
+
 // SetElapsedGradientMax sets the max duration for elapsed gradient coloring (process-global).
 // The gradient maps 0 → max onto the configured color stops; 0 disables the gradient.
 // Delegates to [elapsed.SetGradientMax].
