@@ -175,6 +175,18 @@ func (e *Event) Errs(key string, vals []error) *Event {
 	return e
 }
 
+// AnErr adds an error as a keyed field. No-op if err is nil.
+// Unlike [Event.Err], this does not interact with [Event.Send] or [Event.Msg]
+// semantics - the error is simply added as a regular field with the given key.
+func (e *Event) AnErr(key string, err error) *Event {
+	if e == nil || err == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: err})
+	return e
+}
+
 // Err attaches an error to the event. No-op if err is nil.
 //
 // If the event is finalised with [Event.Send], the error message becomes the

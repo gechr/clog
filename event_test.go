@@ -310,6 +310,22 @@ func TestEventDictOutput(t *testing.T) {
 	assert.Equal(t, "INF ℹ️ handled req.method=GET req.status=200\n", buf.String())
 }
 
+func TestEventAnErr(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	l.Error().AnErr("cause", errors.New("timeout")).Msg("failed")
+
+	assert.Equal(t, "ERR ❌ failed cause=timeout\n", buf.String())
+}
+
+func TestEventAnErrNil(t *testing.T) {
+	e := NewWriter(io.Discard).Info()
+	result := e.AnErr("cause", nil)
+
+	assert.Same(t, e, result)
+	assert.Empty(t, e.fields)
+}
+
 func TestEventErr(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	err := errors.New("boom")

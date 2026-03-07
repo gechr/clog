@@ -74,6 +74,15 @@ func (fb *FieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
 	return fb.Self
 }
 
+// AnErr adds an error as a keyed field. No-op if err is nil.
+func (fb *FieldBuilder[T]) AnErr(key string, err error) *T {
+	if err == nil {
+		return fb.Self
+	}
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: err})
+	return fb.Self
+}
+
 // Err adds an error field with key "error". No-op if err is nil.
 func (fb *FieldBuilder[T]) Err(err error) *T {
 	if err == nil {
