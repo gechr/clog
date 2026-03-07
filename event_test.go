@@ -139,8 +139,7 @@ func TestEventLinkColorAlways(t *testing.T) {
 
 	val, ok := e.fields[0].Value.(string)
 	require.True(t, ok)
-	assert.Contains(t, val, "\x1b]8;;https://example.com")
-	assert.Contains(t, val, "docs")
+	assert.Equal(t, "\x1b]8;;https://example.com\x1b\\docs\x1b]8;;\x1b\\", val)
 }
 
 func TestEventURL(t *testing.T) {
@@ -350,7 +349,7 @@ func TestEventErrSendUsesErrorAsMessage(t *testing.T) {
 	l.Error().Err(errors.New("connection refused")).Send()
 
 	got := buf.String()
-	assert.Contains(t, got, "connection refused")
+	assert.Equal(t, "ERR ❌ connection refused\n", got)
 	assert.NotContains(t, got, "error=")
 }
 
@@ -360,8 +359,7 @@ func TestEventErrMsgAddsErrorField(t *testing.T) {
 	l.Error().Err(errors.New("connection refused")).Msg("an error occurred")
 
 	got := buf.String()
-	assert.Contains(t, got, "an error occurred")
-	assert.Contains(t, got, `error="connection refused"`)
+	assert.Equal(t, "ERR ❌ an error occurred error=\"connection refused\"\n", got)
 }
 
 func TestEventErrMsgfAddsErrorField(t *testing.T) {
@@ -370,8 +368,7 @@ func TestEventErrMsgfAddsErrorField(t *testing.T) {
 	l.Error().Err(errors.New("connection refused")).Msgf("failed after %d retries", 3)
 
 	got := buf.String()
-	assert.Contains(t, got, "failed after 3 retries")
-	assert.Contains(t, got, `error="connection refused"`)
+	assert.Equal(t, "ERR ❌ failed after 3 retries error=\"connection refused\"\n", got)
 }
 
 func TestEventErrSendPreservesFields(t *testing.T) {
@@ -380,8 +377,7 @@ func TestEventErrSendPreservesFields(t *testing.T) {
 	l.Error().Err(errors.New("connection refused")).Str("host", "db1").Send()
 
 	got := buf.String()
-	assert.Contains(t, got, "connection refused")
-	assert.Contains(t, got, `host=db1`)
+	assert.Equal(t, "ERR ❌ connection refused host=db1\n", got)
 	assert.NotContains(t, got, "error=")
 }
 
@@ -401,7 +397,7 @@ func TestEventJSONAppearsUnquotedInOutput(t *testing.T) {
 	l.Info().JSON("resp", map[string]any{"detail": "ok"}).Msg("done")
 
 	got := buf.String()
-	assert.Contains(t, got, `resp={"detail":"ok"}`)
+	assert.Equal(t, "INF ℹ️ done resp={\"detail\":\"ok\"}\n", got)
 	assert.NotContains(t, got, `resp="{`)
 }
 
@@ -436,7 +432,7 @@ func TestEventRawJSONAppearsUnquotedInOutput(t *testing.T) {
 	l.Info().RawJSON("error", []byte(`{"detail":"something went wrong"}`)).Msg("request failed")
 
 	got := buf.String()
-	assert.Contains(t, got, `error={"detail":"something went wrong"}`)
+	assert.Equal(t, "INF ℹ️ request failed error={\"detail\":\"something went wrong\"}\n", got)
 	assert.NotContains(t, got, `error="{`)
 }
 
@@ -448,8 +444,7 @@ func TestEventRawJSONHighlighted(t *testing.T) {
 		Number: new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6"))),
 	}
 	result := json.Highlight(`{"n":1}`, styles)
-	assert.Contains(t, result, styles.Number.Render("1"))
-	assert.Contains(t, result, `"n"`) // key unstyled (no Key style set)
+	assert.Equal(t, "{\"n\":\x1b[38;2;255;121;198m1\x1b[m}", result)
 }
 
 func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
@@ -462,7 +457,7 @@ func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
 
 	got := buf.String()
 	// The raw JSON value itself should appear verbatim (no per-token styling).
-	assert.Contains(t, got, `{"n":1}`)
+	assert.Equal(t, "\x1b[1;32mINF\x1b[m ℹ️ ok \x1b[34mdata\x1b[m\x1b[2m=\x1b[m{\"n\":1}\n", got)
 }
 
 func TestEventRawJSONUnquoted(t *testing.T) {
@@ -475,9 +470,7 @@ func TestEventRawJSONUnquoted(t *testing.T) {
 
 	got := buf.String()
 	// JSON content is present and unquoted
-	assert.Contains(t, got, `"key"`)
-	assert.Contains(t, got, `"val"`)
-	assert.Contains(t, got, "null")
+	assert.Equal(t, "INF ℹ️ ok data={\"key\":\"val\",\"n\":1,\"ok\":true,\"x\":null}\n", got)
 	assert.NotContains(t, got, `data="{`, "JSON should not be quoted")
 }
 
@@ -1118,7 +1111,7 @@ func TestEventParts(t *testing.T) {
 		l.Info().Parts(PartMessage).Msg("first")
 		buf.Reset()
 		l.Info().Msg("second")
-		assert.Contains(t, buf.String(), "INF")
+		assert.Equal(t, "INF ℹ️ second\n", buf.String())
 	})
 
 	t.Run("nil_receiver", func(t *testing.T) {
@@ -1303,7 +1296,7 @@ func TestEventEmptyFieldKey(t *testing.T) {
 	l := New(TestOutput(&buf))
 	l.Info().Str("", "value").Msg("test")
 
-	assert.Contains(t, buf.String(), "=value")
+	assert.Equal(t, "INF ℹ️ test =value\n", buf.String())
 }
 
 func TestEventMsgFatalCallsExit(t *testing.T) {

@@ -3,7 +3,9 @@ package sloghandler_test
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"log/slog"
+	"runtime"
 	"strings"
 	"testing"
 	"testing/slogtest"
@@ -101,36 +103,35 @@ func TestHandle(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "hello world")
-	assert.Contains(t, output, "key")
-	assert.Contains(t, output, "val")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ hello world key=val\n", output)
 }
 
 func TestAttrConversion(t *testing.T) {
 	tests := []struct {
 		name string
 		attr slog.Attr
-		want string // substring to find in output
+		want string
 	}{
-		{"string", slog.String("k", "v"), "k=v"},
-		{"int64", slog.Int64("k", 42), "k=42"},
-		{"uint64", slog.Uint64("k", 99), "k=99"},
-		{"float64", slog.Float64("k", 3.14), "k=3.14"},
-		{"bool", slog.Bool("k", true), "k=true"},
-		{"duration", slog.Duration("k", 5*time.Second), "k=5s"},
+		{"string", slog.String("k", "v"), "2024-01-15T10:30:00Z INF ℹ️ test k=v\n"},
+		{"int64", slog.Int64("k", 42), "2024-01-15T10:30:00Z INF ℹ️ test k=42\n"},
+		{"uint64", slog.Uint64("k", 99), "2024-01-15T10:30:00Z INF ℹ️ test k=99\n"},
+		{"float64", slog.Float64("k", 3.14), "2024-01-15T10:30:00Z INF ℹ️ test k=3.14\n"},
+		{"bool", slog.Bool("k", true), "2024-01-15T10:30:00Z INF ℹ️ test k=true\n"},
+		{"duration", slog.Duration("k", 5*time.Second), "2024-01-15T10:30:00Z INF ℹ️ test k=5s\n"},
 	}
 
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			h := newTestHandler(&buf)
 
-			r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+			r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 			r.AddAttrs(tt.attr)
 			err := h.Handle(context.Background(), r)
 			require.NoError(t, err)
 
-			assert.Contains(t, buf.String(), tt.want)
+			assert.Equal(t, tt.want, buf.String())
 		})
 	}
 }
@@ -161,12 +162,13 @@ func TestWithGroup(t *testing.T) {
 
 	h = h.WithGroup("a").WithGroup("b")
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	r.AddAttrs(slog.String("key", "val"))
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
-	assert.Contains(t, buf.String(), "a.b.key=val")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test a.b.key=val\n", buf.String())
 }
 
 func TestWithGroupAndAttrs(t *testing.T) {
@@ -175,14 +177,14 @@ func TestWithGroupAndAttrs(t *testing.T) {
 
 	h = h.WithGroup("g").WithAttrs([]slog.Attr{slog.String("preset", "v1")})
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	r.AddAttrs(slog.String("dynamic", "v2"))
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "g.preset=v1")
-	assert.Contains(t, output, "g.dynamic=v2")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test g.preset=v1 g.dynamic=v2\n", output)
 }
 
 func TestWithGroupEmpty(t *testing.T) {
@@ -205,28 +207,45 @@ func TestEmptyAttrDropped(t *testing.T) {
 	var buf bytes.Buffer
 	h := newTestHandler(&buf)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	r.AddAttrs(slog.Attr{}) // empty attr
 	r.AddAttrs(slog.String("real", "val"))
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "real=val")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test real=val\n", output)
 }
 
 func TestAddSource(t *testing.T) {
 	var buf bytes.Buffer
 	l := clog.New(clog.TestOutput(&buf))
 	l.SetLevel(clog.LevelTrace)
+	l.SetReportTimestamp(true)
+	l.SetTimeFormat(time.RFC3339)
+	l.SetTimeLocation(time.UTC)
 	h := sloghandler.New(l, &sloghandler.Options{AddSource: true})
 
-	logger := slog.New(h)
-	logger.Info("with source")
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	var pcs [1]uintptr
+	runtime.Callers(1, pcs[:])
+	r := slog.NewRecord(ts, slog.LevelInfo, "with source", pcs[0])
+	err := h.Handle(context.Background(), r)
+	require.NoError(t, err)
 
+	frames := runtime.CallersFrames(pcs[:])
+	frame, _ := frames.Next()
 	output := buf.String()
-	assert.Contains(t, output, slog.SourceKey)
-	assert.Contains(t, output, "handler_test.go")
+	assert.Equal(
+		t,
+		fmt.Sprintf(
+			"2024-01-15T10:30:00Z INF ℹ️ with source source=%s:%d\n",
+			frame.File,
+			frame.Line,
+		),
+		output,
+	)
 }
 
 type testLogValuer struct {
@@ -241,18 +260,22 @@ func TestLogValuer(t *testing.T) {
 	var buf bytes.Buffer
 	h := newTestHandler(&buf)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	r.AddAttrs(slog.Any("resolved", testLogValuer{val: "inner"}))
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
-	assert.Contains(t, buf.String(), "resolved=inner")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test resolved=inner\n", buf.String())
 }
 
 func TestFatalLevelDoesNotExit(t *testing.T) {
 	var buf bytes.Buffer
 	l := clog.New(clog.TestOutput(&buf))
 	l.SetLevel(clog.LevelTrace)
+	l.SetReportTimestamp(true)
+	l.SetTimeFormat(time.RFC3339)
+	l.SetTimeLocation(time.UTC)
 
 	exited := false
 	l.SetExitFunc(func(int) { exited = true })
@@ -260,19 +283,21 @@ func TestFatalLevelDoesNotExit(t *testing.T) {
 	h := sloghandler.New(l, nil)
 
 	// slog.Level above Error maps to LevelFatal
-	r := slog.NewRecord(time.Now(), slog.LevelError+4, "should not exit", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelError+4, "should not exit", 0)
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
 	assert.False(t, exited, "slog handler should not trigger exit for fatal-level records")
-	assert.Contains(t, buf.String(), "should not exit")
+	assert.Equal(t, "2024-01-15T10:30:00Z FTL 💥 should not exit\n", buf.String())
 }
 
 func TestGroupAttr(t *testing.T) {
 	var buf bytes.Buffer
 	h := newTestHandler(&buf)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	r.AddAttrs(slog.Group("req",
 		slog.String("method", "GET"),
 		slog.Int("status", 200),
@@ -281,15 +306,15 @@ func TestGroupAttr(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "req.method=GET")
-	assert.Contains(t, output, "req.status=200")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test req.method=GET req.status=200\n", output)
 }
 
 func TestInlineGroupAttr(t *testing.T) {
 	var buf bytes.Buffer
 	h := newTestHandler(&buf)
 
-	r := slog.NewRecord(time.Now(), slog.LevelInfo, "test", 0)
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "test", 0)
 	// Empty key = inline group
 	r.AddAttrs(slog.Group("",
 		slog.String("a", "1"),
@@ -299,8 +324,7 @@ func TestInlineGroupAttr(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "a=1")
-	assert.Contains(t, output, "b=2")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ test a=1 b=2\n", output)
 }
 
 func TestTimestamp(t *testing.T) {
@@ -312,19 +336,24 @@ func TestTimestamp(t *testing.T) {
 	err := h.Handle(context.Background(), r)
 	require.NoError(t, err)
 
-	assert.Contains(t, buf.String(), "2024-06-15T14:30:00Z")
+	assert.Equal(t, "2024-06-15T14:30:00Z INF ℹ️ timestamped\n", buf.String())
 }
 
 func TestInterface(t *testing.T) {
 	var buf bytes.Buffer
 	l := clog.New(clog.TestOutput(&buf))
+	l.SetReportTimestamp(true)
+	l.SetTimeFormat(time.RFC3339)
+	l.SetTimeLocation(time.UTC)
 	h := sloghandler.New(l, nil)
 
-	logger := slog.New(h)
-	logger.Info("via slog", "key", "val")
+	ts := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "via slog", 0)
+	r.AddAttrs(slog.String("key", "val"))
+	err := h.Handle(context.Background(), r)
+	require.NoError(t, err)
 
-	assert.Contains(t, buf.String(), "via slog")
-	assert.Contains(t, buf.String(), "key=val")
+	assert.Equal(t, "2024-01-15T10:30:00Z INF ℹ️ via slog key=val\n", buf.String())
 }
 
 // setNested stores val in m at a potentially dot-separated key path,

@@ -77,7 +77,7 @@ func TestPulseDefaultSymbolInOutput(t *testing.T) {
 	})
 
 	require.NoError(t, result.TaskErr)
-	assert.Contains(t, buf.String(), "⏳")
+	assert.Equal(t, "INF ⏳ loading\n", buf.String())
 }
 
 func TestPulseCustomSymbolInOutput(t *testing.T) {
@@ -96,6 +96,5 @@ func TestPulseCustomSymbolInOutput(t *testing.T) {
 		})
 
 	require.NoError(t, result.TaskErr)
-	assert.Contains(t, buf.String(), "🔄")
-	assert.NotContains(t, buf.String(), "⏳")
+	assert.Equal(t, "INF 🔄 loading\n", buf.String())
 }

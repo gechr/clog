@@ -163,9 +163,7 @@ func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 		Silent()
 
 	out := buf.String()
-	assert.Contains(t, out, "file=release.tar.gz")
-	assert.NotContains(t, out, "progress=")
-	assert.NotContains(t, out, "elapsed=")
+	assert.Equal(t, "INF ⏳ downloading file=release.tar.gz\n", out)
 }
 
 func TestBarStyleWidgetRight(_ *testing.T) {

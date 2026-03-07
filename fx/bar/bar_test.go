@@ -384,12 +384,11 @@ func TestRenderBarProgressGradient(t *testing.T) {
 
 	// 50%: filled cells present, gradient should produce ANSI colored output
 	result50 := bar.Render(50, 100, s, 0)
-	assert.Contains(t, result50, "\x1b[", "50%% bar should contain ANSI escape sequences")
-	assert.Contains(t, result50, "█", "50%% bar should contain filled characters")
+	assert.Equal(t, "[\x1b[38;2;255;255;0m█████\x1b[m     ]", result50)
 
 	// 100%: all filled, gradient should produce ANSI colored output
 	result100 := bar.Render(100, 100, s, 0)
-	assert.Contains(t, result100, "\x1b[", "100%% bar should contain ANSI escape sequences")
+	assert.Equal(t, "[\x1b[38;2;0;255;0m██████████\x1b[m]", result100)
 
 	// Verify the colors differ between 10% and 90% progress.
 	// At low progress the gradient is red; at high progress it's green.
