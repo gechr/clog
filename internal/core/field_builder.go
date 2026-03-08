@@ -74,6 +74,15 @@ func (fb *FieldBuilder[T]) Durations(key string, vals []time.Duration) *T {
 	return fb.Self
 }
 
+// AnErr adds an error as a keyed field. No-op if err is nil.
+func (fb *FieldBuilder[T]) AnErr(key string, err error) *T {
+	if err == nil {
+		return fb.Self
+	}
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: err})
+	return fb.Self
+}
+
 // Err adds an error field with key "error". No-op if err is nil.
 func (fb *FieldBuilder[T]) Err(err error) *T {
 	if err == nil {
@@ -90,9 +99,21 @@ func (fb *FieldBuilder[T]) Errs(key string, vals []error) *T {
 	return fb.Self
 }
 
+// Float32 adds a float32 field.
+func (fb *FieldBuilder[T]) Float32(key string, val float32) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
 // Float64 adds a float64 field.
 func (fb *FieldBuilder[T]) Float64(key string, val float64) *T {
 	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Floats32 adds a float32 slice field.
+func (fb *FieldBuilder[T]) Floats32(key string, vals []float32) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
 	return fb.Self
 }
 
@@ -114,6 +135,24 @@ func (fb *FieldBuilder[T]) Int(key string, val int) *T {
 	return fb.Self
 }
 
+// Int8 adds an int8 field.
+func (fb *FieldBuilder[T]) Int8(key string, val int8) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Int16 adds an int16 field.
+func (fb *FieldBuilder[T]) Int16(key string, val int16) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Int32 adds an int32 field.
+func (fb *FieldBuilder[T]) Int32(key string, val int32) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
 // Int64 adds an int64 field.
 func (fb *FieldBuilder[T]) Int64(key string, val int64) *T {
 	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
@@ -122,6 +161,24 @@ func (fb *FieldBuilder[T]) Int64(key string, val int64) *T {
 
 // Ints adds an int slice field.
 func (fb *FieldBuilder[T]) Ints(key string, vals []int) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Ints8 adds an int8 slice field.
+func (fb *FieldBuilder[T]) Ints8(key string, vals []int8) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Ints16 adds an int16 slice field.
+func (fb *FieldBuilder[T]) Ints16(key string, vals []int16) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Ints32 adds an int32 slice field.
+func (fb *FieldBuilder[T]) Ints32(key string, vals []int32) *T {
 	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
 	return fb.Self
 }
@@ -226,8 +283,37 @@ func (fb *FieldBuilder[T]) Times(key string, vals []time.Time) *T {
 	return fb.Self
 }
 
+// TimeDiff adds the field key with the duration between t and start.
+// If t is not after start, the duration is zero.
+func (fb *FieldBuilder[T]) TimeDiff(key string, t, start time.Time) *T {
+	var d time.Duration
+	if t.After(start) {
+		d = t.Sub(start)
+	}
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: d})
+	return fb.Self
+}
+
 // Uint adds a uint field.
 func (fb *FieldBuilder[T]) Uint(key string, val uint) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Uint8 adds a uint8 field.
+func (fb *FieldBuilder[T]) Uint8(key string, val uint8) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Uint16 adds a uint16 field.
+func (fb *FieldBuilder[T]) Uint16(key string, val uint16) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+	return fb.Self
+}
+
+// Uint32 adds a uint32 field.
+func (fb *FieldBuilder[T]) Uint32(key string, val uint32) *T {
 	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
 	return fb.Self
 }
@@ -240,6 +326,24 @@ func (fb *FieldBuilder[T]) Uint64(key string, val uint64) *T {
 
 // Uints adds a uint slice field.
 func (fb *FieldBuilder[T]) Uints(key string, vals []uint) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Uints8 adds a uint8 slice field.
+func (fb *FieldBuilder[T]) Uints8(key string, vals []uint8) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Uints16 adds a uint16 slice field.
+func (fb *FieldBuilder[T]) Uints16(key string, vals []uint16) *T {
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
+	return fb.Self
+}
+
+// Uints32 adds a uint32 slice field.
+func (fb *FieldBuilder[T]) Uints32(key string, vals []uint32) *T {
 	fb.Fields = append(fb.Fields, Field{Key: key, Value: vals})
 	return fb.Self
 }

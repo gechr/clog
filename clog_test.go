@@ -593,8 +593,7 @@ func TestSymbolStyle(t *testing.T) {
 
 	got := buf.String()
 	// The symbol should appear styled (contain ANSI escapes), not bare.
-	assert.Contains(t, got, "warning")
-	assert.Contains(t, got, "\x1b[") // ANSI escape present
+	assert.Equal(t, "\x1b[1;32mINF\x1b[m \x1b[1;33mwarning\x1b[m hello\n", got)
 }
 
 func TestSymbolStyleNoColor(t *testing.T) {
@@ -903,9 +902,11 @@ func TestLogFormattedOutputColored(t *testing.T) {
 	got := buf.String()
 
 	// With colors enabled, output should contain ANSI escape codes.
-	assert.Contains(t, got, "hello")
-	assert.Contains(t, got, "k")
-	assert.True(t, strings.HasSuffix(got, "\n"))
+	assert.Equal(
+		t,
+		"\x1b[1;32mINF\x1b[m ℹ️ hello \x1b[34mk\x1b[m\x1b[2m=\x1b[m\x1b[97mv\x1b[m\n",
+		got,
+	)
 }
 
 func TestLogFormattedOutputColoredWithTimestamp(t *testing.T) {
@@ -965,7 +966,7 @@ func TestLogEmptyMessageNoDoubleSpace(t *testing.T) {
 	// Should not have double space between symbol and field.
 	assert.NotContains(t, got, "  status")
 	// Should contain the field directly after the symbol.
-	assert.Contains(t, got, "status=ok")
+	assert.Equal(t, "INF ℹ️ status=ok\n", got)
 }
 
 func TestLogEmptyMessageNoFieldsNoTrailingSpace(t *testing.T) {
@@ -989,7 +990,7 @@ func TestLogWithMessageHasSpace(t *testing.T) {
 	got := buf.String()
 
 	// Message should be separated from symbol and fields.
-	assert.Contains(t, got, "ℹ️ hello k=v")
+	assert.Equal(t, "INF ℹ️ hello k=v\n", got)
 }
 
 func TestSetParts(t *testing.T) {
@@ -1744,7 +1745,7 @@ func TestSetOutput(t *testing.T) {
 
 	Default.Info().Msg("test")
 
-	assert.Contains(t, buf.String(), "test")
+	assert.Equal(t, "INF ℹ️ test\n", buf.String())
 }
 
 func TestParseLevel(t *testing.T) {
@@ -1874,7 +1875,7 @@ func TestSetElapsedFormatFunc(t *testing.T) {
 
 	l.Info().Msg("test")
 
-	assert.Contains(t, buf.String(), "took=custom:3s")
+	assert.Equal(t, "INF ℹ️ test took=custom:3s\n", buf.String())
 }
 
 func TestSetElapsedMinimum(t *testing.T) {
@@ -1912,7 +1913,7 @@ func TestSetElapsedMinimum(t *testing.T) {
 
 		l.Info().Msg("test")
 
-		assert.Contains(t, buf.String(), "took=")
+		assert.Equal(t, "INF ℹ️ test took=2s\n", buf.String())
 	})
 
 	t.Run("zero_shows_all", func(t *testing.T) {
@@ -1928,7 +1929,7 @@ func TestSetElapsedMinimum(t *testing.T) {
 
 		l.Info().Msg("test")
 
-		assert.Contains(t, buf.String(), "took=")
+		assert.Equal(t, "INF ℹ️ test took=100ms\n", buf.String())
 	})
 }
 
@@ -1953,7 +1954,7 @@ func TestSetElapsedPrecision(t *testing.T) {
 
 		l.Info().Msg("test")
 
-		assert.Contains(t, buf.String(), "took=3s")
+		assert.Equal(t, "INF ℹ️ test took=3s\n", buf.String())
 	})
 
 	t.Run("precision_1", func(t *testing.T) {
@@ -1970,7 +1971,7 @@ func TestSetElapsedPrecision(t *testing.T) {
 
 		l.Info().Msg("test")
 
-		assert.Contains(t, buf.String(), "took=3.2s")
+		assert.Equal(t, "INF ℹ️ test took=3.2s\n", buf.String())
 	})
 }
 
@@ -1994,7 +1995,7 @@ func TestSetElapsedRound(t *testing.T) {
 	l.Info().Msg("test")
 
 	// 2600ms rounds to 3s.
-	assert.Contains(t, buf.String(), "took=3s")
+	assert.Equal(t, "INF ℹ️ test took=3s\n", buf.String())
 }
 
 func TestSetFieldSort(t *testing.T) {
@@ -2037,7 +2038,7 @@ func TestSetPercentFormatFunc(t *testing.T) {
 
 	l.Info().Percent("progress", 0.75).Msg("test")
 
-	assert.Contains(t, buf.String(), "progress=pct:75%")
+	assert.Equal(t, "INF ℹ️ test progress=pct:75%\n", buf.String())
 }
 
 func TestSetPercentPrecision(t *testing.T) {
@@ -2050,7 +2051,7 @@ func TestSetPercentPrecision(t *testing.T) {
 		percent.SetPrecision(0)
 		l.Info().Percent("progress", 0.75).Msg("test")
 
-		assert.Contains(t, buf.String(), "progress=75%")
+		assert.Equal(t, "INF ℹ️ test progress=75%\n", buf.String())
 	})
 
 	t.Run("precision_1", func(t *testing.T) {
@@ -2060,7 +2061,7 @@ func TestSetPercentPrecision(t *testing.T) {
 		percent.SetPrecision(1)
 		l.Info().Percent("progress", 0.75).Msg("test")
 
-		assert.Contains(t, buf.String(), "progress=75.0%")
+		assert.Equal(t, "INF ℹ️ test progress=75.0%\n", buf.String())
 	})
 }
 
@@ -2082,8 +2083,7 @@ func TestSetSeparatorText(t *testing.T) {
 	l.SetSeparatorText(": ")
 	l.Info().Str("key", "val").Msg("test")
 
-	assert.Contains(t, buf.String(), "key: val")
-	assert.NotContains(t, buf.String(), "key=val")
+	assert.Equal(t, "INF ℹ️ test key: val\n", buf.String())
 }
 
 func TestPackageLevelSetElapsedFormatFunc(t *testing.T) {
@@ -2338,7 +2338,7 @@ func TestRegisterLevelFiltering(t *testing.T) {
 	// Custom level (1) should be visible at LevelInfo (0).
 	l.SetLevel(LevelInfo)
 	l.Log(testLevel).Msg("visible")
-	assert.Contains(t, buf.String(), "visible")
+	assert.Equal(t, "SCS visible\n", buf.String())
 
 	// Custom level (1) should be hidden at LevelWarn (5).
 	buf.Reset()

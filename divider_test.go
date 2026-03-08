@@ -25,10 +25,11 @@ func TestDividerTitle(t *testing.T) {
 	l.Divider().Msg("Build")
 
 	got := buf.String()
-	assert.Contains(t, got, "Build")
-	assert.Contains(t, got, "─")
-	// Title should be padded with spaces.
-	assert.Contains(t, got, " Build ")
+	assert.Equal(
+		t,
+		"─── Build ──────────────────────────────────────────────────────────────────────\n",
+		got,
+	)
 }
 
 func TestDividerTitleAlignLeft(t *testing.T) {
@@ -88,9 +89,11 @@ func TestDividerCustomCharWithTitle(t *testing.T) {
 	l.Divider().Char('═').Msg("Section")
 
 	got := buf.String()
-	assert.Contains(t, got, "═")
-	assert.Contains(t, got, "Section")
-	assert.NotContains(t, got, "─")
+	assert.Equal(
+		t,
+		"═══ Section ════════════════════════════════════════════════════════════════════\n",
+		got,
+	)
 }
 
 func TestDividerWidthFallback(t *testing.T) {
@@ -147,7 +150,7 @@ func TestDividerCustomWidthWithTitle(t *testing.T) {
 
 	got := strings.TrimRight(buf.String(), "\n")
 	assert.Len(t, []rune(got), 30)
-	assert.Contains(t, got, " Hi ")
+	assert.Equal(t, "─── Hi ───────────────────────", got)
 }
 
 func TestDividerPackageLevel(t *testing.T) {

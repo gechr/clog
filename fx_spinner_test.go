@@ -868,6 +868,7 @@ func TestRunAnimationNoColorWithTimestamp(t *testing.T) {
 
 	Default = New(TestOutput(&buf))
 	Default.SetReportTimestamp(true)
+	Default.SetTimeFormat("TIMESTAMP")
 
 	result := Spinner("loading").Wait(context.Background(), func(_ context.Context) error {
 		return nil
@@ -877,8 +878,7 @@ func TestRunAnimationNoColorWithTimestamp(t *testing.T) {
 
 	got := buf.String()
 	// Should contain the timestamp and the message with hourglass emoji.
-	assert.Contains(t, got, "⏳")
-	assert.Contains(t, got, "loading")
+	assert.Equal(t, "TIMESTAMP INF ⏳ loading\n", got)
 }
 
 func TestRunAnimationWithTimestamp(t *testing.T) {

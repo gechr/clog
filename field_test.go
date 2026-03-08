@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"bytes"
 	"errors"
 	"math"
 	"testing"
@@ -216,4 +217,143 @@ func TestFieldBuilderWhenChaining(t *testing.T) {
 	assert.Equal(t, "before", b.Fields[0].Key)
 	assert.Equal(t, "conditional", b.Fields[1].Key)
 	assert.Equal(t, "after", b.Fields[2].Key)
+}
+
+func TestFieldBuilderNarrowIntTypes(t *testing.T) {
+	b := Spinner("test").Int8("a", 1).Int16("b", 2).Int32("c", 3)
+
+	require.Len(t, b.Fields, 3)
+	assert.Equal(t, int8(1), b.Fields[0].Value)
+	assert.Equal(t, int16(2), b.Fields[1].Value)
+	assert.Equal(t, int32(3), b.Fields[2].Value)
+}
+
+func TestFieldBuilderNarrowIntSliceTypes(t *testing.T) {
+	b := Spinner(
+		"test",
+	).Ints8("a", []int8{1, 2}).
+		Ints16("b", []int16{3, 4}).
+		Ints32("c", []int32{5, 6})
+
+	require.Len(t, b.Fields, 3)
+	assert.Equal(t, []int8{1, 2}, b.Fields[0].Value)
+	assert.Equal(t, []int16{3, 4}, b.Fields[1].Value)
+	assert.Equal(t, []int32{5, 6}, b.Fields[2].Value)
+}
+
+func TestFieldBuilderNarrowUintTypes(t *testing.T) {
+	b := Spinner("test").Uint8("a", 1).Uint16("b", 2).Uint32("c", 3)
+
+	require.Len(t, b.Fields, 3)
+	assert.Equal(t, uint8(1), b.Fields[0].Value)
+	assert.Equal(t, uint16(2), b.Fields[1].Value)
+	assert.Equal(t, uint32(3), b.Fields[2].Value)
+}
+
+func TestFieldBuilderNarrowUintSliceTypes(t *testing.T) {
+	b := Spinner(
+		"test",
+	).Uints8("a", []uint8{1, 2}).
+		Uints16("b", []uint16{3, 4}).
+		Uints32("c", []uint32{5, 6})
+
+	require.Len(t, b.Fields, 3)
+	assert.Equal(t, []uint8{1, 2}, b.Fields[0].Value)
+	assert.Equal(t, []uint16{3, 4}, b.Fields[1].Value)
+	assert.Equal(t, []uint32{5, 6}, b.Fields[2].Value)
+}
+
+func TestFieldBuilderFloat32(t *testing.T) {
+	b := Spinner("test").Float32("val", 3.14)
+	assertSingleField(t, b.Fields, "val", float32(3.14))
+}
+
+func TestFieldBuilderFloats32(t *testing.T) {
+	b := Spinner("test").Floats32("vals", []float32{1.1, 2.2})
+	assertSliceField(t, b.Fields, []float32{1.1, 2.2})
+}
+
+func TestFieldBuilderTimeDiff(t *testing.T) {
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 1, 1, 0, 0, 5, 0, time.UTC)
+
+	t.Run("positive diff", func(t *testing.T) {
+		b := Spinner("test").TimeDiff("elapsed", end, start)
+		assertSingleField(t, b.Fields, "elapsed", 5*time.Second)
+	})
+
+	t.Run("zero when end before start", func(t *testing.T) {
+		b := Spinner("test").TimeDiff("elapsed", start, end)
+		assertSingleField(t, b.Fields, "elapsed", time.Duration(0))
+	})
+}
+
+func TestEventDiscard(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	e := l.Info().Str("a", "b").Discard()
+	assert.Nil(t, e)
+	e.Msg("should not panic") // nil-safe
+}
+
+func TestEventEnabledDisabled(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	e := l.Info()
+	assert.True(t, e.Enabled())
+	assert.False(t, e.Disabled())
+
+	var nilEvent *Event
+	assert.False(t, nilEvent.Enabled())
+	assert.True(t, nilEvent.Disabled())
+}
+
+func TestEventMsgFunc(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	called := false
+	l.Info().MsgFunc(func() string {
+		called = true
+		return "lazy"
+	})
+	assert.True(t, called)
+}
+
+func TestEventMsgFuncNil(t *testing.T) {
+	called := false
+	var e *Event
+	e.MsgFunc(func() string {
+		called = true
+		return "lazy"
+	})
+	assert.False(t, called, "MsgFunc should not call fn on nil event")
+}
+
+func TestEventNarrowTypesNilSafe(t *testing.T) {
+	var e *Event
+	assert.Nil(t, e.Int8("a", 1))
+	assert.Nil(t, e.Int16("a", 1))
+	assert.Nil(t, e.Int32("a", 1))
+	assert.Nil(t, e.Uint8("a", 1))
+	assert.Nil(t, e.Uint16("a", 1))
+	assert.Nil(t, e.Uint32("a", 1))
+	assert.Nil(t, e.Float32("a", 1))
+	assert.Nil(t, e.Ints8("a", nil))
+	assert.Nil(t, e.Ints16("a", nil))
+	assert.Nil(t, e.Ints32("a", nil))
+	assert.Nil(t, e.Uints8("a", nil))
+	assert.Nil(t, e.Uints16("a", nil))
+	assert.Nil(t, e.Uints32("a", nil))
+	assert.Nil(t, e.Floats32("a", nil))
+	assert.Nil(t, e.TimeDiff("a", time.Now(), time.Now()))
+}
+
+func TestEventTimeDiff(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2025, 1, 1, 0, 0, 5, 0, time.UTC)
+
+	l.Info().TimeDiff("elapsed", end, start).Msg("done")
+	assert.Contains(t, buf.String(), "elapsed=5s")
 }

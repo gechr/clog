@@ -1822,8 +1822,7 @@ func TestStylePercentOutput(t *testing.T) {
 	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
 
 	// Should contain ANSI escape codes (color applied).
-	assert.NotEmpty(t, got)
-	assert.Contains(t, got, "75%")
+	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
 }
 
 func TestStylePercentNoGradient(t *testing.T) {
@@ -1846,8 +1845,7 @@ func TestStylePercentSingleStop(t *testing.T) {
 	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
 
 	// Should use the single stop's color for any value.
-	assert.NotEmpty(t, got)
-	assert.Contains(t, got, "50%")
+	assert.Equal(t, "\x1b[38;2;0;0;255m50%\x1b[m", got)
 }
 
 func TestStyleValuePercent(t *testing.T) {
@@ -1861,8 +1859,7 @@ func TestStyleValuePercent(t *testing.T) {
 		true,
 		false,
 	)
-	assert.NotEmpty(t, got)
-	assert.Contains(t, got, "75%")
+	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
 }
 
 func TestStylePercentReverse(t *testing.T) {
@@ -1887,9 +1884,11 @@ func TestPercentReverseLogger(t *testing.T) {
 	l.Info().Percent("cpu", 0.0).Send()
 
 	got := buf.String()
-	assert.Contains(t, got, "0%")
-	// Reversed 0% should render green-ish (not red).
-	assert.Contains(t, got, "\x1b[")
+	assert.Equal(
+		t,
+		"\x1b[1;32mINF\x1b[m ℹ️ \x1b[34mcpu\x1b[m\x1b[2m=\x1b[m\x1b[38;2;0;255;0m0%\x1b[m\n",
+		got,
+	)
 }
 
 func TestPercentReverseFieldTogglesLoggerDefault(t *testing.T) {
@@ -1942,8 +1941,7 @@ func TestStylePercentBaseStyle(t *testing.T) {
 	styles.FieldPercent = new(bold)
 
 	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
-	assert.NotEmpty(t, got)
-	assert.Contains(t, got, "75%")
+	assert.Equal(t, "\x1b[1;38;2;185;255;0m75%\x1b[m", got)
 }
 
 func TestStylePercentBaseStyleOnly(t *testing.T) {
@@ -1959,8 +1957,7 @@ func TestStylePercentBaseStyleOnly(t *testing.T) {
 func TestStyleAnyElementPercent(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleAnyElement("75%", core.Percent{Value: 0.75}, kindPercent, styles, true, false)
-	assert.NotEmpty(t, got)
-	assert.Contains(t, got, "75%")
+	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
 }
 
 func TestRenderPendingNum(t *testing.T) {
@@ -2546,8 +2543,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		val := core.ElapsedField(15 * time.Second) // t=0.5 → yellow
 		got := styleElapsed("15s", val, styles)
 
-		assert.NotEmpty(t, got)
-		assert.Contains(t, got, "15s")
+		assert.Equal(t, "\x1b[38;2;255;255;0m15s\x1b[m", got)
 	})
 
 	t.Run("gradient_at_zero", func(t *testing.T) {
@@ -2557,8 +2553,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		val := core.ElapsedField(0)
 		got := styleElapsed("0s", val, styles)
 
-		assert.NotEmpty(t, got)
-		assert.Contains(t, got, "0s")
+		assert.Equal(t, "\x1b[38;2;0;255;0m0s\x1b[m", got)
 	})
 
 	t.Run("gradient_clamped_beyond_max", func(t *testing.T) {
@@ -2569,8 +2564,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		got := styleElapsed("60s", val, styles)
 
 		// Should use the t=1.0 end color (red), not crash.
-		assert.NotEmpty(t, got)
-		assert.Contains(t, got, "60s")
+		assert.Equal(t, "\x1b[38;2;255;0;0m60s\x1b[m", got)
 
 		// Should produce the same result as exactly at max.
 		atMax := core.ElapsedField(10 * time.Second)
@@ -2624,8 +2618,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		val := core.ElapsedField(5 * time.Second)
 		got := styleElapsed("5s", val, styles)
 
-		assert.NotEmpty(t, got)
-		assert.Contains(t, got, "5s")
+		assert.Equal(t, "\x1b[38;2;0;0;255m5s\x1b[m", got)
 	})
 
 	t.Run("different_positions_different_colors", func(t *testing.T) {

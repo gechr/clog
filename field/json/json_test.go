@@ -239,8 +239,7 @@ func TestHighlightJSONRootBraceOverride(t *testing.T) {
 
 	got := json.Highlight(`{"a":{"b":1}}`, styles)
 	// Root braces should be styled, nested should not.
-	assert.Contains(t, got, rootStyle.Render("{"))
-	assert.Contains(t, got, rootStyle.Render("}"))
+	assert.Equal(t, "\x1b[1m{\x1b[m\"a\":{\"b\":1}\x1b[1m}\x1b[m", got)
 }
 
 func TestHighlightJSONRootBracketOverride(t *testing.T) {
@@ -250,8 +249,7 @@ func TestHighlightJSONRootBracketOverride(t *testing.T) {
 	}
 
 	got := json.Highlight(`[1,2]`, styles)
-	assert.Contains(t, got, rootStyle.Render("["))
-	assert.Contains(t, got, rootStyle.Render("]"))
+	assert.Equal(t, "\x1b[1m[\x1b[m1,2\x1b[1m]\x1b[m", got)
 }
 
 func TestHighlightJSONSpacing(t *testing.T) {
@@ -345,12 +343,11 @@ func TestHighlightJSONStyled(t *testing.T) {
 
 	got := json.Highlight(`{"n":42,"s":"v","t":true,"f":false,"z":null}`, styles)
 
-	assert.Contains(t, got, keyStyle.Render(`"n"`))
-	assert.Contains(t, got, numStyle.Render("42"))
-	assert.Contains(t, got, strStyle.Render(`"v"`))
-	assert.Contains(t, got, trueStyle.Render("true"))
-	assert.Contains(t, got, falseStyle.Render("false"))
-	assert.Contains(t, got, nullStyle.Render("null"))
+	assert.Equal(
+		t,
+		"{\x1b[31m\"n\"\x1b[m:\x1b[32m42\x1b[m,\x1b[31m\"s\"\x1b[m:\x1b[33m\"v\"\x1b[m,\x1b[31m\"t\"\x1b[m:\x1b[34mtrue\x1b[m,\x1b[31m\"f\"\x1b[m:\x1b[35mfalse\x1b[m,\x1b[31m\"z\"\x1b[m:\x1b[36mnull\x1b[m}",
+		got,
+	)
 }
 
 func TestHighlightJSONUnterminatedString(t *testing.T) {
@@ -358,7 +355,8 @@ func TestHighlightJSONUnterminatedString(t *testing.T) {
 
 	// Unterminated string should not panic; scanner emits what it has.
 	got := json.Highlight(`{"key":"unterminated`, styles)
-	assert.Contains(t, got, "unterminated")
+	//nolint:testifylint // intentionally invalid JSON
+	assert.Equal(t, "{\"key\":\"unterminated", got)
 }
 
 // ---------------------------------------------------------------------------
@@ -1329,10 +1327,11 @@ func TestHighlightJSONNumberSubStyles(t *testing.T) {
 
 	result := json.Highlight(`{"a":42,"b":-7,"c":0,"d":3.14}`, styles)
 
-	assert.Contains(t, result, pos.Render("42"))
-	assert.Contains(t, result, neg.Render("-7"))
-	assert.Contains(t, result, zero.Render("0"))
 	// Sign-based styles take priority over type-based styles, so 3.14
 	// (positive) uses NumberPositive, not NumberFloat.
-	assert.Contains(t, result, pos.Render("3.14"))
+	assert.Equal(
+		t,
+		"{\"a\":\x1b[38;2;0;255;0m42\x1b[m,\"b\":\x1b[38;2;255;0;0m-7\x1b[m,\"c\":\x1b[38;2;136;136;136m0\x1b[m,\"d\":\x1b[38;2;0;255;0m3.14\x1b[m}",
+		result,
+	)
 }

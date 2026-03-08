@@ -61,7 +61,7 @@ func TestGroupProgress(t *testing.T) {
 	require.NoError(t, r.Symbol("✅").Msg("download complete"))
 
 	out := buf.String()
-	assert.Contains(t, out, "download complete")
+	assert.Equal(t, "INF ⏳ downloading\nINF ✅ download complete\n", out)
 }
 
 func TestGroupMixedAnimations(t *testing.T) {
@@ -162,7 +162,7 @@ func TestGroupNonTTY(t *testing.T) {
 
 	// Non-TTY: should have printed the initial line.
 	out := buf.String()
-	assert.Contains(t, out, "non-tty task")
+	assert.Equal(t, "INF ⏳ non-tty task\n", out)
 
 	require.NoError(t, r.Msg("done"))
 }
@@ -185,8 +185,7 @@ func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
 	g.Wait()
 
 	out := buf.String()
-	// Static fields should be present.
-	assert.Contains(t, out, "file=release.tar.gz")
+	assert.Equal(t, "INF ⏳ downloading file=release.tar.gz\n", out)
 	// Dynamic fields should be stripped in non-TTY output.
 	assert.NotContains(t, out, "progress=")
 	assert.NotContains(t, out, "elapsed=")
@@ -216,9 +215,7 @@ func TestGroupTaskResultFields(t *testing.T) {
 	require.NoError(t, r.Str("extra", "field").Msg("done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "base=val")
-	assert.Contains(t, out, "extra=field")
-	assert.Contains(t, out, "done")
+	assert.Equal(t, "INF ⏳ fielded base=val\nINF ℹ️ done base=val extra=field\n", out)
 }
 
 func TestGroupTaskResultOnError(t *testing.T) {
@@ -238,8 +235,7 @@ func TestGroupTaskResultOnError(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 
 	out := buf.String()
-	assert.Contains(t, out, "custom error msg")
-	assert.Contains(t, out, "boom")
+	assert.Equal(t, "INF ⏳ will fail\nWRN ⚠️ custom error msg error=boom\n", out)
 }
 
 func TestGroupTaskResultElapsed(t *testing.T) {
@@ -313,7 +309,7 @@ func TestGroupTaskResultOnSuccessLevel(t *testing.T) {
 	require.NoError(t, r.OnSuccessLevel(LevelDebug).OnSuccessMessage("debug msg").Send())
 
 	out := buf.String()
-	assert.Contains(t, out, "debug msg")
+	assert.Equal(t, "INF ⏳ test\nDBG 🐞 debug msg\n", out)
 }
 
 func TestGroupTaskResultSilent(t *testing.T) {
@@ -344,9 +340,7 @@ func TestGroupResultMsg(t *testing.T) {
 	require.NoError(t, g.Wait().Symbol("✅").Msg("All done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "All done")
-	// Should be a single log line, not per-slot.
-	assert.Equal(t, 1, strings.Count(out, "All done"))
+	assert.Equal(t, "INF ⏳ task one\nINF ⏳ task two\nINF ✅ All done\n", out)
 }
 
 func TestGroupResultError(t *testing.T) {
@@ -407,8 +401,7 @@ func TestGroupResultOnError(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 
 	out := buf.String()
-	assert.Contains(t, out, "custom")
-	assert.Contains(t, out, "oops")
+	assert.Equal(t, "INF ⏳ fail\nWRN ⚠️ custom error=oops\n", out)
 }
 
 func TestGroupResultFields(t *testing.T) {
@@ -422,8 +415,7 @@ func TestGroupResultFields(t *testing.T) {
 	require.NoError(t, g.Wait().Str("total", "1").Symbol("✅").Msg("Done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "total=1")
-	assert.Contains(t, out, "Done")
+	assert.Equal(t, "INF ⏳ task\nINF ✅ Done total=1\n", out)
 }
 
 func TestBuildLine(t *testing.T) {

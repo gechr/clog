@@ -121,7 +121,7 @@ func TestPathLinkDirectory(t *testing.T) {
 
 	got := PathLink("/tmp", 0)
 
-	assert.Contains(t, got, "file:///tmp")
+	assert.Equal(t, "\x1b]8;;file:///tmp\x1b\\/tmp\x1b]8;;\x1b\\", got)
 }
 
 func TestPathLinkWithLineFormat(t *testing.T) {
@@ -132,7 +132,7 @@ func TestPathLinkWithLineFormat(t *testing.T) {
 
 	got := PathLink("/tmp/test.go", 10)
 
-	assert.Contains(t, got, "vscode://file/tmp/test.go:10")
+	assert.Equal(t, "\x1b]8;;vscode://file/tmp/test.go:10\x1b\\/tmp/test.go:10\x1b]8;;\x1b\\", got)
 }
 
 func TestPathLinkWithPathFormat(t *testing.T) {

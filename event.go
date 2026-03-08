@@ -175,6 +175,18 @@ func (e *Event) Errs(key string, vals []error) *Event {
 	return e
 }
 
+// AnErr adds an error as a keyed field. No-op if err is nil.
+// Unlike [Event.Err], this does not interact with [Event.Send] or [Event.Msg]
+// semantics - the error is simply added as a regular field with the given key.
+func (e *Event) AnErr(key string, err error) *Event {
+	if e == nil || err == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: err})
+	return e
+}
+
 // Err attaches an error to the event. No-op if err is nil.
 //
 // If the event is finalised with [Event.Send], the error message becomes the
@@ -213,6 +225,32 @@ func (e *Event) When(condition bool, fn func(*Event)) *Event {
 	return e
 }
 
+// Discard disables the event so Msg/Msgf/Send won't produce output.
+// Returns nil to short-circuit subsequent field methods.
+func (e *Event) Discard() *Event {
+	return nil
+}
+
+// Disabled returns true if the event is disabled (nil).
+func (e *Event) Disabled() bool {
+	return e == nil
+}
+
+// Enabled returns true if the event is enabled (non-nil).
+func (e *Event) Enabled() bool {
+	return e != nil
+}
+
+// Float32 adds a float32 field.
+func (e *Event) Float32(key string, val float32) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
 // Float64 adds a float64 field.
 func (e *Event) Float64(key string, val float64) *Event {
 	if e == nil {
@@ -220,6 +258,16 @@ func (e *Event) Float64(key string, val float64) *Event {
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Floats32 adds a float32 slice field.
+func (e *Event) Floats32(key string, vals []float32) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 
@@ -253,13 +301,33 @@ func (e *Event) Int(key string, val int) *Event {
 	return e
 }
 
-// Ints adds an int slice field.
-func (e *Event) Ints(key string, vals []int) *Event {
+// Int8 adds an int8 field.
+func (e *Event) Int8(key string, val int8) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Int16 adds an int16 field.
+func (e *Event) Int16(key string, val int16) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Int32 adds an int32 field.
+func (e *Event) Int32(key string, val int32) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
 	return e
 }
 
@@ -270,6 +338,46 @@ func (e *Event) Int64(key string, val int64) *Event {
 	}
 
 	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Ints adds an int slice field.
+func (e *Event) Ints(key string, vals []int) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Ints8 adds an int8 slice field.
+func (e *Event) Ints8(key string, vals []int8) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Ints16 adds an int16 slice field.
+func (e *Event) Ints16(key string, vals []int16) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Ints32 adds an int32 slice field.
+func (e *Event) Ints32(key string, vals []int32) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 
@@ -357,6 +465,16 @@ func (e *Event) Msgf(format string, args ...any) {
 	}
 
 	e.Msg(fmt.Sprintf(format, args...))
+}
+
+// MsgFunc finalises the event with a lazily-computed message.
+// The function is only called if the event is enabled (non-nil).
+func (e *Event) MsgFunc(createMsg func() string) {
+	if e == nil {
+		return
+	}
+
+	e.Msg(createMsg())
 }
 
 // Percent adds a percentage field with gradient color styling.
@@ -565,8 +683,54 @@ func (e *Event) Times(key string, vals []time.Time) *Event {
 	return e
 }
 
+// TimeDiff adds the field key with the duration between t and start.
+// If t is not after start, the duration is zero.
+func (e *Event) TimeDiff(key string, t, start time.Time) *Event {
+	if e == nil {
+		return e
+	}
+
+	var d time.Duration
+	if t.After(start) {
+		d = t.Sub(start)
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: d})
+	return e
+}
+
 // Uint adds a uint field.
 func (e *Event) Uint(key string, val uint) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uint8 adds a uint8 field.
+func (e *Event) Uint8(key string, val uint8) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uint16 adds a uint16 field.
+func (e *Event) Uint16(key string, val uint16) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: val})
+	return e
+}
+
+// Uint32 adds a uint32 field.
+func (e *Event) Uint32(key string, val uint32) *Event {
 	if e == nil {
 		return e
 	}
@@ -587,6 +751,36 @@ func (e *Event) Uint64(key string, val uint64) *Event {
 
 // Uints adds a uint slice field.
 func (e *Event) Uints(key string, vals []uint) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Uints8 adds a uint8 slice field.
+func (e *Event) Uints8(key string, vals []uint8) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Uints16 adds a uint16 slice field.
+func (e *Event) Uints16(key string, vals []uint16) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Uints32 adds a uint32 slice field.
+func (e *Event) Uints32(key string, vals []uint32) *Event {
 	if e == nil {
 		return e
 	}
