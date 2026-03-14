@@ -265,15 +265,22 @@ func (b *Builder) Wait(ctx context.Context, task TaskFunc) *WaitResult {
 func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	var msgPtr atomic.Pointer[string]
 	var fieldsPtr atomic.Pointer[[]core.Field]
+	var symbolPtr atomic.Pointer[string]
 
 	msgPtr.Store(&b.Message)
 	fieldsPtr.Store(&b.Fields)
+	sym := b.SymbolIcon
+	if sym == "" {
+		sym = "⏳"
+	}
+	symbolPtr.Store(&sym)
 
 	update := &Update{
 		MsgText:   b.Message,
 		MsgPtr:    &msgPtr,
 		FieldsPtr: &fieldsPtr,
 		Base:      b.Fields,
+		SymbolPtr: &symbolPtr,
 	}
 	if b.Mode == AnimationBar {
 		update.ProgressPtr = b.BarProgressPtr
@@ -293,6 +300,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 		MsgPtr:    &msgPtr,
 		FieldsPtr: &fieldsPtr,
 		StartTime: startTime,
+		SymbolPtr: &symbolPtr,
 	})
 
 	msg := *msgPtr.Load()

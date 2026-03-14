@@ -24,8 +24,9 @@ type Update struct {
 	FieldsPtr   *atomic.Pointer[[]core.Field]
 	MsgPtr      *atomic.Pointer[string]
 	MsgText     string
-	ProgressPtr *atomic.Int64 // bar mode: current progress value; nil for non-bar modes
-	TotalPtr    *atomic.Int64 // bar mode: total progress value; nil for non-bar modes
+	ProgressPtr *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
+	SymbolPtr   *atomic.Pointer[string] // symbol icon; nil when not updatable
+	TotalPtr    *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
 }
 
 // SetProgress sets the current progress value for a bar animation.
@@ -66,6 +67,16 @@ func (p *Update) AddTotal(delta int) *Update {
 		if newVal < 1 {
 			p.TotalPtr.CompareAndSwap(newVal, 1)
 		}
+	}
+	return p
+}
+
+// SetSymbol changes the icon displayed beside the message during animation.
+// The change takes effect on the next render tick.
+// No-op if the animation does not support symbol updates.
+func (p *Update) SetSymbol(symbol string) *Update {
+	if p.SymbolPtr != nil {
+		p.SymbolPtr.Store(&symbol)
 	}
 	return p
 }

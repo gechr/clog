@@ -77,7 +77,15 @@ func (f fxLogger) Output() fx.Output {
 }
 
 func (f fxLogger) RunAnimation(ctx context.Context, cfg fx.AnimationConfig) error {
-	return runAnimation(ctx, cfg.Builder, cfg.Task, cfg.MsgPtr, cfg.FieldsPtr, cfg.StartTime)
+	return runAnimation(
+		ctx,
+		cfg.Builder,
+		cfg.Task,
+		cfg.MsgPtr,
+		cfg.FieldsPtr,
+		cfg.SymbolPtr,
+		cfg.StartTime,
+	)
 }
 
 func (f fxLogger) RunGroup(ctx context.Context, g *fx.Group) error {
@@ -90,6 +98,7 @@ func runAnimation(
 	task fx.TaskFunc,
 	msgPtr *atomic.Pointer[string],
 	fields *atomic.Pointer[[]core.Field],
+	symbolPtr *atomic.Pointer[string],
 	startTime time.Time,
 ) error {
 	// Run the task in a goroutine.
@@ -120,6 +129,7 @@ func runAnimation(
 			FieldsPtr: fields,
 			MsgPtr:    msgPtr,
 			StartTime: startTime,
+			SymbolPtr: symbolPtr,
 		},
 	}
 	captureTaskConfig(gt)
@@ -140,7 +150,7 @@ func runAnimation(
 				gt.cfg.reportTS,
 				time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
 				gt.cfg.label,
-				gt.symbol,
+				*gt.SymbolPtr.Load(),
 				gt.cfg.indentation+*msgPtr.Load(),
 				fieldsStr,
 			)

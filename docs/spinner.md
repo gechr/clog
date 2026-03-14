@@ -17,7 +17,7 @@ The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) w
 
 ## Dynamic Status Updates
 
-Use `Progress` to update the spinner message and fields during execution:
+Use `Progress` to update the spinner message, fields, and symbol during execution:
 
 ```go
 err := clog.Spinner("Processing").
@@ -31,6 +31,12 @@ err := clog.Spinner("Processing").
     return nil
   }).
   Msg("Processed all items")
+```
+
+`SetSymbol` changes the icon beside the message mid-task:
+
+```go
+update.SetSymbol("📡").Msg("Connecting").Send()
 ```
 
 ## WaitResult Finalisers

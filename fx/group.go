@@ -31,6 +31,7 @@ type GroupTask struct {
 	FieldsPtr *atomic.Pointer[[]core.Field]
 	MsgPtr    *atomic.Pointer[string]
 	StartTime time.Time
+	SymbolPtr *atomic.Pointer[string]
 }
 
 // Add registers an animation builder with the group and returns a
@@ -42,8 +43,14 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 
 	msgPtr := &atomic.Pointer[string]{}
 	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
 	msgPtr.Store(&b.Message)
 	fieldsPtr.Store(&b.Fields)
+	sym := b.SymbolIcon
+	if sym == "" {
+		sym = "⏳"
+	}
+	symbolPtr.Store(&sym)
 
 	gt := &GroupTask{
 		Builder:   b,
@@ -51,6 +58,7 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 		FieldsPtr: fieldsPtr,
 		MsgPtr:    msgPtr,
 		StartTime: time.Now(),
+		SymbolPtr: symbolPtr,
 	}
 
 	g.Mu.Lock()
@@ -113,6 +121,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		MsgPtr:    t.MsgPtr,
 		FieldsPtr: t.FieldsPtr,
 		Base:      b.Fields,
+		SymbolPtr: t.SymbolPtr,
 	}
 	if b.Mode == AnimationBar {
 		update.ProgressPtr = b.BarProgressPtr

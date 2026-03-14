@@ -18,6 +18,12 @@ clog.SetSymbols(clog.LabelMap{
 })
 ```
 
+During animations, `SetSymbol` on the `Update` changes the icon mid-task:
+
+```go
+update.SetSymbol("📡").Str("stage", "receiving").Send()
+```
+
 Symbol resolution order: event override > logger preset > default emoji for level.
 
 Missing levels in `SetSymbols` fall back to the defaults. Use `DefaultSymbols()` to get a copy of the default symbol map.

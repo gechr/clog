@@ -44,7 +44,6 @@ type groupTask struct {
 	*fx.GroupTask
 
 	cfg      taskConfig
-	symbol   string // resolved icon (builder.Symbol or "⏳")
 	tickRate time.Duration
 
 	// per-tick mutable state
@@ -115,12 +114,6 @@ func captureTaskConfig(gt *groupTask) {
 		gt.cfg.levelSymbol = style.Render(gt.cfg.label)
 	} else {
 		gt.cfg.levelSymbol = gt.cfg.label
-	}
-
-	// Resolve the symbol icon.
-	gt.symbol = b.SymbolIcon
-	if gt.symbol == "" {
-		gt.symbol = "⏳"
 	}
 
 	// Determine tick rate and pre-compute mode-specific resources.
@@ -234,7 +227,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
 		)
 		levelSymbol := gt.cfg.levelSymbol
 		// Use a checkmark or the builder symbol for completed items.
-		doneSymbol := gt.symbol
+		doneSymbol := *gt.SymbolPtr.Load()
 		return buildLine(
 			gt.cfg.order,
 			gt.cfg.reportTS,
@@ -264,11 +257,11 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
 		char = b.SpinnerStyle.Frames[i]
 		msg = styledMsg(msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 	case fx.AnimationPulse:
-		char = gt.symbol
+		char = *gt.SymbolPtr.Load()
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.Speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 		msg = pulse.TextCached(msg, t, b.PulseStops, &gt.pCache)
 	case fx.AnimationShimmer:
-		char = gt.symbol
+		char = *gt.SymbolPtr.Load()
 		phase := math.Mod(dur.Seconds()*b.Speed, 1.0)
 		msg = shimmer.Text(msg, phase, b.ShimmerDir, gt.hexLUT, gt.styleLUT)
 	}
@@ -347,7 +340,7 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 			gt.cfg.reportTS,
 			tsStr,
 			gt.cfg.levelSymbol,
-			gt.symbol,
+			*gt.SymbolPtr.Load(),
 			msg+sep+barFull,
 			fieldsStr,
 		)
@@ -358,7 +351,7 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 		gt.cfg.reportTS,
 		tsStr,
 		gt.cfg.levelSymbol,
-		gt.symbol,
+		*gt.SymbolPtr.Load(),
 		msg,
 		fieldsStr,
 	)
@@ -395,7 +388,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			)
 			line := buildLine(gt.cfg.order, gt.cfg.reportTS,
 				time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
-				gt.cfg.label, gt.symbol, gt.cfg.indentation+*gt.MsgPtr.Load(), fieldsStr)
+				gt.cfg.label, *gt.SymbolPtr.Load(), gt.cfg.indentation+*gt.MsgPtr.Load(), fieldsStr)
 			writeString(gt.cfg.out, line+"\n")
 		}
 		for _, ft := range fxTasks {

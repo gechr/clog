@@ -47,6 +47,7 @@ type AnimationConfig struct {
 	FieldsPtr *atomic.Pointer[[]core.Field]
 	MsgPtr    *atomic.Pointer[string]
 	StartTime time.Time
+	SymbolPtr *atomic.Pointer[string]
 	Task      TaskFunc
 }
 

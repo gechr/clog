@@ -102,6 +102,28 @@ func TestUpdateSetTotalClamp(t *testing.T) {
 	assert.Equal(t, int64(1), tAtom.Load())
 }
 
+func TestUpdateSetSymbol(t *testing.T) {
+	var sym atomic.Pointer[string]
+	initial := "⏳"
+	sym.Store(&initial)
+
+	u := &fx.Update{SymbolPtr: &sym}
+	u.InitSelf(u)
+
+	result := u.SetSymbol("📦")
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, "📦", *sym.Load())
+}
+
+func TestUpdateSetSymbolNilNoOp(t *testing.T) {
+	u := &fx.Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.SetSymbol("📦")
+	})
+}
+
 func TestBarProgressSharedWithUpdate(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()

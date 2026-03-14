@@ -34,6 +34,13 @@ p.AddTotal(50)  // discovered 50 more items
 p.AddTotal(-10) // 10 items turned out to be duplicates
 ```
 
+`SetSymbol` changes the icon displayed beside the message during animation. This is useful for showing different phases of a multi-stage task:
+
+```go
+p.SetSymbol("📡").SetProgress(i).Str("stage", "receiving").Send()
+p.SetSymbol("🔍").SetProgress(i).Str("stage", "resolving").Send()
+```
+
 ## Styles
 
 Seven pre-built styles are available in [`fx/bar/presets.go`](https://github.com/gechr/clog/blob/main/fx/bar/presets.go). Pass any of them via `bar.WithStyle()`:
@@ -346,7 +353,7 @@ clog.Bar("Installing", 100).
 
 All animations gracefully degrade: when colors are disabled (CI, piped output), a static status line with an ⏳ symbol is printed instead.
 
-The icon displayed during `Pulse`, `Shimmer`, and `Bar` animations defaults to ⏳ and can be changed with `.Symbol()` on the builder:
+The icon displayed during `Pulse`, `Shimmer`, and `Bar` animations defaults to ⏳ and can be changed with `.Symbol()` on the builder (before the task starts) or `SetSymbol()` on the `Update` (during the task):
 
 ```go
 clog.Pulse("Warming up").
