@@ -60,18 +60,15 @@ type groupTask struct {
 	gradientStyle    lipgloss.Style
 	gradientValid    bool
 
-	// bar display snapshot (bar mode with UpdateInterval only)
-	barRenderState barRenderState
-	barRenderValid bool
+	// throttled widget snapshot (bar mode with UpdateInterval only)
+	barWidgetState barWidgetState
+	barWidgetValid bool
 }
 
-type barRenderState struct {
-	current   int
-	fieldsPtr *[]core.Field
-	msg       string
-	renderAt  time.Time
-	symbol    string
-	total     int
+type barWidgetState struct {
+	current  int
+	renderAt time.Time
+	total    int
 }
 
 type groupBarColumns struct {
@@ -229,33 +226,30 @@ func padBarColumnRight(text string, width int) string {
 	return text + strings.Repeat(" ", padding)
 }
 
-func loadBarRenderState(gt *groupTask, now time.Time) barRenderState {
-	state := barRenderState{
-		current:   int(gt.Builder.BarProgressPtr.Load()),
-		fieldsPtr: gt.FieldsPtr.Load(),
-		msg:       *gt.MsgPtr.Load(),
-		renderAt:  now,
-		symbol:    *gt.SymbolPtr.Load(),
-		total:     int(gt.Builder.BarTotalPtr.Load()),
+func loadBarWidgetState(gt *groupTask, now time.Time) barWidgetState {
+	state := barWidgetState{
+		current:  int(gt.Builder.BarProgressPtr.Load()),
+		renderAt: now,
+		total:    int(gt.Builder.BarTotalPtr.Load()),
 	}
 
 	updateInterval := gt.Builder.BarStyle.UpdateInterval
 	if updateInterval <= 0 {
-		gt.barRenderState = state
-		gt.barRenderValid = true
+		gt.barWidgetState = state
+		gt.barWidgetValid = true
 		return state
 	}
 
-	if !gt.barRenderValid || now.Sub(gt.barRenderState.renderAt) >= updateInterval {
-		gt.barRenderState = state
-		gt.barRenderValid = true
+	if !gt.barWidgetValid || now.Sub(gt.barWidgetState.renderAt) >= updateInterval {
+		gt.barWidgetState = state
+		gt.barWidgetValid = true
 	}
 
-	return gt.barRenderState
+	return gt.barWidgetState
 }
 
-func resetBarRenderState(gt *groupTask) {
-	gt.barRenderValid = false
+func resetBarWidgetState(gt *groupTask) {
+	gt.barWidgetValid = false
 }
 
 // captureTaskConfig locks the builder's logger, snapshots all fields into
@@ -580,10 +574,10 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 
 	// Bar mode has its own rendering path.
 	if b.Mode == fx.AnimationBar {
-		state := loadBarRenderState(gt, now)
+		state := loadBarWidgetState(gt, now)
 		fieldsStr = renderTaskFields(
 			gt,
-			state.fieldsPtr,
+			gt.FieldsPtr.Load(),
 			gt.Duration(state.renderAt),
 			state.current,
 			state.total,
@@ -653,13 +647,12 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 	}
 
 	if gt.Builder.Mode == fx.AnimationBar {
-		state := loadBarRenderState(gt, now)
 		return gt.cfg.indentation + styledMsg(
-			state.msg,
+			*gt.MsgPtr.Load(),
 			gt.Builder.Level,
 			gt.cfg.styles,
 			gt.cfg.noColor,
-		), state.symbol
+		), *gt.SymbolPtr.Load()
 	}
 
 	msg, char := renderAnimatedTaskMessage(gt, now)
@@ -671,7 +664,7 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 func renderTaskBarLine(
 	gt *groupTask,
 	fieldsStr, tsStr string,
-	state barRenderState,
+	state barWidgetState,
 	layout *groupRenderLayout,
 ) string {
 	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(
@@ -702,24 +695,25 @@ func renderTaskBarLine(
 func buildTaskBarParts(
 	gt *groupTask,
 	fieldsStr, tsStr string,
-	state barRenderState,
+	state barWidgetState,
 	layout *groupRenderLayout,
 ) (string, string, string, string, string, bool) {
 	b := gt.Builder
-	msg := gt.cfg.indentation + styledMsg(state.msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
+	symbol := *gt.SymbolPtr.Load()
+	msg := gt.cfg.indentation + styledMsg(*gt.MsgPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 	msg = alignMessageForFields(
 		gt.cfg.order,
 		gt.cfg.reportTS,
 		tsStr,
 		gt.cfg.levelSymbol,
-		state.symbol,
+		symbol,
 		msg,
 		fieldsStr,
 		layout,
 	)
 
-	current := state.current
-	total := state.total
+	current := int(b.BarProgressPtr.Load())
+	total := int(b.BarTotalPtr.Load())
 	sep := b.BarStyle.Separator
 	if sep == "" {
 		sep = " "
@@ -730,7 +724,7 @@ func buildTaskBarParts(
 		gt.cfg.reportTS,
 		tsStr,
 		gt.cfg.levelSymbol,
-		state.symbol,
+		symbol,
 		msg,
 		fieldsStr,
 	)
@@ -756,10 +750,15 @@ func buildTaskBarParts(
 
 	elapsed := gt.Duration(state.renderAt)
 	var rate float64
-	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
-		rate = float64(current) / secs
+	if secs := elapsed.Seconds(); secs > 0 && state.current > 0 {
+		rate = float64(state.current) / secs
 	}
-	widgetState := bar.State{Current: current, Total: total, Elapsed: elapsed, Rate: rate}
+	widgetState := bar.State{
+		Current: state.current,
+		Total:   state.total,
+		Elapsed: elapsed,
+		Rate:    rate,
+	}
 
 	var leftText, rightText string
 	if b.BarStyle.WidgetLeft != nil {
@@ -787,7 +786,7 @@ func buildTaskBarParts(
 			gt.cfg.reportTS,
 			tsStr,
 			gt.cfg.levelSymbol,
-			state.symbol,
+			symbol,
 			msg+sep+barFull,
 			fieldsStr,
 		), "", "", "", sep, true
@@ -818,10 +817,10 @@ func measureGroupRenderLayout(
 			continue
 		}
 
-		state := loadBarRenderState(gt, now)
+		state := loadBarWidgetState(gt, now)
 		fieldsStr := renderTaskFields(
 			gt,
-			state.fieldsPtr,
+			gt.FieldsPtr.Load(),
 			gt.Duration(state.renderAt),
 			state.current,
 			state.total,

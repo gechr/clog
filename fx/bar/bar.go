@@ -69,7 +69,7 @@ type Style struct {
 	Separator        string               // separator between message, bar, and widget text; default " "
 	StyleEmpty       *lipgloss.Style      // lipgloss style for empty cells; nil = plain text
 	StyleFill        *lipgloss.Style      // lipgloss style for filled cells; nil = plain text
-	UpdateInterval   time.Duration        // coalesces visible updates so the displayed state changes at most once per duration
+	UpdateInterval   time.Duration        // coalesces widget/dynamic-field text updates while leaving the bar fill live
 	Width            int                  // fixed inner width; 0 = auto-size
 	WidgetLeft       Widget               // widget to the left of the bar; nil = nothing
 	WidgetRight      Widget               // widget to the right of the bar; nil = default padded percent

@@ -110,8 +110,10 @@ func WithPendingMode(m PendingMode) Option {
 	}
 }
 
-// WithUpdateInterval coalesces visible bar updates so the displayed state
-// changes at most once per duration. Non-positive values disable coalescing.
+// WithUpdateInterval coalesces derived widget and dynamic-field updates so
+// text like ETA, percent, rate, and elapsed changes at most once per duration.
+// The bar fill itself still renders from live progress updates. Non-positive
+// values disable coalescing.
 func WithUpdateInterval(d time.Duration) Option {
 	return func(s *Style) {
 		if d <= 0 {

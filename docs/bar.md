@@ -49,14 +49,14 @@ clog.Bar("Cloning", 1, bar.WithPendingMode(bar.PendingHide))
 
 This suppresses the entire bar block, including widgets, until progress becomes positive.
 
-If frequent updates make the bar too jumpy, coalesce visible updates:
+If frequent updates make ETA/percent text too jumpy, coalesce widget and dynamic-field updates:
 
 ```go
 clog.Bar("Cloning", 1, bar.WithUpdateInterval(time.Second))
 ```
 
-This applies the latest message, fields, symbol, progress, and widget state at
-most once per duration while the task is running.
+This rate-limits derived text such as ETA, percent, rate, and elapsed while
+leaving the bar fill, message, symbol, and other live updates responsive.
 
 ## Styles
 
@@ -165,13 +165,13 @@ clog.Bar("Downloading", 100, bar.WithStyle(bar.Braille), bar.WithWidth(30))
 
 ### Widgets
 
-| Option                      | Description                                               |
-| --------------------------- | --------------------------------------------------------- |
-| `bar.WithWidgetLeft(w)`     | Widget displayed to the left of the bar                   |
-| `bar.WithWidgetRight(w)`    | Widget displayed to the right of the bar                  |
-| `bar.WithPlacement(p)`      | Horizontal bar placement mode                             |
-| `bar.WithPendingMode(m)`    | Whether to render the bar before progress starts          |
-| `bar.WithUpdateInterval(d)` | Coalesce visible bar updates to at most once per duration |
+| Option                      | Description                                                               |
+| --------------------------- | ------------------------------------------------------------------------- |
+| `bar.WithWidgetLeft(w)`     | Widget displayed to the left of the bar                                   |
+| `bar.WithWidgetRight(w)`    | Widget displayed to the right of the bar                                  |
+| `bar.WithPlacement(p)`      | Horizontal bar placement mode                                             |
+| `bar.WithPendingMode(m)`    | Whether to render the bar before progress starts                          |
+| `bar.WithUpdateInterval(d)` | Coalesce ETA/percent/rate-style text updates to at most once per duration |
 
 All presets use bold white `CapStyle`. Pass `bar.WithCapStyle(nil)` for unstyled caps.
 

@@ -721,14 +721,23 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	assert.NotContains(t, line, "│")
 }
 
-func TestRenderTaskLineDebouncesBarState(t *testing.T) {
+func TestRenderTaskLineCoalescesWidgetsButKeepsBarLive(t *testing.T) {
 	logger := NewWriter(io.Discard)
+	style := bar.Style{
+		CapLeft:     "[",
+		CapRight:    "]",
+		CharEmpty:   '-',
+		CharFill:    '=',
+		Separator:   " ",
+		WidgetLeft:  widget.ETA(),
+		WidgetRight: widget.Percent(),
+		Width:       10,
+	}
 	b := logger.Bar(
 		"repo",
 		100,
+		bar.WithStyle(style),
 		bar.WithUpdateInterval(time.Second),
-		bar.WithWidth(10),
-		bar.WithWidgetRight(widget.ETA()),
 	)
 
 	msgPtr := &atomic.Pointer[string]{}
@@ -753,7 +762,10 @@ func TestRenderTaskLineDebouncesBarState(t *testing.T) {
 	}
 	captureTaskConfig(gt)
 
-	first := renderTaskLine(gt, false, time.Unix(2, 0), nil)
+	g := &fx.Group{}
+	firstAt := time.Unix(2, 0)
+	firstLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, firstAt)
+	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
 	updatedMsg := "repo (updated)"
 	updatedFields := []Field{{Key: "stage", Value: "resolving"}}
@@ -763,12 +775,14 @@ func TestRenderTaskLineDebouncesBarState(t *testing.T) {
 	symbolPtr.Store(&updatedSymbol)
 	b.BarProgressPtr.Store(90)
 
-	second := renderTaskLine(gt, false, time.Unix(2, int64(500*time.Millisecond)), nil)
-	third := renderTaskLine(gt, false, time.Unix(3, int64(100*time.Millisecond)), nil)
+	secondAt := time.Unix(2, int64(500*time.Millisecond))
+	secondLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, secondAt)
+	second := renderTaskLine(gt, false, secondAt, secondLayout)
+	thirdAt := time.Unix(3, int64(100*time.Millisecond))
+	thirdLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, thirdAt)
+	third := renderTaskLine(gt, false, thirdAt, thirdLayout)
 
-	assert.Equal(t, first, second)
-	assert.NotEqual(t, first, third)
-	assert.Contains(t, third, "repo (updated)")
-	assert.Contains(t, third, "stage=resolving")
-	assert.Contains(t, third, "🧩")
+	assert.Equal(t, "INF 📡 repo stage=receiving ETA 18s [=---------]  10%", first)
+	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving ETA 18s [=========-]  10%", second)
+	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving  ETA 1s [=========-]  90%", third)
 }

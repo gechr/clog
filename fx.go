@@ -180,7 +180,7 @@ func runAnimation(
 			// For bar animations, render one final frame so 100% is visible
 			// before the line is cleared and replaced with the completion message.
 			if b.Mode == fx.AnimationBar && err == nil {
-				resetBarRenderState(gt)
+				resetBarWidgetState(gt)
 				line := renderTaskLine(gt, false, time.Now(), nil)
 				frameBuf.Reset()
 				frameBuf.WriteString(clearLine)
