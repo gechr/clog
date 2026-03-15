@@ -166,6 +166,61 @@ func TestEventURLColorAlways(t *testing.T) {
 	assert.Equal(t, "\x1b]8;;https://example.com\x1b\\https://example.com\x1b]8;;\x1b\\", val)
 }
 
+func TestEventLinks(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Links("repos", []Link{
+		{URL: "https://github.com/foo/bar", Text: "foo/bar"},
+		{URL: "https://github.com/baz/qux", Text: "baz/qux"},
+	})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "repos", e.fields[0].Key)
+	// Colors disabled in tests (no TTY), so returns plain text.
+	assert.Equal(t, []string{"foo/bar", "baz/qux"}, e.fields[0].Value)
+}
+
+func TestEventLinksColorAlways(t *testing.T) {
+	l := New(NewOutput(io.Discard, ColorAlways))
+
+	e := l.Info()
+	e.Links("repos", []Link{
+		{URL: "https://github.com/foo/bar", Text: "foo/bar"},
+	})
+
+	require.Len(t, e.fields, 1)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok)
+	require.Len(t, vals, 1)
+	assert.Equal(t, "\x1b]8;;https://github.com/foo/bar\x1b\\foo/bar\x1b]8;;\x1b\\", vals[0])
+}
+
+func TestEventURLs(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.URLs("refs", []string{"https://a.com", "https://b.com"})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "refs", e.fields[0].Key)
+	// Colors disabled in tests (no TTY), so returns plain text.
+	assert.Equal(t, []string{"https://a.com", "https://b.com"}, e.fields[0].Value)
+}
+
+func TestEventURLsColorAlways(t *testing.T) {
+	l := New(NewOutput(io.Discard, ColorAlways))
+
+	e := l.Info()
+	e.URLs("refs", []string{"https://a.com"})
+
+	require.Len(t, e.fields, 1)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok)
+	require.Len(t, vals, 1)
+	assert.Equal(t, "\x1b]8;;https://a.com\x1b\\https://a.com\x1b]8;;\x1b\\", vals[0])
+}
+
 func TestEventBool(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Bool("ok", true)
@@ -988,6 +1043,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Ints("k", []int{1}))
 	assert.Nil(t, e.Line("k", "file.go", 1))
 	assert.Nil(t, e.Link("k", "https://example.com", "text"))
+	assert.Nil(t, e.Links("k", []Link{{URL: "https://example.com", Text: "text"}}))
 	assert.Nil(t, e.Path("k", "file.go"))
 	assert.Nil(t, e.Parts(PartMessage))
 	assert.Nil(t, e.Percent("k", 50))
@@ -1003,6 +1059,7 @@ func TestEventNilReceiverSafety(t *testing.T) {
 	assert.Nil(t, e.Uint64("k", 1))
 	assert.Nil(t, e.Uints64("k", []uint64{1}))
 	assert.Nil(t, e.URL("k", "https://example.com"))
+	assert.Nil(t, e.URLs("k", []string{"https://example.com"}))
 	assert.Nil(t, e.withFields([]Field{{Key: "k", Value: "v"}}))
 	assert.Nil(t, e.withParts(&[]Part{PartMessage}))
 	assert.Nil(t, e.withSymbol("p"))

@@ -41,6 +41,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `JSON`       | `JSON(key string, val any)`                                | Marshals val to JSON with syntax highlighting                                       |
 | `Line`       | `Line(key, path string, line int)`                         | Clickable file:line hyperlink                                                       |
 | `Link`       | `Link(key, url, text string)`                              | Clickable URL hyperlink                                                             |
+| `Links`      | `Links(key string, links []Link)`                          | Clickable URL hyperlink slice                                                       |
 | `MsgFunc`    | `MsgFunc(createMsg func() string)`                         | Finalise with lazily-computed message; fn skipped on nil events                     |
 | `Path`       | `Path(key, path string)`                                   | Clickable file/directory hyperlink                                                  |
 | `Percent`    | `Percent(key string, val float64, opts ...percent.Option)` | Percentage with gradient color; accepts [percent.Option] values                     |
@@ -65,6 +66,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Uints32`    | `Uints32(key string, vals []uint32)`                       | 32-bit unsigned integer slice field                                                 |
 | `Uints64`    | `Uints64(key string, vals []uint64)`                       | 64-bit unsigned integer slice field                                                 |
 | `URL`        | `URL(key, url string)`                                     | Clickable URL hyperlink (URL as text)                                               |
+| `URLs`       | `URLs(key string, urls []string)`                          | Clickable URL hyperlink slice (URLs as text)                                        |
 | `When`       | `When(condition bool, fn func(*Event))`                    | Conditional field builder; fn called only when condition is true                    |
 
 ## Duration Formatting

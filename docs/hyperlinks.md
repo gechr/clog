@@ -10,6 +10,13 @@ clog.Info().Column("loc", "main.go", 42, 10).Msg("File with line and column")
 clog.Info().URL("docs", "https://example.com/docs").Msg("See docs")
 clog.Info().Link("docs", "https://example.com", "docs").Msg("URL")
 
+// Slice variants
+clog.Info().URLs("refs", []string{"https://a.com", "https://b.com"}).Msg("References")
+clog.Info().Links("repos", []clog.Link{
+    {URL: "https://github.com/foo/bar", Text: "foo/bar"},
+    {URL: "https://github.com/baz/qux", Text: "baz/qux"},
+}).Msg("Repositories")
+
 // Standalone functions (for use with Str)
 link := clog.PathLink("config.yaml", 42)               // file path with line number
 link := clog.PathLink("src/", 0)                       // directory (no line number)

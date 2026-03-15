@@ -97,6 +97,17 @@ func (c *Context) Link(key, url, text string) *Context {
 	return c
 }
 
+// Links adds a string slice field where each element is a hyperlink.
+func (c *Context) Links(key string, links []Link) *Context {
+	output := c.logger.Output()
+	vals := make([]string, len(links))
+	for i, l := range links {
+		vals[i] = output.hyperlink(l.URL, l.Text)
+	}
+	c.Fields = append(c.Fields, Field{Key: key, Value: vals})
+	return c
+}
+
 // Logger returns a new [Logger] with the accumulated fields and symbol.
 // The returned Logger shares the parent's mutex to prevent interleaved output.
 func (c *Context) Logger() *Logger {
@@ -146,6 +157,18 @@ func (c *Context) URL(key, url string) *Context {
 		c.Fields,
 		Field{Key: key, Value: c.logger.Output().hyperlink(url, url)},
 	)
+	return c
+}
+
+// URLs adds a string slice field where each element is a hyperlink
+// with the URL as the display text.
+func (c *Context) URLs(key string, urls []string) *Context {
+	output := c.logger.Output()
+	vals := make([]string, len(urls))
+	for i, u := range urls {
+		vals[i] = output.hyperlink(u, u)
+	}
+	c.Fields = append(c.Fields, Field{Key: key, Value: vals})
 	return c
 }
 

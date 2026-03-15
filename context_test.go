@@ -75,6 +75,25 @@ func TestContextURL(t *testing.T) {
 	assert.Equal(t, "https://example.com", ctx.Fields[0].Value)
 }
 
+func TestContextLinks(t *testing.T) {
+	ctx := NewWriter(io.Discard).With().Links("repos", []Link{
+		{URL: "https://github.com/foo/bar", Text: "foo/bar"},
+		{URL: "https://github.com/baz/qux", Text: "baz/qux"},
+	})
+
+	require.Len(t, ctx.Fields, 1)
+	assert.Equal(t, "repos", ctx.Fields[0].Key)
+	assert.Equal(t, []string{"foo/bar", "baz/qux"}, ctx.Fields[0].Value)
+}
+
+func TestContextURLs(t *testing.T) {
+	ctx := NewWriter(io.Discard).With().URLs("refs", []string{"https://a.com", "https://b.com"})
+
+	require.Len(t, ctx.Fields, 1)
+	assert.Equal(t, "refs", ctx.Fields[0].Key)
+	assert.Equal(t, []string{"https://a.com", "https://b.com"}, ctx.Fields[0].Value)
+}
+
 func TestContextBool(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Bool("ok", true)
 	assertSingleField(t, ctx.Fields, "ok", true)

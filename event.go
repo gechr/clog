@@ -414,8 +414,13 @@ func (e *Event) Line(key, path string, line int) *Event {
 	return e
 }
 
-// Link adds a field as a clickable terminal hyperlink with custom URL and display text.
-// Respects the logger's [ColorMode] setting.
+// Link represents a hyperlink with a URL and display text.
+type Link struct {
+	URL  string
+	Text string
+}
+
+// Link adds a single hyperlink field.
 func (e *Event) Link(key, url, text string) *Event {
 	if e == nil {
 		return e
@@ -430,6 +435,25 @@ func (e *Event) Link(key, url, text string) *Event {
 		e.fields,
 		Field{Key: key, Value: output.hyperlink(url, text)},
 	)
+	return e
+}
+
+// Links adds a string slice field where each element is a hyperlink.
+func (e *Event) Links(key string, links []Link) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	vals := make([]string, len(links))
+	for i, l := range links {
+		vals[i] = output.hyperlink(l.URL, l.Text)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 
@@ -815,6 +839,26 @@ func (e *Event) URL(key, url string) *Event {
 		e.fields,
 		Field{Key: key, Value: output.hyperlink(url, url)},
 	)
+	return e
+}
+
+// URLs adds a string slice field where each element is a hyperlink
+// with the URL as the display text.
+func (e *Event) URLs(key string, urls []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	vals := make([]string, len(urls))
+	for i, u := range urls {
+		vals[i] = output.hyperlink(u, u)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 
