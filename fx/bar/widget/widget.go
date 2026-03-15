@@ -13,6 +13,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx/bar"
+	"github.com/gechr/clog/internal/gradient"
 )
 
 // Option configures a widget constructor.
@@ -20,9 +21,10 @@ type Option func(*config)
 
 // config holds resolved options for widget constructors.
 type config struct {
-	digits int             // significant digits for bytes; decimal places for percent
-	style  *lipgloss.Style // optional lipgloss style applied to the widget's output
-	unit   string          // unit label for rate widgets (e.g. "ops", "files")
+	digits           int                  // significant digits for bytes; decimal places for percent
+	progressGradient []gradient.ColorStop // when set, colors widget text based on progress
+	style            *lipgloss.Style      // optional lipgloss style applied to the widget's output
+	unit             string               // unit label for rate widgets (e.g. "ops", "files")
 }
 
 func applyOptions(c *config, opts []Option) {
@@ -38,6 +40,25 @@ func (c config) render(s string) string {
 		return s
 	}
 	return c.style.Render(s)
+}
+
+// renderProgress applies gradient coloring based on progress, falling back to
+// the static style when no gradient is configured. current/total are the raw
+// progress values from [bar.State].
+func (c config) renderProgress(s string, current, total int) string {
+	if s == "" {
+		return s
+	}
+	if len(c.progressGradient) > 0 && total > 0 {
+		t := float64(current) / float64(total)
+		if t > 1 {
+			t = 1
+		}
+		clr := gradient.Interpolate(t, c.progressGradient)
+		st := lipgloss.NewStyle().Foreground(lipgloss.Color(clr.Clamped().Hex()))
+		return st.Render(s)
+	}
+	return c.render(s)
 }
 
 // None returns a [bar.Widget] that always returns "".
@@ -62,6 +83,14 @@ func WithDigits(n int) Option {
 // complete) are never styled.
 func WithStyle(style *lipgloss.Style) Option {
 	return func(c *config) { c.style = style }
+}
+
+// WithProgressGradient colors the widget's output text based on the current
+// progress, using the given gradient color stops. The gradient position is
+// derived from current/total in [bar.State]. When set, this overrides
+// [WithStyle]. Accepted by progress-aware widgets such as [Percent].
+func WithProgressGradient(stops ...gradient.ColorStop) Option {
+	return func(c *config) { c.progressGradient = stops }
 }
 
 // WithUnit sets a unit label for rate widgets. For example, WithUnit("ops")

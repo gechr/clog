@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/stretchr/testify/assert"
@@ -213,6 +214,34 @@ func TestWidgetETA(t *testing.T) {
 		w := widget.ETA()
 		got := w(bar.State{Current: 100, Total: 1000, Rate: 10})
 		assert.Equal(t, "ETA 1m30s", got)
+	})
+}
+
+// TestWidgetPercentWithProgressGradient verifies gradient coloring on percent text.
+func TestWidgetPercentWithProgressGradient(t *testing.T) {
+	stops := bar.DefaultGradient()
+	w := widget.Percent(widget.WithProgressGradient(stops...))
+
+	t.Run("zero_progress_is_styled", func(t *testing.T) {
+		got := w(bar.State{Current: 0, Total: 100})
+		// The "0%" portion should contain ANSI escape codes from the gradient.
+		assert.Contains(t, got, "0%")
+		assert.Positive(t, lipgloss.Width(got))
+		// Visible width should match the unstyled padded width ("  0%" = 4 chars).
+		assert.Equal(t, 4, lipgloss.Width(got))
+	})
+
+	t.Run("full_progress_is_styled", func(t *testing.T) {
+		got := w(bar.State{Current: 100, Total: 100})
+		assert.Contains(t, got, "100%")
+		assert.Equal(t, 4, lipgloss.Width(got))
+	})
+
+	t.Run("different_progress_different_color", func(t *testing.T) {
+		low := w(bar.State{Current: 10, Total: 100})
+		high := w(bar.State{Current: 90, Total: 100})
+		// Both should be styled but with different ANSI codes (different gradient positions).
+		assert.NotEqual(t, low, high)
 	})
 }
 

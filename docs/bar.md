@@ -259,11 +259,12 @@ All presets set `WidgetRight: widget.Percent()` - padded percentage on the right
 
 All widget constructors accept `widget.Option` values:
 
-| Option                   | Applies to                                                                                 | Description                                                                     |
-| ------------------------ | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `widget.WithDigits(n)`   | `widget.Percent`, `widget.Bytes`, `widget.IBytes`, `widget.BytesRate`, `widget.IBytesRate` | Precision: significant digits or decimal places                                 |
-| `widget.WithUnit(label)` | `widget.Rate`                                                                              | Unit label (e.g. `"ops"` → `"150 ops/s"`)                                       |
-| `widget.WithStyle(s)`    | all widgets                                                                                | [Lipgloss](https://charm.land/lipgloss/v2) style applied to the widget's output |
+| Option                             | Applies to                                                                                 | Description                                                                     |
+| ---------------------------------- | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| `widget.WithDigits(n)`             | `widget.Percent`, `widget.Bytes`, `widget.IBytes`, `widget.BytesRate`, `widget.IBytesRate` | Precision: significant digits or decimal places                                 |
+| `widget.WithUnit(label)`           | `widget.Rate`                                                                              | Unit label (e.g. `"ops"` → `"150 ops/s"`)                                       |
+| `widget.WithStyle(s)`              | all widgets                                                                                | [Lipgloss](https://charm.land/lipgloss/v2) style applied to the widget's output |
+| `widget.WithProgressGradient(...)` | `widget.Percent`                                                                           | Colors widget text based on progress (overrides `WithStyle`)                    |
 
 **Composing multiple widgets:**
 
@@ -296,6 +297,16 @@ style.WidgetRight = widget.Widgets(
   widget.Rate(widget.WithStyle(faint)),
 )
 // INF ⏳ Processing [━━━━━╸╺──────] ETA 2m30s │ 150/s  (all rendered faint)
+```
+
+Pass `widget.WithProgressGradient` to color the percent text based on progress, matching the bar's gradient:
+
+```go
+style := bar.Smooth
+style.ProgressGradient = bar.DefaultGradient()
+style.WidgetLeft = widget.Percent(widget.WithProgressGradient(bar.DefaultGradient()...))
+style.WidgetRight = widget.None()
+// INF ⏳ Uploading │████▌     │  50%  (percent colored red→yellow→green by progress)
 ```
 
 **Move percent to the left:**

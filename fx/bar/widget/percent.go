@@ -25,8 +25,8 @@ func Percent(opts ...Option) bar.Widget {
 		str := numfmt.TrimDecimalZeros(fmt.Sprintf("%.*f", c.digits, pct)) + "%"
 		padding := padWidth - len(str)
 		if padding > 0 {
-			return strings.Repeat(" ", padding) + c.render(str)
+			return strings.Repeat(" ", padding) + c.renderProgress(str, s.Current, s.Total)
 		}
-		return c.render(str)
+		return c.renderProgress(str, s.Current, s.Total)
 	}
 }
