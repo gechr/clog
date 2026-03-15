@@ -88,7 +88,21 @@ type groupBarLayout struct {
 	rightPad groupBarColumns
 }
 
+type groupFieldLayout struct {
+	alignment fx.FieldAlignment
+	maxStart  int
+}
+
+type groupRenderLayout struct {
+	bar    groupBarLayout
+	fields groupFieldLayout
+}
+
 const barColumnCount = 3
+
+func (l *groupFieldLayout) enabled() bool {
+	return l != nil && l.alignment == fx.FieldAlignmentMessage && l.maxStart > 0
+}
 
 func (l *groupBarLayout) observe(
 	parts, leftText, barStr, rightText string,
@@ -356,6 +370,51 @@ func buildLine(order []Part, reportTS bool, tsStr, levelStr, symbol, msg, fields
 	return strings.Join(parts, " ")
 }
 
+func supportsFieldAlignment(order []Part, alignment fx.FieldAlignment) bool {
+	if alignment != fx.FieldAlignmentMessage {
+		return false
+	}
+
+	messageIndex := -1
+	fieldsIndex := -1
+	for i, part := range order {
+		switch part {
+		case PartMessage:
+			if messageIndex == -1 {
+				messageIndex = i
+			}
+		case PartFields:
+			if fieldsIndex == -1 {
+				fieldsIndex = i
+			}
+		}
+	}
+
+	return messageIndex >= 0 && fieldsIndex == messageIndex+1
+}
+
+func alignMessageForFields(
+	order []Part,
+	reportTS bool,
+	tsStr, levelStr, symbol, msg, fieldsStr string,
+	layout *groupRenderLayout,
+) string {
+	if fieldsStr == "" || layout == nil || !layout.fields.enabled() {
+		return msg
+	}
+	if !supportsFieldAlignment(order, layout.fields.alignment) {
+		return msg
+	}
+
+	currentStart := lipgloss.Width(buildLine(order, reportTS, tsStr, levelStr, symbol, msg, ""))
+	padding := layout.fields.maxStart - currentStart
+	if padding <= 0 {
+		return msg
+	}
+
+	return msg + strings.Repeat(" ", padding)
+}
+
 // styledMsg applies the message style for the given level, if any.
 func styledMsg(msg string, level Level, styles *style.Config, noColor bool) string {
 	if s := styles.Messages[level]; s != nil && !noColor {
@@ -416,22 +475,72 @@ func resolveDynamicFields(
 }
 
 // renderTaskTimestamp returns the styled timestamp string for a task.
-func renderTaskTimestamp(gt *groupTask) string {
+func renderTaskTimestamp(gt *groupTask, now time.Time) string {
 	if !gt.cfg.reportTS {
 		return ""
 	}
-	ts := time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt)
+	ts := now.In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt)
 	if gt.cfg.styles.Timestamp != nil && !gt.cfg.noColor {
 		return gt.cfg.styles.Timestamp.Render(ts)
 	}
 	return ts
 }
 
+func measureTaskFieldStart(
+	gt *groupTask,
+	isDone bool,
+	now time.Time,
+	alignment fx.FieldAlignment,
+) int {
+	if !supportsFieldAlignment(gt.cfg.order, alignment) {
+		return 0
+	}
+
+	b := gt.Builder
+	tsStr := renderTaskTimestamp(gt, now)
+
+	if isDone {
+		msg := gt.cfg.indentation + styledMsg(
+			*gt.MsgPtr.Load(),
+			b.Level,
+			gt.cfg.styles,
+			gt.cfg.noColor,
+		)
+		return lipgloss.Width(buildLine(
+			gt.cfg.order,
+			gt.cfg.reportTS,
+			tsStr,
+			gt.cfg.levelSymbol,
+			*gt.SymbolPtr.Load(),
+			msg,
+			"",
+		))
+	}
+
+	if b.Mode == fx.AnimationBar {
+		state := loadBarRenderState(gt, now)
+		parts, _, _, _, _, _ := buildTaskBarParts(gt, "", tsStr, state, nil)
+		return lipgloss.Width(parts)
+	}
+
+	msg, char := renderAnimatedTaskMessage(gt, now)
+
+	return lipgloss.Width(buildLine(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelSymbol,
+		char,
+		gt.cfg.indentation+msg,
+		"",
+	))
+}
+
 // renderTaskLine renders a single animation frame line for a task.
 // For done tasks, it renders the frozen final state with the level's default symbol.
 // For active tasks, it renders the current animation frame.
 // It does not perform any I/O.
-func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarLayout) string {
+func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRenderLayout) string {
 	b := gt.Builder
 	fieldsPtr := gt.FieldsPtr.Load()
 	current, total := 0, 0
@@ -441,7 +550,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 	}
 	dur := now.Sub(gt.StartTime)
 	fieldsStr := renderTaskFields(gt, fieldsPtr, dur, current, total)
-	tsStr := renderTaskTimestamp(gt)
+	tsStr := renderTaskTimestamp(gt, now)
 
 	if isDone {
 		// Show the frozen final line with the level's default symbol.
@@ -454,6 +563,16 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 		levelSymbol := gt.cfg.levelSymbol
 		// Use a checkmark or the builder symbol for completed items.
 		doneSymbol := *gt.SymbolPtr.Load()
+		msg = alignMessageForFields(
+			gt.cfg.order,
+			gt.cfg.reportTS,
+			tsStr,
+			levelSymbol,
+			doneSymbol,
+			msg,
+			fieldsStr,
+			layout,
+		)
 		return buildLine(
 			gt.cfg.order,
 			gt.cfg.reportTS,
@@ -478,10 +597,38 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout)
 	}
 
+	msg, char := renderAnimatedTaskMessage(gt, now)
+
+	msg = gt.cfg.indentation + msg
+	msg = alignMessageForFields(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelSymbol,
+		char,
+		msg,
+		fieldsStr,
+		layout,
+	)
+
+	return buildLine(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelSymbol,
+		char,
+		msg,
+		fieldsStr,
+	)
+}
+
+func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
+	b := gt.Builder
 	msg := *gt.MsgPtr.Load()
 	var char string
+	dur := now.Sub(gt.StartTime)
 
-	switch b.Mode { //nolint:exhaustive // animationBar handled above
+	switch b.Mode { //nolint:exhaustive // animationBar handled by caller
 	case fx.AnimationSpinner:
 		n := len(b.SpinnerStyle.Frames)
 		i := int(dur/b.SpinnerStyle.Interval) % n
@@ -500,15 +647,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 		msg = shimmer.Text(msg, phase, b.ShimmerDir, gt.hexLUT, gt.styleLUT)
 	}
 
-	return buildLine(
-		gt.cfg.order,
-		gt.cfg.reportTS,
-		tsStr,
-		gt.cfg.levelSymbol,
-		char,
-		gt.cfg.indentation+msg,
-		fieldsStr,
-	)
+	return msg, char
 }
 
 // renderTaskBarLine renders a bar-animation frame for a task. Factored out to
@@ -517,19 +656,20 @@ func renderTaskBarLine(
 	gt *groupTask,
 	fieldsStr, tsStr string,
 	state barRenderState,
-	layout *groupBarLayout,
+	layout *groupRenderLayout,
 ) string {
 	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(
 		gt,
 		fieldsStr,
 		tsStr,
 		state,
+		layout,
 	)
 	if !showBar || gt.Builder.BarStyle.Placement == bar.PlaceInline {
 		return parts
 	}
 	if layout != nil {
-		return layout.format(
+		return layout.bar.format(
 			parts,
 			leftText,
 			barStr,
@@ -547,9 +687,20 @@ func buildTaskBarParts(
 	gt *groupTask,
 	fieldsStr, tsStr string,
 	state barRenderState,
+	layout *groupRenderLayout,
 ) (string, string, string, string, string, bool) {
 	b := gt.Builder
 	msg := gt.cfg.indentation + styledMsg(state.msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
+	msg = alignMessageForFields(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelSymbol,
+		state.symbol,
+		msg,
+		fieldsStr,
+		layout,
+	)
 
 	current := state.current
 	total := state.total
@@ -628,8 +779,24 @@ func buildTaskBarParts(
 	return parts, leftText, barStr, rightText, sep, true
 }
 
-func measureGroupBarLayout(gts []*groupTask, done []bool, now time.Time) *groupBarLayout {
-	layout := &groupBarLayout{}
+func measureGroupRenderLayout(
+	g *fx.Group,
+	gts []*groupTask,
+	done []bool,
+	now time.Time,
+) *groupRenderLayout {
+	layout := &groupRenderLayout{
+		fields: groupFieldLayout{alignment: g.FieldAlignment},
+	}
+	if layout.fields.alignment != fx.FieldAlignmentNone {
+		for i, gt := range gts {
+			layout.fields.maxStart = max(
+				layout.fields.maxStart,
+				measureTaskFieldStart(gt, done[i], now, layout.fields.alignment),
+			)
+		}
+	}
+
 	for i, gt := range gts {
 		if done[i] || gt.Builder.Mode != fx.AnimationBar {
 			continue
@@ -643,17 +810,18 @@ func measureGroupBarLayout(gts []*groupTask, done []bool, now time.Time) *groupB
 			state.current,
 			state.total,
 		)
-		tsStr := renderTaskTimestamp(gt)
+		tsStr := renderTaskTimestamp(gt, now)
 		parts, leftText, barStr, rightText, _, showBar := buildTaskBarParts(
 			gt,
 			fieldsStr,
 			tsStr,
 			state,
+			layout,
 		)
 		if !showBar {
 			continue
 		}
-		layout.observe(parts, leftText, barStr, rightText, gt.Builder.BarStyle.Placement)
+		layout.bar.observe(parts, leftText, barStr, rightText, gt.Builder.BarStyle.Placement)
 	}
 	return layout
 }
@@ -758,7 +926,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
-			layout := measureGroupBarLayout(gts, done, now)
+			layout := measureGroupRenderLayout(g, gts, done, now)
 			for i, gt := range gts {
 				line := renderTaskLine(gt, done[i], now, layout)
 				if i < len(gts)-1 {

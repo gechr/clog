@@ -2,6 +2,7 @@ package clog
 
 import (
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
 )
 
@@ -47,6 +48,14 @@ const (
 	SortNone       = core.SortNone
 	SortAscending  = core.SortAscending
 	SortDescending = core.SortDescending
+)
+
+// FieldAlignment controls optional group-level field alignment behavior.
+type FieldAlignment = fx.FieldAlignment
+
+const (
+	FieldAlignmentNone    = fx.FieldAlignmentNone
+	FieldAlignmentMessage = fx.FieldAlignmentMessage
 )
 
 // Part identifies a component of a formatted log line.

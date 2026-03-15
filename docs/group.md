@@ -21,6 +21,12 @@ g.Add(clog.Bar("Downloading", 100)).
 g.Wait().Symbol("✅").Msg("All tasks complete")
 ```
 
+To align the first field column across rows, enable group field alignment:
+
+```go
+g := clog.Group(ctx, clog.WithFieldAlignment(clog.FieldAlignmentMessage))
+```
+
 While the tasks run, the terminal shows all animations updating simultaneously:
 
 ```text
@@ -43,14 +49,17 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 
 ## API
 
-| Function / Method      | Description                                            |
-| ---------------------- | ------------------------------------------------------ |
-| `clog.Group(ctx)`      | Create a group using the `Default` logger              |
-| `logger.Group(ctx)`    | Create a group using a specific logger                 |
-| `g.Add(builder)`       | Register an animation builder, returns `*GroupEntry`   |
-| `entry.Run(task)`      | Start a `TaskFunc`, returns `*TaskResult`              |
-| `entry.Progress(task)` | Start an `UpdateFunc`, returns `*TaskResult`           |
-| `g.Wait()`             | Block until all tasks complete, returns `*GroupResult` |
+| Function / Method               | Description                                            |
+| ------------------------------- | ------------------------------------------------------ |
+| `clog.Group(ctx)`               | Create a group using the `Default` logger              |
+| `logger.Group(ctx)`             | Create a group using a specific logger                 |
+| `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output         |
+| `g.Add(builder)`                | Register an animation builder, returns `*GroupEntry`   |
+| `entry.Run(task)`               | Start a `TaskFunc`, returns `*TaskResult`              |
+| `entry.Progress(task)`          | Start an `UpdateFunc`, returns `*TaskResult`           |
+| `g.Wait()`                      | Block until all tasks complete, returns `*GroupResult` |
+
+`FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 

@@ -95,6 +95,34 @@ func TestGroupMixedAnimations(t *testing.T) {
 	assert.Contains(t, out, "pulse done")
 }
 
+func TestGroupFieldAlignmentOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithFieldAlignment(FieldAlignmentMessage))
+
+	assert.Equal(t, FieldAlignmentMessage, g.FieldAlignment)
+}
+
+func TestGroupFieldAlignmentMessageAlignsFields(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithFieldAlignment(FieldAlignmentMessage))
+	g.Add(logger.Spinner("short").Str("stage", "queued"))
+	g.Add(logger.Spinner("much longer repo").Str("stage", "queued"))
+
+	gts := make([]*groupTask, len(g.Tasks))
+	for i, task := range g.Tasks {
+		gt := &groupTask{GroupTask: task}
+		captureTaskConfig(gt)
+		gts[i] = gt
+	}
+
+	now := time.Unix(1, 0)
+	layout := measureGroupRenderLayout(g, gts, []bool{true, true}, now)
+	line1 := renderTaskLine(gts[0], true, now, layout)
+	line2 := renderTaskLine(gts[1], true, now, layout)
+
+	assert.Equal(t, strings.Index(line1, "stage="), strings.Index(line2, "stage="))
+}
+
 func TestGroupErrorCollection(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))

@@ -11,6 +11,16 @@ import (
 	"github.com/gechr/clog/level"
 )
 
+// FieldAlignment controls optional group-level alignment behavior.
+type FieldAlignment int
+
+const (
+	// FieldAlignmentNone disables group-level field alignment padding.
+	FieldAlignmentNone FieldAlignment = iota
+	// FieldAlignmentMessage aligns the first field column after the message.
+	FieldAlignmentMessage
+)
+
 // Group manages a set of concurrent animations rendered as a multi-line
 // block. Create one with root clog's Group function, add animations with
 // [Group.Add], then call [Group.Wait] to run the render loop.
@@ -18,8 +28,9 @@ type Group struct {
 	Ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
 	Mu  sync.Mutex
 
-	Log   Logger
-	Tasks []*GroupTask
+	FieldAlignment FieldAlignment
+	Log            Logger
+	Tasks          []*GroupTask
 }
 
 // GroupTask holds per-animation state for the group render loop.
