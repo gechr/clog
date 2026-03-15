@@ -160,8 +160,8 @@ clog.Bar("Downloading", 100, bar.WithStyle(bar.Braille), bar.WithWidth(30))
 | Option                | Description                           |
 | --------------------- | ------------------------------------- |
 | `bar.WithWidth(n)`    | Fixed inner width (`0` = auto-size)   |
-| `bar.WithWidthMin(n)` | Minimum auto-sized width (default 10) |
-| `bar.WithWidthMax(n)` | Maximum auto-sized width (default 40) |
+| `bar.WithMinWidth(n)` | Minimum auto-sized width (default 10) |
+| `bar.WithMaxWidth(n)` | Maximum auto-sized width (default 40) |
 
 ### Colors
 

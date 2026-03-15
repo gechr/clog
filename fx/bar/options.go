@@ -180,15 +180,15 @@ func WithWidth(w int) Option {
 	}
 }
 
-// WithWidthMax sets the maximum auto-sized inner width.
-func WithWidthMax(w int) Option {
+// WithMaxWidth sets the maximum auto-sized inner width.
+func WithMaxWidth(w int) Option {
 	return func(s *Style) {
 		s.WidthMax = w
 	}
 }
 
-// WithWidthMin sets the minimum auto-sized inner width.
-func WithWidthMin(w int) Option {
+// WithMinWidth sets the minimum auto-sized inner width.
+func WithMinWidth(w int) Option {
 	return func(s *Style) {
 		s.WidthMin = w
 	}

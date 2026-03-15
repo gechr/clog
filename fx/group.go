@@ -3,6 +3,7 @@ package fx
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -229,6 +230,11 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	update.InitSelf(update)
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				t.DoneErr <- fmt.Errorf("panic: %v", r)
+			}
+		}()
 		if err := g.acquireSlot(g.Ctx); err != nil {
 			t.DoneErr <- err
 			return
