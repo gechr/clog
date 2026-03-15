@@ -264,6 +264,7 @@ All widget constructors accept `widget.Option` values:
 | `widget.WithDigits(n)`             | `widget.Percent`, `widget.Bytes`, `widget.IBytes`, `widget.BytesRate`, `widget.IBytesRate` | Precision: significant digits or decimal places                                 |
 | `widget.WithUnit(label)`           | `widget.Rate`                                                                              | Unit label (e.g. `"ops"` → `"150 ops/s"`)                                       |
 | `widget.WithStyle(s)`              | all widgets                                                                                | [Lipgloss](https://charm.land/lipgloss/v2) style applied to the widget's output |
+| `widget.WithMinimumPercent(pct)`   | `widget.Percent`                                                                           | Hides widget when progress is below `pct` (e.g. `1` hides `0%`)                 |
 | `widget.WithProgressGradient(...)` | `widget.Percent`                                                                           | Colors widget text based on progress (overrides `WithStyle`)                    |
 
 **Composing multiple widgets:**

@@ -22,6 +22,7 @@ type Option func(*config)
 // config holds resolved options for widget constructors.
 type config struct {
 	digits           int                  // significant digits for bytes; decimal places for percent
+	minPercent       float64              // minimum percent value to display; below this the widget returns ""
 	progressGradient []gradient.ColorStop // when set, colors widget text based on progress
 	style            *lipgloss.Style      // optional lipgloss style applied to the widget's output
 	unit             string               // unit label for rate widgets (e.g. "ops", "files")
@@ -76,6 +77,13 @@ func None() bar.Widget {
 //     0 -> "42%"; 1 -> "42.5%"
 func WithDigits(n int) Option {
 	return func(c *config) { c.digits = n }
+}
+
+// WithMinimumPercent sets the minimum percentage threshold for display.
+// When the current progress is below this value, the widget returns "".
+// Accepted by [Percent]. For example, WithMinimumPercent(1) hides "0%".
+func WithMinimumPercent(pct float64) Option {
+	return func(c *config) { c.minPercent = pct }
 }
 
 // WithStyle sets a lipgloss style applied to the widget's output string.

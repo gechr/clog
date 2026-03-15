@@ -217,6 +217,26 @@ func TestWidgetETA(t *testing.T) {
 	})
 }
 
+// TestWidgetPercentWithMinimumPercent verifies the minimum percent threshold.
+func TestWidgetPercentWithMinimumPercent(t *testing.T) {
+	w := widget.Percent(widget.WithMinimumPercent(1))
+
+	t.Run("below_threshold_returns_empty", func(t *testing.T) {
+		got := w(bar.State{Current: 0, Total: 100})
+		assert.Empty(t, got)
+	})
+
+	t.Run("at_threshold_returns_value", func(t *testing.T) {
+		got := w(bar.State{Current: 1, Total: 100})
+		assert.Equal(t, "  1%", got)
+	})
+
+	t.Run("above_threshold_returns_value", func(t *testing.T) {
+		got := w(bar.State{Current: 50, Total: 100})
+		assert.Equal(t, " 50%", got)
+	})
+}
+
 // TestWidgetPercentWithProgressGradient verifies gradient coloring on percent text.
 func TestWidgetPercentWithProgressGradient(t *testing.T) {
 	stops := bar.DefaultGradient()
