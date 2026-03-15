@@ -29,6 +29,14 @@ func WithParallelism(parallelism int) GroupOption {
 	}
 }
 
+// WithMonotonicBars prevents grouped bar fills from rendering lower than the
+// highest progress fraction previously shown for each task.
+func WithMonotonicBars() GroupOption {
+	return func(g *fx.Group) {
+		g.MonotonicBars = true
+	}
+}
+
 // Group creates a new animation group using the [Default] logger.
 func Group(ctx context.Context, opts ...GroupOption) *fx.Group {
 	return Default.Group(ctx, opts...)

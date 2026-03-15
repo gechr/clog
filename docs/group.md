@@ -33,6 +33,13 @@ To let `clog` limit how many tasks run at once, use `WithParallelism`:
 g := clog.Group(ctx, clog.WithParallelism(5))
 ```
 
+To keep grouped bar fills from visibly moving backward when task totals grow or
+progress is reported in phases, enable monotonic bars:
+
+```go
+g := clog.Group(ctx, clog.WithMonotonicBars())
+```
+
 While the tasks run, the terminal shows all animations updating simultaneously:
 
 ```text
@@ -60,6 +67,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `clog.Group(ctx)`               | Create a group using the `Default` logger              |
 | `logger.Group(ctx)`             | Create a group using a specific logger                 |
 | `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output         |
+| `clog.WithMonotonicBars()`      | Clamp grouped bar fills to the highest shown fraction  |
 | `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently    |
 | `g.Add(builder)`                | Register an animation builder, returns `*GroupEntry`   |
 | `entry.Run(task)`               | Start a `TaskFunc`, returns `*TaskResult`              |
@@ -67,6 +75,9 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `g.Wait()`                      | Block until all tasks complete, returns `*GroupResult` |
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
+
+`WithMonotonicBars()` only affects the rendered bar fill. It does not change the
+underlying task progress values.
 
 `WithParallelism(n)` uses `5` when `n <= 0`.
 

@@ -115,6 +115,13 @@ func TestGroupParallelismOption(t *testing.T) {
 	assert.Equal(t, 5, g.Parallelism)
 }
 
+func TestGroupMonotonicBarsOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithMonotonicBars())
+
+	assert.True(t, g.MonotonicBars)
+}
+
 func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background(), WithParallelism(2))
@@ -845,4 +852,53 @@ func TestRenderTaskLineCoalescesWidgetsButKeepsBarLive(t *testing.T) {
 	assert.Equal(t, "INF 📡 repo stage=receiving ETA 18s [=---------]  10%", first)
 	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving ETA 18s [=========-]  10%", second)
 	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving  ETA 1s [=========-]  90%", third)
+}
+
+func TestRenderTaskLineMonotonicBars(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	style := bar.Style{
+		CapLeft:     "[",
+		CapRight:    "]",
+		CharEmpty:   '-',
+		CharFill:    '=',
+		Separator:   " ",
+		WidgetRight: widget.None(),
+		Width:       10,
+	}
+	b := logger.Bar("repo", 100, bar.WithStyle(style))
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "repo"
+	fields := []Field{{Key: "stage", Value: "receiving"}}
+	symbol := "📡"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+		monotonicBars: true,
+	}
+	captureTaskConfig(gt)
+
+	b.BarProgressPtr.Store(90)
+	firstAt := time.Unix(2, 0)
+	firstLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	first := renderTaskLine(gt, false, firstAt, firstLayout)
+
+	b.BarProgressPtr.Store(80)
+	secondAt := time.Unix(3, 0)
+	secondLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, secondAt)
+	second := renderTaskLine(gt, false, secondAt, secondLayout)
+
+	assert.Equal(t, "INF 📡 repo stage=receiving [=========-]", first)
+	assert.Equal(t, first, second)
 }

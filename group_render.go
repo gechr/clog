@@ -44,9 +44,11 @@ type taskConfig struct {
 type groupTask struct {
 	*fx.GroupTask
 
-	cfg      taskConfig
-	tickRate time.Duration
-	visible  bool
+	cfg            taskConfig
+	maxBarProgress float64
+	monotonicBars  bool
+	tickRate       time.Duration
+	visible        bool
 
 	// per-tick mutable state
 	cachedFieldsPtr *[]core.Field    // dedup: last-formatted fields pointer
@@ -96,7 +98,10 @@ type groupRenderLayout struct {
 	fields groupFieldLayout
 }
 
-const barColumnCount = 3
+const (
+	barColumnCount    = 3
+	monotonicBarScale = 1000
+)
 
 func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
 	if gt.visible {
@@ -136,6 +141,12 @@ func visibleTaskIndexes(gts []*groupTask, done []bool, now time.Time) []int {
 		}
 	}
 	return indexes
+}
+
+func renderBarProgress(progress float64, s bar.Style, termWidth int) string {
+	progress = max(0, min(1, progress))
+	current := int(math.Round(progress * monotonicBarScale))
+	return bar.Render(current, monotonicBarScale, s, termWidth)
 }
 
 func (l *groupFieldLayout) enabled() bool {
@@ -755,6 +766,12 @@ func buildTaskBarParts(
 
 	current := int(b.BarProgressPtr.Load())
 	total := int(b.BarTotalPtr.Load())
+	progress := float64(current) / float64(max(total, 1))
+	renderProgress := progress
+	if gt.monotonicBars {
+		gt.maxBarProgress = max(gt.maxBarProgress, progress)
+		renderProgress = gt.maxBarProgress
+	}
 	sep := b.BarStyle.Separator
 	if sep == "" {
 		sep = " "
@@ -776,18 +793,20 @@ func buildTaskBarParts(
 	// Cache the gradient style to avoid lipgloss.NewStyle() per frame.
 	barStyle := b.BarStyle
 	if len(barStyle.ProgressGradient) > 0 {
-		progress := float64(current) / float64(max(total, 1))
-		if !gt.gradientValid || gt.gradientProgress != progress {
-			c := style.InterpolateGradient(progress, barStyle.ProgressGradient)
+		if !gt.gradientValid || gt.gradientProgress != renderProgress {
+			c := style.InterpolateGradient(renderProgress, barStyle.ProgressGradient)
 			gt.gradientStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color(c.Clamped().Hex()))
-			gt.gradientProgress = progress
+			gt.gradientProgress = renderProgress
 			gt.gradientValid = true
 		}
 		barStyle.StyleFill = &gt.gradientStyle
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
 	barStr := bar.Render(current, total, barStyle, gt.cfg.output.Width())
+	if gt.monotonicBars {
+		barStr = renderBarProgress(renderProgress, barStyle, gt.cfg.output.Width())
+	}
 
 	elapsed := gt.Duration(state.renderAt)
 	var rate float64
@@ -899,7 +918,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	// Wrap each fx.GroupTask with rendering state.
 	gts := make([]*groupTask, len(fxTasks))
 	for i, ft := range fxTasks {
-		gt := &groupTask{GroupTask: ft}
+		gt := &groupTask{
+			GroupTask:     ft,
+			monotonicBars: g.MonotonicBars,
+		}
 		captureTaskConfig(gt)
 		gts[i] = gt
 	}
