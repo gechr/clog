@@ -102,6 +102,65 @@ func TestGroupFieldAlignmentOption(t *testing.T) {
 	assert.Equal(t, FieldAlignmentMessage, g.FieldAlignment)
 }
 
+func TestGroupParallelismOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+
+	g := logger.Group(context.Background(), WithParallelism(3))
+	assert.Equal(t, 3, g.Parallelism)
+
+	g = logger.Group(context.Background(), WithParallelism(0))
+	assert.Equal(t, 5, g.Parallelism)
+
+	g = logger.Group(context.Background(), WithParallelism(-1))
+	assert.Equal(t, 5, g.Parallelism)
+}
+
+func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithParallelism(2))
+
+	var active atomic.Int64
+	var maxActive atomic.Int64
+	started := make(chan struct{}, 3)
+	release := make(chan struct{})
+	results := make([]*fx.TaskResult, 0, 3)
+
+	for range 3 {
+		result := g.Add(logger.Spinner("task")).
+			Run(func(_ context.Context) error {
+				current := active.Add(1)
+				for {
+					maxSeen := maxActive.Load()
+					if current <= maxSeen || maxActive.CompareAndSwap(maxSeen, current) {
+						break
+					}
+				}
+				started <- struct{}{}
+				<-release
+				active.Add(-1)
+				return nil
+			})
+		results = append(results, result)
+	}
+
+	<-started
+	<-started
+
+	select {
+	case <-started:
+		t.Fatal("task started before a parallelism slot was released")
+	case <-time.After(20 * time.Millisecond):
+	}
+
+	close(release)
+	g.Wait()
+
+	for _, result := range results {
+		require.NoError(t, result.Silent())
+	}
+	assert.Equal(t, int64(2), maxActive.Load())
+}
+
 func TestGroupFieldAlignmentMessageAlignsFields(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background(), WithFieldAlignment(FieldAlignmentMessage))

@@ -30,7 +30,10 @@ type Group struct {
 
 	FieldAlignment FieldAlignment
 	Log            Logger
+	Parallelism    int
 	Tasks          []*GroupTask
+
+	sem chan struct{}
 }
 
 // GroupTask holds per-animation state for the group render loop.
@@ -42,7 +45,37 @@ type GroupTask struct {
 	FieldsPtr *atomic.Pointer[[]core.Field]
 	MsgPtr    *atomic.Pointer[string]
 	StartTime time.Time
+	StartedAt atomic.Int64
 	SymbolPtr *atomic.Pointer[string]
+}
+
+// Started reports whether the task has begun executing.
+func (t *GroupTask) Started() bool {
+	return !t.startTime().IsZero()
+}
+
+// Duration returns the elapsed execution time, or zero while the task is queued.
+func (t *GroupTask) Duration(now time.Time) time.Duration {
+	start := t.startTime()
+	if start.IsZero() {
+		return 0
+	}
+	return now.Sub(start)
+}
+
+// MarkStarted records the actual task start time.
+func (t *GroupTask) MarkStarted(now time.Time) {
+	if now.IsZero() {
+		return
+	}
+	t.StartedAt.Store(now.UnixNano())
+}
+
+func (t *GroupTask) startTime() time.Time {
+	if startedAt := t.StartedAt.Load(); startedAt > 0 {
+		return time.Unix(0, startedAt)
+	}
+	return t.StartTime
 }
 
 // Add registers an animation builder with the group and returns a
@@ -68,7 +101,6 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 		DoneErr:   make(chan error, 1),
 		FieldsPtr: fieldsPtr,
 		MsgPtr:    msgPtr,
-		StartTime: time.Now(),
 		SymbolPtr: symbolPtr,
 	}
 
@@ -107,6 +139,44 @@ func (g *Group) Wait() *GroupResult {
 	return result
 }
 
+func (g *Group) acquireSlot(ctx context.Context) error {
+	if g.Parallelism <= 0 {
+		return nil
+	}
+
+	sem := g.semaphore()
+	select {
+	case sem <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func (g *Group) releaseSlot() {
+	if g.Parallelism <= 0 {
+		return
+	}
+
+	select {
+	case <-g.semaphore():
+	default:
+	}
+}
+
+func (g *Group) semaphore() chan struct{} {
+	g.Mu.Lock()
+	defer g.Mu.Unlock()
+
+	if g.Parallelism <= 0 {
+		return nil
+	}
+	if g.sem == nil {
+		g.sem = make(chan struct{}, g.Parallelism)
+	}
+	return g.sem
+}
+
 // GroupEntry is returned by [Group.Add] and provides [Run] and [Progress]
 // methods to start a task within the group.
 type GroupEntry struct {
@@ -141,6 +211,12 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	update.InitSelf(update)
 
 	go func() {
+		if err := g.acquireSlot(g.Ctx); err != nil {
+			t.DoneErr <- err
+			return
+		}
+		defer g.releaseSlot()
+		t.MarkStarted(time.Now())
 		t.DoneErr <- task(g.Ctx, update)
 	}()
 
@@ -191,7 +267,7 @@ func (r *TaskResult) Send() error {
 		msg = *t.MsgPtr.Load()
 	}
 
-	finalFields := t.Builder.ResolveDynamicFields(*t.FieldsPtr.Load(), time.Since(t.StartTime))
+	finalFields := t.Builder.ResolveDynamicFields(*t.FieldsPtr.Load(), t.Duration(time.Now()))
 	if len(r.Fields) > 0 {
 		finalFields = core.MergeFields(finalFields, r.Fields)
 	}

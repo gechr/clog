@@ -27,6 +27,12 @@ To align the first field column across rows, enable group field alignment:
 g := clog.Group(ctx, clog.WithFieldAlignment(clog.FieldAlignmentMessage))
 ```
 
+To let `clog` limit how many tasks run at once, use `WithParallelism`:
+
+```go
+g := clog.Group(ctx, clog.WithParallelism(5))
+```
+
 While the tasks run, the terminal shows all animations updating simultaneously:
 
 ```text
@@ -54,12 +60,15 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `clog.Group(ctx)`               | Create a group using the `Default` logger              |
 | `logger.Group(ctx)`             | Create a group using a specific logger                 |
 | `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output         |
+| `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently    |
 | `g.Add(builder)`                | Register an animation builder, returns `*GroupEntry`   |
 | `entry.Run(task)`               | Start a `TaskFunc`, returns `*TaskResult`              |
 | `entry.Progress(task)`          | Start an `UpdateFunc`, returns `*TaskResult`           |
 | `g.Wait()`                      | Block until all tasks complete, returns `*GroupResult` |
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
+
+`WithParallelism(n)` uses `5` when `n <= 0`.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 

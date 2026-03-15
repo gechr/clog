@@ -517,13 +517,7 @@ func measureTaskFieldStart(
 		))
 	}
 
-	if b.Mode == fx.AnimationBar {
-		state := loadBarRenderState(gt, now)
-		parts, _, _, _, _, _ := buildTaskBarParts(gt, "", tsStr, state, nil)
-		return lipgloss.Width(parts)
-	}
-
-	msg, char := renderAnimatedTaskMessage(gt, now)
+	msg, char := renderTaskMessageSymbol(gt, now)
 
 	return lipgloss.Width(buildLine(
 		gt.cfg.order,
@@ -531,7 +525,7 @@ func measureTaskFieldStart(
 		tsStr,
 		gt.cfg.levelSymbol,
 		char,
-		gt.cfg.indentation+msg,
+		msg,
 		"",
 	))
 }
@@ -548,7 +542,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 		current = int(b.BarProgressPtr.Load())
 		total = int(b.BarTotalPtr.Load())
 	}
-	dur := now.Sub(gt.StartTime)
+	dur := gt.Duration(now)
 	fieldsStr := renderTaskFields(gt, fieldsPtr, dur, current, total)
 	tsStr := renderTaskTimestamp(gt, now)
 
@@ -590,16 +584,14 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 		fieldsStr = renderTaskFields(
 			gt,
 			state.fieldsPtr,
-			state.renderAt.Sub(gt.StartTime),
+			gt.Duration(state.renderAt),
 			state.current,
 			state.total,
 		)
 		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout)
 	}
 
-	msg, char := renderAnimatedTaskMessage(gt, now)
-
-	msg = gt.cfg.indentation + msg
+	msg, char := renderTaskMessageSymbol(gt, now)
 	msg = alignMessageForFields(
 		gt.cfg.order,
 		gt.cfg.reportTS,
@@ -626,7 +618,7 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 	b := gt.Builder
 	msg := *gt.MsgPtr.Load()
 	var char string
-	dur := now.Sub(gt.StartTime)
+	dur := gt.Duration(now)
 
 	switch b.Mode { //nolint:exhaustive // animationBar handled by caller
 	case fx.AnimationSpinner:
@@ -648,6 +640,30 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 	}
 
 	return msg, char
+}
+
+func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
+	if !gt.Started() {
+		return gt.cfg.indentation + styledMsg(
+			*gt.MsgPtr.Load(),
+			gt.Builder.Level,
+			gt.cfg.styles,
+			gt.cfg.noColor,
+		), *gt.SymbolPtr.Load()
+	}
+
+	if gt.Builder.Mode == fx.AnimationBar {
+		state := loadBarRenderState(gt, now)
+		return gt.cfg.indentation + styledMsg(
+			state.msg,
+			gt.Builder.Level,
+			gt.cfg.styles,
+			gt.cfg.noColor,
+		), state.symbol
+	}
+
+	msg, char := renderAnimatedTaskMessage(gt, now)
+	return gt.cfg.indentation + msg, char
 }
 
 // renderTaskBarLine renders a bar-animation frame for a task. Factored out to
@@ -738,7 +754,7 @@ func buildTaskBarParts(
 	}
 	barStr := bar.Render(current, total, barStyle, gt.cfg.output.Width())
 
-	elapsed := state.renderAt.Sub(gt.StartTime)
+	elapsed := gt.Duration(state.renderAt)
 	var rate float64
 	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
 		rate = float64(current) / secs
@@ -806,7 +822,7 @@ func measureGroupRenderLayout(
 		fieldsStr := renderTaskFields(
 			gt,
 			state.fieldsPtr,
-			state.renderAt.Sub(gt.StartTime),
+			gt.Duration(state.renderAt),
 			state.current,
 			state.total,
 		)
