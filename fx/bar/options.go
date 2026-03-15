@@ -1,6 +1,8 @@
 package bar
 
 import (
+	"time"
+
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 )
@@ -105,6 +107,18 @@ func WithPlacement(p Placement) Option {
 func WithPendingMode(m PendingMode) Option {
 	return func(s *Style) {
 		s.PendingMode = m
+	}
+}
+
+// WithUpdateInterval coalesces visible bar updates so the displayed state
+// changes at most once per duration. Non-positive values disable coalescing.
+func WithUpdateInterval(d time.Duration) Option {
+	return func(s *Style) {
+		if d <= 0 {
+			s.UpdateInterval = 0
+			return
+		}
+		s.UpdateInterval = d
 	}
 }
 

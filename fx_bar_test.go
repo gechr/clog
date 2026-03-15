@@ -174,6 +174,14 @@ func TestBarPendingModeOption(t *testing.T) {
 	assert.Equal(t, bar.PendingHide, b.BarStyle.PendingMode)
 }
 
+func TestBarUpdateIntervalOption(t *testing.T) {
+	b := Bar("test", 100, bar.WithUpdateInterval(time.Second))
+	assert.Equal(t, time.Second, b.BarStyle.UpdateInterval)
+
+	b = Bar("test", 100, bar.WithUpdateInterval(-time.Second))
+	assert.Zero(t, b.BarStyle.UpdateInterval)
+}
+
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))

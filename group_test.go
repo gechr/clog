@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
+	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -631,4 +632,56 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	line := renderTaskLine(gt, false, time.Now(), nil)
 	assert.Contains(t, line, "queued")
 	assert.NotContains(t, line, "│")
+}
+
+func TestRenderTaskLineDebouncesBarState(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	b := logger.Bar(
+		"repo",
+		100,
+		bar.WithUpdateInterval(time.Second),
+		bar.WithWidth(10),
+		bar.WithWidgetRight(widget.ETA()),
+	)
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "repo"
+	fields := []Field{{Key: "stage", Value: "receiving"}}
+	symbol := "📡"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+	b.BarProgressPtr.Store(10)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+
+	first := renderTaskLine(gt, false, time.Unix(2, 0), nil)
+
+	updatedMsg := "repo (updated)"
+	updatedFields := []Field{{Key: "stage", Value: "resolving"}}
+	updatedSymbol := "🧩"
+	msgPtr.Store(&updatedMsg)
+	fieldsPtr.Store(&updatedFields)
+	symbolPtr.Store(&updatedSymbol)
+	b.BarProgressPtr.Store(90)
+
+	second := renderTaskLine(gt, false, time.Unix(2, int64(500*time.Millisecond)), nil)
+	third := renderTaskLine(gt, false, time.Unix(3, int64(100*time.Millisecond)), nil)
+
+	assert.Equal(t, first, second)
+	assert.NotEqual(t, first, third)
+	assert.Contains(t, third, "repo (updated)")
+	assert.Contains(t, third, "stage=resolving")
+	assert.Contains(t, third, "🧩")
 }

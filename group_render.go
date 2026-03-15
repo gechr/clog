@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/pulse"
@@ -58,6 +59,19 @@ type groupTask struct {
 	gradientProgress float64
 	gradientStyle    lipgloss.Style
 	gradientValid    bool
+
+	// bar display snapshot (bar mode with UpdateInterval only)
+	barRenderState barRenderState
+	barRenderValid bool
+}
+
+type barRenderState struct {
+	current   int
+	fieldsPtr *[]core.Field
+	msg       string
+	renderAt  time.Time
+	symbol    string
+	total     int
 }
 
 type groupBarColumns struct {
@@ -201,6 +215,35 @@ func padBarColumnRight(text string, width int) string {
 	return text + strings.Repeat(" ", padding)
 }
 
+func loadBarRenderState(gt *groupTask, now time.Time) barRenderState {
+	state := barRenderState{
+		current:   int(gt.Builder.BarProgressPtr.Load()),
+		fieldsPtr: gt.FieldsPtr.Load(),
+		msg:       *gt.MsgPtr.Load(),
+		renderAt:  now,
+		symbol:    *gt.SymbolPtr.Load(),
+		total:     int(gt.Builder.BarTotalPtr.Load()),
+	}
+
+	updateInterval := gt.Builder.BarStyle.UpdateInterval
+	if updateInterval <= 0 {
+		gt.barRenderState = state
+		gt.barRenderValid = true
+		return state
+	}
+
+	if !gt.barRenderValid || now.Sub(gt.barRenderState.renderAt) >= updateInterval {
+		gt.barRenderState = state
+		gt.barRenderValid = true
+	}
+
+	return gt.barRenderState
+}
+
+func resetBarRenderState(gt *groupTask) {
+	gt.barRenderValid = false
+}
+
 // captureTaskConfig locks the builder's logger, snapshots all fields into
 // s.cfg, and pre-computes s.tickRate, s.symbol, s.fieldOpts, s.cfg.levelSymbol,
 // and shimmer LUTs.
@@ -323,17 +366,53 @@ func styledMsg(msg string, level Level, styles *style.Config, noColor bool) stri
 
 // renderTaskFields formats the fields for a task, caching the result when
 // the atomic pointer has not changed.
-func renderTaskFields(gt *groupTask, dur time.Duration) string {
+func renderTaskFields(
+	gt *groupTask,
+	fieldsPtr *[]core.Field,
+	dur time.Duration,
+	current, total int,
+) string {
 	b := gt.Builder
-	fp := gt.FieldsPtr.Load()
 	if b.ElapsedKey != "" || b.BarPercentKey != "" {
-		resolved := b.ResolveDynamicFields(*fp, dur)
+		resolved := resolveDynamicFields(*fieldsPtr, b, dur, current, total)
 		gt.cachedFieldsStr = strings.TrimLeft(formatFields(resolved, gt.fieldOpts), " ")
-	} else if fp != gt.cachedFieldsPtr {
-		gt.cachedFieldsStr = strings.TrimLeft(formatFields(*fp, gt.fieldOpts), " ")
+	} else if fieldsPtr != gt.cachedFieldsPtr {
+		gt.cachedFieldsStr = strings.TrimLeft(formatFields(*fieldsPtr, gt.fieldOpts), " ")
 	}
-	gt.cachedFieldsPtr = fp
+	gt.cachedFieldsPtr = fieldsPtr
 	return gt.cachedFieldsStr
+}
+
+func resolveDynamicFields(
+	fields []core.Field,
+	b *fx.Builder,
+	dur time.Duration,
+	current, total int,
+) []core.Field {
+	out := make([]core.Field, len(fields))
+	copy(out, fields)
+
+	if total <= 0 {
+		total = 1
+	}
+	current = max(current, 0)
+
+	pctMax := percent.Maximum()
+	pct := float64(current) / float64(total) * pctMax
+	if pct > pctMax {
+		pct = pctMax
+	}
+
+	for i := range out {
+		switch out[i].Key {
+		case b.ElapsedKey:
+			out[i].Value = core.ElapsedField(dur)
+		case b.BarPercentKey:
+			out[i].Value = core.Percent{Value: pct}
+		}
+	}
+
+	return out
 }
 
 // renderTaskTimestamp returns the styled timestamp string for a task.
@@ -354,8 +433,14 @@ func renderTaskTimestamp(gt *groupTask) string {
 // It does not perform any I/O.
 func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarLayout) string {
 	b := gt.Builder
+	fieldsPtr := gt.FieldsPtr.Load()
+	current, total := 0, 0
+	if b.Mode == fx.AnimationBar {
+		current = int(b.BarProgressPtr.Load())
+		total = int(b.BarTotalPtr.Load())
+	}
 	dur := now.Sub(gt.StartTime)
-	fieldsStr := renderTaskFields(gt, dur)
+	fieldsStr := renderTaskFields(gt, fieldsPtr, dur, current, total)
 	tsStr := renderTaskTimestamp(gt)
 
 	if isDone {
@@ -382,7 +467,15 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 
 	// Bar mode has its own rendering path.
 	if b.Mode == fx.AnimationBar {
-		return renderTaskBarLine(gt, fieldsStr, tsStr, now, layout)
+		state := loadBarRenderState(gt, now)
+		fieldsStr = renderTaskFields(
+			gt,
+			state.fieldsPtr,
+			state.renderAt.Sub(gt.StartTime),
+			state.current,
+			state.total,
+		)
+		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout)
 	}
 
 	msg := *gt.MsgPtr.Load()
@@ -423,10 +516,15 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarL
 func renderTaskBarLine(
 	gt *groupTask,
 	fieldsStr, tsStr string,
-	now time.Time,
+	state barRenderState,
 	layout *groupBarLayout,
 ) string {
-	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(gt, fieldsStr, tsStr, now)
+	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(
+		gt,
+		fieldsStr,
+		tsStr,
+		state,
+	)
 	if !showBar || gt.Builder.BarStyle.Placement == bar.PlaceInline {
 		return parts
 	}
@@ -448,13 +546,13 @@ func renderTaskBarLine(
 func buildTaskBarParts(
 	gt *groupTask,
 	fieldsStr, tsStr string,
-	now time.Time,
+	state barRenderState,
 ) (string, string, string, string, string, bool) {
 	b := gt.Builder
-	msg := gt.cfg.indentation + styledMsg(*gt.MsgPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
+	msg := gt.cfg.indentation + styledMsg(state.msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 
-	current := int(b.BarProgressPtr.Load())
-	total := int(b.BarTotalPtr.Load())
+	current := state.current
+	total := state.total
 	sep := b.BarStyle.Separator
 	if sep == "" {
 		sep = " "
@@ -465,7 +563,7 @@ func buildTaskBarParts(
 		gt.cfg.reportTS,
 		tsStr,
 		gt.cfg.levelSymbol,
-		*gt.SymbolPtr.Load(),
+		state.symbol,
 		msg,
 		fieldsStr,
 	)
@@ -489,19 +587,19 @@ func buildTaskBarParts(
 	}
 	barStr := bar.Render(current, total, barStyle, gt.cfg.output.Width())
 
-	elapsed := now.Sub(gt.StartTime)
+	elapsed := state.renderAt.Sub(gt.StartTime)
 	var rate float64
 	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
 		rate = float64(current) / secs
 	}
-	state := bar.State{Current: current, Total: total, Elapsed: elapsed, Rate: rate}
+	widgetState := bar.State{Current: current, Total: total, Elapsed: elapsed, Rate: rate}
 
 	var leftText, rightText string
 	if b.BarStyle.WidgetLeft != nil {
-		leftText = b.BarStyle.WidgetLeft(state)
+		leftText = b.BarStyle.WidgetLeft(widgetState)
 	}
 	if b.BarStyle.WidgetRight != nil && b.BarPercentKey == "" {
-		rightText = b.BarStyle.WidgetRight(state)
+		rightText = b.BarStyle.WidgetRight(widgetState)
 	} else if b.BarStyle.WidgetLeft == nil && b.BarStyle.WidgetRight == nil && b.BarPercentKey == "" {
 		// Default: padded percent on the right when no widgets are configured
 		// and no BarPercent field is set.
@@ -522,7 +620,7 @@ func buildTaskBarParts(
 			gt.cfg.reportTS,
 			tsStr,
 			gt.cfg.levelSymbol,
-			*gt.SymbolPtr.Load(),
+			state.symbol,
 			msg+sep+barFull,
 			fieldsStr,
 		), "", "", "", sep, true
@@ -537,14 +635,20 @@ func measureGroupBarLayout(gts []*groupTask, done []bool, now time.Time) *groupB
 			continue
 		}
 
-		dur := now.Sub(gt.StartTime)
-		fieldsStr := renderTaskFields(gt, dur)
+		state := loadBarRenderState(gt, now)
+		fieldsStr := renderTaskFields(
+			gt,
+			state.fieldsPtr,
+			state.renderAt.Sub(gt.StartTime),
+			state.current,
+			state.total,
+		)
 		tsStr := renderTaskTimestamp(gt)
 		parts, leftText, barStr, rightText, _, showBar := buildTaskBarParts(
 			gt,
 			fieldsStr,
 			tsStr,
-			now,
+			state,
 		)
 		if !showBar {
 			continue
