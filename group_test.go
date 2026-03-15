@@ -182,6 +182,66 @@ func TestGroupFieldAlignmentMessageAlignsFields(t *testing.T) {
 	assert.Equal(t, strings.Index(line1, "stage="), strings.Index(line2, "stage="))
 }
 
+func TestShouldRenderTaskAfterDelay(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	b := logger.Spinner("delayed").After(time.Second)
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "delayed"
+	fields := []Field{{Key: "stage", Value: "running"}}
+	symbol := "⏳"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+
+	assert.False(t, shouldRenderTask(gt, false, time.Unix(0, int64(500*time.Millisecond))))
+	assert.True(t, shouldRenderTask(gt, false, time.Unix(1, 0)))
+	assert.True(t, gt.visible)
+}
+
+func TestShouldRenderTaskAfterDelaySkipsTaskDoneBeforeDelay(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	b := logger.Spinner("delayed").After(time.Second)
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "delayed"
+	fields := []Field{{Key: "stage", Value: "running"}}
+	symbol := "⏳"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+	}
+	gt.MarkFinished(time.Unix(0, int64(500*time.Millisecond)))
+	captureTaskConfig(gt)
+
+	assert.False(t, shouldRenderTask(gt, true, time.Unix(2, 0)))
+	assert.False(t, gt.visible)
+}
+
 func TestGroupErrorCollection(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))

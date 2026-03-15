@@ -46,6 +46,7 @@ type groupTask struct {
 
 	cfg      taskConfig
 	tickRate time.Duration
+	visible  bool
 
 	// per-tick mutable state
 	cachedFieldsPtr *[]core.Field    // dedup: last-formatted fields pointer
@@ -96,6 +97,46 @@ type groupRenderLayout struct {
 }
 
 const barColumnCount = 3
+
+func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
+	if gt.visible {
+		return true
+	}
+
+	delay := gt.Builder.DelayDur
+	if delay <= 0 {
+		gt.visible = true
+		return true
+	}
+	if !gt.Started() {
+		return false
+	}
+	if isDone {
+		if finishedAt := gt.FinishTime(); !finishedAt.IsZero() {
+			if gt.Duration(finishedAt) < delay {
+				return false
+			}
+			gt.visible = true
+			return true
+		}
+	}
+	if gt.Duration(now) < delay {
+		return false
+	}
+
+	gt.visible = true
+	return true
+}
+
+func visibleTaskIndexes(gts []*groupTask, done []bool, now time.Time) []int {
+	indexes := make([]int, 0, len(gts))
+	for i, gt := range gts {
+		if shouldRenderTask(gt, done[i], now) {
+			indexes = append(indexes, i)
+		}
+	}
+	return indexes
+}
 
 func (l *groupFieldLayout) enabled() bool {
 	return l != nil && l.alignment == fx.FieldAlignmentMessage && l.maxStart > 0
@@ -805,6 +846,9 @@ func measureGroupRenderLayout(
 	}
 	if layout.fields.alignment != fx.FieldAlignmentNone {
 		for i, gt := range gts {
+			if !shouldRenderTask(gt, done[i], now) {
+				continue
+			}
 			layout.fields.maxStart = max(
 				layout.fields.maxStart,
 				measureTaskFieldStart(gt, done[i], now, layout.fields.alignment),
@@ -813,7 +857,7 @@ func measureGroupRenderLayout(
 	}
 
 	for i, gt := range gts {
-		if done[i] || gt.Builder.Mode != fx.AnimationBar {
+		if !shouldRenderTask(gt, done[i], now) || done[i] || gt.Builder.Mode != fx.AnimationBar {
 			continue
 		}
 
@@ -937,21 +981,33 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				}
 			}
 			// Batch all writes into a single string.
+			visible := visibleTaskIndexes(gts, done, now)
 			frameBuf.Reset()
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			layout := measureGroupRenderLayout(g, gts, done, now)
-			for i, gt := range gts {
-				line := renderTaskLine(gt, done[i], now, layout)
-				if i < len(gts)-1 {
+			renderLines := max(numLines, len(visible))
+			for i := range renderLines {
+				line := ""
+				if i < len(visible) {
+					taskIndex := visible[i]
+					line = renderTaskLine(gts[taskIndex], done[taskIndex], now, layout)
+				}
+				if i < renderLines-1 {
 					fmt.Fprintf(&frameBuf, "%s%s\n", clearLine, line)
 				} else {
 					fmt.Fprintf(&frameBuf, "%s%s", clearLine, line)
 				}
 			}
+			switch {
+			case numLines > len(visible) && len(visible) > 0:
+				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-len(visible))
+			case numLines > 1 && len(visible) == 0:
+				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
+			}
 			writeString(out, frameBuf.String())
-			numLines = len(gts)
+			numLines = len(visible)
 			// If all done, break out after one final render.
 			if remaining == 0 {
 				break

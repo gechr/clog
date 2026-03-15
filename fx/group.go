@@ -39,14 +39,15 @@ type Group struct {
 // GroupTask holds per-animation state for the group render loop.
 // This is exported so the root clog rendering code can access it.
 type GroupTask struct {
-	Builder   *Builder
-	DoneErr   chan error // buffered(1); goroutine sends result here
-	Err       error      // populated by Wait() after DoneErr is drained
-	FieldsPtr *atomic.Pointer[[]core.Field]
-	MsgPtr    *atomic.Pointer[string]
-	StartTime time.Time
-	StartedAt atomic.Int64
-	SymbolPtr *atomic.Pointer[string]
+	Builder    *Builder
+	DoneErr    chan error // buffered(1); goroutine sends result here
+	Err        error      // populated by Wait() after DoneErr is drained
+	FieldsPtr  *atomic.Pointer[[]core.Field]
+	FinishedAt atomic.Int64
+	MsgPtr     *atomic.Pointer[string]
+	StartTime  time.Time
+	StartedAt  atomic.Int64
+	SymbolPtr  *atomic.Pointer[string]
 }
 
 // Started reports whether the task has begun executing.
@@ -69,6 +70,22 @@ func (t *GroupTask) MarkStarted(now time.Time) {
 		return
 	}
 	t.StartedAt.Store(now.UnixNano())
+}
+
+// FinishTime returns the actual finish time, or the zero value if unfinished.
+func (t *GroupTask) FinishTime() time.Time {
+	if finishedAt := t.FinishedAt.Load(); finishedAt > 0 {
+		return time.Unix(0, finishedAt)
+	}
+	return time.Time{}
+}
+
+// MarkFinished records the actual task finish time.
+func (t *GroupTask) MarkFinished(now time.Time) {
+	if now.IsZero() {
+		return
+	}
+	t.FinishedAt.Store(now.UnixNano())
 }
 
 func (t *GroupTask) startTime() time.Time {
@@ -217,7 +234,9 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		}
 		defer g.releaseSlot()
 		t.MarkStarted(time.Now())
-		t.DoneErr <- task(g.Ctx, update)
+		err := task(g.Ctx, update)
+		t.MarkFinished(time.Now())
+		t.DoneErr <- err
 	}()
 
 	l := b.Log
