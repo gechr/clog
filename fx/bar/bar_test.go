@@ -275,6 +275,17 @@ func TestBarPlacementZeroValue(t *testing.T) {
 	assert.Equal(t, bar.PlaceRightPad, bar.DefaultStyle().Placement)
 }
 
+func TestPendingModeZeroValue(t *testing.T) {
+	assert.Equal(t, bar.PendingShow, bar.PendingMode(0))
+	assert.Equal(t, bar.PendingShow, bar.Style{}.PendingMode)
+}
+
+func TestShowPending(t *testing.T) {
+	assert.True(t, bar.ShowPending(bar.Style{}, 0))
+	assert.True(t, bar.ShowPending(bar.Style{PendingMode: bar.PendingHide}, 1))
+	assert.False(t, bar.ShowPending(bar.Style{PendingMode: bar.PendingHide}, 0))
+}
+
 func TestFormatLineInline(t *testing.T) {
 	// bar.PlaceInline: bar.FormatLine returns msgParts unchanged (bar already in msg).
 	got := bar.FormatLine(

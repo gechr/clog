@@ -42,6 +42,16 @@ const (
 	PlaceRight
 )
 
+// PendingMode controls how a bar is rendered before any progress is reported.
+type PendingMode int
+
+const (
+	// PendingShow renders the bar and its widgets immediately, even at 0 progress.
+	PendingShow PendingMode = iota
+	// PendingHide suppresses the entire bar block until progress becomes positive.
+	PendingHide
+)
+
 // Style configures the visual appearance of a determinate progress bar.
 type Style struct {
 	CapLeft          string               // left bracket; default "["
@@ -54,6 +64,7 @@ type Style struct {
 	HalfEmpty        rune                 // half-cell at start of empty when HalfFilled is not shown; 0 = disabled
 	HalfFilled       rune                 // half-cell at leading edge of filled (enables 2x resolution); 0 = disabled
 	Placement        Placement            // horizontal bar placement; default PlaceRightPad
+	PendingMode      PendingMode          // whether to show the bar before progress starts; default PendingShow
 	ProgressGradient []gradient.ColorStop // when set, colors filled cells based on progress; overrides StyleFill foreground
 	Separator        string               // separator between message, bar, and widget text; default " "
 	StyleEmpty       *lipgloss.Style      // lipgloss style for empty cells; nil = plain text
@@ -84,6 +95,11 @@ type State struct {
 // Widget renders a text label from the current bar state.
 // Return "" to display nothing for this tick.
 type Widget func(State) string
+
+// ShowPending reports whether the bar block should be shown at the current progress.
+func ShowPending(s Style, current int) bool {
+	return s.PendingMode != PendingHide || current > 0
+}
 
 // Render renders the visual bar string for the given progress values.
 // termWidth is the terminal column count (0 = fall back to auto-sizing from style).

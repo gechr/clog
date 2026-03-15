@@ -101,6 +101,13 @@ func WithPlacement(p Placement) Option {
 	}
 }
 
+// WithPendingMode sets how the bar behaves before any progress is reported.
+func WithPendingMode(m PendingMode) Option {
+	return func(s *Style) {
+		s.PendingMode = m
+	}
+}
+
 // WithProgressGradient sets the filled-cell color gradient.
 func WithProgressGradient(stops ...gradient.ColorStop) Option {
 	return func(s *Style) {

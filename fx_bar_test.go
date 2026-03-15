@@ -158,14 +158,20 @@ func TestBarWait(t *testing.T) {
 
 func TestBarStyleOption(t *testing.T) {
 	custom := bar.Style{
-		CapLeft:   "|",
-		CapRight:  "|",
-		CharEmpty: '-',
-		CharFill:  '=',
-		Width:     20,
+		CapLeft:     "|",
+		CapRight:    "|",
+		CharEmpty:   '-',
+		CharFill:    '=',
+		PendingMode: bar.PendingHide,
+		Width:       20,
 	}
 	b := Bar("test", 100, bar.WithStyle(custom))
 	assert.Equal(t, custom, b.BarStyle)
+}
+
+func TestBarPendingModeOption(t *testing.T) {
+	b := Bar("test", 100, bar.WithPendingMode(bar.PendingHide))
+	assert.Equal(t, bar.PendingHide, b.BarStyle.PendingMode)
 }
 
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {

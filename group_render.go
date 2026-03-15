@@ -60,6 +60,147 @@ type groupTask struct {
 	gradientValid    bool
 }
 
+type groupBarColumns struct {
+	hasLeft  bool
+	hasRight bool
+	maxBar   int
+	maxLeft  int
+	maxParts int
+	maxRight int
+}
+
+type groupBarLayout struct {
+	leftPad  groupBarColumns
+	rightPad groupBarColumns
+}
+
+const barColumnCount = 3
+
+func (l *groupBarLayout) observe(
+	parts, leftText, barStr, rightText string,
+	placement bar.Placement,
+) {
+	partsW := lipgloss.Width(parts)
+	leftW := lipgloss.Width(leftText)
+	barW := lipgloss.Width(barStr)
+	rightW := lipgloss.Width(rightText)
+
+	switch placement {
+	case bar.PlaceLeftPad:
+		l.leftPad.hasLeft = l.leftPad.hasLeft || leftText != ""
+		l.leftPad.hasRight = l.leftPad.hasRight || rightText != ""
+		l.leftPad.maxLeft = max(l.leftPad.maxLeft, leftW)
+		l.leftPad.maxParts = max(l.leftPad.maxParts, partsW)
+		l.leftPad.maxBar = max(l.leftPad.maxBar, barW)
+		l.leftPad.maxRight = max(l.leftPad.maxRight, rightW)
+	case bar.PlaceRightPad:
+		l.rightPad.hasLeft = l.rightPad.hasLeft || leftText != ""
+		l.rightPad.hasRight = l.rightPad.hasRight || rightText != ""
+		l.rightPad.maxLeft = max(l.rightPad.maxLeft, leftW)
+		l.rightPad.maxParts = max(l.rightPad.maxParts, partsW)
+		l.rightPad.maxBar = max(l.rightPad.maxBar, barW)
+		l.rightPad.maxRight = max(l.rightPad.maxRight, rightW)
+	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
+		return
+	}
+}
+
+func (l *groupBarLayout) format(
+	parts, leftText, barStr, rightText, sep string,
+	placement bar.Placement,
+	termWidth int,
+) string {
+	switch placement {
+	case bar.PlaceLeftPad:
+		return l.formatLeftPad(parts, leftText, barStr, rightText, sep, termWidth)
+	case bar.PlaceRightPad:
+		return l.formatRightPad(parts, leftText, barStr, rightText, sep, termWidth)
+	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
+		barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
+		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
+	}
+
+	return ""
+}
+
+func (l *groupBarLayout) formatLeftPad(
+	parts, leftText, barStr, rightText, sep string,
+	termWidth int,
+) string {
+	shared := l.leftPad
+	barFull := assembleBarColumns(shared, leftText, barStr, rightText, sep)
+	if shared.maxParts == 0 || shared.maxBar == 0 {
+		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
+	}
+
+	gap := termWidth - shared.maxParts - shared.barWidth(sep)
+	if gap < 0 {
+		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
+	}
+
+	return barFull +
+		strings.Repeat(" ", gap+shared.maxParts-lipgloss.Width(parts)) +
+		parts
+}
+
+func (l *groupBarLayout) formatRightPad(
+	parts, leftText, barStr, rightText, sep string,
+	termWidth int,
+) string {
+	shared := l.rightPad
+	barFull := assembleBarColumns(shared, leftText, barStr, rightText, sep)
+	if shared.maxParts == 0 || shared.maxBar == 0 {
+		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
+	}
+
+	gap := termWidth - shared.maxParts - shared.barWidth(sep)
+	if gap < 0 {
+		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
+	}
+
+	return parts + strings.Repeat(" ", shared.maxParts-lipgloss.Width(parts)+gap) + barFull
+}
+
+func (c groupBarColumns) barWidth(sep string) int {
+	width := c.maxBar
+	sepW := lipgloss.Width(sep)
+	if c.hasLeft {
+		width += c.maxLeft + sepW
+	}
+	if c.hasRight {
+		width += sepW + c.maxRight
+	}
+	return width
+}
+
+func assembleBarColumns(cols groupBarColumns, leftText, barStr, rightText, sep string) string {
+	parts := make([]string, 0, barColumnCount)
+	if cols.hasLeft {
+		parts = append(parts, padBarColumnLeft(leftText, cols.maxLeft))
+	}
+	parts = append(parts, padBarColumnRight(barStr, cols.maxBar))
+	if cols.hasRight {
+		parts = append(parts, padBarColumnRight(rightText, cols.maxRight))
+	}
+	return strings.Join(parts, sep)
+}
+
+func padBarColumnLeft(text string, width int) string {
+	padding := width - lipgloss.Width(text)
+	if padding <= 0 {
+		return text
+	}
+	return strings.Repeat(" ", padding) + text
+}
+
+func padBarColumnRight(text string, width int) string {
+	padding := width - lipgloss.Width(text)
+	if padding <= 0 {
+		return text
+	}
+	return text + strings.Repeat(" ", padding)
+}
+
 // captureTaskConfig locks the builder's logger, snapshots all fields into
 // s.cfg, and pre-computes s.tickRate, s.symbol, s.fieldOpts, s.cfg.levelSymbol,
 // and shimmer LUTs.
@@ -211,7 +352,7 @@ func renderTaskTimestamp(gt *groupTask) string {
 // For done tasks, it renders the frozen final state with the level's default symbol.
 // For active tasks, it renders the current animation frame.
 // It does not perform any I/O.
-func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
+func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupBarLayout) string {
 	b := gt.Builder
 	dur := now.Sub(gt.StartTime)
 	fieldsStr := renderTaskFields(gt, dur)
@@ -241,7 +382,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
 
 	// Bar mode has its own rendering path.
 	if b.Mode == fx.AnimationBar {
-		return renderTaskBarLine(gt, fieldsStr, tsStr, now)
+		return renderTaskBarLine(gt, fieldsStr, tsStr, now, layout)
 	}
 
 	msg := *gt.MsgPtr.Load()
@@ -279,12 +420,58 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time) string {
 
 // renderTaskBarLine renders a bar-animation frame for a task. Factored out to
 // keep renderTaskLine focused.
-func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) string {
+func renderTaskBarLine(
+	gt *groupTask,
+	fieldsStr, tsStr string,
+	now time.Time,
+	layout *groupBarLayout,
+) string {
+	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(gt, fieldsStr, tsStr, now)
+	if !showBar || gt.Builder.BarStyle.Placement == bar.PlaceInline {
+		return parts
+	}
+	if layout != nil {
+		return layout.format(
+			parts,
+			leftText,
+			barStr,
+			rightText,
+			sep,
+			gt.Builder.BarStyle.Placement,
+			gt.cfg.output.Width(),
+		)
+	}
+	barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
+	return bar.FormatLine(parts, barFull, sep, gt.Builder.BarStyle.Placement, gt.cfg.output.Width())
+}
+
+func buildTaskBarParts(
+	gt *groupTask,
+	fieldsStr, tsStr string,
+	now time.Time,
+) (string, string, string, string, string, bool) {
 	b := gt.Builder
 	msg := gt.cfg.indentation + styledMsg(*gt.MsgPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 
 	current := int(b.BarProgressPtr.Load())
 	total := int(b.BarTotalPtr.Load())
+	sep := b.BarStyle.Separator
+	if sep == "" {
+		sep = " "
+	}
+
+	parts := buildLine(
+		gt.cfg.order,
+		gt.cfg.reportTS,
+		tsStr,
+		gt.cfg.levelSymbol,
+		*gt.SymbolPtr.Load(),
+		msg,
+		fieldsStr,
+	)
+	if !bar.ShowPending(b.BarStyle, current) {
+		return parts, "", "", "", sep, false
+	}
 
 	// Cache the gradient style to avoid lipgloss.NewStyle() per frame.
 	barStyle := b.BarStyle
@@ -301,10 +488,6 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
 	barStr := bar.Render(current, total, barStyle, gt.cfg.output.Width())
-	sep := b.BarStyle.Separator
-	if sep == "" {
-		sep = " "
-	}
 
 	elapsed := now.Sub(gt.StartTime)
 	var rate float64
@@ -325,17 +508,16 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 		rightText = bar.FormatPercent(current, total, 0, true)
 	}
 
-	barFull := barStr
-	if leftText != "" {
-		barFull = leftText + sep + barFull
-	}
-	if rightText != "" {
-		barFull = barFull + sep + rightText
-	}
-
 	// writeFrame equivalent: build the complete line string.
 	if b.BarStyle.Placement == bar.PlaceInline {
-		parts := buildLine(
+		barFull := assembleBarColumns(groupBarColumns{
+			hasLeft:  leftText != "",
+			hasRight: rightText != "",
+			maxBar:   lipgloss.Width(barStr),
+			maxLeft:  lipgloss.Width(leftText),
+			maxRight: lipgloss.Width(rightText),
+		}, leftText, barStr, rightText, sep)
+		return buildLine(
 			gt.cfg.order,
 			gt.cfg.reportTS,
 			tsStr,
@@ -343,19 +525,33 @@ func renderTaskBarLine(gt *groupTask, fieldsStr, tsStr string, now time.Time) st
 			*gt.SymbolPtr.Load(),
 			msg+sep+barFull,
 			fieldsStr,
-		)
-		return parts
+		), "", "", "", sep, true
 	}
-	parts := buildLine(
-		gt.cfg.order,
-		gt.cfg.reportTS,
-		tsStr,
-		gt.cfg.levelSymbol,
-		*gt.SymbolPtr.Load(),
-		msg,
-		fieldsStr,
-	)
-	return bar.FormatLine(parts, barFull, sep, b.BarStyle.Placement, gt.cfg.output.Width())
+	return parts, leftText, barStr, rightText, sep, true
+}
+
+func measureGroupBarLayout(gts []*groupTask, done []bool, now time.Time) *groupBarLayout {
+	layout := &groupBarLayout{}
+	for i, gt := range gts {
+		if done[i] || gt.Builder.Mode != fx.AnimationBar {
+			continue
+		}
+
+		dur := now.Sub(gt.StartTime)
+		fieldsStr := renderTaskFields(gt, dur)
+		tsStr := renderTaskTimestamp(gt)
+		parts, leftText, barStr, rightText, _, showBar := buildTaskBarParts(
+			gt,
+			fieldsStr,
+			tsStr,
+			now,
+		)
+		if !showBar {
+			continue
+		}
+		layout.observe(parts, leftText, barStr, rightText, gt.Builder.BarStyle.Placement)
+	}
+	return layout
 }
 
 // runGroupLoop runs the group render loop, blocking until all tasks complete
@@ -458,8 +654,9 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
+			layout := measureGroupBarLayout(gts, done, now)
 			for i, gt := range gts {
-				line := renderTaskLine(gt, done[i], now)
+				line := renderTaskLine(gt, done[i], now, layout)
 				if i < len(gts)-1 {
 					fmt.Fprintf(&frameBuf, "%s%s\n", clearLine, line)
 				} else {

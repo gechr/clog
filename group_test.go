@@ -568,3 +568,67 @@ func TestClearBlock(t *testing.T) {
 	// Two lines: move up 1 (not 2), clear both, then move up 2.
 	assert.Equal(t, "\x1b[1A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }
+
+func TestGroupBarLayoutRightPad(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("short", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
+	layout.observe("much longer message", "", "BAR", "", bar.PlaceRightPad)
+
+	line1 := layout.format("short", " 29%", "BAR", "ETA 10s", " ", bar.PlaceRightPad, 40)
+	line2 := layout.format("much longer message", "", "BAR", "", " ", bar.PlaceRightPad, 40)
+
+	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
+	assert.Len(t, line1, 40)
+	assert.Len(t, line2, 40)
+}
+
+func TestGroupBarLayoutRightPadFallsBackWhenTooNarrow(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("very long message", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
+
+	got := layout.format("very long message", " 29%", "BAR", "ETA 10s", " ", bar.PlaceRightPad, 10)
+	want := bar.FormatLine("very long message", " 29% BAR ETA 10s", " ", bar.PlaceRightPad, 10)
+
+	assert.Equal(t, want, got)
+}
+
+func TestGroupBarLayoutRightPadAlignsRightWidget(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("one", "  0%", "BAR", "ETA 1h13m", bar.PlaceRightPad)
+	layout.observe("two", "  7%", "BAR", "ETA 34s", bar.PlaceRightPad)
+
+	line1 := layout.format("one", "  0%", "BAR", "ETA 1h13m", " ", bar.PlaceRightPad, 40)
+	line2 := layout.format("two", "  7%", "BAR", "ETA 34s", " ", bar.PlaceRightPad, 40)
+
+	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
+	assert.Equal(t, strings.Index(line1, "ETA"), strings.Index(line2, "ETA"))
+}
+
+func TestBuildTaskBarPartsPendingHide(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	b := logger.Bar("queued", 1, bar.WithPendingMode(bar.PendingHide))
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "queued"
+	fields := []Field{{Key: "stage", Value: "queued"}}
+	symbol := "⏳"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			SymbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+
+	line := renderTaskLine(gt, false, time.Now(), nil)
+	assert.Contains(t, line, "queued")
+	assert.NotContains(t, line, "│")
+}
