@@ -79,7 +79,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 `WithMonotonicBars()` only affects the rendered bar fill. It does not change the
 underlying task progress values.
 
-`WithParallelism(n)` uses `5` when `n <= 0`.
+`WithParallelism(n)` removes the limit when `n <= 0`.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 

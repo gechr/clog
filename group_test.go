@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -109,10 +110,10 @@ func TestGroupParallelismOption(t *testing.T) {
 	assert.Equal(t, 3, g.Parallelism)
 
 	g = logger.Group(context.Background(), WithParallelism(0))
-	assert.Equal(t, 5, g.Parallelism)
+	assert.Zero(t, g.Parallelism)
 
 	g = logger.Group(context.Background(), WithParallelism(-1))
-	assert.Equal(t, 5, g.Parallelism)
+	assert.Equal(t, -1, g.Parallelism)
 }
 
 func TestGroupMonotonicBarsOption(t *testing.T) {
@@ -788,7 +789,7 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	assert.NotContains(t, line, "│")
 }
 
-func TestRenderTaskLineCoalescesWidgetsButKeepsBarLive(t *testing.T) {
+func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	style := bar.Style{
 		CapLeft:     "[",
@@ -850,8 +851,74 @@ func TestRenderTaskLineCoalescesWidgetsButKeepsBarLive(t *testing.T) {
 	third := renderTaskLine(gt, false, thirdAt, thirdLayout)
 
 	assert.Equal(t, "INF 📡 repo stage=receiving ETA 18s [=---------]  10%", first)
-	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving ETA 18s [=========-]  10%", second)
+	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving  ETA 2s [=========-]  90%", second)
 	assert.Equal(t, "INF 🧩 repo (updated) stage=resolving  ETA 1s [=========-]  90%", third)
+}
+
+func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	elapsed.SetMinimum(0)
+	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
+
+	style := bar.Style{
+		CapLeft:     "[",
+		CapRight:    "]",
+		CharEmpty:   '-',
+		CharFill:    '=',
+		Separator:   " ",
+		WidgetRight: widget.None(),
+		Width:       10,
+	}
+	b := logger.Bar(
+		"repo",
+		100,
+		bar.WithStyle(style),
+		bar.WithUpdateInterval(time.Second),
+	).
+		BarPercent("progress").
+		Elapsed("elapsed")
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "repo"
+	fields := []Field{
+		{Key: "stage", Value: "receiving"},
+		{Key: "progress", Value: core.Percent{}},
+		{Key: "elapsed", Value: core.ElapsedField(0)},
+	}
+	symbol := "📡"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+	b.BarProgressPtr.Store(10)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+
+	firstAt := time.Unix(2, 0)
+	firstLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	first := renderTaskLine(gt, false, firstAt, firstLayout)
+
+	b.BarProgressPtr.Store(90)
+	secondAt := time.Unix(2, int64(500*time.Millisecond))
+	secondLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, secondAt)
+	second := renderTaskLine(gt, false, secondAt, secondLayout)
+	thirdAt := time.Unix(3, int64(100*time.Millisecond))
+	thirdLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, thirdAt)
+	third := renderTaskLine(gt, false, thirdAt, thirdLayout)
+
+	assert.Equal(t, "INF 📡 repo stage=receiving progress=10% elapsed=2s [=---------]", first)
+	assert.Equal(t, "INF 📡 repo stage=receiving progress=90% elapsed=2s [=========-]", second)
+	assert.Equal(t, "INF 📡 repo stage=receiving progress=90% elapsed=3s [=========-]", third)
 }
 
 func TestRenderTaskLineMonotonicBars(t *testing.T) {

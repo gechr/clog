@@ -49,14 +49,15 @@ clog.Bar("Cloning", 1, bar.WithPendingMode(bar.PendingHide))
 
 This suppresses the entire bar block, including widgets, until progress becomes positive.
 
-If frequent updates make ETA/percent text too jumpy, coalesce widget and dynamic-field updates:
+If frequent updates make ETA or rate text too jumpy, coalesce timing-derived widget and dynamic-field updates:
 
 ```go
 clog.Bar("Cloning", 1, bar.WithUpdateInterval(time.Second))
 ```
 
-This rate-limits derived text such as ETA, percent, rate, and elapsed while
-leaving the bar fill, message, symbol, and other live updates responsive.
+This rate-limits timing-derived text such as ETA, rate, and elapsed while
+leaving the bar fill, percent/current-total text, message, symbol, and other
+live updates responsive.
 
 ## Styles
 
@@ -171,7 +172,7 @@ clog.Bar("Downloading", 100, bar.WithStyle(bar.Braille), bar.WithWidth(30))
 | `bar.WithWidgetRight(w)`    | Widget displayed to the right of the bar                                  |
 | `bar.WithPlacement(p)`      | Horizontal bar placement mode                                             |
 | `bar.WithPendingMode(m)`    | Whether to render the bar before progress starts                          |
-| `bar.WithUpdateInterval(d)` | Coalesce ETA/percent/rate-style text updates to at most once per duration |
+| `bar.WithUpdateInterval(d)` | Coalesce ETA/rate/elapsed-style text updates to at most once per duration |
 
 All presets use bold white `CapStyle`. Pass `bar.WithCapStyle(nil)` for unstyled caps.
 

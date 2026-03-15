@@ -46,6 +46,7 @@ type groupTask struct {
 
 	cfg            taskConfig
 	maxBarProgress float64
+	maxBarTotal    int
 	monotonicBars  bool
 	tickRate       time.Duration
 	visible        bool
@@ -63,15 +64,15 @@ type groupTask struct {
 	gradientStyle    lipgloss.Style
 	gradientValid    bool
 
-	// throttled widget snapshot (bar mode with UpdateInterval only)
+	// throttled timing snapshot (bar mode with UpdateInterval only)
 	barWidgetState barWidgetState
 	barWidgetValid bool
 }
 
 type barWidgetState struct {
-	current  int
+	elapsed  time.Duration
+	rate     float64
 	renderAt time.Time
-	total    int
 }
 
 type groupBarColumns struct {
@@ -279,10 +280,17 @@ func padBarColumnRight(text string, width int) string {
 }
 
 func loadBarWidgetState(gt *groupTask, now time.Time) barWidgetState {
+	current := int(gt.Builder.BarProgressPtr.Load())
+	elapsed := gt.Duration(now)
+	rate := 0.0
+	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
+		rate = float64(current) / secs
+	}
+
 	state := barWidgetState{
-		current:  int(gt.Builder.BarProgressPtr.Load()),
+		elapsed:  elapsed,
+		rate:     rate,
 		renderAt: now,
-		total:    int(gt.Builder.BarTotalPtr.Load()),
 	}
 
 	updateInterval := gt.Builder.BarStyle.UpdateInterval
@@ -627,12 +635,14 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 	// Bar mode has its own rendering path.
 	if b.Mode == fx.AnimationBar {
 		state := loadBarWidgetState(gt, now)
+		current := int(gt.Builder.BarProgressPtr.Load())
+		total := int(gt.Builder.BarTotalPtr.Load())
 		fieldsStr = renderTaskFields(
 			gt,
 			gt.FieldsPtr.Load(),
-			gt.Duration(state.renderAt),
-			state.current,
-			state.total,
+			state.elapsed,
+			current,
+			total,
 		)
 		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout)
 	}
@@ -769,7 +779,12 @@ func buildTaskBarParts(
 	progress := float64(current) / float64(max(total, 1))
 	renderProgress := progress
 	if gt.monotonicBars {
-		gt.maxBarProgress = max(gt.maxBarProgress, progress)
+		if total != gt.maxBarTotal {
+			gt.maxBarProgress = progress
+			gt.maxBarTotal = total
+		} else {
+			gt.maxBarProgress = max(gt.maxBarProgress, progress)
+		}
 		renderProgress = gt.maxBarProgress
 	}
 	sep := b.BarStyle.Separator
@@ -808,16 +823,11 @@ func buildTaskBarParts(
 		barStr = renderBarProgress(renderProgress, barStyle, gt.cfg.output.Width())
 	}
 
-	elapsed := gt.Duration(state.renderAt)
-	var rate float64
-	if secs := elapsed.Seconds(); secs > 0 && state.current > 0 {
-		rate = float64(state.current) / secs
-	}
 	widgetState := bar.State{
-		Current: state.current,
-		Total:   state.total,
-		Elapsed: elapsed,
-		Rate:    rate,
+		Current: current,
+		Total:   total,
+		Elapsed: state.elapsed,
+		Rate:    state.rate,
 	}
 
 	var leftText, rightText string
@@ -881,12 +891,14 @@ func measureGroupRenderLayout(
 		}
 
 		state := loadBarWidgetState(gt, now)
+		current := int(gt.Builder.BarProgressPtr.Load())
+		total := int(gt.Builder.BarTotalPtr.Load())
 		fieldsStr := renderTaskFields(
 			gt,
 			gt.FieldsPtr.Load(),
-			gt.Duration(state.renderAt),
-			state.current,
-			state.total,
+			state.elapsed,
+			current,
+			total,
 		)
 		tsStr := renderTaskTimestamp(gt, now)
 		parts, leftText, barStr, rightText, _, showBar := buildTaskBarParts(

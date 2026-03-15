@@ -6,8 +6,6 @@ import (
 	"github.com/gechr/clog/fx"
 )
 
-const defaultGroupParallelism = 5
-
 // GroupOption configures a group before it starts rendering.
 type GroupOption func(*fx.Group)
 
@@ -19,12 +17,9 @@ func WithFieldAlignment(alignment FieldAlignment) GroupOption {
 }
 
 // WithParallelism limits how many group tasks may run at once.
-// Values less than or equal to zero use the default of 5.
+// Values less than or equal to zero disable the limit.
 func WithParallelism(parallelism int) GroupOption {
 	return func(g *fx.Group) {
-		if parallelism <= 0 {
-			parallelism = defaultGroupParallelism
-		}
 		g.Parallelism = parallelism
 	}
 }
