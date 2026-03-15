@@ -40,6 +40,10 @@ const (
 	PlaceLeft
 	// PlaceRight places the bar after the message with no padding.
 	PlaceRight
+	// PlaceAligned pads the message so that all bars in a group start at the
+	// same column, determined by the longest message. Falls back to PlaceRight
+	// for standalone (non-group) bars.
+	PlaceAligned
 )
 
 // PendingMode controls how a bar is rendered before any progress is reported.
@@ -285,7 +289,7 @@ func FormatLine(msgParts, barPart, sep string, placement Placement, tw int) stri
 			return barPart + strings.Repeat(" ", gap) + msgParts
 		}
 		return barPart + sep + msgParts
-	case PlaceRight:
+	case PlaceRight, PlaceAligned:
 		return msgParts + sep + barPart
 	case PlaceLeft:
 		return barPart + sep + msgParts

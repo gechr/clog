@@ -89,7 +89,19 @@ type groupBarColumns struct {
 	maxRight int
 }
 
+// groupBarAligned tracks the maximum message-parts width for PlaceAligned bars
+// so that all bars in a group start at the same column.
+type groupBarAligned struct {
+	hasLeft  bool
+	hasRight bool
+	maxBar   int
+	maxLeft  int
+	maxParts int
+	maxRight int
+}
+
 type groupBarLayout struct {
+	aligned  groupBarAligned
 	leftPad  groupBarColumns
 	rightPad groupBarColumns
 }
@@ -183,6 +195,13 @@ func (l *groupBarLayout) observe(
 		l.rightPad.maxParts = max(l.rightPad.maxParts, partsW)
 		l.rightPad.maxBar = max(l.rightPad.maxBar, barW)
 		l.rightPad.maxRight = max(l.rightPad.maxRight, rightW)
+	case bar.PlaceAligned:
+		l.aligned.hasLeft = l.aligned.hasLeft || leftText != ""
+		l.aligned.hasRight = l.aligned.hasRight || rightText != ""
+		l.aligned.maxLeft = max(l.aligned.maxLeft, leftW)
+		l.aligned.maxParts = max(l.aligned.maxParts, partsW)
+		l.aligned.maxBar = max(l.aligned.maxBar, barW)
+		l.aligned.maxRight = max(l.aligned.maxRight, rightW)
 	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
 		return
 	}
@@ -198,6 +217,8 @@ func (l *groupBarLayout) format(
 		return l.formatLeftPad(parts, leftText, barStr, rightText, sep, termWidth)
 	case bar.PlaceRightPad:
 		return l.formatRightPad(parts, leftText, barStr, rightText, sep, termWidth)
+	case bar.PlaceAligned:
+		return l.formatAligned(parts, leftText, barStr, rightText, sep)
 	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
 		barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
 		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
@@ -242,6 +263,28 @@ func (l *groupBarLayout) formatRightPad(
 	}
 
 	return parts + strings.Repeat(" ", shared.maxParts-lipgloss.Width(parts)+gap) + barFull
+}
+
+func (l *groupBarLayout) formatAligned(
+	parts, leftText, barStr, rightText, sep string,
+) string {
+	a := l.aligned
+	barCols := groupBarColumns{
+		hasLeft:  a.hasLeft,
+		hasRight: a.hasRight,
+		maxBar:   a.maxBar,
+		maxLeft:  a.maxLeft,
+		maxRight: a.maxRight,
+	}
+	barFull := assembleBarColumns(barCols, leftText, barStr, rightText, sep)
+	if a.maxParts == 0 {
+		return parts + sep + barFull
+	}
+	padding := a.maxParts - lipgloss.Width(parts)
+	if padding <= 0 {
+		return parts + sep + barFull
+	}
+	return parts + strings.Repeat(" ", padding) + sep + barFull
 }
 
 func (c groupBarColumns) barWidth(sep string) int {
@@ -938,6 +981,28 @@ func measureGroupRenderLayout(
 		}
 		layout.bar.observe(parts, leftText, barStr, rightText, gt.Builder.BarStyle.Placement)
 	}
+
+	// For PlaceAligned, also measure done tasks so completed messages
+	// (which may be longer) are included in the max parts width.
+	for i, gt := range gts {
+		if !shouldRenderTask(gt, done[i], now) || !done[i] {
+			continue
+		}
+		if gt.Builder.Mode != fx.AnimationBar || gt.Builder.BarStyle.Placement != bar.PlaceAligned {
+			continue
+		}
+		tsStr := renderTaskTimestamp(gt, now)
+		msg := gt.cfg.indentation + styledMsg(
+			*gt.MsgPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor,
+		)
+		fieldsStr := renderTaskFields(gt, gt.FieldsPtr.Load(), gt.Duration(now), 0, 0)
+		parts := buildLine(
+			gt.cfg.order, gt.cfg.reportTS, tsStr,
+			gt.cfg.levelSymbol, *gt.SymbolPtr.Load(), msg, fieldsStr,
+		)
+		layout.bar.aligned.maxParts = max(layout.bar.aligned.maxParts, lipgloss.Width(parts))
+	}
+
 	return layout
 }
 

@@ -368,6 +368,15 @@ func TestFormatLineLeft(t *testing.T) {
 	assert.Equal(t, b+" "+msg, got)
 }
 
+func TestFormatLineAlignedStandalone(t *testing.T) {
+	// bar.PlaceAligned: falls back to bar.PlaceRight for standalone bars.
+	msg := "INF Downloading"
+	b := "[====      ] 50%"
+
+	got := bar.FormatLine(msg, b, " ", bar.PlaceAligned, 80)
+	assert.Equal(t, msg+" "+b, got)
+}
+
 func TestFormatLineCustomSeparator(t *testing.T) {
 	// Narrow fallback uses the provided separator.
 	msg := "INF Downloading"

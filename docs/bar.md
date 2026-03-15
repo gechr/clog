@@ -214,15 +214,18 @@ When set, `ProgressGradient` overrides the `StyleFill` foreground color. Use `ba
 
 The `Placement` field on `bar.Style` controls where the bar appears on the line:
 
-| Constant              | Layout                                                                 |
-| --------------------- | ---------------------------------------------------------------------- |
-| `bar.PlaceRightPad`   | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
-| `bar.PlaceLeftPad`    | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
-| `bar.PlaceInline`     | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `bar.PlaceRight`      | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `bar.PlaceLeft`       | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
+| Constant            | Layout                                                                 |
+| ------------------- | ---------------------------------------------------------------------- |
+| `bar.PlaceRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
+| `bar.PlaceLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
+| `bar.PlaceInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `bar.PlaceRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
+| `bar.PlaceLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
+| `bar.PlaceAligned`  | Pads messages in a group so all bars start at the same column          |
 
 The padded variants (`bar.PlaceRightPad`, `bar.PlaceLeftPad`) fill the gap between message and bar with spaces to span the terminal width. When the terminal is too narrow, they fall back to the `Separator` between parts.
+
+`bar.PlaceAligned` dynamically calculates the longest message in a group and aligns all bars to the same starting column. For standalone (non-group) bars, it falls back to `bar.PlaceRight`.
 
 ## Widgets
 

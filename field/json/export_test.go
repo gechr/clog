@@ -1,4 +1,4 @@
-package json //nolint:revive // export_test must match the package under test
+package json
 
 // Test-only exports for external test packages.
 var (

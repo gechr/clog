@@ -760,6 +760,30 @@ func TestGroupBarLayoutRightPadAlignsRightWidget(t *testing.T) {
 	assert.Equal(t, strings.Index(line1, "ETA"), strings.Index(line2, "ETA"))
 }
 
+func TestGroupBarLayoutAligned(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("short", " 29%", "BAR", "", bar.PlaceAligned)
+	layout.observe("much longer message", " 50%", "BAR", "", bar.PlaceAligned)
+
+	line1 := layout.format("short", " 29%", "BAR", "", " ", bar.PlaceAligned, 80)
+	line2 := layout.format("much longer message", " 50%", "BAR", "", " ", bar.PlaceAligned, 80)
+
+	// Both bars should start at the same column.
+	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
+	// The shorter message should be padded.
+	assert.Greater(t, len(line1), len("short BAR"))
+}
+
+func TestGroupBarLayoutAlignedNoPadForLongest(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("longest msg", "", "BAR", "", bar.PlaceAligned)
+	layout.observe("short", "", "BAR", "", bar.PlaceAligned)
+
+	// The longest message should not get extra padding.
+	line := layout.format("longest msg", "", "BAR", "", " ", bar.PlaceAligned, 80)
+	assert.Equal(t, "longest msg BAR", line)
+}
+
 func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	b := logger.Bar("queued", 1, bar.WithPendingMode(bar.PendingHide))

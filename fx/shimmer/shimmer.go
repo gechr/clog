@@ -92,7 +92,6 @@ func BuildLUT(stops []gradient.ColorStop) *LUT {
 	var lut LUT
 	for i := range lut {
 		t := float64(i) / float64(lutSize-1)
-		//nolint:gosec // i is bounded by range lut
 		lut[i] = gradient.Interpolate(t, stops).Clamped().Hex()
 	}
 	return &lut
@@ -104,7 +103,6 @@ func BuildLUT(stops []gradient.ColorStop) *LUT {
 func BuildStyleLUT(lut *LUT) *StyleLUT {
 	var s StyleLUT
 	for i, hex := range lut {
-		//nolint:gosec // i is bounded by range lut
 		s[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(hex))
 	}
 	return &s
