@@ -797,6 +797,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 		CharEmpty:   '-',
 		CharFill:    '=',
 		Separator:   " ",
+		Smoothing:   bar.SmoothNone,
 		WidgetLeft:  widget.ETA(),
 		WidgetRight: widget.Percent(),
 		Width:       10,
@@ -866,6 +867,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 		CharEmpty:   '-',
 		CharFill:    '=',
 		Separator:   " ",
+		Smoothing:   bar.SmoothNone,
 		WidgetRight: widget.None(),
 		Width:       10,
 	}
@@ -929,6 +931,7 @@ func TestRenderTaskLineMonotonicBars(t *testing.T) {
 		CharEmpty:   '-',
 		CharFill:    '=',
 		Separator:   " ",
+		Smoothing:   bar.SmoothNone,
 		WidgetRight: widget.None(),
 		Width:       10,
 	}
@@ -968,4 +971,66 @@ func TestRenderTaskLineMonotonicBars(t *testing.T) {
 
 	assert.Equal(t, "INF 📡 repo stage=receiving [=========-]", first)
 	assert.Equal(t, first, second)
+}
+
+func TestRenderTaskLineSmoothEase(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	style := bar.Style{
+		CapLeft:     "[",
+		CapRight:    "]",
+		CharEmpty:   '-',
+		CharFill:    '=',
+		Separator:   " ",
+		Smoothing:   bar.SmoothEase,
+		WidgetRight: widget.None(),
+		Width:       10,
+	}
+	b := logger.Bar("task", 100, bar.WithStyle(style))
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "task"
+	fields := []Field{}
+	symbol := "⏳"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   b,
+			FieldsPtr: fieldsPtr,
+			MsgPtr:    msgPtr,
+			StartTime: time.Unix(0, 0),
+			SymbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+
+	// First render at 10% - smoothing initializes to 10%.
+	b.BarProgressPtr.Store(10)
+	firstAt := time.Unix(2, 0)
+	firstLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	first := renderTaskLine(gt, false, firstAt, firstLayout)
+	assert.Equal(t, "INF ⏳ task [=---------]", first)
+
+	// Jump to 90% - shortly after, smoothing should lag behind the target.
+	b.BarProgressPtr.Store(90)
+	shortAt := firstAt.Add(50 * time.Millisecond)
+	shortLayout := measureGroupRenderLayout(&fx.Group{}, []*groupTask{gt}, []bool{false}, shortAt)
+	smoothed := renderTaskLine(gt, false, shortAt, shortLayout)
+	// Without smoothing this would be [=========-]; with smoothing it should be less.
+	assert.NotEqual(t, "INF ⏳ task [=========-]", smoothed)
+
+	// After enough time (~10τ = 2s), smoothing converges to the actual progress.
+	convergedAt := firstAt.Add(2 * time.Second)
+	convergedLayout := measureGroupRenderLayout(
+		&fx.Group{},
+		[]*groupTask{gt},
+		[]bool{false},
+		convergedAt,
+	)
+	converged := renderTaskLine(gt, false, convergedAt, convergedLayout)
+	assert.Equal(t, "INF ⏳ task [=========-]", converged)
 }

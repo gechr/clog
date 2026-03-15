@@ -49,6 +49,13 @@ clog.Bar("Cloning", 1, bar.WithPendingMode(bar.PendingHide))
 
 This suppresses the entire bar block, including widgets, until progress becomes positive.
 
+By default, the bar fill uses exponential smoothing (`SmoothEase`) so that large jumps in progress animate smoothly instead of snapping. Disable it with `SmoothNone`, or tune the time constant with `WithSmoothingTau` (default 120ms - smaller is snappier, larger is smoother):
+
+```go
+clog.Bar("Uploading", total, bar.WithSmoothingMode(bar.SmoothNone))
+clog.Bar("Uploading", total, bar.WithSmoothingTau(100*time.Millisecond))
+```
+
 If frequent updates make ETA or rate text too jumpy, coalesce timing-derived widget and dynamic-field updates:
 
 ```go
@@ -172,6 +179,8 @@ clog.Bar("Downloading", 100, bar.WithStyle(bar.Braille), bar.WithWidth(30))
 | `bar.WithWidgetRight(w)`    | Widget displayed to the right of the bar                                  |
 | `bar.WithPlacement(p)`      | Horizontal bar placement mode                                             |
 | `bar.WithPendingMode(m)`    | Whether to render the bar before progress starts                          |
+| `bar.WithSmoothingMode(m)`  | Bar fill smoothing (`SmoothEase` default, `SmoothNone` to disable)        |
+| `bar.WithSmoothingTau(d)`   | Exponential decay time constant (default 120ms; smaller = snappier)       |
 | `bar.WithUpdateInterval(d)` | Coalesce ETA/rate/elapsed-style text updates to at most once per duration |
 
 All presets use bold white `CapStyle`. Pass `bar.WithCapStyle(nil)` for unstyled caps.

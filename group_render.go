@@ -64,6 +64,11 @@ type groupTask struct {
 	gradientStyle    lipgloss.Style
 	gradientValid    bool
 
+	// smoothing state (bar mode with SmoothEase only)
+	smoothedProgress float64
+	smoothedTime     time.Time
+	smoothedInit     bool
+
 	// throttled timing snapshot (bar mode with UpdateInterval only)
 	barWidgetState barWidgetState
 	barWidgetValid bool
@@ -787,6 +792,24 @@ func buildTaskBarParts(
 		}
 		renderProgress = gt.maxBarProgress
 	}
+	if b.BarStyle.Smoothing == bar.SmoothEase {
+		now := state.renderAt
+		if !gt.smoothedInit {
+			gt.smoothedProgress = renderProgress
+			gt.smoothedTime = now
+			gt.smoothedInit = true
+		} else {
+			tau := b.BarStyle.SmoothingTau
+			if tau <= 0 {
+				tau = bar.DefaultSmoothingTau
+			}
+			dt := now.Sub(gt.smoothedTime).Seconds()
+			gt.smoothedTime = now
+			alpha := 1.0 - math.Exp(-dt/tau.Seconds())
+			gt.smoothedProgress += (renderProgress - gt.smoothedProgress) * alpha
+		}
+		renderProgress = gt.smoothedProgress
+	}
 	sep := b.BarStyle.Separator
 	if sep == "" {
 		sep = " "
@@ -818,9 +841,11 @@ func buildTaskBarParts(
 		barStyle.StyleFill = &gt.gradientStyle
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
-	barStr := bar.Render(current, total, barStyle, gt.cfg.output.Width())
-	if gt.monotonicBars {
+	var barStr string
+	if gt.monotonicBars || b.BarStyle.Smoothing == bar.SmoothEase {
 		barStr = renderBarProgress(renderProgress, barStyle, gt.cfg.output.Width())
+	} else {
+		barStr = bar.Render(current, total, barStyle, gt.cfg.output.Width())
 	}
 
 	widgetState := bar.State{

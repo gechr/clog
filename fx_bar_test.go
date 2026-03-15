@@ -182,6 +182,14 @@ func TestBarUpdateIntervalOption(t *testing.T) {
 	assert.Zero(t, b.BarStyle.UpdateInterval)
 }
 
+func TestBarSmoothingModeOption(t *testing.T) {
+	b := Bar("test", 100, bar.WithSmoothingMode(bar.SmoothNone))
+	assert.Equal(t, bar.SmoothNone, b.BarStyle.Smoothing)
+
+	b = Bar("test", 100)
+	assert.Equal(t, bar.SmoothEase, b.BarStyle.Smoothing)
+}
+
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))

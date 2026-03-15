@@ -96,6 +96,26 @@ func WithSeparator(sep string) Option {
 	}
 }
 
+// WithSmoothingMode sets the bar fill smoothing mode.
+func WithSmoothingMode(m SmoothingMode) Option {
+	return func(s *Style) {
+		s.Smoothing = m
+	}
+}
+
+// WithSmoothingTau sets the exponential decay time constant for [SmoothEase].
+// Smaller values converge faster (snappier); larger values are smoother.
+// Non-positive values reset to [DefaultSmoothingTau].
+func WithSmoothingTau(d time.Duration) Option {
+	return func(s *Style) {
+		if d <= 0 {
+			s.SmoothingTau = 0
+			return
+		}
+		s.SmoothingTau = d
+	}
+}
+
 // WithPlacement sets the horizontal bar placement mode.
 func WithPlacement(p Placement) Option {
 	return func(s *Style) {

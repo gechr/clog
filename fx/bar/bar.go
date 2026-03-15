@@ -52,6 +52,21 @@ const (
 	PendingHide
 )
 
+// SmoothingMode controls how the bar fill interpolates toward the target progress.
+type SmoothingMode int
+
+const (
+	// SmoothEase applies exponential smoothing so the bar eases toward the
+	// target value instead of jumping instantly. This is the default.
+	SmoothEase SmoothingMode = iota
+	// SmoothNone disables smoothing; the bar jumps to the exact progress each frame.
+	SmoothNone
+)
+
+// DefaultSmoothingTau is the default exponential decay time constant for [SmoothEase].
+// The bar reaches ~95% of its target in 3τ (≈ 360 ms at 120 ms τ).
+const DefaultSmoothingTau = 120 * time.Millisecond
+
 // Style configures the visual appearance of a determinate progress bar.
 type Style struct {
 	CapLeft          string               // left bracket; default "["
@@ -67,6 +82,8 @@ type Style struct {
 	PendingMode      PendingMode          // whether to show the bar before progress starts; default PendingShow
 	ProgressGradient []gradient.ColorStop // when set, colors filled cells based on progress; overrides StyleFill foreground
 	Separator        string               // separator between message, bar, and widget text; default " "
+	Smoothing        SmoothingMode        // bar fill smoothing mode; default SmoothEase
+	SmoothingTau     time.Duration        // exponential decay time constant; 0 = DefaultSmoothingTau (150ms)
 	StyleEmpty       *lipgloss.Style      // lipgloss style for empty cells; nil = plain text
 	StyleFill        *lipgloss.Style      // lipgloss style for filled cells; nil = plain text
 	UpdateInterval   time.Duration        // samples the timing basis for ETA/rate/elapsed while leaving progress live

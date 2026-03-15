@@ -284,6 +284,11 @@ func TestUpdateIntervalZeroValue(t *testing.T) {
 	assert.Zero(t, bar.Style{}.UpdateInterval)
 }
 
+func TestSmoothingModeZeroValue(t *testing.T) {
+	assert.Equal(t, bar.SmoothEase, bar.SmoothingMode(0))
+	assert.Equal(t, bar.SmoothEase, bar.Style{}.Smoothing)
+}
+
 func TestShowPending(t *testing.T) {
 	assert.True(t, bar.ShowPending(bar.Style{}, 0))
 	assert.True(t, bar.ShowPending(bar.Style{PendingMode: bar.PendingHide}, 1))
