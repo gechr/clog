@@ -31,7 +31,7 @@ type Group struct {
 
 	FieldAlignment FieldAlignment
 	Log            Logger
-	MonotonicBars  bool
+	Monotonic      bool
 	Parallelism    int
 	Tasks          []*GroupTask
 

@@ -47,7 +47,7 @@ type groupTask struct {
 	cfg            taskConfig
 	maxBarProgress float64
 	maxBarTotal    int
-	monotonicBars  bool
+	monotonic      bool
 	tickRate       time.Duration
 	visible        bool
 
@@ -685,6 +685,12 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 		state := loadBarWidgetState(gt, now)
 		current := int(gt.Builder.BarProgressPtr.Load())
 		total := int(gt.Builder.BarTotalPtr.Load())
+		if gt.monotonic {
+			progress := float64(current) / float64(max(total, 1))
+			clamped := max(gt.maxBarProgress, progress)
+			current = int(math.Round(clamped * float64(max(total, 1))))
+			total = max(total, 1)
+		}
 		fieldsStr = renderTaskFields(
 			gt,
 			gt.FieldsPtr.Load(),
@@ -826,7 +832,7 @@ func buildTaskBarParts(
 	total := int(b.BarTotalPtr.Load())
 	progress := float64(current) / float64(max(total, 1))
 	renderProgress := progress
-	if gt.monotonicBars {
+	if gt.monotonic {
 		if total != gt.maxBarTotal {
 			gt.maxBarProgress = progress
 			gt.maxBarTotal = total
@@ -834,6 +840,10 @@ func buildTaskBarParts(
 			gt.maxBarProgress = max(gt.maxBarProgress, progress)
 		}
 		renderProgress = gt.maxBarProgress
+		// Derive synthetic current/total so widgets and percent text
+		// also reflect the clamped progress.
+		current = int(math.Round(renderProgress * float64(max(total, 1))))
+		total = max(total, 1)
 	}
 	if b.BarStyle.Smoothing == bar.SmoothEase {
 		now := state.renderAt
@@ -885,7 +895,7 @@ func buildTaskBarParts(
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
 	var barStr string
-	if gt.monotonicBars || b.BarStyle.Smoothing == bar.SmoothEase {
+	if gt.monotonic || b.BarStyle.Smoothing == bar.SmoothEase {
 		barStr = renderBarProgress(renderProgress, barStyle, gt.cfg.output.Width())
 	} else {
 		barStr = bar.Render(current, total, barStyle, gt.cfg.output.Width())
@@ -1021,8 +1031,8 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	gts := make([]*groupTask, len(fxTasks))
 	for i, ft := range fxTasks {
 		gt := &groupTask{
-			GroupTask:     ft,
-			monotonicBars: g.MonotonicBars,
+			GroupTask: ft,
+			monotonic: g.Monotonic,
 		}
 		captureTaskConfig(gt)
 		gts[i] = gt

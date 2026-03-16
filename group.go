@@ -24,11 +24,12 @@ func WithParallelism(parallelism int) GroupOption {
 	}
 }
 
-// WithMonotonicBars prevents grouped bar fills from rendering lower than the
-// highest progress fraction previously shown for each task.
-func WithMonotonicBars() GroupOption {
+// WithMonotonic prevents grouped bar fills and their associated percentage
+// text from rendering lower than the highest progress fraction previously
+// shown for each task.
+func WithMonotonic() GroupOption {
 	return func(g *fx.Group) {
-		g.MonotonicBars = true
+		g.Monotonic = true
 	}
 }
 

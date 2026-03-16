@@ -116,11 +116,11 @@ func TestGroupParallelismOption(t *testing.T) {
 	assert.Equal(t, -1, g.Parallelism)
 }
 
-func TestGroupMonotonicBarsOption(t *testing.T) {
+func TestGroupMonotonicOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithMonotonicBars())
+	g := logger.Group(context.Background(), WithMonotonic())
 
-	assert.True(t, g.MonotonicBars)
+	assert.True(t, g.Monotonic)
 }
 
 func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
@@ -947,7 +947,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	assert.Equal(t, "INF 📡 repo stage=receiving progress=90% elapsed=3s [=========-]", third)
 }
 
-func TestRenderTaskLineMonotonicBars(t *testing.T) {
+func TestRenderTaskLineMonotonic(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	style := bar.Style{
 		CapLeft:     "[",
@@ -979,7 +979,7 @@ func TestRenderTaskLineMonotonicBars(t *testing.T) {
 			StartTime: time.Unix(0, 0),
 			SymbolPtr: symbolPtr,
 		},
-		monotonicBars: true,
+		monotonic: true,
 	}
 	captureTaskConfig(gt)
 
