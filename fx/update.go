@@ -25,6 +25,7 @@ type Update struct {
 	MsgPtr      *atomic.Pointer[string]
 	MsgText     string
 	ProgressPtr *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
+	LevelPtr    *atomic.Int64           // overridden level; nil when not updatable
 	SymbolPtr   *atomic.Pointer[string] // symbol icon; nil when not updatable
 	TotalPtr    *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
 }
@@ -67,6 +68,15 @@ func (p *Update) AddTotal(delta int) *Update {
 		if newVal < 1 {
 			p.TotalPtr.CompareAndSwap(newVal, 1)
 		}
+	}
+	return p
+}
+
+// SetLevel overrides the log level used when rendering the final done line.
+// No-op if the animation does not support level updates.
+func (p *Update) SetLevel(level core.Level) *Update {
+	if p.LevelPtr != nil {
+		p.LevelPtr.Store(int64(level))
 	}
 	return p
 }

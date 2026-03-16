@@ -45,6 +45,7 @@ type Output interface {
 type AnimationConfig struct {
 	Builder   *Builder
 	FieldsPtr *atomic.Pointer[[]core.Field]
+	LevelPtr  *atomic.Int64
 	MsgPtr    *atomic.Pointer[string]
 	StartTime time.Time
 	SymbolPtr *atomic.Pointer[string]

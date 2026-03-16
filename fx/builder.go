@@ -11,7 +11,11 @@ import (
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/internal/gradient"
+	"github.com/gechr/clog/level"
 )
+
+// DefaultSymbol is the default icon shown during pulse, shimmer, and bar animations.
+const DefaultSymbol = "⏳"
 
 // Builder configures an animation before execution.
 // Create one with [NewBuilder] or the root clog convenience constructors
@@ -37,7 +41,7 @@ type Builder struct {
 	Speed          float64
 	SpinnerStyle   spinner.Style
 	SuppressNonTTY bool           // when true, no output is produced on non-TTY writers
-	SymbolIcon     string         // icon shown during animation; defaults to "⏳" for pulse/shimmer/bar
+	SymbolIcon     string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
 	TreePos        []core.TreePos // additional tree levels applied to the animation
 }
 
@@ -263,16 +267,18 @@ func (b *Builder) Wait(ctx context.Context, task TaskFunc) *WaitResult {
 // Progress executes the task with the animation whose message and fields
 // can be updated via the [Update] builder.
 func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
-	var msgPtr atomic.Pointer[string]
 	var fieldsPtr atomic.Pointer[[]core.Field]
+	var levelPtr atomic.Int64
+	var msgPtr atomic.Pointer[string]
 	var symbolPtr atomic.Pointer[string]
 
 	msgPtr.Store(&b.Message)
 	fieldsPtr.Store(&b.Fields)
 	sym := b.SymbolIcon
 	if sym == "" {
-		sym = "⏳"
+		sym = DefaultSymbol
 	}
+	levelPtr.Store(int64(level.Unset))
 	symbolPtr.Store(&sym)
 
 	update := &Update{
@@ -280,6 +286,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 		MsgPtr:    &msgPtr,
 		FieldsPtr: &fieldsPtr,
 		Base:      b.Fields,
+		LevelPtr:  &levelPtr,
 		SymbolPtr: &symbolPtr,
 	}
 	if b.Mode == AnimationBar {
@@ -299,6 +306,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 		Task:      wrapped,
 		MsgPtr:    &msgPtr,
 		FieldsPtr: &fieldsPtr,
+		LevelPtr:  &levelPtr,
 		StartTime: startTime,
 		SymbolPtr: &symbolPtr,
 	})

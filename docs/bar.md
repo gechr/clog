@@ -41,6 +41,12 @@ p.SetSymbol("📡").SetProgress(i).Str("stage", "receiving").Send()
 p.SetSymbol("🔍").SetProgress(i).Str("stage", "resolving").Send()
 ```
 
+`SetLevel` overrides the log level shown on the final done line. This is useful when a task fails and you want the completed line to render at error level:
+
+```go
+p.SetSymbol("❌").SetLevel(clog.LevelError).Msg("Failed").Send()
+```
+
 If you don't want zero-progress tasks to show an empty bar, use `PendingHide`:
 
 ```go

@@ -171,9 +171,7 @@ func Parse(s string) (Level, error) {
 func Labels() map[Level]string {
 	mu.RLock()
 	defer mu.RUnlock()
-	m := make(map[Level]string, len(labels))
-	maps.Copy(m, labels)
-	return m
+	return maps.Clone(labels)
 }
 
 // All returns all registered level names (built-in + custom) mapped to their [Level] values.

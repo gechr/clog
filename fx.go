@@ -83,6 +83,7 @@ func (f fxLogger) RunAnimation(ctx context.Context, cfg fx.AnimationConfig) erro
 		cfg.Task,
 		cfg.MsgPtr,
 		cfg.FieldsPtr,
+		cfg.LevelPtr,
 		cfg.SymbolPtr,
 		cfg.StartTime,
 	)
@@ -98,6 +99,7 @@ func runAnimation(
 	task fx.TaskFunc,
 	msgPtr *atomic.Pointer[string],
 	fields *atomic.Pointer[[]core.Field],
+	levelPtr *atomic.Int64,
 	symbolPtr *atomic.Pointer[string],
 	startTime time.Time,
 ) error {
@@ -127,6 +129,7 @@ func runAnimation(
 		GroupTask: &fx.GroupTask{
 			Builder:   b,
 			FieldsPtr: fields,
+			LevelPtr:  levelPtr,
 			MsgPtr:    msgPtr,
 			StartTime: startTime,
 			SymbolPtr: symbolPtr,

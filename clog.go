@@ -697,6 +697,14 @@ func (l *Logger) formatLabel(level Level) string {
 	return l.labelsPadded[level]
 }
 
+// allPaddedLabels returns a copy of the padded labels map. Must be called with l.mu held.
+func (l *Logger) allPaddedLabels() LabelMap {
+	if l.labelsPadded == nil {
+		l.recomputePaddedLabels()
+	}
+	return maps.Clone(l.labelsPadded)
+}
+
 // recomputePaddedLabels rebuilds the labelsPadded cache from the current
 // labels, labelWidth, and levelAlign settings. Must be called with l.mu held.
 func (l *Logger) recomputePaddedLabels() {

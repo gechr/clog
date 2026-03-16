@@ -46,6 +46,7 @@ type GroupTask struct {
 	Err        error      // populated by Wait() after DoneErr is drained
 	FieldsPtr  *atomic.Pointer[[]core.Field]
 	FinishedAt atomic.Int64
+	LevelPtr   *atomic.Int64
 	MsgPtr     *atomic.Pointer[string]
 	StartTime  time.Time
 	StartedAt  atomic.Int64
@@ -111,14 +112,18 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 	fieldsPtr.Store(&b.Fields)
 	sym := b.SymbolIcon
 	if sym == "" {
-		sym = "⏳"
+		sym = DefaultSymbol
 	}
 	symbolPtr.Store(&sym)
+
+	levelPtr := &atomic.Int64{}
+	levelPtr.Store(int64(level.Unset))
 
 	gt := &GroupTask{
 		Builder:   b,
 		DoneErr:   make(chan error, 1),
 		FieldsPtr: fieldsPtr,
+		LevelPtr:  levelPtr,
 		MsgPtr:    msgPtr,
 		SymbolPtr: symbolPtr,
 	}
@@ -221,6 +226,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		MsgPtr:    t.MsgPtr,
 		FieldsPtr: t.FieldsPtr,
 		Base:      b.Fields,
+		LevelPtr:  t.LevelPtr,
 		SymbolPtr: t.SymbolPtr,
 	}
 	if b.Mode == AnimationBar {

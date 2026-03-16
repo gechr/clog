@@ -26,6 +26,7 @@ type taskConfig struct {
 	indentation  string    // pre-computed indent string before message
 	isTTY        bool      // output.IsTTY()
 	label        string    // pre-computed padded label
+	labels       LabelMap  // all padded labels, for level overrides
 	levelSymbol  string    // styled label (via styles.Levels[level])
 	noColor      bool      // output.ColorsDisabled()
 	nonTTYSilent bool      // builder.SuppressNonTTY || level < logger.nonTTYLevel
@@ -72,6 +73,23 @@ type groupTask struct {
 	// throttled timing snapshot (bar mode with UpdateInterval only)
 	barWidgetState barWidgetState
 	barWidgetValid bool
+}
+
+// resolveLevel returns the effective level and styled level symbol for a
+// completed task. If SetLevel was called on the Update, the overridden
+// level is used; otherwise the builder's original level applies.
+func (gt *groupTask) resolveLevel() (Level, string) {
+	b := gt.Builder
+	if gt.LevelPtr != nil {
+		if override := Level(gt.LevelPtr.Load()); override != UnsetLevel {
+			label := gt.cfg.labels[override]
+			if s := gt.cfg.styles.Levels[override]; s != nil && !gt.cfg.noColor {
+				return override, s.Render(label)
+			}
+			return override, label
+		}
+	}
+	return b.Level, gt.cfg.levelSymbol
 }
 
 type barWidgetState struct {
@@ -385,6 +403,7 @@ func captureTaskConfig(gt *groupTask) {
 		) + computeTreeIndent(combinedTree, l.treeChars),
 		isTTY:        l.output.IsTTY(),
 		label:        l.formatLabel(b.Level),
+		labels:       l.allPaddedLabels(),
 		noColor:      l.output.ColorsDisabled(),
 		nonTTYSilent: b.SuppressNonTTY || (l.nonTTYLevel != UnsetLevel && b.Level < l.nonTTYLevel),
 		order:        order,
@@ -598,13 +617,13 @@ func measureTaskFieldStart(
 		return 0
 	}
 
-	b := gt.Builder
 	tsStr := renderTaskTimestamp(gt, now)
 
 	if isDone {
+		renderLevel, levelSymbol := gt.resolveLevel()
 		msg := gt.cfg.indentation + styledMsg(
 			*gt.MsgPtr.Load(),
-			b.Level,
+			renderLevel,
 			gt.cfg.styles,
 			gt.cfg.noColor,
 		)
@@ -612,7 +631,7 @@ func measureTaskFieldStart(
 			gt.cfg.order,
 			gt.cfg.reportTS,
 			tsStr,
-			gt.cfg.levelSymbol,
+			levelSymbol,
 			*gt.SymbolPtr.Load(),
 			msg,
 			"",
@@ -650,13 +669,14 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 
 	if isDone {
 		// Show the frozen final line with the level's default symbol.
+		// If SetLevel was called, use the overridden level for styling.
+		renderLevel, levelSymbol := gt.resolveLevel()
 		msg := gt.cfg.indentation + styledMsg(
 			*gt.MsgPtr.Load(),
-			b.Level,
+			renderLevel,
 			gt.cfg.styles,
 			gt.cfg.noColor,
 		)
-		levelSymbol := gt.cfg.levelSymbol
 		// Use a checkmark or the builder symbol for completed items.
 		doneSymbol := *gt.SymbolPtr.Load()
 		msg = alignMessageForFields(

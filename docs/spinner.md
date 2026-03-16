@@ -39,6 +39,12 @@ err := clog.Spinner("Processing").
 update.SetSymbol("📡").Msg("Connecting").Send()
 ```
 
+`SetLevel` overrides the log level on the final done line:
+
+```go
+update.SetLevel(clog.LevelError).SetSymbol("❌").Msg("Failed").Send()
+```
+
 ## WaitResult Finalisers
 
 | Method      | Success behaviour                  | Failure behaviour                      |

@@ -115,6 +115,27 @@ func TestUpdateSetSymbol(t *testing.T) {
 	assert.Equal(t, "📦", *sym.Load())
 }
 
+func TestUpdateSetLevel(t *testing.T) {
+	var lvl atomic.Int64
+	lvl.Store(int64(LevelInfo))
+
+	u := &fx.Update{LevelPtr: &lvl}
+	u.InitSelf(u)
+
+	result := u.SetLevel(LevelError)
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, int64(LevelError), lvl.Load())
+}
+
+func TestUpdateSetLevelNilNoOp(t *testing.T) {
+	u := &fx.Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.SetLevel(LevelError)
+	})
+}
+
 func TestUpdateSetSymbolNilNoOp(t *testing.T) {
 	u := &fx.Update{}
 	u.InitSelf(u)
