@@ -2,6 +2,7 @@ package fx
 
 import (
 	"context"
+	"fmt"
 	"sync/atomic"
 
 	"github.com/gechr/clog/internal/core"
@@ -95,6 +96,11 @@ func (p *Update) SetSymbol(symbol string) *Update {
 func (p *Update) Msg(msg string) *Update {
 	p.MsgText = msg
 	return p
+}
+
+// Msgf sets the animation's displayed message with formatting.
+func (p *Update) Msgf(format string, args ...any) *Update {
+	return p.Msg(fmt.Sprintf(format, args...))
 }
 
 // Send applies the accumulated message and field changes to the animation atomically.

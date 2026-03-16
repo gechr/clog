@@ -388,6 +388,23 @@ func TestSpinnerProgressMsgOnly(t *testing.T) {
 	assert.Equal(t, "step 2", result.SuccessMsg)
 }
 
+func TestSpinnerProgressMsgf(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+
+	result := Spinner(
+		"step 1",
+	).Progress(context.Background(), func(_ context.Context, update *fx.Update) error {
+		update.Msgf("step %d of %d", 2, 3).Send()
+		return nil
+	})
+
+	require.NoError(t, result.TaskErr)
+	assert.Equal(t, "step 2 of 3", result.SuccessMsg)
+}
+
 // newTestWaitResult creates a WaitResult with initSelf called for test use.
 func newTestWaitResult(msg string, err error) *fx.WaitResult {
 	return fx.NewWaitResult(err, fxLogger{Default}, nil, LevelInfo, msg)

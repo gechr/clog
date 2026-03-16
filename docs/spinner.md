@@ -50,6 +50,7 @@ update.SetLevel(clog.LevelError).SetSymbol("❌").Msg("Failed").Send()
 | Method      | Success behaviour                  | Failure behaviour                      |
 | ----------- | ---------------------------------- | -------------------------------------- |
 | `.Msg(s)`   | Logs at `INF` with message         | Logs at `ERR` with error string        |
+| `.Msgf(…)`  | Like `.Msg` with `fmt.Sprintf`     | Like `.Msg` with `fmt.Sprintf`         |
 | `.Err()`    | Logs at `INF` with spinner message | Logs at `ERR` with error string as msg |
 | `.Send()`   | Logs at configured level           | Logs at configured level               |
 | `.Silent()` | Returns error, no logging          | Returns error, no logging              |

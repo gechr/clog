@@ -25,6 +25,7 @@ err := clog.Bar("Downloading", 100).
 
 ```go
 p.SetProgress(50).SetTotal(200).Msg("Processing").Send()
+p.Msgf("Processing %d/%d", current, total).Send()
 ```
 
 `AddTotal` atomically adds to the total - useful for "discovered more work" patterns where the full scope isn't known upfront:
