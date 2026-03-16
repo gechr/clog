@@ -1401,6 +1401,68 @@ func TestPackageLevelSetQuoteChars(t *testing.T) {
 	assert.Equal(t, ']', Default.quoteClose)
 }
 
+func TestSliceBracket(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetSliceBracket('|')
+	l.Info().Ints("vals", []int{1, 2, 3}).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test vals=|1, 2, 3|\n", buf.String())
+}
+
+func TestSliceBrackets(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetSliceBrackets('«', '»')
+	l.Info().Ints("vals", []int{1, 2, 3}).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test vals=«1, 2, 3»\n", buf.String())
+}
+
+func TestSliceSeparator(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetSliceSeparator(" ")
+	l.Info().Ints("vals", []int{1, 2, 3}).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test vals=[1 2 3]\n", buf.String())
+}
+
+func TestPackageLevelSetSliceBracket(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetSliceBracket('|')
+
+	assert.Equal(t, '|', Default.sliceOpen)
+	assert.Equal(t, '|', Default.sliceClose)
+}
+
+func TestPackageLevelSetSliceBrackets(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetSliceBrackets('«', '»')
+
+	assert.Equal(t, '«', Default.sliceOpen)
+	assert.Equal(t, '»', Default.sliceClose)
+}
+
+func TestPackageLevelSetSliceSeparator(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetSliceSeparator(" ")
+
+	assert.Equal(t, " ", Default.sliceSep)
+}
+
 func TestQuoteModeAuto(t *testing.T) {
 	var buf bytes.Buffer
 

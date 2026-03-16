@@ -69,6 +69,17 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `URLs`       | `URLs(key string, urls []string)`                          | Clickable URL hyperlink slice (URLs as text)                                        |
 | `When`       | `When(condition bool, fn func(*Event))`                    | Conditional field builder; fn called only when condition is true                    |
 
+## Slice Formatting
+
+Slice fields render as `[a, b, c]` by default. The brackets and separator are configurable:
+
+```go
+clog.SetSliceSeparator(" ")        // [a b c]
+clog.SetSliceBrackets('(', ')')    // (a, b, c)
+clog.SetSliceBrackets('«', '»')    // «a, b, c»
+clog.SetSliceBracket('|')          // |a, b, c| — same char for open and close
+```
+
 ## Duration Formatting
 
 By default, `Duration` fields use Go's built-in `time.Duration.String()` (e.g. `3.2s`, `1m30s`). Use `SetDurationFormatFunc` to apply a custom formatter globally:

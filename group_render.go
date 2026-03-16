@@ -423,6 +423,9 @@ func captureTaskConfig(gt *groupTask) {
 		quoteClose:      l.quoteClose,
 		quoteMode:       l.quoteMode,
 		separatorText:   l.separatorText,
+		sliceClose:      l.sliceClose,
+		sliceOpen:       l.sliceOpen,
+		sliceSep:        l.sliceSep,
 		styles:          l.styles,
 		timeFormat:      l.fieldTimeFormat,
 	}

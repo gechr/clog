@@ -96,6 +96,9 @@ type Logger struct {
 	quoteMode         QuoteMode
 	reportTimestamp   bool
 	separatorText     string
+	sliceClose        rune // 0 means default (']')
+	sliceOpen         rune // 0 means default ('[')
+	sliceSep          string
 	styles            *style.Config
 	symbol            *string // nil = use default emoji for level
 	symbols           LabelMap
@@ -126,6 +129,7 @@ func New(output *Output) *Logger {
 		parts:             DefaultParts(),
 		symbols:           DefaultSymbols(),
 		separatorText:     "=",
+		sliceSep:          ", ",
 		styles:            DefaultStyles(),
 		timeFormat:        "15:04:05.000",
 		timeLocation:      time.Local,
@@ -546,6 +550,32 @@ func (l *Logger) SetSeparatorText(sep string) {
 	l.separatorText = sep
 }
 
+// SetSliceBracket sets the same opening and closing character for slice field values.
+// Defaults to '[' and ']'.
+func (l *Logger) SetSliceBracket(char rune) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sliceOpen = char
+	l.sliceClose = char
+}
+
+// SetSliceBrackets sets separate opening and closing characters for slice field values.
+// Defaults to '[' and ']'.
+func (l *Logger) SetSliceBrackets(openChar, closeChar rune) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sliceOpen = openChar
+	l.sliceClose = closeChar
+}
+
+// SetSliceSeparator sets the separator between elements in slice field values.
+// Defaults to ", ".
+func (l *Logger) SetSliceSeparator(sep string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.sliceSep = sep
+}
+
 // SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.
 func (l *Logger) SetStyles(styles *style.Config) {
 	l.mu.Lock()
@@ -873,6 +903,9 @@ func (l *Logger) log(e *Event, msg string) {
 				quoteClose:      l.quoteClose,
 				quoteMode:       l.quoteMode,
 				separatorText:   l.separatorText,
+				sliceClose:      l.sliceClose,
+				sliceOpen:       l.sliceOpen,
+				sliceSep:        l.sliceSep,
 				styles:          l.styles,
 				timeFormat:      l.fieldTimeFormat,
 			}), " ")

@@ -29,6 +29,9 @@ type formatFieldsOpts struct {
 	quoteClose      rune // 0 means same as quoteOpen (or default)
 	quoteMode       QuoteMode
 	separatorText   string
+	sliceClose      rune // 0 means default (']')
+	sliceOpen       rune // 0 means default ('[')
+	sliceSep        string
 	styles          *style.Config
 	timeFormat      string
 }
@@ -51,13 +54,7 @@ const (
 	kindTime
 )
 
-const (
-	sliceOpen  = '['
-	sliceClose = ']'
-	sliceSep   = ", "
-
-	percentDisplayMax = 100.0
-)
+const percentDisplayMax = 100.0
 
 // formatFields formats fields for display.
 // Returns an empty string if fields is empty.
@@ -146,6 +143,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		if !customFormatted {
 			valStr, kind = formatValue(
 				f.Value,
+				opts.sliceFmt(),
 				opts.quoteMode,
 				opts.quoteOpen,
 				opts.quoteClose,
@@ -166,10 +164,27 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 	return buf.String()
 }
 
+// sliceFmt builds a sliceFormat from opts, applying defaults for zero-value runes.
+func (opts formatFieldsOpts) sliceFmt() sliceFormat {
+	openChar, closeChar := opts.sliceOpen, opts.sliceClose
+	if openChar == 0 {
+		openChar = '['
+	}
+	if closeChar == 0 {
+		closeChar = ']'
+	}
+	sep := opts.sliceSep
+	if sep == "" {
+		sep = ", "
+	}
+	return sliceFormat{open: string(openChar), close: string(closeChar), sep: sep}
+}
+
 // formatValue converts a field value to its string representation.
 // The returned valueKind indicates the type category for styling and quoting.
 func formatValue(
 	v any,
+	sf sliceFormat,
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
 	timeFormat string,
@@ -210,25 +225,34 @@ func formatValue(
 		}
 		return val.Format(timeFormat), kindTime
 	case []time.Duration:
-		return formatDurationSlice(val, nil), kindSlice
+		return formatDurationSlice(val, sf, nil), kindSlice
 	case []core.QuantityField:
-		return formatQuantitySlice(val, nil, false), kindSlice
+		return formatQuantitySlice(val, sf, nil, false), kindSlice
 	case []string:
-		return formatStringSlice(val, nil, quoteMode, quoteOpen, quoteClose), kindSlice
+		return formatStringSlice(val, sf, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
-		return formatIntSlice(val, nil), kindSlice
+		return formatIntSlice(val, sf, nil), kindSlice
 	case []int64:
-		return formatInt64Slice(val, nil), kindSlice
+		return formatInt64Slice(val, sf, nil), kindSlice
 	case []uint:
-		return formatUintSlice(val, nil), kindSlice
+		return formatUintSlice(val, sf, nil), kindSlice
 	case []uint64:
-		return formatUint64Slice(val, nil), kindSlice
+		return formatUint64Slice(val, sf, nil), kindSlice
 	case []float64:
-		return formatFloat64Slice(val, nil), kindSlice
+		return formatFloat64Slice(val, sf, nil), kindSlice
 	case []bool:
-		return formatBoolSlice(val, nil), kindSlice
+		return formatBoolSlice(val, sf, nil), kindSlice
 	case []any:
-		return formatAnySlice(val, nil, false, quoteMode, quoteOpen, quoteClose, false), kindSlice
+		return formatAnySlice(
+			val,
+			sf,
+			nil,
+			false,
+			quoteMode,
+			quoteOpen,
+			quoteClose,
+			false,
+		), kindSlice
 	default:
 		return fmt.Sprintf("%v", v), kindDefault
 	}
@@ -339,6 +363,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		}
 		return styledSlice(
 			f.Value,
+			opts.sliceFmt(),
 			opts.styles,
 			quantity.UnitsIgnoreCase(),
 			opts.quoteMode,
@@ -365,6 +390,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 // styledSlice re-formats a slice value with per-element styling.
 func styledSlice(
 	v any,
+	sf sliceFormat,
 	styles *style.Config,
 	ignoreCase bool,
 	quoteMode QuoteMode,
@@ -373,26 +399,27 @@ func styledSlice(
 ) string {
 	switch vals := v.(type) {
 	case []bool:
-		return formatBoolSlice(vals, styles)
+		return formatBoolSlice(vals, sf, styles)
 	case []time.Duration:
-		return formatDurationSlice(vals, styles)
+		return formatDurationSlice(vals, sf, styles)
 	case []core.QuantityField:
-		return formatQuantitySlice(vals, styles, ignoreCase)
+		return formatQuantitySlice(vals, sf, styles, ignoreCase)
 	case []int:
-		return formatIntSlice(vals, styles)
+		return formatIntSlice(vals, sf, styles)
 	case []int64:
-		return formatInt64Slice(vals, styles)
+		return formatInt64Slice(vals, sf, styles)
 	case []uint:
-		return formatUintSlice(vals, styles)
+		return formatUintSlice(vals, sf, styles)
 	case []uint64:
-		return formatUint64Slice(vals, styles)
+		return formatUint64Slice(vals, sf, styles)
 	case []float64:
-		return formatFloat64Slice(vals, styles)
+		return formatFloat64Slice(vals, sf, styles)
 	case []string:
-		return formatStringSlice(vals, styles, quoteMode, quoteOpen, quoteClose)
+		return formatStringSlice(vals, sf, styles, quoteMode, quoteOpen, quoteClose)
 	case []any:
 		return formatAnySlice(
 			vals,
+			sf,
 			styles,
 			ignoreCase,
 			quoteMode,
@@ -401,7 +428,7 @@ func styledSlice(
 			percentReverse,
 		)
 	default:
-		s, _ := formatValue(v, quoteMode, quoteOpen, quoteClose, "", 0, 1)
+		s, _ := formatValue(v, sf, quoteMode, quoteOpen, quoteClose, "", 0, 1)
 		return s
 	}
 }

@@ -149,6 +149,15 @@ func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
 // SetSeparatorText sets the key/value separator on the [Default] logger.
 func SetSeparatorText(sep string) { Default.SetSeparatorText(sep) }
 
+// SetSliceBracket sets the same slice open/close bracket character on the [Default] logger.
+func SetSliceBracket(char rune) { Default.SetSliceBracket(char) }
+
+// SetSliceBrackets sets separate slice open/close bracket characters on the [Default] logger.
+func SetSliceBrackets(openChar, closeChar rune) { Default.SetSliceBrackets(openChar, closeChar) }
+
+// SetSliceSeparator sets the slice element separator on the [Default] logger.
+func SetSliceSeparator(sep string) { Default.SetSliceSeparator(sep) }
+
 // SetStyles sets the display styles on the [Default] logger.
 func SetStyles(styles *style.Config) { Default.SetStyles(styles) }
 

@@ -11,22 +11,31 @@ import (
 	"github.com/gechr/clog/style"
 )
 
-// formatSlice formats any slice with comma separation and optional per-element styling.
+// sliceFormat holds the configurable open, close, and separator strings
+// for rendering slice field values.
+type sliceFormat struct {
+	open  string // e.g. "["
+	close string // e.g. "]"
+	sep   string // e.g. ", "
+}
+
+// formatSlice formats any slice with configurable separation and optional per-element styling.
 // stringify converts each element to its string representation.
 // stylize returns a styled string, or "" to fall back to the plain string.
 func formatSlice[T any](
 	vals []T,
+	sf sliceFormat,
 	styles *style.Config,
 	stringify func(T) string,
 	stylize func(T, string, *style.Config) string,
 ) string {
 	var buf strings.Builder
 
-	buf.WriteByte(sliceOpen)
+	buf.WriteString(sf.open)
 
 	for i, v := range vals {
 		if i > 0 {
-			buf.WriteString(sliceSep)
+			buf.WriteString(sf.sep)
 		}
 
 		s := stringify(v)
@@ -37,7 +46,7 @@ func formatSlice[T any](
 		}
 	}
 
-	buf.WriteByte(sliceClose)
+	buf.WriteString(sf.close)
 	return buf.String()
 }
 
@@ -50,11 +59,12 @@ func numberSliceStyle[T any](_ T, s string, styles *style.Config) string {
 	return ""
 }
 
-// formatBoolSlice formats a bool slice with comma separation.
+// formatBoolSlice formats a bool slice.
 // When styles is non-nil, individual elements are styled via ValueStyles.
-func formatBoolSlice(vals []bool, styles *style.Config) string {
+func formatBoolSlice(vals []bool, sf sliceFormat, styles *style.Config) string {
 	return formatSlice(
 		vals,
+		sf,
 		styles,
 		strconv.FormatBool,
 		func(v bool, s string, st *style.Config) string {
@@ -68,15 +78,16 @@ func formatBoolSlice(vals []bool, styles *style.Config) string {
 	)
 }
 
-// formatDurationSlice formats a [time.Duration] slice with comma separation.
+// formatDurationSlice formats a [time.Duration] slice.
 // When styles is non-nil, individual elements are styled via [styleDuration].
-func formatDurationSlice(vals []time.Duration, styles *style.Config) string {
+func formatDurationSlice(vals []time.Duration, sf sliceFormat, styles *style.Config) string {
 	stringify := time.Duration.String
 	if fn := duration.FormatFunc(); fn != nil {
 		stringify = fn
 	}
 	return formatSlice(
 		vals,
+		sf,
 		styles,
 		stringify,
 		func(v time.Duration, s string, st *style.Config) string {
@@ -88,10 +99,10 @@ func formatDurationSlice(vals []time.Duration, styles *style.Config) string {
 	)
 }
 
-// formatFloat64Slice formats a float64 slice with comma separation.
+// formatFloat64Slice formats a float64 slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatFloat64Slice(vals []float64, styles *style.Config) string {
-	return formatSlice(vals, styles,
+func formatFloat64Slice(vals []float64, sf sliceFormat, styles *style.Config) string {
+	return formatSlice(vals, sf, styles,
 		func(v float64) string {
 			return strconv.FormatFloat(v, 'f', -1, 64)
 		},
@@ -99,16 +110,16 @@ func formatFloat64Slice(vals []float64, styles *style.Config) string {
 	)
 }
 
-// formatIntSlice formats an int slice with comma separation.
+// formatIntSlice formats an int slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatIntSlice(vals []int, styles *style.Config) string {
-	return formatSlice(vals, styles, strconv.Itoa, numberSliceStyle[int])
+func formatIntSlice(vals []int, sf sliceFormat, styles *style.Config) string {
+	return formatSlice(vals, sf, styles, strconv.Itoa, numberSliceStyle[int])
 }
 
-// formatInt64Slice formats an int64 slice with comma separation.
+// formatInt64Slice formats an int64 slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatInt64Slice(vals []int64, styles *style.Config) string {
-	return formatSlice(vals, styles,
+func formatInt64Slice(vals []int64, sf sliceFormat, styles *style.Config) string {
+	return formatSlice(vals, sf, styles,
 		func(v int64) string {
 			return strconv.FormatInt(v, 10)
 		},
@@ -116,10 +127,10 @@ func formatInt64Slice(vals []int64, styles *style.Config) string {
 	)
 }
 
-// formatUintSlice formats a uint slice with comma separation.
+// formatUintSlice formats a uint slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatUintSlice(vals []uint, styles *style.Config) string {
-	return formatSlice(vals, styles,
+func formatUintSlice(vals []uint, sf sliceFormat, styles *style.Config) string {
+	return formatSlice(vals, sf, styles,
 		func(v uint) string {
 			return strconv.FormatUint(uint64(v), 10)
 		},
@@ -127,10 +138,10 @@ func formatUintSlice(vals []uint, styles *style.Config) string {
 	)
 }
 
-// formatUint64Slice formats a uint64 slice with comma separation.
+// formatUint64Slice formats a uint64 slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatUint64Slice(vals []uint64, styles *style.Config) string {
-	return formatSlice(vals, styles,
+func formatUint64Slice(vals []uint64, sf sliceFormat, styles *style.Config) string {
+	return formatSlice(vals, sf, styles,
 		func(v uint64) string {
 			return strconv.FormatUint(v, 10)
 		},
@@ -138,11 +149,17 @@ func formatUint64Slice(vals []uint64, styles *style.Config) string {
 	)
 }
 
-// formatQuantitySlice formats a quantity slice with comma separation.
+// formatQuantitySlice formats a quantity slice.
 // When styles is non-nil, individual elements are styled via [styleQuantity].
-func formatQuantitySlice(vals []core.QuantityField, styles *style.Config, ignoreCase bool) string {
+func formatQuantitySlice(
+	vals []core.QuantityField,
+	sf sliceFormat,
+	styles *style.Config,
+	ignoreCase bool,
+) string {
 	return formatSlice(
 		vals,
+		sf,
 		styles,
 		func(v core.QuantityField) string {
 			return string(v)
@@ -156,21 +173,22 @@ func formatQuantitySlice(vals []core.QuantityField, styles *style.Config, ignore
 	)
 }
 
-// formatStringSlice formats a string slice with comma separation and per-element quoting.
+// formatStringSlice formats a string slice with per-element quoting.
 // When styles is non-nil, individual elements are styled via ValueStyles.
 func formatStringSlice(
 	vals []string,
+	sf sliceFormat,
 	styles *style.Config,
 	quoteMode QuoteMode,
 	quoteOpen, quoteClose rune,
 ) string {
 	var buf strings.Builder
 
-	buf.WriteByte(sliceOpen)
+	buf.WriteString(sf.open)
 
 	for i, v := range vals {
 		if i > 0 {
-			buf.WriteString(sliceSep)
+			buf.WriteString(sf.sep)
 		}
 
 		display := v
@@ -195,14 +213,15 @@ func formatStringSlice(
 		buf.WriteString(display)
 	}
 
-	buf.WriteByte(sliceClose)
+	buf.WriteString(sf.close)
 	return buf.String()
 }
 
-// formatAnySlice formats a []any slice with comma separation and per-element
+// formatAnySlice formats a []any slice with per-element
 // styling. Uses reflection to determine each element's type for highlighting.
 func formatAnySlice(
 	vals []any,
+	sf sliceFormat,
 	styles *style.Config,
 	ignoreCase bool,
 	quoteMode QuoteMode,
@@ -211,11 +230,11 @@ func formatAnySlice(
 ) string {
 	var buf strings.Builder
 
-	buf.WriteByte(sliceOpen)
+	buf.WriteString(sf.open)
 
 	for i, v := range vals {
 		if i > 0 {
-			buf.WriteString(sliceSep)
+			buf.WriteString(sf.sep)
 		}
 
 		s := fmt.Sprintf("%v", v)
@@ -239,7 +258,7 @@ func formatAnySlice(
 		buf.WriteString(s)
 	}
 
-	buf.WriteByte(sliceClose)
+	buf.WriteString(sf.close)
 	return buf.String()
 }
 

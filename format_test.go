@@ -207,7 +207,16 @@ func TestFormatValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, kind := formatValue(tt.value, QuoteAuto, 0, 0, "", 0, 1)
+			got, kind := formatValue(
+				tt.value,
+				sliceFormat{open: "[", close: "]", sep: ", "},
+				QuoteAuto,
+				0,
+				0,
+				"",
+				0,
+				1,
+			)
 			assert.Equal(t, tt.wantStr, got)
 			assert.Equal(t, tt.wantKind, kind)
 		})
@@ -215,23 +224,59 @@ func TestFormatValue(t *testing.T) {
 }
 
 func TestFormatValuePercent(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 0.75}, QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(
+		core.Percent{Value: 0.75},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
 	assert.Equal(t, "75%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentDecimal(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(
+		core.Percent{Value: 0.33333},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
 	assert.Equal(t, "33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentPrecision(t *testing.T) {
-	got, kind := formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 1, 1)
+	got, kind := formatValue(
+		core.Percent{Value: 0.33333},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		1,
+		1,
+	)
 	assert.Equal(t, "33.3%", got)
 	assert.Equal(t, kindPercent, kind)
 
-	got, kind = formatValue(core.Percent{Value: 0.33333}, QuoteAuto, 0, 0, "", 2, 1)
+	got, kind = formatValue(
+		core.Percent{Value: 0.33333},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		2,
+		1,
+	)
 	assert.Equal(t, "33.33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
@@ -272,22 +317,58 @@ func TestFormatElapsed(t *testing.T) {
 
 func TestFormatValueElapsed(t *testing.T) {
 	// Default precision 0 → no decimal places.
-	got, kind := formatValue(core.ElapsedField(3200*time.Millisecond), QuoteAuto, 0, 0, "", 0, 0)
+	got, kind := formatValue(
+		core.ElapsedField(3200*time.Millisecond),
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		0,
+	)
 	assert.Equal(t, "3s", got)
 	assert.Equal(t, kindElapsed, kind)
 
 	// Precision 1 → one decimal place, no trimming.
-	got, kind = formatValue(core.ElapsedField(3200*time.Millisecond), QuoteAuto, 0, 0, "", 0, 1)
+	got, kind = formatValue(
+		core.ElapsedField(3200*time.Millisecond),
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
 	assert.Equal(t, "3.2s", got)
 	assert.Equal(t, kindElapsed, kind)
 }
 
 func TestFormatValueElapsedPrecision(t *testing.T) {
-	got, kind := formatValue(core.ElapsedField(3210*time.Millisecond), QuoteAuto, 0, 0, "", 0, 0)
+	got, kind := formatValue(
+		core.ElapsedField(3210*time.Millisecond),
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		0,
+	)
 	assert.Equal(t, "3s", got)
 	assert.Equal(t, kindElapsed, kind)
 
-	got, kind = formatValue(core.ElapsedField(3210*time.Millisecond), QuoteAuto, 0, 0, "", 0, 2)
+	got, kind = formatValue(
+		core.ElapsedField(3210*time.Millisecond),
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		2,
+	)
 	assert.Equal(t, "3.21s", got)
 	assert.Equal(t, kindElapsed, kind)
 }
@@ -295,7 +376,16 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 func TestFormatValueTimeCustomFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, time.RFC3339, 0, 1)
+	got, kind := formatValue(
+		ts,
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		time.RFC3339,
+		0,
+		1,
+	)
 	assert.Equal(t, "2025-06-15T10:30:00Z", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -304,7 +394,16 @@ func TestFormatValueTimeEmptyFormat(t *testing.T) {
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 
 	// Empty timeFormat should fall back to time.DateTime.
-	got, kind := formatValue(ts, QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(
+		ts,
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
 	assert.Equal(t, "2025-06-15 10:30:00", got)
 	assert.Equal(t, kindTime, kind)
 }
@@ -857,7 +956,16 @@ func TestFormatFieldsStylesSkippedBelowInfo(t *testing.T) {
 
 func TestStyledSliceBool(t *testing.T) {
 	styles := DefaultStyles()
-	got := styledSlice([]bool{true, false}, styles, true, QuoteAuto, 0, 0, false)
+	got := styledSlice(
+		[]bool{true, false},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		true,
+		QuoteAuto,
+		0,
+		0,
+		false,
+	)
 
 	trueStyled := styles.Values[true].Render("true")
 	falseStyled := styles.Values[false].Render("false")
@@ -869,7 +977,16 @@ func TestStyledSliceBool(t *testing.T) {
 func TestStyledSliceFloat64(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldNumber = nil // disable number styling so output is plain
-	got := styledSlice([]float64{1.5, 2.5}, styles, true, QuoteAuto, 0, 0, false)
+	got := styledSlice(
+		[]float64{1.5, 2.5},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		true,
+		QuoteAuto,
+		0,
+		0,
+		false,
+	)
 
 	assert.Equal(t, "[1.5, 2.5]", got)
 }
@@ -928,7 +1045,16 @@ func TestFormatFieldsAnySliceKeyStylePriority(t *testing.T) {
 
 func TestStyledSliceAny(t *testing.T) {
 	styles := DefaultStyles()
-	got := styledSlice([]any{true, 42, "text"}, styles, true, QuoteAuto, 0, 0, false)
+	got := styledSlice(
+		[]any{true, 42, "text"},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		true,
+		QuoteAuto,
+		0,
+		0,
+		false,
+	)
 
 	trueStyled := styles.Values[true].Render("true")
 	numStyled := styles.FieldNumber.Render("42")
@@ -991,7 +1117,16 @@ func TestReflectValueKind(t *testing.T) {
 func TestStyledSliceDefault(t *testing.T) {
 	styles := DefaultStyles()
 	// Pass an unsupported slice type to exercise the default branch.
-	got := styledSlice([]byte{1, 2}, styles, true, QuoteAuto, 0, 0, false)
+	got := styledSlice(
+		[]byte{1, 2},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		true,
+		QuoteAuto,
+		0,
+		0,
+		false,
+	)
 
 	assert.Equal(t, "[1 2]", got)
 }
@@ -1001,7 +1136,11 @@ func TestFormatBoolSliceNoMatchingValueStyle(t *testing.T) {
 	// Remove all value styles so the bool values have no matching style.
 	styles.Values = style.ValueMap{}
 
-	got := formatBoolSlice([]bool{true, false}, styles)
+	got := formatBoolSlice(
+		[]bool{true, false},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+	)
 
 	assert.Equal(t, "[true, false]", got)
 }
@@ -1300,7 +1439,16 @@ func TestStyleQuantityPartialNil(t *testing.T) {
 }
 
 func TestFormatValueQuantity(t *testing.T) {
-	got, kind := formatValue(core.QuantityField("5.1km"), QuoteAuto, 0, 0, "", 0, 1)
+	got, kind := formatValue(
+		core.QuantityField("5.1km"),
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
 	assert.Equal(t, "5.1km", got)
 	assert.Equal(t, kindQuantity, kind)
 }
@@ -1445,7 +1593,7 @@ func TestStyleQuantityUnitCaseSensitive(t *testing.T) {
 
 func TestFormatDurationSlicePlain(t *testing.T) {
 	vals := []time.Duration{5 * time.Second, 2*time.Minute + 30*time.Second}
-	got := formatDurationSlice(vals, nil)
+	got := formatDurationSlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
 	assert.Equal(t, "[5s, 2m30s]", got)
 }
 
@@ -1455,7 +1603,7 @@ func TestFormatDurationSliceStyled(t *testing.T) {
 	unit := styles.FieldDurationUnit.Render
 
 	vals := []time.Duration{5 * time.Second, 500 * time.Millisecond}
-	got := formatDurationSlice(vals, styles)
+	got := formatDurationSlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
 
 	want := "[" +
 		num("5") + unit("s") +
@@ -1466,7 +1614,11 @@ func TestFormatDurationSliceStyled(t *testing.T) {
 }
 
 func TestFormatDurationSliceEmpty(t *testing.T) {
-	got := formatDurationSlice([]time.Duration{}, nil)
+	got := formatDurationSlice(
+		[]time.Duration{},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		nil,
+	)
 	assert.Equal(t, "[]", got)
 }
 
@@ -1496,7 +1648,7 @@ func TestFormatFieldsDurationSliceStyled(t *testing.T) {
 
 func TestFormatQuantitySlicePlain(t *testing.T) {
 	vals := []core.QuantityField{"5m", "2h30m", "100 MB"}
-	got := formatQuantitySlice(vals, nil, true)
+	got := formatQuantitySlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil, true)
 	assert.Equal(t, "[5m, 2h30m, 100 MB]", got)
 }
 
@@ -1506,7 +1658,7 @@ func TestFormatQuantitySliceStyled(t *testing.T) {
 	unit := styles.FieldQuantityUnit.Render
 
 	vals := []core.QuantityField{"5m", "100MB"}
-	got := formatQuantitySlice(vals, styles, true)
+	got := formatQuantitySlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, styles, true)
 
 	want := "[" +
 		num("5") + unit("m") +
@@ -1517,7 +1669,12 @@ func TestFormatQuantitySliceStyled(t *testing.T) {
 }
 
 func TestFormatQuantitySliceEmpty(t *testing.T) {
-	got := formatQuantitySlice([]core.QuantityField{}, nil, true)
+	got := formatQuantitySlice(
+		[]core.QuantityField{},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		nil,
+		true,
+	)
 	assert.Equal(t, "[]", got)
 }
 
@@ -2430,7 +2587,7 @@ func TestFormatInt64SlicePlain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatInt64Slice(tt.vals, nil)
+			got := formatInt64Slice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -2440,7 +2597,7 @@ func TestFormatInt64SliceStyled(t *testing.T) {
 	styles := DefaultStyles()
 	n := styles.FieldNumber.Render
 
-	got := formatInt64Slice([]int64{10, 20}, styles)
+	got := formatInt64Slice([]int64{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
 	want := "[" + n("10") + ", " + n("20") + "]"
 	assert.Equal(t, want, got)
 }
@@ -2458,7 +2615,7 @@ func TestFormatUintSlicePlain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatUintSlice(tt.vals, nil)
+			got := formatUintSlice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -2468,7 +2625,7 @@ func TestFormatUintSliceStyled(t *testing.T) {
 	styles := DefaultStyles()
 	n := styles.FieldNumber.Render
 
-	got := formatUintSlice([]uint{10, 20}, styles)
+	got := formatUintSlice([]uint{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
 	want := "[" + n("10") + ", " + n("20") + "]"
 	assert.Equal(t, want, got)
 }
