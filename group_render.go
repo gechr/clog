@@ -885,6 +885,9 @@ func buildTaskBarParts(
 			gt.smoothedProgress += (renderProgress - gt.smoothedProgress) * alpha
 		}
 		renderProgress = gt.smoothedProgress
+		// Re-derive current so widgets (percent, ETA, etc.) reflect the
+		// smoothed position, not the raw target.
+		current = int(math.Round(renderProgress * float64(max(total, 1))))
 	}
 	sep := b.BarStyle.Separator
 	if sep == "" {
