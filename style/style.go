@@ -104,7 +104,9 @@ type Config struct {
 	Keys Map
 	// Level label style (e.g. "INF", "ERR").
 	Levels LevelMap
-	// Message text style per level.
+	// Global message text style [nil = plain text]. Overridden by Messages[level] when set.
+	Message *lipgloss.Style
+	// Message text style per level. Takes precedence over Message when set.
 	Messages LevelMap
 	// Gradient stops for Percent fields (default: red -> yellow -> green).
 	PercentGradient []ColorStop

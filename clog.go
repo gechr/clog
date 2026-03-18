@@ -886,6 +886,8 @@ func (l *Logger) log(e *Event, msg string) {
 
 			if style := l.styles.Messages[e.level]; !noColor && style != nil {
 				s = style.Render(msg)
+			} else if !noColor && l.styles.Message != nil {
+				s = l.styles.Message.Render(msg)
 			} else {
 				s = msg
 			}

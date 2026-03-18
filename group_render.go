@@ -541,8 +541,14 @@ func alignMessageForFields(
 
 // styledMsg applies the message style for the given level, if any.
 func styledMsg(msg string, level Level, styles *style.Config, noColor bool) string {
-	if s := styles.Messages[level]; s != nil && !noColor {
+	if noColor {
+		return msg
+	}
+	if s := styles.Messages[level]; s != nil {
 		return s.Render(msg)
+	}
+	if styles.Message != nil {
+		return styles.Message.Render(msg)
 	}
 	return msg
 }
