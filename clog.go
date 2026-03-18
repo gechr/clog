@@ -20,6 +20,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/style"
@@ -99,6 +100,7 @@ type Logger struct {
 	sliceClose        rune // 0 means default (']')
 	sliceOpen         rune // 0 means default ('[')
 	sliceSep          string
+	spinnerStyle      *spinner.Style // nil = use spinner.DefaultStyle()
 	styles            *style.Config
 	symbol            *string // nil = use default emoji for level
 	symbols           LabelMap
@@ -574,6 +576,13 @@ func (l *Logger) SetSliceSeparator(sep string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.sliceSep = sep
+}
+
+// SetSpinnerStyle sets the default spinner style used by [Logger.Spinner].
+func (l *Logger) SetSpinnerStyle(s spinner.Style) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.spinnerStyle = new(s)
 }
 
 // SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.

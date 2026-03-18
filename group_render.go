@@ -767,6 +767,9 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 			i = n - 1 - i
 		}
 		char = b.SpinnerStyle.Frames[i]
+		if s := gt.cfg.styles.Symbols[b.Level]; s != nil && !gt.cfg.noColor {
+			char = s.Render(char)
+		}
 		msg = styledMsg(msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 	case fx.AnimationPulse:
 		char = *gt.SymbolPtr.Load()
