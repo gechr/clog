@@ -1,6 +1,8 @@
 package fx
 
 import (
+	"fmt"
+
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 )
@@ -46,6 +48,11 @@ func (w *WaitResult) Err() error {
 func (w *WaitResult) Msg(msg string) error {
 	w.SuccessMsg = msg
 	return w.Send()
+}
+
+// Msgf is like [WaitResult.Msg] but accepts a format string.
+func (w *WaitResult) Msgf(format string, a ...any) error {
+	return w.Msg(fmt.Sprintf(format, a...))
 }
 
 // Send finalises the result, logging at the configured success or error
