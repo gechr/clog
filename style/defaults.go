@@ -119,17 +119,10 @@ func DefaultPercentGradient() []ColorStop {
 	}
 }
 
-// DefaultMessages returns the default per-level message styles (unstyled).
+// DefaultMessages returns the default per-level message styles (empty map;
+// falls back to the global [Config.Message] style when entries are nil).
 func DefaultMessages() LevelMap {
-	return LevelMap{
-		level.Trace: new(lipgloss.NewStyle()),
-		level.Debug: new(lipgloss.NewStyle()),
-		level.Info:  new(lipgloss.NewStyle()),
-		level.Dry:   new(lipgloss.NewStyle()),
-		level.Warn:  new(lipgloss.NewStyle()),
-		level.Error: new(lipgloss.NewStyle()),
-		level.Fatal: new(lipgloss.NewStyle()),
-	}
+	return LevelMap{}
 }
 
 // DefaultValues returns sensible default styles for common value strings.
