@@ -5,7 +5,6 @@ import (
 	"flag"
 	"time"
 
-	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
@@ -29,8 +28,6 @@ func main() {
 	}
 
 	downloadBar := bar.Thin
-	downloadBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))
-	downloadBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
 	downloadBar.WidgetLeft = widget.Percent()
 	downloadBar.WidgetRight = widget.None()
 

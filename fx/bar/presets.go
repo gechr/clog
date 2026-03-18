@@ -1,9 +1,16 @@
 package bar
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/style"
+)
 
 // defaultCapStyle is the bold white style used for bar caps in all presets.
 var defaultCapStyle = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("15")))
+
+// thinEmptyStyle is the dark grey style used for Thin empty cells,
+// matching Python Rich's bar.back color (grey23 / ANSI 237).
+var thinEmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("237")))
 
 // Predefined bar styles for common visual appearances.
 // Pass any of these to [WithStyle] to change the bar's look.
@@ -68,20 +75,20 @@ var (
 	}
 
 	// Thin uses box-drawing characters with half-cell resolution for smooth
-	// progress, inspired by Python's Rich library. This is the default style.
+	// progress, inspired by Python's Rich library. Filled and empty cells
+	// use the same character differentiated by color. The fill shifts through
+	// a red → yellow → green gradient as progress advances.
+	// This is the default style.
 	//
-	//	[━━━━━╸╺──────] 45%
+	//	━━━━━━━━━╸╺━━━━━━━━━━━━━ 45%
 	Thin = Style{
-		CapLeft:    "[",
-		CapRight:   "]",
-		CapStyle:   defaultCapStyle,
-		CharEmpty:  '─',
-		CharFill:   '━',
-		HalfEmpty:  '╺',
-		HalfFilled: '╸',
-		Separator:  " ",
-		WidthMax:   DefaultWidthMax,
-		WidthMin:   DefaultWidthMin,
+		CharEmpty:        '━',
+		CharFill:         '━',
+		ProgressGradient: style.DefaultPercentGradient(),
+		Separator:        " ",
+		StyleEmpty:       thinEmptyStyle,
+		WidthMax:         DefaultWidthMax,
+		WidthMin:         DefaultWidthMin,
 	}
 
 	// Braille uses braille dot-fill characters with 8x sub-cell resolution,
@@ -100,17 +107,14 @@ var (
 		WidthMin:     DefaultWidthMin,
 	}
 
-	// Smooth uses block characters with a half-block leading edge for
-	// smoother progression than [Block].
+	// Smooth uses solid block characters with no caps. Empty cells use
+	// dim grey blocks for a continuous appearance.
 	//
-	//	│████▌     │ 45%
+	//	██████████████████████ 45%
 	Smooth = Style{
-		CapLeft:    "│",
-		CapRight:   "│",
-		CapStyle:   defaultCapStyle,
-		CharEmpty:  ' ',
+		CharEmpty:  '█',
 		CharFill:   '█',
-		HalfFilled: '▌',
+		StyleEmpty: thinEmptyStyle,
 		Separator:  " ",
 		WidthMax:   DefaultWidthMax,
 		WidthMin:   DefaultWidthMin,

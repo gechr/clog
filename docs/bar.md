@@ -17,7 +17,7 @@ err := clog.Bar("Downloading", 100).
   }).
   Symbol("✅").
   Msg("Download complete")
-// INF ⏳ Downloading [━━━━━━━━╸───────────] 42% elapsed=1.2s
+// INF ⏳ Downloading ━━━━━━━━━╸╺━━━━━━━━━━━ 42% elapsed=1.2s
 // INF ✅ Download complete file=release.tar.gz elapsed=3.4s
 ```
 
@@ -77,15 +77,15 @@ live updates responsive.
 
 Seven pre-built styles are available in [`fx/bar/presets.go`](https://github.com/gechr/clog/blob/main/fx/bar/presets.go). Pass any of them via `bar.WithStyle()`:
 
-| Preset         | Characters     | Description                                              |
-| -------------- | -------------- | -------------------------------------------------------- |
-| `bar.Basic`    | `[=====>    ]` | ASCII-only for maximum compatibility                     |
-| `bar.Braille`  | `[⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀]` | Braille dot-fill with 8x sub-cell resolution             |
-| `bar.Dash`     | `[-----     ]` | Simple dash fill                                         |
-| `bar.Thin`     | `[━━━╺──────]` | Box-drawing with half-cell resolution (default)          |
-| `bar.Block`    | `│█████░░░░░│` | Solid block characters                                   |
-| `bar.Gradient` | `│██████▍   │` | Block elements with 8x sub-cell resolution               |
-| `bar.Smooth`   | `│████▌     │` | Block characters with half-block leading edge            |
+| Preset         | Characters      | Description                                          |
+| -------------- | --------------- | ---------------------------------------------------- |
+| `bar.Basic`    | `[=====>    ]`  | ASCII-only for maximum compatibility                 |
+| `bar.Braille`  | `[⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀]`  | Braille dot-fill with 8x sub-cell resolution         |
+| `bar.Dash`     | `[-----     ]`  | Simple dash fill                                     |
+| `bar.Thin`     | `━━━━━╸╺━━━━━`  | Box-drawing with color-differentiated fill (default) |
+| `bar.Block`    | `│█████░░░░░│`  | Solid block characters                               |
+| `bar.Gradient` | `│██████▍   │`  | Block elements with 8x sub-cell resolution           |
+| `bar.Smooth`   | `█████████████` | Solid blocks with color-differentiated fill          |
 
 ![Bar styles](assets/bar-styles.gif)
 
@@ -221,14 +221,14 @@ When set, `ProgressGradient` overrides the `StyleFill` foreground color. Use `ba
 
 The `Placement` field on `bar.Style` controls where the bar appears on the line:
 
-| Constant            | Layout                                                                 |
-| ------------------- | ---------------------------------------------------------------------- |
-| `bar.PlaceRightPad` | `INF ⏳ Downloading                     [━━━━━╸╺──────] 45%` (default) |
-| `bar.PlaceLeftPad`  | `INF ⏳ [━━━━━╸╺──────] 45%                     Downloading`           |
-| `bar.PlaceInline`   | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `bar.PlaceRight`    | `INF ⏳ Downloading [━━━━━╸╺──────] 45%`                               |
-| `bar.PlaceLeft`     | `INF ⏳ [━━━━━╸╺──────] 45% Downloading`                               |
-| `bar.PlaceAligned`  | Pads messages in a group so all bars start at the same column          |
+| Constant            | Layout                                                                     |
+| ------------------- | -------------------------------------------------------------------------- |
+| `bar.PlaceRightPad` | `INF ⏳ Downloading                     ━━━━━━━╸╺━━━━━━━━━━ 45%` (default) |
+| `bar.PlaceLeftPad`  | `INF ⏳ ━━━━━━━╸╺━━━━━━━━━━ 45%                     Downloading`           |
+| `bar.PlaceInline`   | `INF ⏳ Downloading ━━━━━━━╸╺━━━━━━━━━━ 45%`                               |
+| `bar.PlaceRight`    | `INF ⏳ Downloading ━━━━━━━╸╺━━━━━━━━━━ 45%`                               |
+| `bar.PlaceLeft`     | `INF ⏳ ━━━━━━━╸╺━━━━━━━━━━ 45% Downloading`                               |
+| `bar.PlaceAligned`  | Pads messages in a group so all bars start at the same column              |
 
 The padded variants (`bar.PlaceRightPad`, `bar.PlaceLeftPad`) fill the gap between message and bar with spaces to span the terminal width. When the terminal is too narrow, they fall back to the `Separator` between parts.
 
@@ -281,7 +281,7 @@ Use `widget.Widgets` to combine several widgets on a single side. Empty outputs 
 ```go
 style := bar.Thin
 style.WidgetRight = widget.Widgets(widget.ETA(), widget.Rate())
-// INF ⏳ Processing [━━━━━╸╺──────] ETA 2m30s 150/s
+// INF ⏳ Processing ━━━━━━━╸╺━━━━━━━━━━ ETA 2m30s 150/s
 ```
 
 Add a visual divider with `widget.Separator`:
@@ -292,7 +292,7 @@ style.WidgetRight = widget.Widgets(
   widget.Separator("│"),
   widget.Rate(),
 )
-// INF ⏳ Processing [━━━━━╸╺──────] ETA 2m30s │ 150/s
+// INF ⏳ Processing ━━━━━━━╸╺━━━━━━━━━━ ETA 2m30s │ 150/s
 ```
 
 Pass `widget.WithStyle` to any widget to apply a [Lipgloss](https://charm.land/lipgloss/v2) style to its output:
@@ -304,7 +304,7 @@ style.WidgetRight = widget.Widgets(
   widget.Separator("│", widget.WithStyle(faint)),
   widget.Rate(widget.WithStyle(faint)),
 )
-// INF ⏳ Processing [━━━━━╸╺──────] ETA 2m30s │ 150/s  (all rendered faint)
+// INF ⏳ Processing ━━━━━━━╸╺━━━━━━━━━━ ETA 2m30s │ 150/s  (all rendered faint)
 ```
 
 Pass `widget.WithProgressGradient` to color the percent text based on progress, matching the bar's gradient:
@@ -399,7 +399,7 @@ clog.Bar("Installing", 100).
   Elapsed("elapsed").
   Progress(ctx, task).
   Msg("Installed")
-// INF ⏳ Installing          [━━━━━╸╺──────] progress=45% elapsed=1.2s
+// INF ⏳ Installing          ━━━━━━━╸╺━━━━━━━━━━ progress=45% elapsed=1.2s
 ```
 
 All animations gracefully degrade: when colors are disabled (CI, piped output), a static status line with an ⏳ symbol is printed instead.

@@ -44,7 +44,7 @@ While the tasks run, the terminal shows all animations updating simultaneously:
 
 ```text
 INF 🌒 Processing data workers=4
-INF ⏳ Downloading [━━━━━━━╸╺───────────] 42%
+INF ⏳ Downloading ━━━━━━━━━╸╺━━━━━━━━━━━ 42%
 ```
 
 When all tasks finish, the block is cleared and a single summary line is logged. Alternatively, use per-task results for individual completion messages:

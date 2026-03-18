@@ -16,16 +16,21 @@ import (
 func TestRenderBarThinDefault(t *testing.T) {
 	s := bar.DefaultStyle()
 	s.Width = 10
-	s.CapStyle = nil
+	s.StyleFill = nil
+	s.StyleEmpty = nil
+	s.ProgressGradient = nil
+
+	s.HalfFilled = '╸'
+	s.HalfEmpty = '╺'
 
 	// 50%: 10 half-cells, even -> trail char
-	assert.Equal(t, "[━━━━━╺────]", bar.Render(5, 10, s, 0))
+	assert.Equal(t, "━━━━━╺━━━━", bar.Render(5, 10, s, 0))
 	// 0%: all empty
-	assert.Equal(t, "[──────────]", bar.Render(0, 10, s, 0))
+	assert.Equal(t, "━━━━━━━━━━", bar.Render(0, 10, s, 0))
 	// 100%: all filled
-	assert.Equal(t, "[━━━━━━━━━━]", bar.Render(10, 10, s, 0))
+	assert.Equal(t, "━━━━━━━━━━", bar.Render(10, 10, s, 0))
 	// 45%: 9 half-cells, odd -> head char
-	assert.Equal(t, "[━━━━╸─────]", bar.Render(9, 20, s, 0))
+	assert.Equal(t, "━━━━╸━━━━━", bar.Render(9, 20, s, 0))
 }
 
 func TestRenderBarBlock(t *testing.T) {
@@ -41,16 +46,11 @@ func TestRenderBarBlock(t *testing.T) {
 func TestRenderBarSmooth(t *testing.T) {
 	s := bar.Smooth
 	s.Width = 10
-	s.CapStyle = nil
+	s.StyleEmpty = nil
 
-	// 45%: odd halves -> half head, no trail (HalfEmpty is 0)
-	assert.Equal(t, "│████▌     │", bar.Render(9, 20, s, 0))
-	// 50%: even halves, no HalfEmpty -> no trail
-	assert.Equal(t, "│█████     │", bar.Render(5, 10, s, 0))
-	// 0%
-	assert.Equal(t, "│          │", bar.Render(0, 10, s, 0))
-	// 100%
-	assert.Equal(t, "│██████████│", bar.Render(10, 10, s, 0))
+	assert.Equal(t, "██████████", bar.Render(5, 10, s, 0))
+	assert.Equal(t, "██████████", bar.Render(0, 10, s, 0))
+	assert.Equal(t, "██████████", bar.Render(10, 10, s, 0))
 }
 
 func TestRenderBarBasic(t *testing.T) {
@@ -127,16 +127,18 @@ func TestRenderBarGradientOverridesHalfFilled(t *testing.T) {
 func TestRenderBarEdgeCases(t *testing.T) {
 	s := bar.DefaultStyle()
 	s.Width = 10
-	s.CapStyle = nil
+	s.StyleFill = nil
+	s.StyleEmpty = nil
+	s.ProgressGradient = nil
 
 	// total <= 0 treated as 1 (so 0/1 = 0%)
-	assert.Equal(t, "[──────────]", bar.Render(0, 0, s, 0))
+	assert.Equal(t, "━━━━━━━━━━", bar.Render(0, 0, s, 0))
 
 	// clamp over 100%
-	assert.Equal(t, "[━━━━━━━━━━]", bar.Render(20, 10, s, 0))
+	assert.Equal(t, "━━━━━━━━━━", bar.Render(20, 10, s, 0))
 
 	// clamp negative current
-	assert.Equal(t, "[──────────]", bar.Render(-5, 10, s, 0))
+	assert.Equal(t, "━━━━━━━━━━", bar.Render(-5, 10, s, 0))
 }
 
 func TestRenderBarCustomChars(t *testing.T) {
@@ -170,28 +172,41 @@ func TestRenderBarCharHead(t *testing.T) {
 
 func TestRenderBarAutoWidth(t *testing.T) {
 	s := bar.DefaultStyle()
-	s.CapStyle = nil
+	s.StyleFill = nil
+	s.StyleEmpty = nil
+	s.ProgressGradient = nil
+	s.HalfFilled = '╸'
+	s.HalfEmpty = '╺'
 	// WidthMin=10, WidthMax=40; termWidth=80 -> 80/4=20, clamped to [10,40] -> 20
 	result := bar.Render(10, 20, s, 80)
 	// 20 inner cells, 10/20 = 50%: 20 half-cells, even -> trail char
-	assert.Equal(t, "[━━━━━━━━━━╺─────────]", result)
+	assert.Equal(t, "━━━━━━━━━━╺━━━━━━━━━", result)
 }
 
 func TestRenderBarAutoWidthClampMin(t *testing.T) {
 	s := bar.DefaultStyle()
-	s.CapStyle = nil
+	s.StyleFill = nil
+	s.StyleEmpty = nil
+	s.ProgressGradient = nil
+	s.HalfFilled = '╸'
+	s.HalfEmpty = '╺'
 	// termWidth=0 -> fallback to WidthMin=10
 	result := bar.Render(5, 10, s, 0)
-	assert.Equal(t, "[━━━━━╺────]", result)
+	assert.Equal(t, "━━━━━╺━━━━", result)
 }
 
-func TestRenderBarNoCaps(t *testing.T) {
+func TestRenderBarWithCaps(t *testing.T) {
 	s := bar.DefaultStyle()
 	s.Width = 10
-	s.CapLeft = ""
-	s.CapRight = ""
+	s.StyleFill = nil
+	s.StyleEmpty = nil
+	s.ProgressGradient = nil
+	s.HalfFilled = '╸'
+	s.HalfEmpty = '╺'
+	s.CapLeft = "["
+	s.CapRight = "]"
 
-	assert.Equal(t, "━━━━━╺────", bar.Render(5, 10, s, 0))
+	assert.Equal(t, "[━━━━━╺━━━━]", bar.Render(5, 10, s, 0))
 }
 
 func TestBarPercent(t *testing.T) {
