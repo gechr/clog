@@ -22,16 +22,13 @@ Use `JSON` when you have a Go value to log; use `RawJSON` when you already have 
 Pretty-printed JSON is automatically flattened to a single line. Highlighting uses a Dracula-inspired color scheme by default (space after commas included). Disable or customise it via `FieldJSON` in `Styles`:
 
 ```go
-// Disable highlighting
-styles := clog.DefaultStyles()
-styles.FieldJSON = nil
-clog.SetStyles(styles)
-
 // Custom colors
 custom := style.DefaultJSON()
 custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
-styles.FieldJSON = custom
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{FieldJSON: custom})
+
+// Disable highlighting (reset all styles, then re-apply without FieldJSON)
+clog.SetStyles(nil) // reset to defaults
 ```
 
 `Number` is the base fallback for all numeric tokens. Five sub-styles allow finer control and fall back to `Number` when nil:

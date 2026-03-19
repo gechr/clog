@@ -5,20 +5,21 @@ Customise the visual appearance using [lipgloss](https://charm.land/lipgloss/v2)
 ![Styled output](assets/styles.png)
 
 ```go
-styles := clog.DefaultStyles()
-
-// Customise level colors
-styles.Levels[clog.LevelError] = new(
-  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")), // bright red
-)
-
-// Customise field key appearance
-styles.KeyDefault = new(
-  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")), // bright blue
-)
-
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{
+  // Customise level colors
+  Levels: style.LevelMap{
+    clog.LevelError: new(
+      lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("9")), // bright red
+    ),
+  },
+  // Customise field key appearance
+  KeyDefault: new(
+    lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")), // bright blue
+  ),
+})
 ```
+
+`SetStyles` merges non-zero fields into the existing configuration - only the fields you set are changed, all others keep their current values.
 
 ## Value Coloring
 
@@ -29,30 +30,21 @@ Values are styled with a three-tier priority system:
 1. **Type styles** - style values by their Go type
 
 ```go
-styles := clog.DefaultStyles()
-
-// 1. Key styles: all values of the "status" field are green
-styles.Keys["status"] = new(lipgloss.NewStyle().
-  Foreground(lipgloss.Color("2"))) // green
-
-// 2. Value styles: typed key matches (bool `true` != string "true")
-styles.Values["PASS"] = new(
-  lipgloss.NewStyle().
-  Foreground(lipgloss.Color("2")), // green
-)
-
-styles.Values["FAIL"] = new(lipgloss.NewStyle().
-  Foreground(lipgloss.Color("1")), // red
-)
-
-// 3. Type styles: string values -> white, numeric values -> magenta, errors -> red by default
-styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
-styles.FieldNumber = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))
-styles.FieldError  = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
-styles.FieldString = nil  // set to nil to disable
-styles.FieldNumber = nil  // set to nil to disable
-
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{
+  // 1. Key styles: all values of the "status" field are green
+  Keys: style.Map{
+    "status": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+  },
+  // 2. Value styles: typed key matches (bool `true` != string "true")
+  Values: style.ValueMap{
+    "PASS": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+    "FAIL": new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),
+  },
+  // 3. Type styles
+  FieldString: new(lipgloss.NewStyle().Foreground(lipgloss.Color("15"))),
+  FieldNumber: new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),
+  FieldError:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),
+})
 ```
 
 ## Styles Reference
@@ -179,17 +171,12 @@ Value styles only apply at `Info` level and above by default. Use `SetFieldStyle
 Style the log message text differently for each level:
 
 ```go
-styles := clog.DefaultStyles()
-
-styles.Messages[clog.LevelError] = new(
-  lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-)
-
-styles.Messages[clog.LevelWarn] = new(
-  lipgloss.NewStyle().Foreground(lipgloss.Color("3")), // yellow
-)
-
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{
+  Messages: style.LevelMap{
+    clog.LevelError: new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),
+    clog.LevelWarn:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))),
+  },
+})
 ```
 
 Use `style.DefaultMessages()` to get the defaults (unstyled for all levels).
@@ -254,20 +241,18 @@ Both `DurationGradientMode` and `ElapsedGradientMode` control how colors transit
 **Fade** blends smoothly between adjacent color stops using perceptually uniform CIE-LCh interpolation. **Step** uses the color of the last stop whose position is ≤ the current value - no blending.
 
 ```go
-styles := clog.DefaultStyles()
-styles.ElapsedGradientMode = style.GradientStep
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{ElapsedGradientMode: style.GradientStep})
 ```
 
 ### Custom Stops
 
 ```go
-styles := clog.DefaultStyles()
-styles.ElapsedGradient = []style.ColorStop{
-  {Position: 0, Color: colorful.Color{R: 0, G: 1, B: 0}},   // green
-  {Position: 1, Color: colorful.Color{R: 1, G: 0, B: 0}},   // red
-}
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{
+  ElapsedGradient: []style.ColorStop{
+    {Position: 0, Color: colorful.Color{R: 0, G: 1, B: 0}},   // green
+    {Position: 1, Color: colorful.Color{R: 1, G: 0, B: 0}},   // red
+  },
+})
 ```
 
 ## Format Hooks

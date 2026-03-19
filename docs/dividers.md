@@ -65,10 +65,10 @@ clog.Divider().Width(40).Msg("Short")
 Divider styles are configured through the `Styles` struct:
 
 ```go
-styles := clog.DefaultStyles()
-styles.DividerLine = new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))   // blue line
-styles.DividerTitle = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))) // bold yellow title
-clog.SetStyles(styles)
+clog.SetStyles(&style.Config{
+  DividerLine:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),          // blue line
+  DividerTitle: new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))), // bold yellow title
+})
 ```
 
 | Style Field    | Default | Description                   |

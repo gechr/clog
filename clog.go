@@ -585,14 +585,17 @@ func (l *Logger) SetSpinnerStyle(s spinner.Style) {
 	l.spinnerStyle = new(s)
 }
 
-// SetStyles sets the display styles. If styles is nil, [DefaultStyles] is used.
+// SetStyles merges the given styles into the current style configuration.
+// Non-nil pointer fields overwrite existing values; map fields are merged
+// key-by-key. Pass nil to reset to [DefaultStyles].
 func (l *Logger) SetStyles(styles *style.Config) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if styles == nil {
-		styles = DefaultStyles()
+		l.styles = DefaultStyles()
+		return
 	}
-	l.styles = styles
+	l.styles.Merge(styles)
 }
 
 // SetTimeFormat sets the timestamp format string.

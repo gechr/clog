@@ -505,9 +505,7 @@ func TestEventRawJSONHighlighted(t *testing.T) {
 func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(NewOutput(&buf, ColorAlways))
-	styles := DefaultStyles()
-	styles.FieldJSON = nil
-	l.SetStyles(styles)
+	l.styles.FieldJSON = nil
 	l.Info().RawJSON("data", []byte(`{"n":1}`)).Msg("ok")
 
 	got := buf.String()

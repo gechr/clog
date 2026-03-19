@@ -33,18 +33,15 @@ Missing levels in `SetSymbols` fall back to the defaults. Use `DefaultSymbols()`
 Symbols can be any string - not just emojis. Use `Styles.Symbols` to apply a [lipgloss](https://charm.land/lipgloss/v2) style per level:
 
 ```go
-styles := clog.DefaultStyles()
-
-// Render the warn symbol in bold yellow
-styles.Symbols[clog.LevelWarn] = new(
-  lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3")), // yellow
-)
-
-clog.SetStyles(styles)
-
-// Both "warning" and "!!" are printed in bold yellow
-clog.Warn().Symbol("warning").Msg("Low disk space")
-clog.Warn().Symbol("!!").Msg("Low disk space")
+clog.SetStyles(&style.Config{
+  Symbols: style.LevelMap{
+    clog.LevelInfo:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))), // green
+    clog.LevelWarn:  new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("3"))), // yellow
+    clog.LevelError: new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
+  },
+})
 ```
 
-`Styles.Symbols` is a `LevelStyleMap`. Entries for levels not in the map render unstyled (the default). Use `nil` for a specific level to explicitly disable styling for that level.
+Symbol styles also apply to spinner animation frames, so spinners inherit the color of their level.
+
+`Styles.Symbols` is a `LevelStyleMap`. Entries for levels not in the map render unstyled (the default).

@@ -2,6 +2,8 @@
 package style
 
 import (
+	"reflect"
+
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/level"
@@ -124,4 +126,33 @@ type Config struct {
 	// Values maps typed values to styles. Keys use Go equality.
 	// Allows differentiating between e.g. `true` (bool) and "true" (string).
 	Values ValueMap
+}
+
+// Merge applies non-zero fields from other into c. Pointer fields are
+// overwritten when non-nil; map fields are merged key-by-key; slice fields
+// are replaced when non-nil; scalar fields are overwritten when non-zero.
+func (c *Config) Merge(other *Config) {
+	if other == nil {
+		return
+	}
+
+	for sf, sv := range reflect.ValueOf(other).Elem().Fields() {
+		if sv.IsZero() {
+			continue
+		}
+		dv := reflect.ValueOf(c).Elem().FieldByIndex(sf.Index)
+
+		// Map fields: merge key-by-key rather than replace.
+		if sv.Kind() == reflect.Map {
+			if dv.IsNil() {
+				dv.Set(reflect.MakeMap(sv.Type()))
+			}
+			for _, k := range sv.MapKeys() {
+				dv.SetMapIndex(k, sv.MapIndex(k))
+			}
+			continue
+		}
+
+		dv.Set(sv)
+	}
 }
