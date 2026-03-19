@@ -9,8 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -1058,4 +1060,30 @@ func TestUpdateStringers(t *testing.T) {
 	require.NotEmpty(t, result.Fields)
 	assert.Equal(t, "items", result.Fields[0].Key)
 	assert.Equal(t, []string{"a", Nil, Nil, "d"}, result.Fields[0].Value)
+}
+
+func TestSpinnerSymbolStyleApplied(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	var buf bytes.Buffer
+	Default = New(NewOutput(&buf, ColorAlways))
+	Default.SetParts(PartSymbol, PartMessage)
+	Default.SetLevelAlign(AlignNone)
+	Default.SetStyles(&style.Config{
+		Symbols: style.LevelMap{
+			LevelInfo: new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+		},
+	})
+
+	_ = Spinner("loading", spinner.WithStyle(spinner.Style{
+		Frames:   []string{"X"},
+		Interval: time.Millisecond,
+	})).Wait(context.Background(), func(_ context.Context) error {
+		return nil
+	}).Msg("done")
+
+	got := buf.String()
+	// The done line symbol (ℹ️) should be styled with green (color 2).
+	assert.Equal(t, "⏳ loading\n\x1b[32mℹ️\x1b[m done\n", got)
 }

@@ -553,6 +553,15 @@ func styledMsg(msg string, level Level, styles *style.Config, noColor bool) stri
 	return msg
 }
 
+func styledSymbol(symbol string, level Level, styles *style.Config, noColor bool) string {
+	if !noColor {
+		if s := styles.Symbols[level]; s != nil {
+			return s.Render(symbol)
+		}
+	}
+	return symbol
+}
+
 // renderTaskFields formats the fields for a task, caching the result when
 // the atomic pointer has not changed.
 func renderTaskFields(
@@ -641,7 +650,7 @@ func measureTaskFieldStart(
 			gt.cfg.reportTS,
 			tsStr,
 			levelSymbol,
-			*gt.SymbolPtr.Load(),
+			styledSymbol(*gt.SymbolPtr.Load(), renderLevel, gt.cfg.styles, gt.cfg.noColor),
 			msg,
 			"",
 		))
@@ -687,7 +696,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 			gt.cfg.noColor,
 		)
 		// Use a checkmark or the builder symbol for completed items.
-		doneSymbol := *gt.SymbolPtr.Load()
+		doneSymbol := styledSymbol(*gt.SymbolPtr.Load(), renderLevel, gt.cfg.styles, gt.cfg.noColor)
 		msg = alignMessageForFields(
 			gt.cfg.order,
 			gt.cfg.reportTS,
@@ -766,17 +775,14 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 		if b.SpinnerStyle.Reverse {
 			i = n - 1 - i
 		}
-		char = b.SpinnerStyle.Frames[i]
-		if s := gt.cfg.styles.Symbols[b.Level]; s != nil && !gt.cfg.noColor {
-			char = s.Render(char)
-		}
+		char = styledSymbol(b.SpinnerStyle.Frames[i], b.Level, gt.cfg.styles, gt.cfg.noColor)
 		msg = styledMsg(msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 	case fx.AnimationPulse:
-		char = *gt.SymbolPtr.Load()
+		char = styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.Speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 		msg = pulse.TextCached(msg, t, b.PulseStops, &gt.pCache)
 	case fx.AnimationShimmer:
-		char = *gt.SymbolPtr.Load()
+		char = styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 		phase := math.Mod(dur.Seconds()*b.Speed, 1.0)
 		msg = shimmer.Text(msg, phase, b.ShimmerDir, gt.hexLUT, gt.styleLUT)
 	}
@@ -791,7 +797,7 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 			gt.Builder.Level,
 			gt.cfg.styles,
 			gt.cfg.noColor,
-		), *gt.SymbolPtr.Load()
+		), styledSymbol(*gt.SymbolPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor)
 	}
 
 	if gt.Builder.Mode == fx.AnimationBar {
@@ -800,7 +806,7 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 			gt.Builder.Level,
 			gt.cfg.styles,
 			gt.cfg.noColor,
-		), *gt.SymbolPtr.Load()
+		), styledSymbol(*gt.SymbolPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor)
 	}
 
 	msg, char := renderAnimatedTaskMessage(gt, now)
@@ -847,7 +853,7 @@ func buildTaskBarParts(
 	layout *groupRenderLayout,
 ) (string, string, string, string, string, bool) {
 	b := gt.Builder
-	symbol := *gt.SymbolPtr.Load()
+	symbol := styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 	msg := gt.cfg.indentation + styledMsg(*gt.MsgPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 	msg = alignMessageForFields(
 		gt.cfg.order,
@@ -1042,8 +1048,13 @@ func measureGroupRenderLayout(
 		)
 		fieldsStr := renderTaskFields(gt, gt.FieldsPtr.Load(), gt.Duration(now), 0, 0)
 		parts := buildLine(
-			gt.cfg.order, gt.cfg.reportTS, tsStr,
-			gt.cfg.levelSymbol, *gt.SymbolPtr.Load(), msg, fieldsStr,
+			gt.cfg.order,
+			gt.cfg.reportTS,
+			tsStr,
+			gt.cfg.levelSymbol,
+			styledSymbol(*gt.SymbolPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor),
+			msg,
+			fieldsStr,
 		)
 		layout.bar.aligned.maxParts = max(layout.bar.aligned.maxParts, lipgloss.Width(parts))
 	}
@@ -1082,9 +1093,15 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			fieldsStr := strings.TrimLeft(
 				formatFields(b.StripDynamicFields(*gt.FieldsPtr.Load()), gt.fieldOpts), " ",
 			)
-			line := buildLine(gt.cfg.order, gt.cfg.reportTS,
+			line := buildLine(
+				gt.cfg.order,
+				gt.cfg.reportTS,
 				time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
-				gt.cfg.label, *gt.SymbolPtr.Load(), gt.cfg.indentation+*gt.MsgPtr.Load(), fieldsStr)
+				gt.cfg.label,
+				styledSymbol(*gt.SymbolPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor),
+				gt.cfg.indentation+*gt.MsgPtr.Load(),
+				fieldsStr,
+			)
 			writeString(gt.cfg.out, line+"\n")
 		}
 		for _, ft := range fxTasks {
