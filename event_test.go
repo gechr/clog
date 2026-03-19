@@ -1366,6 +1366,23 @@ func TestEventMsgFatalCallsExit(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 }
 
+func TestEventMsgFatalCustomExitCode(t *testing.T) {
+	var exitCode int
+
+	l := NewWriter(io.Discard)
+	l.SetExitFunc(func(code int) {
+		exitCode = code
+	})
+	l.Fatal().ExitCode(2).Msg("fatal error")
+
+	assert.Equal(t, 2, exitCode)
+}
+
+func TestEventExitCodeNilReceiver(t *testing.T) {
+	var e *Event
+	assert.Nil(t, e.ExitCode(2))
+}
+
 func TestEventJSONValid(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.JSON("key", map[string]int{"a": 1})

@@ -77,6 +77,9 @@ func SetColorMode(mode ColorMode) {
 	Default.SetColorMode(mode)
 }
 
+// SetExitCode sets the default fatal exit code on the [Default] logger.
+func SetExitCode(code int) { Default.SetExitCode(code) }
+
 // SetExitFunc sets the fatal-exit function on the [Default] logger.
 func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
 

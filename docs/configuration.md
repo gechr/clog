@@ -67,6 +67,7 @@ clog.IsTerminal()                // true if Default output is a terminal
 clog.ColorsDisabled()            // true if colors are disabled on the Default logger
 clog.SetOutput(out)              // change the output (accepts *Output)
 clog.SetOutputWriter(w)          // change the output writer (with ColorAuto)
+clog.SetExitCode(2)              // set default Fatal exit code (default: 1)
 clog.SetExitFunc(fn)             // override os.Exit for Fatal (useful in tests)
 clog.SetHyperlinkEnabled(false)  // disable all hyperlink rendering
 logger.Output()                  // returns the Logger's *Output

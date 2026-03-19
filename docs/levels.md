@@ -1,14 +1,14 @@
 # Levels
 
-| Level   | Value | Label | Symbol | Description                                          |
-| ------- | ----: | ----- | ------ | ---------------------------------------------------- |
-| `Trace` |   -10 | `TRC` | 🔍     | Finest-grained output, hidden by default             |
-| `Debug` |    -5 | `DBG` | 🐞     | Verbose output, hidden by default                    |
-| `Info`  |     0 | `INF` | ℹ️     | General operational messages (default minimum level) |
-| `Dry`   |     2 | `DRY` | 🚧     | Dry-run indicators                                   |
-| `Warn`  |     5 | `WRN` | ⚠️     | Warnings that don't prevent operation                |
-| `Error` |    10 | `ERR` | ❌     | Errors that need attention                           |
-| `Fatal` |    15 | `FTL` | 💥     | Fatal errors - calls `os.Exit(1)` after logging      |
+| Level   | Value | Label | Symbol | Description                                                   |
+| ------- | ----: | ----- | ------ | ------------------------------------------------------------- |
+| `Trace` |   -10 | `TRC` | 🔍     | Finest-grained output, hidden by default                      |
+| `Debug` |    -5 | `DBG` | 🐞     | Verbose output, hidden by default                             |
+| `Info`  |     0 | `INF` | ℹ️     | General operational messages (default minimum level)          |
+| `Dry`   |     2 | `DRY` | 🚧     | Dry-run indicators                                            |
+| `Warn`  |     5 | `WRN` | ⚠️     | Warnings that don't prevent operation                         |
+| `Error` |    10 | `ERR` | ❌     | Errors that need attention                                    |
+| `Fatal` |    15 | `FTL` | 💥     | Fatal errors - calls `os.Exit` after logging                  |
 
 Built-in levels use gaps of 5 between them (except around `Dry`, which sits at 2), leaving room for custom levels at any position (see [Custom Levels](#custom-levels)).
 

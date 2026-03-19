@@ -72,6 +72,7 @@ type Logger struct {
 
 	animationInterval time.Duration
 	atomicLevel       atomic.Int32 // lock-free level check for newEvent() hot path
+	exitCode          int          // default exit code for Fatal-level events; 0 means 1
 	exitFunc          func(int)    // called by Fatal-level events; defaults to os.Exit
 	fieldSort         Sort
 	fieldStyleLevel   Level
@@ -326,6 +327,15 @@ func (l *Logger) SetExitFunc(fn func(int)) {
 		fn = os.Exit
 	}
 	l.exitFunc = fn
+}
+
+// SetExitCode sets the default exit code for [LevelFatal] events.
+// If code is 0, the default exit code (1) is used.
+// This can be overridden per-event with [Event.ExitCode].
+func (l *Logger) SetExitCode(code int) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.exitCode = code
 }
 
 // SetFieldSort sets the sort order for fields in log output.
@@ -781,6 +791,11 @@ func (l *Logger) recomputePaddedLabels() {
 func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+
+	// Inherit the logger's default exit code if the event doesn't override it.
+	if e.exitCode == 0 && l.exitCode != 0 {
+		e.exitCode = l.exitCode
+	}
 
 	// Suppress events below the non-TTY level threshold on non-terminal writers.
 	if l.nonTTYLevel != UnsetLevel && !l.output.IsTTY() && e.level < l.nonTTYLevel {

@@ -20,6 +20,7 @@ func TestEventFieldBuilderMethodSync(t *testing.T) {
 		"Elapsed":  true, // event lifecycle
 		"Enabled":  true, // event lifecycle
 		"Err":      true, // event lifecycle (different signature)
+		"ExitCode": true, // event lifecycle (Fatal exit code)
 		"Func":     true, // takes func(*Event)
 		"Line":     true, // needs logger output
 		"Link":     true, // needs logger output

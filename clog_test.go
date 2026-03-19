@@ -1740,6 +1740,48 @@ func TestSetExitFuncNilFatalStillWorks(t *testing.T) {
 	assert.Equal(t, 1, exitCode)
 }
 
+func TestSetExitCode(t *testing.T) {
+	var exitCode int
+
+	l := NewWriter(io.Discard)
+	l.SetExitFunc(func(code int) {
+		exitCode = code
+	})
+	l.SetExitCode(3)
+	l.Fatal().Msg("fatal error")
+
+	assert.Equal(t, 3, exitCode)
+}
+
+func TestSetExitCodeOverriddenByEvent(t *testing.T) {
+	var exitCode int
+
+	l := NewWriter(io.Discard)
+	l.SetExitFunc(func(code int) {
+		exitCode = code
+	})
+	l.SetExitCode(3)
+	l.Fatal().ExitCode(5).Msg("fatal error")
+
+	assert.Equal(t, 5, exitCode)
+}
+
+func TestPackageLevelSetExitCode(t *testing.T) {
+	saved := Default
+	defer func() { Default = saved }()
+
+	Default = NewWriter(io.Discard)
+
+	var exitCode int
+	SetExitFunc(func(code int) {
+		exitCode = code
+	})
+	SetExitCode(42)
+	Fatal().Msg("fatal")
+
+	assert.Equal(t, 42, exitCode)
+}
+
 func TestAtomicLevelFastPath(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.SetLevel(LevelWarn)

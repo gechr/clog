@@ -22,6 +22,7 @@ type Event struct {
 	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
 	fields       []Field
 	level        Level
+	exitCode     int       // exit code for Fatal-level events; 0 means default (1)
 	noExit       bool      // if true, skip exit even for LevelFatal (used by adapters)
 	parts        *[]Part   // nil = use logger's parts
 	symbol       *string   // nil = use logger/default symbol
@@ -198,6 +199,16 @@ func (e *Event) Err(err error) *Event {
 	}
 
 	e.err = err
+	return e
+}
+
+// ExitCode sets the exit code for [LevelFatal] events.
+// The default exit code is 1. This has no effect on non-fatal events.
+func (e *Event) ExitCode(code int) *Event {
+	if e == nil {
+		return e
+	}
+	e.exitCode = code
 	return e
 }
 
@@ -459,7 +470,9 @@ func (e *Event) Links(key string, links []Link) *Event {
 
 // Msg finalises the event and writes the log entry.
 // If [Event.Err] was called, the error is included as an "error" field.
-// For [LevelFatal] events, Msg calls [os.Exit](1) after writing.
+// For [LevelFatal] events, Msg calls [os.Exit] after writing.
+// The exit code defaults to 1, but can be changed with [Event.ExitCode]
+// or [Logger.SetExitCode].
 func (e *Event) Msg(msg string) {
 	if e == nil {
 		return
@@ -478,7 +491,11 @@ func (e *Event) Msg(msg string) {
 	e.logger.log(e, msg)
 
 	if e.level == LevelFatal && !e.noExit {
-		e.logger.exit(1)
+		code := e.exitCode
+		if code == 0 {
+			code = 1
+		}
+		e.logger.exit(code)
 	}
 }
 
