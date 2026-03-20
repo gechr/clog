@@ -186,6 +186,7 @@ func (l *Logger) clone() *Logger {
 		fieldTimeFormat:   l.fieldTimeFormat,
 		fields:            l.fields,
 		handler:           l.handler,
+		hooks:             l.hooks,
 		indent:            l.indent,
 		indentPrefixes:    l.indentPrefixes,
 		indentPrefixSep:   l.indentPrefixSep,

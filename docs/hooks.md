@@ -1,33 +1,40 @@
 # Hooks
 
-Write hooks let you run code immediately before or after each log line is written. This is useful for coordinating log output with other terminal activity such as spinners or progress bars.
+Hooks let you run code at specific points in the log write lifecycle. Register them with `AddHook` and a `HookPoint`.
 
-## `SetHookBeforeWrite`
+## Hook Points
 
-Called just before each log line is written to the output. For example, clearing a spinner line so log output isn't visually corrupted:
+| Point             | When                                 |
+| ----------------- | ------------------------------------ |
+| `HookBeforeWrite` | Just before each log line is written |
+| `HookAfterWrite`  | Just after each log line is written  |
+
+## Usage
 
 ```go
-clog.SetHookBeforeWrite(func() {
-    fmt.Print("\r\033[K") // clear current line
+// Clear a spinner line before log output
+clog.AddHook(clog.HookBeforeWrite, func() {
+    fmt.Print("\r\033[K")
 })
 
-// Later, remove the hook:
-clog.SetHookBeforeWrite(nil)
+// Restore a prompt after log output
+clog.AddHook(clog.HookAfterWrite, func() {
+    fmt.Print(">>> ")
+})
 ```
 
-## `SetHookAfterWrite`
+Multiple hooks per point run in registration order.
 
-Called just after each log line is written:
+## Clearing Hooks
 
 ```go
-clog.SetHookAfterWrite(func() {
-    fmt.Print(">>> ") // restore a prompt
-})
+clog.ClearHooks(clog.HookBeforeWrite) // clear one point
+clog.ClearAllHooks()                  // clear all points
 ```
 
 ## Notes
 
-- Both hooks are called under the logger's mutex, so they must not call back into the same logger.
-- Pass `nil` to clear a hook.
-- Hooks fire for all log levels (debug through fatal) and for both the built-in formatter and custom [handlers](handlers.md).
-- Per-logger hooks are available via `logger.SetHookBeforeWrite(fn)` and `logger.SetHookAfterWrite(fn)`.
+- Hooks are called under the logger's mutex — they must not call back into the same logger.
+- Hooks fire for all log levels and for both the built-in formatter and custom [handlers](handlers.md).
+- Sub-loggers inherit parent hooks.
+- Per-logger methods: `logger.AddHook(point, fn)`, `logger.ClearHooks(point)`, `logger.ClearAllHooks()`.

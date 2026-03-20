@@ -79,8 +79,7 @@ type Logger struct {
 	fieldStyleLevel   Level
 	fieldTimeFormat   string
 	handler           Handler
-	hookAfterWrite    func()   // called after each log write; nil = no-op
-	hookBeforeWrite   func()   // called before each log write; nil = no-op
+	hooks             map[HookPoint][]func()
 	indent            int      // number of indent levels for nested output
 	indentPrefixes    []string // per-depth decorations cycled after space indent
 	indentPrefixSep   *string  // separator after indent prefix; nil = default " "
@@ -373,20 +372,30 @@ func (l *Logger) SetHandler(h Handler) {
 	l.handler = h
 }
 
-// SetHookAfterWrite sets a function called after each log write.
-// Pass nil to clear. The hook is called under the logger's mutex.
-func (l *Logger) SetHookAfterWrite(fn func()) {
+// AddHook registers a function to run at the given [HookPoint].
+// Multiple hooks per point are supported; they run in registration order.
+// Hooks are called under the logger's mutex.
+func (l *Logger) AddHook(point HookPoint, fn func()) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.hookAfterWrite = fn
+	if l.hooks == nil {
+		l.hooks = make(map[HookPoint][]func())
+	}
+	l.hooks[point] = append(l.hooks[point], fn)
 }
 
-// SetHookBeforeWrite sets a function called before each log write.
-// Pass nil to clear. The hook is called under the logger's mutex.
-func (l *Logger) SetHookBeforeWrite(fn func()) {
+// ClearAllHooks removes all registered hooks at every [HookPoint].
+func (l *Logger) ClearAllHooks() {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.hookBeforeWrite = fn
+	l.hooks = nil
+}
+
+// ClearHooks removes all hooks registered at the given [HookPoint].
+func (l *Logger) ClearHooks(point HookPoint) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	delete(l.hooks, point)
 }
 
 // SetIndent sets the indent depth (number of indent levels) on the logger.
@@ -870,13 +879,9 @@ func (l *Logger) log(e *Event, msg string) {
 			entry.Time = time.Now().In(l.timeLocation)
 		}
 
-		if l.hookBeforeWrite != nil {
-			l.hookBeforeWrite()
-		}
+		l.runHooks(HookBeforeWrite)
 		l.handler.Log(entry)
-		if l.hookAfterWrite != nil {
-			l.hookAfterWrite()
-		}
+		l.runHooks(HookAfterWrite)
 		return
 	}
 
@@ -977,12 +982,15 @@ func (l *Logger) log(e *Event, msg string) {
 		lineBuf.WriteString(p)
 	}
 	lineBuf.WriteByte('\n')
-	if l.hookBeforeWrite != nil {
-		l.hookBeforeWrite()
-	}
+	l.runHooks(HookBeforeWrite)
 	writeString(l.output.Writer(), lineBuf.String())
-	if l.hookAfterWrite != nil {
-		l.hookAfterWrite()
+	l.runHooks(HookAfterWrite)
+}
+
+// runHooks executes all hooks registered at the given point. Must be called with l.mu held.
+func (l *Logger) runHooks(point HookPoint) {
+	for _, fn := range l.hooks[point] {
+		fn()
 	}
 }
 
