@@ -95,6 +95,12 @@ func SetFieldTimeFormat(format string) { Default.SetFieldTimeFormat(format) }
 // SetHandler sets the log handler on the [Default] logger.
 func SetHandler(h Handler) { Default.SetHandler(h) }
 
+// SetHookAfterWrite sets the after-write hook on the [Default] logger.
+func SetHookAfterWrite(fn func()) { Default.SetHookAfterWrite(fn) }
+
+// SetHookBeforeWrite sets the before-write hook on the [Default] logger.
+func SetHookBeforeWrite(fn func()) { Default.SetHookBeforeWrite(fn) }
+
 // SetIndent sets the indent depth on the [Default] logger.
 func SetIndent(levels int) { Default.SetIndent(levels) }
 

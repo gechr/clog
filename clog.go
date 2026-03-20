@@ -74,18 +74,20 @@ type Logger struct {
 	atomicLevel       atomic.Int32 // lock-free level check for newEvent() hot path
 	exitCode          int          // default exit code for Fatal-level events; 0 means 1
 	exitFunc          func(int)    // called by Fatal-level events; defaults to os.Exit
+	fields            []Field
 	fieldSort         Sort
 	fieldStyleLevel   Level
 	fieldTimeFormat   string
-	fields            []Field
 	handler           Handler
+	hookAfterWrite    func()   // called after each log write; nil = no-op
+	hookBeforeWrite   func()   // called before each log write; nil = no-op
 	indent            int      // number of indent levels for nested output
 	indentPrefixes    []string // per-depth decorations cycled after space indent
 	indentPrefixSep   *string  // separator after indent prefix; nil = default " "
 	indentWidth       int      // spaces per indent level (default 2)
-	labelWidth        int
 	labels            LabelMap
 	labelsPadded      LabelMap
+	labelWidth        int
 	level             Level
 	levelAlign        Align
 	nonTTYLevel       Level // events below this level are suppressed on non-TTY writers
@@ -93,9 +95,9 @@ type Logger struct {
 	omitZero          bool
 	output            *Output
 	parts             []Part
-	quoteOpen         rune // 0 means default ('"' via strconv.Quote)
 	quoteClose        rune // 0 means same as quoteOpen (or default)
 	quoteMode         QuoteMode
+	quoteOpen         rune // 0 means default ('"' via strconv.Quote)
 	reportTimestamp   bool
 	separatorText     string
 	sliceClose        rune // 0 means default (']')
@@ -369,6 +371,22 @@ func (l *Logger) SetHandler(h Handler) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.handler = h
+}
+
+// SetHookAfterWrite sets a function called after each log write.
+// Pass nil to clear. The hook is called under the logger's mutex.
+func (l *Logger) SetHookAfterWrite(fn func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.hookAfterWrite = fn
+}
+
+// SetHookBeforeWrite sets a function called before each log write.
+// Pass nil to clear. The hook is called under the logger's mutex.
+func (l *Logger) SetHookBeforeWrite(fn func()) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.hookBeforeWrite = fn
 }
 
 // SetIndent sets the indent depth (number of indent levels) on the logger.
@@ -852,7 +870,13 @@ func (l *Logger) log(e *Event, msg string) {
 			entry.Time = time.Now().In(l.timeLocation)
 		}
 
+		if l.hookBeforeWrite != nil {
+			l.hookBeforeWrite()
+		}
 		l.handler.Log(entry)
+		if l.hookAfterWrite != nil {
+			l.hookAfterWrite()
+		}
 		return
 	}
 
@@ -953,7 +977,13 @@ func (l *Logger) log(e *Event, msg string) {
 		lineBuf.WriteString(p)
 	}
 	lineBuf.WriteByte('\n')
+	if l.hookBeforeWrite != nil {
+		l.hookBeforeWrite()
+	}
 	writeString(l.output.Writer(), lineBuf.String())
+	if l.hookAfterWrite != nil {
+		l.hookAfterWrite()
+	}
 }
 
 // newEvent creates a new [Event] for the given level.
