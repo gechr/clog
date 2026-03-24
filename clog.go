@@ -615,6 +615,17 @@ func (l *Logger) SetSliceSeparator(sep string) {
 	l.sliceSep = sep
 }
 
+// resolveSpinnerStyle returns the logger's spinner style, falling back to
+// [spinner.DefaultStyle] if none has been set. The caller must not hold l.mu.
+func (l *Logger) resolveSpinnerStyle() spinner.Style {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.spinnerStyle != nil {
+		return *l.spinnerStyle
+	}
+	return spinner.DefaultStyle()
+}
+
 // SetSpinnerStyle sets the default spinner style used by [Logger.Spinner].
 func (l *Logger) SetSpinnerStyle(s spinner.Style) {
 	l.mu.Lock()

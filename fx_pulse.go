@@ -3,7 +3,6 @@ package clog
 import (
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/pulse"
-	"github.com/gechr/clog/fx/spinner"
 )
 
 // Pulse creates a new [fx.Builder] using the [Default] logger with an
@@ -28,6 +27,6 @@ func (l *Logger) Pulse(msg string, opts ...pulse.Option) *fx.Builder {
 		Message:      msg,
 		PulseStops:   cfg.Gradient,
 		Speed:        cfg.Speed,
-		SpinnerStyle: spinner.DefaultStyle(),
+		SpinnerStyle: l.resolveSpinnerStyle(),
 	})
 }

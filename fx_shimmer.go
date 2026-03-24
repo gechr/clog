@@ -3,7 +3,6 @@ package clog
 import (
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/shimmer"
-	"github.com/gechr/clog/fx/spinner"
 )
 
 // Shimmer creates a new [fx.Builder] using the [Default] logger with an
@@ -31,6 +30,6 @@ func (l *Logger) Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
 		ShimmerDir:   cfg.Direction,
 		ShimmerStops: cfg.Gradient,
 		Speed:        cfg.Speed,
-		SpinnerStyle: spinner.DefaultStyle(),
+		SpinnerStyle: l.resolveSpinnerStyle(),
 	})
 }

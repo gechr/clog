@@ -5,7 +5,6 @@ import (
 
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
-	"github.com/gechr/clog/fx/spinner"
 )
 
 // Bar creates a new [fx.Builder] using the [Default] logger with a
@@ -34,6 +33,6 @@ func (l *Logger) Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
 		BarStyle:     bar.ApplyOptions(opts),
 		BarProgress:  progressPtr,
 		BarTotal:     totalPtr,
-		SpinnerStyle: spinner.DefaultStyle(),
+		SpinnerStyle: l.resolveSpinnerStyle(),
 	})
 }
