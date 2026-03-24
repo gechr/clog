@@ -34,7 +34,7 @@ clog.ClearAllHooks()                  // clear all points
 
 ## Notes
 
-- Hooks are called under the logger's mutex — they must not call back into the same logger.
+- Hooks are called under the logger's mutex - they must not call back into the same logger.
 - Hooks fire for all log levels and for both the built-in formatter and custom [handlers](handlers.md).
 - Sub-loggers inherit parent hooks.
 - Per-logger methods: `logger.AddHook(point, fn)`, `logger.ClearHooks(point)`, `logger.ClearAllHooks()`.

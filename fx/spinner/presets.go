@@ -1198,9 +1198,22 @@ var (
 		Frames:   []string{"╫", "╪"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Star2 = Style{
-		Frames:   []string{"+", "x", "*"},
-		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
+	Stars = Style{
+		Frames: []string{
+			"·",
+			"✢",
+			"✳",
+			"✶",
+			"✻",
+			"✽",
+			"✽",
+			"✻",
+			"✶",
+			"✳",
+			"✢",
+			"·",
+		},
+		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
 	TimeTravel = Style{
 		Frames: []string{

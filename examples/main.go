@@ -17,7 +17,6 @@ import (
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
-
 )
 
 func main() {
@@ -138,7 +137,7 @@ func main() {
 			Str("target", "release").Elapsed("elapsed")).
 			Progress(barFill)
 		g.Add(clog.Bar("Syncing", 1000, bar.WithStyle(bar.Style{
-			Placement:  bar.PlaceInline,
+			Placement:    bar.PlaceInline,
 			CapLeft:      "│",
 			CapRight:     "│",
 			CharEmpty:    ' ',
@@ -185,7 +184,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(1 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Demo loaded")
 
 		_ = clog.Spinner("Running migrations").
@@ -197,7 +196,7 @@ func main() {
 					time.Sleep(30 * time.Millisecond)
 				}
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Migrations applied")
 
 		_ = clog.Spinner("Connecting to database").
@@ -219,7 +218,7 @@ func main() {
 				update.Msg("Starting containers").Send()
 				time.Sleep(500 * time.Millisecond)
 				return nil
-			}). Symbol("🚀").
+			}).Symbol("🚀").
 			Msg("Deployed")
 
 		// --- Pulse ---
@@ -228,7 +227,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Inference engine ready")
 
 		header("Pulse (custom gradient)")
@@ -242,7 +241,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Data replicated")
 
 		// --- Shimmer ---
@@ -251,7 +250,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Search catalogue rebuilt")
 
 		header("Shimmer (custom gradient)")
@@ -265,7 +264,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("🚀").
+			}).Symbol("🚀").
 			Msg("Service deployed and health checks passed")
 
 		header("Shimmer (middle direction, rainbow)")
@@ -284,7 +283,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Dependencies synced and artifacts rebuilt")
 
 		_ = clog.Shimmer("Broadcasting configuration changes to all edge nodes",
@@ -302,7 +301,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(3 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Configuration broadcast complete")
 
 		// --- Elapsed timer ---
@@ -314,7 +313,7 @@ func main() {
 			Wait(context.Background(), func(_ context.Context) error {
 				time.Sleep(2 * time.Second)
 				return nil
-			}). Symbol("✅").
+			}).Symbol("✅").
 			Msg("Batch processed")
 	}
 
@@ -791,8 +790,8 @@ func main() {
 
 func spinners(filter string) {
 	type entry struct {
-		name    string
-		s       spinner.Style
+		name string
+		s    spinner.Style
 	}
 
 	all := []entry{
@@ -821,7 +820,6 @@ func spinners(filter string) {
 		{"Smiley", spinner.Smiley},
 		{"SoccerHeader", spinner.SoccerHeader},
 		{"SquareCorners", spinner.SquareCorners},
-		{"Star2", spinner.Star2},
 		{"Toggle", spinner.Toggle},
 		{"Triangle", spinner.Triangle},
 		{"Weather", spinner.Weather},
@@ -895,7 +893,7 @@ func demo() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Environment initialized")
 
 	_ = clog.Spinner("Validating config").
@@ -916,7 +914,7 @@ func demo() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(1 * time.Second)
 			return nil
-		}). Symbol("🚀").
+		}).Symbol("🚀").
 		Msg("Deployed")
 
 	_ = clog.Spinner("Running migrations").
@@ -928,7 +926,7 @@ func demo() {
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Migrations applied")
 
 	_ = clog.Spinner("Downloading artifacts", spinner.WithStyle(spinner.Dot)).
@@ -936,7 +934,7 @@ func demo() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}). Symbol("📦").
+		}).Symbol("📦").
 		Msg("Artifacts downloaded")
 
 	_ = clog.Spinner("Connecting to database").

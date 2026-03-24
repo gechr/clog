@@ -30,7 +30,7 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Configuration loaded")
 
 	_ = clog.Spinner("Running migrations").
@@ -41,7 +41,7 @@ func main() {
 				time.Sleep(20 * time.Millisecond)
 			}
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Migrations applied")
 
 	_ = clog.Spinner("Connecting to database").
@@ -63,7 +63,7 @@ func main() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(500 * time.Millisecond)
 			return nil
-		}). Symbol("🚀").
+		}).Symbol("🚀").
 		Msg("Deployed")
 }
 
@@ -146,7 +146,7 @@ func showStyles(page int) {
 		{"Speaker", spinner.Speaker},
 		{"SquareCorners", spinner.SquareCorners},
 		{"Squish", spinner.Squish},
-		{"Star2", spinner.Star2},
+		{"Stars", spinner.Stars},
 		{"TimeTravel", spinner.TimeTravel},
 		{"Toggle", spinner.Toggle},
 		{"Toggle2", spinner.Toggle2},

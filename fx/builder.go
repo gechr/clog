@@ -23,6 +23,7 @@ const DefaultSymbol = "⏳"
 type Builder struct {
 	core.FieldBuilder[Builder]
 
+	AnimatedSymbol bool          // when true, cycles SpinnerStyle.Frames as the symbol instead of a static icon
 	BarPercentKey  string        // when set, a formatted percent field is injected each tick
 	BarProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
 	BarStyle       bar.Style     // bar mode: visual style
@@ -47,24 +48,26 @@ type Builder struct {
 
 // BuilderConfig provides the initial configuration for a [Builder].
 type BuilderConfig struct {
-	BarProgress  *atomic.Int64
-	BarStyle     bar.Style
-	BarTotal     *atomic.Int64
-	Level        core.Level
-	Logger       Logger
-	Message      string
-	Mode         Animation
-	PulseStops   []gradient.ColorStop
-	ShimmerDir   shimmer.Direction
-	ShimmerStops []gradient.ColorStop
-	Speed        float64
-	SpinnerStyle spinner.Style
-	SymbolIcon   string
+	AnimatedSymbol bool
+	BarProgress    *atomic.Int64
+	BarStyle       bar.Style
+	BarTotal       *atomic.Int64
+	Level          core.Level
+	Logger         Logger
+	Message        string
+	Mode           Animation
+	PulseStops     []gradient.ColorStop
+	ShimmerDir     shimmer.Direction
+	ShimmerStops   []gradient.ColorStop
+	Speed          float64
+	SpinnerStyle   spinner.Style
+	SymbolIcon     string
 }
 
 // NewBuilder creates a new Builder from the given configuration.
 func NewBuilder(cfg BuilderConfig) *Builder {
 	b := &Builder{
+		AnimatedSymbol: cfg.AnimatedSymbol,
 		BarProgressPtr: cfg.BarProgress,
 		BarStyle:       cfg.BarStyle,
 		BarTotalPtr:    cfg.BarTotal,
@@ -153,6 +156,18 @@ func (b *Builder) Parts(parts ...core.Part) *Builder {
 // Symbol sets the icon displayed beside the message during animation.
 func (b *Builder) Symbol(symbol string) *Builder {
 	b.SymbolIcon = symbol
+	return b
+}
+
+// Spinner enables an animated spinning symbol. The symbol slot cycles
+// through [SpinnerStyle] frames independently of the main animation mode.
+// Options override the builder's existing [SpinnerStyle]. With no options
+// the current style (set by the constructor or logger default) is used.
+func (b *Builder) Spinner(opts ...spinner.Option) *Builder {
+	b.AnimatedSymbol = true
+	for _, o := range opts {
+		o(&b.SpinnerStyle)
+	}
 	return b
 }
 

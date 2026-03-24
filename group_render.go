@@ -440,8 +440,10 @@ func captureTaskConfig(gt *groupTask) {
 
 	// Determine tick rate and pre-compute mode-specific resources.
 	switch b.Mode {
-	case fx.AnimationSpinner:
-		gt.tickRate = b.SpinnerStyle.Interval
+	case fx.AnimationNone:
+		if b.AnimatedSymbol {
+			gt.tickRate = b.SpinnerStyle.Interval
+		}
 	case fx.AnimationPulse:
 		gt.tickRate = pulse.TickRate
 	case fx.AnimationShimmer:
@@ -451,12 +453,17 @@ func captureTaskConfig(gt *groupTask) {
 	case fx.AnimationBar:
 		gt.tickRate = bar.TickRate
 	}
+	// When animated symbol is enabled on a non-spinner mode, ensure the
+	// tick rate is fast enough for smooth spinner frame changes.
+	if b.AnimatedSymbol && b.SpinnerStyle.Interval > 0 && gt.tickRate > 0 {
+		gt.tickRate = min(gt.tickRate, b.SpinnerStyle.Interval)
+	}
 
-	// Guard against invalid spinner.Style values.
-	if b.Mode == fx.AnimationSpinner && len(b.SpinnerStyle.Frames) == 0 {
+	// Guard against missing spinner frames when animated symbol is enabled.
+	if b.AnimatedSymbol && len(b.SpinnerStyle.Frames) == 0 {
 		b.SpinnerStyle.Frames = spinner.DefaultStyle().Frames
 	}
-	if b.Mode == fx.AnimationSpinner && b.SpinnerStyle.Boomerang {
+	if b.AnimatedSymbol && b.SpinnerStyle.Boomerang {
 		b.SpinnerStyle.Frames = spinner.BoomerangFrames(b.SpinnerStyle.Frames)
 	}
 	if gt.tickRate <= 0 {
@@ -736,7 +743,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 			current,
 			total,
 		)
-		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout)
+		return renderTaskBarLine(gt, fieldsStr, tsStr, state, layout, now)
 	}
 
 	msg, char := renderTaskMessageSymbol(gt, now)
@@ -765,29 +772,41 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 	b := gt.Builder
 	msg := *gt.MsgPtr.Load()
-	var char string
 	dur := gt.Duration(now)
 
+	// Message animation.
 	switch b.Mode { //nolint:exhaustive // animationBar handled by caller
-	case fx.AnimationSpinner:
-		n := len(b.SpinnerStyle.Frames)
-		i := int(dur/b.SpinnerStyle.Interval) % n
-		if b.SpinnerStyle.Reverse {
-			i = n - 1 - i
-		}
-		char = styledSymbol(b.SpinnerStyle.Frames[i], b.Level, gt.cfg.styles, gt.cfg.noColor)
-		msg = styledMsg(msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 	case fx.AnimationPulse:
-		char = styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 		t := (1.0 + math.Sin(2*math.Pi*dur.Seconds()*b.Speed-math.Pi/2)) / 2 //nolint:mnd // half-wave normalisation
 		msg = pulse.TextCached(msg, t, b.PulseStops, &gt.pCache)
 	case fx.AnimationShimmer:
-		char = styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 		phase := math.Mod(dur.Seconds()*b.Speed, 1.0)
 		msg = shimmer.Text(msg, phase, b.ShimmerDir, gt.hexLUT, gt.styleLUT)
+	default:
+		msg = styledMsg(msg, b.Level, gt.cfg.styles, gt.cfg.noColor)
 	}
 
+	// Symbol: animated spinner frames or static icon.
+	char := resolveSymbol(gt, now)
+
 	return msg, char
+}
+
+// resolveSymbol returns the styled symbol for the current animation frame.
+// When [Builder.AnimatedSymbol] is true, it cycles through [SpinnerStyle]
+// frames based on wall-clock time. Otherwise it returns the static symbol.
+func resolveSymbol(gt *groupTask, now time.Time) string {
+	b := gt.Builder
+	if b.AnimatedSymbol && gt.Started() && len(b.SpinnerStyle.Frames) > 0 &&
+		b.SpinnerStyle.Interval > 0 {
+		n := len(b.SpinnerStyle.Frames)
+		i := int(gt.Duration(now)/b.SpinnerStyle.Interval) % n
+		if b.SpinnerStyle.Reverse {
+			i = n - 1 - i
+		}
+		return styledSymbol(b.SpinnerStyle.Frames[i], b.Level, gt.cfg.styles, gt.cfg.noColor)
+	}
+	return styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 }
 
 func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
@@ -806,7 +825,7 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 			gt.Builder.Level,
 			gt.cfg.styles,
 			gt.cfg.noColor,
-		), styledSymbol(*gt.SymbolPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor)
+		), resolveSymbol(gt, now)
 	}
 
 	msg, char := renderAnimatedTaskMessage(gt, now)
@@ -820,6 +839,7 @@ func renderTaskBarLine(
 	fieldsStr, tsStr string,
 	state barWidgetState,
 	layout *groupRenderLayout,
+	now time.Time,
 ) string {
 	parts, leftText, barStr, rightText, sep, showBar := buildTaskBarParts(
 		gt,
@@ -827,6 +847,7 @@ func renderTaskBarLine(
 		tsStr,
 		state,
 		layout,
+		now,
 	)
 	if !showBar || gt.Builder.BarStyle.Placement == bar.PlaceInline {
 		return parts
@@ -851,9 +872,10 @@ func buildTaskBarParts(
 	fieldsStr, tsStr string,
 	state barWidgetState,
 	layout *groupRenderLayout,
+	now time.Time,
 ) (string, string, string, string, string, bool) {
 	b := gt.Builder
-	symbol := styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
+	symbol := resolveSymbol(gt, now)
 	msg := gt.cfg.indentation + styledMsg(*gt.MsgPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
 	msg = alignMessageForFields(
 		gt.cfg.order,
@@ -1026,6 +1048,7 @@ func measureGroupRenderLayout(
 			tsStr,
 			state,
 			layout,
+			now,
 		)
 		if !showBar {
 			continue

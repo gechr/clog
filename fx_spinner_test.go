@@ -21,6 +21,8 @@ func TestSpinnerConstructor(t *testing.T) {
 	b := Spinner("loading")
 
 	assert.Equal(t, "loading", b.Message)
+	assert.Equal(t, fx.AnimationNone, b.Mode)
+	assert.True(t, b.AnimatedSymbol)
 	assert.Equal(t, spinner.DefaultStyle().Interval, b.SpinnerStyle.Interval)
 	assert.Empty(t, b.Fields)
 }

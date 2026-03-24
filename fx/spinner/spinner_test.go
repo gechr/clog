@@ -93,6 +93,15 @@ func TestWithStyleThenWithInterval(t *testing.T) {
 	assert.Equal(t, 250*time.Millisecond, got.Interval)
 }
 
+func TestStarsPreset(t *testing.T) {
+	assert.Equal(
+		t,
+		[]string{"·", "✢", "✳", "✶", "✻", "✽", "✽", "✻", "✶", "✳", "✢", "·"},
+		spinner.Stars.Frames,
+	)
+	assert.Equal(t, 120*time.Millisecond, spinner.Stars.Interval)
+}
+
 func TestPresetsValid(t *testing.T) {
 	presets := map[string]spinner.Style{
 		"Aesthetic":           spinner.Aesthetic,
@@ -167,7 +176,7 @@ func TestPresetsValid(t *testing.T) {
 		"Speaker":             spinner.Speaker,
 		"SquareCorners":       spinner.SquareCorners,
 		"Squish":              spinner.Squish,
-		"Star2":               spinner.Star2,
+		"Stars":               spinner.Stars,
 		"TimeTravel":          spinner.TimeTravel,
 		"Toggle":              spinner.Toggle,
 		"Toggle10":            spinner.Toggle10,

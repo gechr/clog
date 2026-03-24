@@ -32,6 +32,7 @@ func main() {
 	downloadBar.WidgetRight = widget.None()
 
 	_ = clog.Bar("Downloading", 1000, bar.WithStyle(downloadBar)).
+		Spinner().
 		Str("file", "release.tar.gz").
 		Elapsed("elapsed").
 		Progress(context.Background(), func(_ context.Context, p *clog.Update) error {

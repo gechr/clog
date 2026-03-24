@@ -48,6 +48,29 @@ p.SetSymbol("🔍").SetProgress(i).Str("stage", "resolving").Send()
 p.SetSymbol("❌").SetLevel(clog.LevelError).Msg("Failed").Send()
 ```
 
+## Animated Symbol
+
+By default, bars show a static symbol (⏳). Use `.Spinner()` to replace it with a spinning animation that cycles independently of the bar progress:
+
+```go
+clog.Bar("Cloning", 100, opts...).
+  Spinner().
+  Progress(ctx, task).
+  Msg("Cloned")
+
+// With a custom spinner style
+clog.Bar("Downloading", total).
+  Spinner(spinner.WithStyle(spinner.Dots)).
+  Progress(ctx, task).
+  Msg("Downloaded")
+```
+
+With no arguments, `.Spinner()` uses the default spinner style (moon phases). Pass `spinner.Option` values to customise the frames, interval, or playback direction. See [Spinner](spinner.md) for the full list of options and presets.
+
+The spinner animation is driven by wall-clock time, so it keeps animating even when the bar progress is stalled.
+
+## Pending Mode
+
 If you don't want zero-progress tasks to show an empty bar, use `PendingHide`:
 
 ```go

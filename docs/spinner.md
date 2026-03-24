@@ -74,6 +74,44 @@ err := clog.Spinner("Connecting to database").
 
 When `OnErrorMessage` is set, the custom message becomes the log message and the original error is included as an `error=` field. Without it, the error string is used directly as the message with no extra field.
 
+## Animated Symbol on Other Animations
+
+The spinner symbol animation can be composed with any animation type using `.Spinner()`. This cycles the spinner frames in the symbol slot independently of the main animation:
+
+```go
+// Progress bar with a spinning symbol instead of a static icon
+clog.Bar("Cloning", 100, opts...).
+  Spinner().
+  Progress(ctx, task).
+  Msg("Cloned")
+
+// Pulse with spinning symbol
+clog.Pulse("Syncing").
+  Spinner().
+  Wait(ctx, sync).
+  Msg("Synced")
+
+// Custom spinner style on a bar
+clog.Bar("Downloading", total).
+  Spinner(spinner.WithStyle(spinner.Dots)).
+  Progress(ctx, task).
+  Msg("Downloaded")
+```
+
+`.Spinner()` with no arguments uses the default spinner style (moon phases). Pass `spinner.Option` values to customise:
+
+| Option                    | Description                                                  |
+| ------------------------- | ------------------------------------------------------------ |
+| `spinner.WithStyle(s)`    | Replace the entire spinner style                             |
+| `spinner.WithFrames(fs)`  | Animation frames (e.g. `[]string{"⠋","⠙","⠹","⠸"}`)          |
+| `spinner.WithInterval(d)` | Duration per frame (values ≤ 0 keep existing)                |
+| `spinner.WithBoomerang()` | Ping-pong playback - reverses at each end instead of jumping |
+| `spinner.WithReverse()`   | Play frames in reverse order                                 |
+
+The spinner animation is driven by wall-clock time, so it continues to animate even when the bar progress is stalled or the pulse/shimmer effect is slow.
+
+When both `.Symbol()` and `.Spinner()` are called, `.Spinner()` takes precedence - the animated symbol is shown during animation, and the static symbol is used for the initial (not-started) and done states.
+
 ## Default Spinner Style
 
 Set the default spinner style for all spinners on a logger:

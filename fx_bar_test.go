@@ -13,6 +13,7 @@ import (
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
+	"github.com/gechr/clog/fx/spinner"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,6 +25,21 @@ func TestBarBuilderMode(t *testing.T) {
 	require.NotNil(t, b.BarTotalPtr)
 	assert.Equal(t, int64(100), b.BarTotalPtr.Load())
 	assert.Equal(t, int64(0), b.BarProgressPtr.Load())
+}
+
+func TestBarSpinner(t *testing.T) {
+	b := Bar("test", 100).Spinner()
+
+	assert.Equal(t, fx.AnimationBar, b.Mode)
+	assert.True(t, b.AnimatedSymbol)
+}
+
+func TestBarSpinnerWithOptions(t *testing.T) {
+	b := Bar("test", 100).Spinner(spinner.WithStyle(spinner.Dots))
+
+	assert.Equal(t, fx.AnimationBar, b.Mode)
+	assert.True(t, b.AnimatedSymbol)
+	assert.Equal(t, spinner.Dots.Interval, b.SpinnerStyle.Interval)
 }
 
 func TestBarBuilderTotalClamp(t *testing.T) {

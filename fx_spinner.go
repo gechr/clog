@@ -25,10 +25,11 @@ func (l *Logger) Spinner(msg string, opts ...spinner.Option) *fx.Builder {
 	}
 
 	return fx.NewBuilder(fx.BuilderConfig{
-		Logger:       fxLogger{l},
-		Mode:         fx.AnimationSpinner,
-		Level:        LevelInfo,
-		Message:      msg,
-		SpinnerStyle: base,
+		AnimatedSymbol: true,
+		Logger:         fxLogger{l},
+		Mode:           fx.AnimationNone,
+		Level:          LevelInfo,
+		Message:        msg,
+		SpinnerStyle:   base,
 	})
 }
