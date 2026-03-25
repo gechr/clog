@@ -33,6 +33,14 @@ To let `clog` limit how many tasks run at once, use `WithParallelism`:
 g := clog.Group(ctx, clog.WithParallelism(5))
 ```
 
+By default, all animations in a group share a common epoch so spinners, pulses,
+and shimmers stay in lockstep regardless of when each task starts. To let each
+task animate from its own start time instead, disable sync:
+
+```go
+g := clog.Group(ctx, clog.WithSyncAnimations(false))
+```
+
 To keep grouped bar fills and their percentage text from visibly moving backward
 when task totals grow or progress is reported in phases, enable monotonic mode:
 
@@ -69,6 +77,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output               |
 | `clog.WithMonotonic()`          | Clamp grouped bars and percent to the highest shown fraction |
 | `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently          |
+| `clog.WithSyncAnimations(b)`    | Sync animation phase across grouped tasks (default `true`)   |
 | `g.Add(builder)`                | Register an animation builder, returns `*GroupEntry`         |
 | `entry.Run(task)`               | Start a `TaskFunc`, returns `*TaskResult`                    |
 | `entry.Progress(task)`          | Start an `UpdateFunc`, returns `*TaskResult`                 |
@@ -81,6 +90,11 @@ values to the highest fraction seen so far. It does not change the underlying
 task progress values.
 
 `WithParallelism(n)` removes the limit when `n <= 0`.
+
+`WithSyncAnimations(true)` (the default) records a shared epoch when the render
+loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase
+are all derived from this epoch instead of each task's individual start time, so
+animations stay in lockstep. Elapsed-time fields remain per-task.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 

@@ -33,6 +33,15 @@ func WithMonotonic() GroupOption {
 	}
 }
 
+// WithSyncAnimations controls whether animations in the group share a
+// common epoch so that spinners, pulses, and shimmers stay in lockstep.
+// Sync is enabled by default.
+func WithSyncAnimations(sync bool) GroupOption {
+	return func(g *fx.Group) {
+		g.SyncAnimations = sync
+	}
+}
+
 // Group creates a new animation group using the [Default] logger.
 func Group(ctx context.Context, opts ...GroupOption) *fx.Group {
 	return Default.Group(ctx, opts...)
@@ -40,7 +49,7 @@ func Group(ctx context.Context, opts ...GroupOption) *fx.Group {
 
 // Group creates a new animation group.
 func (l *Logger) Group(ctx context.Context, opts ...GroupOption) *fx.Group {
-	g := &fx.Group{Ctx: ctx, Log: fxLogger{l}}
+	g := &fx.Group{Ctx: ctx, Log: fxLogger{l}, SyncAnimations: true}
 	for _, opt := range opts {
 		opt(g)
 	}

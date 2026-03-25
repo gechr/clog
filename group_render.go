@@ -49,6 +49,7 @@ type groupTask struct {
 	maxBarProgress float64
 	maxBarTotal    int
 	monotonic      bool
+	syncEpoch      time.Time
 	tickRate       time.Duration
 	visible        bool
 
@@ -772,7 +773,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 	b := gt.Builder
 	msg := *gt.MsgPtr.Load()
-	dur := gt.Duration(now)
+	dur := gt.animDuration(now)
 
 	// Message animation.
 	switch b.Mode { //nolint:exhaustive // animationBar handled by caller
@@ -792,6 +793,17 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 	return msg, char
 }
 
+// animDuration returns the duration used for animation phase calculations.
+// When a sync epoch is set (via [Group.SyncAnimations]), all tasks in the
+// group share the same epoch so their animations stay in lockstep.
+// Otherwise it falls back to the per-task elapsed duration.
+func (gt *groupTask) animDuration(now time.Time) time.Duration {
+	if !gt.syncEpoch.IsZero() {
+		return now.Sub(gt.syncEpoch)
+	}
+	return gt.Duration(now)
+}
+
 // resolveSymbol returns the styled symbol for the current animation frame.
 // When [Builder.AnimatedSymbol] is true, it cycles through [SpinnerStyle]
 // frames based on wall-clock time. Otherwise it returns the static symbol.
@@ -800,7 +812,7 @@ func resolveSymbol(gt *groupTask, now time.Time) string {
 	if b.AnimatedSymbol && gt.Started() && len(b.SpinnerStyle.Frames) > 0 &&
 		b.SpinnerStyle.Interval > 0 {
 		n := len(b.SpinnerStyle.Frames)
-		i := int(gt.Duration(now)/b.SpinnerStyle.Interval) % n
+		i := int(gt.animDuration(now)/b.SpinnerStyle.Interval) % n
 		if b.SpinnerStyle.Reverse {
 			i = n - 1 - i
 		}
@@ -1097,11 +1109,16 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	}
 
 	// Wrap each fx.GroupTask with rendering state.
+	var syncEpoch time.Time
+	if g.SyncAnimations {
+		syncEpoch = time.Now()
+	}
 	gts := make([]*groupTask, len(fxTasks))
 	for i, ft := range fxTasks {
 		gt := &groupTask{
 			GroupTask: ft,
 			monotonic: g.Monotonic,
+			syncEpoch: syncEpoch,
 		}
 		captureTaskConfig(gt)
 		gts[i] = gt

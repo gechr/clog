@@ -33,6 +33,7 @@ type Group struct {
 	Log            Logger
 	Monotonic      bool
 	Parallelism    int
+	SyncAnimations bool
 	Tasks          []*GroupTask
 
 	sem chan struct{}
