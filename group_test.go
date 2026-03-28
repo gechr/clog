@@ -134,6 +134,28 @@ func TestGroupFooterOption(t *testing.T) {
 	assert.Equal(t, "footer", g.Footer.Builder.Message)
 }
 
+func TestGroupMaxHeightPercentOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithMaxHeightPercent(0.5))
+	assert.InDelta(t, 0.5, g.MaxHeightPercent, 0.001)
+}
+
+func TestGroupMaxHeightPercentClamped(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithMaxHeightPercent(1.5))
+	assert.InDelta(t, 1.0, g.MaxHeightPercent, 0.001)
+
+	g = logger.Group(context.Background(), WithMaxHeightPercent(-0.5))
+	assert.InDelta(t, 0.0, g.MaxHeightPercent, 0.001)
+}
+
+func TestGroupMaxLinesOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithMaxLines(10))
+
+	assert.Equal(t, 10, g.MaxLines)
+}
+
 func TestGroupMonotonicOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background(), WithMonotonic())

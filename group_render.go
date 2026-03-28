@@ -1343,6 +1343,17 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 
 			maxLines := groupHeightCap(output.Height(), blockTopRow, len(gts)+statusLines)
+			if g.MaxHeightPercent > 0 {
+				if pctLines := int(
+					float64(output.Height()) * g.MaxHeightPercent,
+				); pctLines > 0 &&
+					pctLines < maxLines {
+					maxLines = pctLines
+				}
+			}
+			if g.MaxLines > 0 && g.MaxLines < maxLines {
+				maxLines = g.MaxLines
+			}
 			// Cap visible tasks to terminal height so cursor-up
 			// escapes never need to reach scrolled-off lines.
 			// Prioritise active (in-progress) tasks over done or

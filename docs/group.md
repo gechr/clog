@@ -87,27 +87,33 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 
 ## API
 
-| Function / Method               | Description                                                  |
-| ------------------------------- | ------------------------------------------------------------ |
-| `clog.Group(ctx)`               | Create a group using the `Default` logger                    |
-| `logger.Group(ctx)`             | Create a group using a specific logger                       |
-| `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output               |
-| `clog.WithFooter(b, fn)`        | Add a status line below the task block, updated each tick    |
-| `clog.WithHeader(b, fn)`        | Add a status line above the task block, updated each tick    |
-| `clog.WithHideDone()`           | Remove completed tasks from the rendered block               |
-| `clog.WithMonotonic()`          | Clamp grouped bars and percent to the highest shown fraction |
-| `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently          |
-| `clog.WithSyncAnimations(b)`    | Sync animation phase across grouped tasks (default `true`)   |
-| `g.Add(builder)`                | Register an animation builder, returns `*GroupEntry`         |
-| `entry.Run(task)`               | Start a `TaskFunc`, returns `*TaskResult`                    |
-| `entry.Progress(task)`          | Start an `UpdateFunc`, returns `*TaskResult`                 |
-| `g.Wait()`                      | Block until all tasks complete, returns `*GroupResult`       |
+| Function / Method                | Description                                                  |
+| -------------------------------- | ------------------------------------------------------------ |
+| `clog.Group(ctx)`                | Create a group using the `Default` logger                    |
+| `logger.Group(ctx)`              | Create a group using a specific logger                       |
+| `clog.WithFieldAlignment(mode)`  | Align the first field column in grouped output               |
+| `clog.WithFooter(b, fn)`         | Add a status line below the task block, updated each tick    |
+| `clog.WithHeader(b, fn)`         | Add a status line above the task block, updated each tick    |
+| `clog.WithHideDone()`            | Remove completed tasks from the rendered block               |
+| `clog.WithMaxHeightPercent(pct)` | Cap the group block to a percentage of terminal height       |
+| `clog.WithMaxLines(n)`           | Cap the number of visible lines in the group render block    |
+| `clog.WithMonotonic()`           | Clamp grouped bars and percent to the highest shown fraction |
+| `clog.WithParallelism(n)`        | Limit how many group tasks may execute concurrently          |
+| `clog.WithSyncAnimations(b)`     | Sync animation phase across grouped tasks (default `true`)   |
+| `g.Add(builder)`                 | Register an animation builder, returns `*GroupEntry`         |
+| `entry.Run(task)`                | Start a `TaskFunc`, returns `*TaskResult`                    |
+| `entry.Progress(task)`           | Start an `UpdateFunc`, returns `*TaskResult`                 |
+| `g.Wait()`                       | Block until all tasks complete, returns `*GroupResult`       |
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
 
 `WithFooter(b, fn)` and `WithHeader(b, fn)` take a `*fx.Builder` for initial config (level, symbol, parts) and a `GroupStatusFunc` callback `func(done, total int, u *Update)` called each render tick. The callback uses the `Update` to set the message and fields. Header and footer lines count towards the terminal height cap.
 
 `WithHideDone()` removes completed tasks from the rendered block so only active and pending tasks are visible. Bar alignment layout only considers visible tasks.
+
+`WithMaxHeightPercent(percent)` caps the group block to a fraction of the terminal height (e.g. `0.5` for half). Clamped to (0, 1]. When both `WithMaxLines` and `WithMaxHeightPercent` are set, the smaller wins.
+
+`WithMaxLines(n)` caps the visible lines in the group block. When set, this takes precedence over the automatic terminal height cap. Header and footer lines count towards this limit. Values less than or equal to zero are ignored.
 
 `WithMonotonic()` clamps the rendered bar fill, percentage text, and widget values to the highest fraction seen so far. It does not change the underlying task progress values.
 

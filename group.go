@@ -55,6 +55,24 @@ func WithHeader(b *fx.Builder, fn GroupStatusFunc) GroupOption {
 	}
 }
 
+// WithMaxLines caps the number of visible lines in the group render block.
+// When set, this takes precedence over the automatic terminal height cap.
+// Values less than or equal to zero are ignored.
+func WithMaxLines(n int) GroupOption {
+	return func(g *fx.Group) {
+		g.MaxLines = n
+	}
+}
+
+// WithMaxHeightPercent caps the group render block to a percentage of the
+// terminal height (e.g. 0.5 for half). Clamped to (0, 1].
+// When both WithMaxLines and WithMaxHeightPercent are set, the smaller wins.
+func WithMaxHeightPercent(percent float64) GroupOption {
+	return func(g *fx.Group) {
+		g.MaxHeightPercent = max(0, min(percent, 1))
+	}
+}
+
 // WithHideDone removes completed tasks from the rendered block so that
 // only active and pending tasks remain visible. Completed tasks reappear
 // in the caller's own logging (e.g. via [WaitResult.Msg]).

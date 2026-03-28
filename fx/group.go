@@ -29,15 +29,17 @@ type Group struct {
 	Ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
 	Mu  sync.Mutex
 
-	FieldAlignment FieldAlignment
-	Footer         *GroupStatus
-	Header         *GroupStatus
-	HideDone       bool
-	Log            Logger
-	Monotonic      bool
-	Parallelism    int
-	SyncAnimations bool
-	Tasks          []*GroupTask
+	FieldAlignment   FieldAlignment
+	Footer           *GroupStatus
+	Header           *GroupStatus
+	HideDone         bool
+	Log              Logger
+	MaxLines         int
+	MaxHeightPercent float64
+	Monotonic        bool
+	Parallelism      int
+	SyncAnimations   bool
+	Tasks            []*GroupTask
 
 	sem chan struct{}
 }
