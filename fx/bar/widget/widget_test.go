@@ -217,6 +217,33 @@ func TestWidgetETA(t *testing.T) {
 	})
 }
 
+// TestWidgetETAWithPrefix verifies the WithPrefix option on ETA.
+func TestWidgetETAWithPrefix(t *testing.T) {
+	t.Run("empty_prefix", func(t *testing.T) {
+		w := widget.ETA(widget.WithPrefix(""))
+		got := w(bar.State{Current: 0, Total: 100, Rate: 10})
+		assert.Equal(t, "10s", got)
+	})
+
+	t.Run("empty_prefix_infinity", func(t *testing.T) {
+		w := widget.ETA(widget.WithPrefix(""))
+		got := w(bar.State{Current: 0, Total: 100, Rate: 0})
+		assert.Equal(t, "\u221e", got)
+	})
+
+	t.Run("custom_prefix", func(t *testing.T) {
+		w := widget.ETA(widget.WithPrefix("~"))
+		got := w(bar.State{Current: 0, Total: 100, Rate: 10})
+		assert.Equal(t, "~10s", got)
+	})
+
+	t.Run("custom_prefix_infinity", func(t *testing.T) {
+		w := widget.ETA(widget.WithPrefix("~"))
+		got := w(bar.State{Current: 0, Total: 100, Rate: 0})
+		assert.Equal(t, "~\u221e", got)
+	})
+}
+
 // TestWidgetPercentWithMinimumPercent verifies the minimum percent threshold.
 func TestWidgetPercentWithMinimumPercent(t *testing.T) {
 	w := widget.Percent(widget.WithMinimumPercent(1))

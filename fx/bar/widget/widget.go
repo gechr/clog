@@ -23,6 +23,7 @@ type Option func(*config)
 type config struct {
 	digits           int                  // significant digits for bytes; decimal places for percent
 	minPercent       float64              // minimum percent value to display; below this the widget returns ""
+	prefix           *string              // optional prefix override (nil = use widget default)
 	progressGradient []gradient.ColorStop // when set, colors widget text based on progress
 	style            *lipgloss.Style      // optional lipgloss style applied to the widget's output
 	unit             string               // unit label for rate widgets (e.g. "ops", "files")
@@ -99,6 +100,13 @@ func WithStyle(style *lipgloss.Style) Option {
 // [WithStyle]. Accepted by progress-aware widgets such as [Percent].
 func WithProgressGradient(stops ...gradient.ColorStop) Option {
 	return func(c *config) { c.progressGradient = stops }
+}
+
+// WithPrefix overrides the default prefix prepended to widget text.
+// Accepted by [ETA]. For example, WithPrefix("") removes the "ETA " prefix,
+// producing "2m30s" instead of "ETA 2m30s".
+func WithPrefix(prefix string) Option {
+	return func(c *config) { c.prefix = &prefix }
 }
 
 // WithUnit sets a unit label for rate widgets. For example, WithUnit("ops")

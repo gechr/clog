@@ -11,10 +11,21 @@ import (
 // based on elapsed time and current progress (e.g. "ETA 2m30s", "ETA 5s").
 // The result is right-aligned to the widest value seen so far to prevent the
 // bar from jumping as the ETA shrinks. Returns "" when the bar is complete
-// (current >= total), "ETA inf" when the rate is zero (no progress yet).
+// (current >= total), "ETA ∞" when the rate is zero (no progress yet).
+//
+// Use [WithPrefix] to change or remove the "ETA " prefix:
+//
+//	widget.ETA(widget.WithPrefix(""))   // "2m30s" instead of "ETA 2m30s"
+//	widget.ETA(widget.WithPrefix("~"))  // "~2m30s"
 func ETA(opts ...Option) bar.Widget {
 	c := config{}
 	applyOptions(&c, opts)
+
+	prefix := "ETA "
+	if c.prefix != nil {
+		prefix = *c.prefix
+	}
+
 	p := pad()
 
 	return func(s bar.State) string {
@@ -23,11 +34,11 @@ func ETA(opts ...Option) bar.Widget {
 		}
 		var raw string
 		if s.Rate <= 0 {
-			raw = "ETA \u221e"
+			raw = prefix + "\u221e"
 		} else {
 			remaining := float64(s.Total-s.Current) / s.Rate
 			d := time.Duration(remaining * float64(time.Second))
-			raw = "ETA " + formatETA(d)
+			raw = prefix + formatETA(d)
 		}
 		return p(raw, c.render(raw))
 	}
