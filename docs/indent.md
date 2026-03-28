@@ -41,9 +41,7 @@ INF ℹ️ Build complete
 
 ## Dedent
 
-Use `Dedent()` to remove one indent level from a context builder. It is the
-mirror of `Indent()` and clamps at zero - calling it on an unindented logger
-is a no-op:
+Use `Dedent()` to remove one indent level from a context builder. It is the mirror of `Indent()` and clamps at zero - calling it on an unindented logger is a no-op:
 
 ```go
 build := clog.With().Depth(3).Logger()

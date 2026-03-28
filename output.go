@@ -3,7 +3,9 @@ package clog
 import (
 	"io"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 
 	"github.com/charmbracelet/colorprofile"
 	"golang.org/x/term"
@@ -129,6 +131,28 @@ func (o *Output) RefreshHeight() {
 	defer o.heightMu.Unlock()
 	o.heightDone = false
 	o.height = 0
+}
+
+// ListenResize starts a background goroutine that refreshes the cached
+// terminal width and height on SIGWINCH. Call the returned stop function
+// to unregister the signal handler and release the goroutine.
+// No-op for non-TTY outputs.
+func (o *Output) ListenResize() func() {
+	if !o.isTTY {
+		return func() {}
+	}
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, syscall.SIGWINCH)
+	go func() {
+		for range ch {
+			o.RefreshWidth()
+			o.RefreshHeight()
+		}
+	}()
+	return func() {
+		signal.Stop(ch)
+		close(ch)
+	}
 }
 
 // writeString writes s to w, discarding the return values.

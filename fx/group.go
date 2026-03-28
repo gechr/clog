@@ -30,6 +30,8 @@ type Group struct {
 	Mu  sync.Mutex
 
 	FieldAlignment FieldAlignment
+	Footer         *GroupStatus
+	Header         *GroupStatus
 	HideDone       bool
 	Log            Logger
 	Monotonic      bool
@@ -38,6 +40,18 @@ type Group struct {
 	Tasks          []*GroupTask
 
 	sem chan struct{}
+}
+
+// GroupStatusFunc is called each render tick with the number of completed
+// and total tasks. Use the [Update] to set the message and fields for
+// that tick.
+type GroupStatusFunc func(done, total int, u *Update)
+
+// GroupStatus pairs a [Builder] (for initial config like level, symbol,
+// parts) with a [GroupStatusFunc] callback that updates it each tick.
+type GroupStatus struct {
+	Builder  *Builder
+	Callback GroupStatusFunc
 }
 
 // GroupTask holds per-animation state for the group render loop.

@@ -21,15 +21,15 @@ type UpdateFunc func(context.Context, *Update) error
 type Update struct {
 	core.FieldBuilder[Update]
 
-	Base               []core.Field
-	FieldsPtr          *atomic.Pointer[[]core.Field]
-	MsgPtr             *atomic.Pointer[string]
-	MsgText            string
-	ProgressPtr        *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
-	LevelPtr           *atomic.Int64           // overridden level; nil when not updatable
-	SymbolOverridePtr  *atomic.Bool            // when set to true, disables animated spinner in favour of static symbol
-	SymbolPtr          *atomic.Pointer[string] // symbol icon; nil when not updatable
-	TotalPtr           *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
+	Base              []core.Field
+	FieldsPtr         *atomic.Pointer[[]core.Field]
+	MsgPtr            *atomic.Pointer[string]
+	MsgText           string
+	ProgressPtr       *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
+	LevelPtr          *atomic.Int64           // overridden level; nil when not updatable
+	SymbolOverridePtr *atomic.Bool            // when set to true, disables animated spinner in favour of static symbol
+	SymbolPtr         *atomic.Pointer[string] // symbol icon; nil when not updatable
+	TotalPtr          *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
 }
 
 // SetProgress sets the current progress value for a bar animation.

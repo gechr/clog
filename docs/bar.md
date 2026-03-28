@@ -92,9 +92,7 @@ If frequent updates make ETA or rate text too jumpy, coalesce timing-derived wid
 clog.Bar("Cloning", 1, bar.WithUpdateInterval(time.Second))
 ```
 
-This rate-limits timing-derived text such as ETA, rate, and elapsed while
-leaving the bar fill, percent/current-total text, message, symbol, and other
-live updates responsive.
+This rate-limits timing-derived text such as ETA, rate, and elapsed while leaving the bar fill, percent/current-total text, message, symbol, and other live updates responsive.
 
 ## Styles
 

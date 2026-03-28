@@ -116,6 +116,24 @@ func TestGroupParallelismOption(t *testing.T) {
 	assert.Equal(t, -1, g.Parallelism)
 }
 
+func TestGroupHeaderOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	cb := func(_, _ int, _ *Update) {}
+	g := logger.Group(context.Background(), WithHeader(logger.Spinner("header"), cb))
+
+	assert.NotNil(t, g.Header)
+	assert.Equal(t, "header", g.Header.Builder.Message)
+}
+
+func TestGroupFooterOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	cb := func(_, _ int, _ *Update) {}
+	g := logger.Group(context.Background(), WithFooter(logger.Spinner("footer"), cb))
+
+	assert.NotNil(t, g.Footer)
+	assert.Equal(t, "footer", g.Footer.Builder.Message)
+}
+
 func TestGroupMonotonicOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background(), WithMonotonic())

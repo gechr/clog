@@ -33,26 +33,36 @@ To let `clog` limit how many tasks run at once, use `WithParallelism`:
 g := clog.Group(ctx, clog.WithParallelism(5))
 ```
 
-By default, all animations in a group share a common epoch so spinners, pulses,
-and shimmers stay in lockstep regardless of when each task starts. To let each
-task animate from its own start time instead, disable sync:
+By default, all animations in a group share a common epoch so spinners, pulses, and shimmers stay in lockstep regardless of when each task starts. To let each task animate from its own start time instead, disable sync:
 
 ```go
 g := clog.Group(ctx, clog.WithSyncAnimations(false))
 ```
 
-To keep grouped bar fills and their percentage text from visibly moving backward
-when task totals grow or progress is reported in phases, enable monotonic mode:
+To keep grouped bar fills and their percentage text from visibly moving backward when task totals grow or progress is reported in phases, enable monotonic mode:
 
 ```go
 g := clog.Group(ctx, clog.WithMonotonic())
 ```
 
-To hide completed tasks from the rendered block so only active and pending tasks
-remain visible, use `WithHideDone`:
+To hide completed tasks from the rendered block so only active and pending tasks remain visible, use `WithHideDone`:
 
 ```go
 g := clog.Group(ctx, clog.WithHideDone())
+```
+
+To add a header or footer status line that updates each tick, use `WithHeader` or `WithFooter`. Pass a builder for the initial config (level, symbol, parts) and a callback that updates the message and fields each tick:
+
+```go
+g := clog.Group(ctx,
+  clog.WithHideDone(),
+  clog.WithFooter(
+    clog.Spinner("Cloned"),
+    func(done, total int, u *clog.Update) {
+      u.Msg("Cloned").Str("progress", fmt.Sprintf("%d/%d", done, total)).Send()
+    },
+  ),
+)
 ```
 
 While the tasks run, the terminal shows all animations updating simultaneously:
@@ -82,6 +92,8 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `clog.Group(ctx)`               | Create a group using the `Default` logger                    |
 | `logger.Group(ctx)`             | Create a group using a specific logger                       |
 | `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output               |
+| `clog.WithFooter(b, fn)`        | Add a status line below the task block, updated each tick    |
+| `clog.WithHeader(b, fn)`        | Add a status line above the task block, updated each tick    |
 | `clog.WithHideDone()`           | Remove completed tasks from the rendered block               |
 | `clog.WithMonotonic()`          | Clamp grouped bars and percent to the highest shown fraction |
 | `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently          |
@@ -93,19 +105,15 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
 
-`WithHideDone()` removes completed tasks from the rendered block so only active
-and pending tasks are visible. Bar alignment layout only considers visible tasks.
+`WithFooter(b, fn)` and `WithHeader(b, fn)` take a `*fx.Builder` for initial config (level, symbol, parts) and a `GroupStatusFunc` callback `func(done, total int, u *Update)` called each render tick. The callback uses the `Update` to set the message and fields. Header and footer lines count towards the terminal height cap.
 
-`WithMonotonic()` clamps the rendered bar fill, percentage text, and widget
-values to the highest fraction seen so far. It does not change the underlying
-task progress values.
+`WithHideDone()` removes completed tasks from the rendered block so only active and pending tasks are visible. Bar alignment layout only considers visible tasks.
+
+`WithMonotonic()` clamps the rendered bar fill, percentage text, and widget values to the highest fraction seen so far. It does not change the underlying task progress values.
 
 `WithParallelism(n)` removes the limit when `n <= 0`.
 
-`WithSyncAnimations(true)` (the default) records a shared epoch when the render
-loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase
-are all derived from this epoch instead of each task's individual start time, so
-animations stay in lockstep. Elapsed-time fields remain per-task.
+`WithSyncAnimations(true)` (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 

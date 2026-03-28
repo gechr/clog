@@ -6,6 +6,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"charm.land/lipgloss/v2"
@@ -1069,7 +1070,8 @@ func measureGroupRenderLayout(
 	}
 
 	for i, gt := range gts {
-		if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) || done[i] || gt.Builder.Mode != fx.AnimationBar {
+		if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) || done[i] ||
+			gt.Builder.Mode != fx.AnimationBar {
 			continue
 		}
 
@@ -1155,6 +1157,52 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		gts[i] = gt
 	}
 
+	// Build groupTasks for header/footer status lines.
+	initStatus := func(s *fx.GroupStatus) (*groupTask, *fx.Update) {
+		if s == nil {
+			return nil, nil
+		}
+		b := s.Builder
+		if b.Log == nil {
+			b.Log = g.Log
+		}
+		msgPtr := &atomic.Pointer[string]{}
+		fieldsPtr := &atomic.Pointer[[]core.Field]{}
+		symbolPtr := &atomic.Pointer[string]{}
+		msgPtr.Store(&b.Message)
+		fieldsPtr.Store(&b.Fields)
+		sym := b.SymbolIcon
+		if sym == "" {
+			sym = fx.DefaultSymbol
+		}
+		symbolPtr.Store(&sym)
+
+		gt := &groupTask{
+			GroupTask: &fx.GroupTask{
+				Builder:   b,
+				FieldsPtr: fieldsPtr,
+				MsgPtr:    msgPtr,
+				SymbolPtr: symbolPtr,
+			},
+			syncEpoch: syncEpoch,
+		}
+		gt.StartedAt.Store(time.Now().UnixNano())
+		captureTaskConfig(gt)
+
+		u := &fx.Update{
+			MsgText:   b.Message,
+			MsgPtr:    msgPtr,
+			FieldsPtr: fieldsPtr,
+			Base:      b.Fields,
+			SymbolPtr: symbolPtr,
+		}
+		u.InitSelf(u)
+		return gt, u
+	}
+
+	headerGT, headerUpdate := initStatus(g.Header)
+	footerGT, footerUpdate := initStatus(g.Footer)
+
 	// Non-TTY: print each task's initial line, then block on all results.
 	// Dynamic fields (elapsed, bar percent) are stripped because their
 	// initial zero values are meaningless without live updates.
@@ -1201,10 +1249,9 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	}
 
 	out := gts[0].cfg.out
-	maxLines := gts[0].cfg.output.Height() - 1
-	if maxLines <= 0 {
-		maxLines = len(gts) // no height info; no cap
-	}
+	output := gts[0].cfg.output
+	stopResize := output.ListenResize()
+	defer stopResize()
 
 	writeString(out, hideCursor)
 	defer writeString(out, showCursor)
@@ -1241,41 +1288,74 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				default:
 				}
 			}
-			// Batch all writes into a single string.
+			maxLines := output.Height() - 1
+			if maxLines <= 0 {
+				maxLines = len(gts) // no height info; no cap
+			}
 			// Cap visible tasks to terminal height so cursor-up
 			// escapes never need to reach scrolled-off lines.
 			// Prioritise active (in-progress) tasks over done or
 			// pending ones when space is limited.
 			visible := visibleTaskIndexes(gts, done, g.HideDone, now)
-			if len(visible) > maxLines {
-				visible = prioritiseActive(visible, gts, done, maxLines)
+
+			// Update header/footer via callbacks and render as log lines.
+			doneCount := len(gts) - remaining
+			totalCount := len(gts)
+			statusLines := 0
+			if headerGT != nil {
+				g.Header.Callback(doneCount, totalCount, headerUpdate)
+				statusLines++
+			}
+			if footerGT != nil {
+				g.Footer.Callback(doneCount, totalCount, footerUpdate)
+				statusLines++
+			}
+
+			if maxTasks := maxLines - statusLines; len(visible) > maxTasks {
+				visible = prioritiseActive(visible, gts, done, maxTasks)
 			}
 			frameBuf.Reset()
+			totalLines := len(visible) + statusLines
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			layout := measureGroupRenderLayout(g, gts, done, now)
-			renderLines := max(numLines, len(visible))
-			for i := range renderLines {
-				line := ""
-				if i < len(visible) {
-					taskIndex := visible[i]
-					line = renderTaskLine(gts[taskIndex], done[taskIndex], now, layout)
-				}
-				if i < renderLines-1 {
+			renderLines := max(numLines, totalLines)
+			lineIdx := 0
+
+			writeLine := func(line string) {
+				if lineIdx < renderLines-1 {
 					fmt.Fprintf(&frameBuf, "%s%s\n", clearLine, line)
 				} else {
 					fmt.Fprintf(&frameBuf, "%s%s", clearLine, line)
 				}
+				lineIdx++
+			}
+
+			// Header.
+			if headerGT != nil {
+				writeLine(renderTaskLine(headerGT, false, now, layout))
+			}
+			// Task lines.
+			for _, taskIndex := range visible {
+				writeLine(renderTaskLine(gts[taskIndex], done[taskIndex], now, layout))
+			}
+			// Footer.
+			if footerGT != nil {
+				writeLine(renderTaskLine(footerGT, false, now, layout))
+			}
+			// Clear any leftover lines from the previous frame.
+			for lineIdx < renderLines {
+				writeLine("")
 			}
 			switch {
-			case numLines > len(visible) && len(visible) > 0:
-				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-len(visible))
-			case numLines > 1 && len(visible) == 0:
+			case numLines > totalLines && totalLines > 0:
+				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-totalLines)
+			case numLines > 1 && totalLines == 0:
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			writeString(out, frameBuf.String())
-			numLines = len(visible)
+			numLines = totalLines
 			// If all done, break out after one final render.
 			if remaining == 0 {
 				break
