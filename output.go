@@ -21,6 +21,10 @@ type Output struct {
 	widthMu   sync.Mutex
 	widthDone bool
 	width     int
+
+	heightMu   sync.Mutex
+	heightDone bool
+	height     int
 }
 
 // NewOutput creates a new Output that wraps w. TTY detection is automatic
@@ -96,6 +100,35 @@ func (o *Output) RefreshWidth() {
 	defer o.widthMu.Unlock()
 	o.widthDone = false
 	o.width = 0
+}
+
+// Height returns the terminal height, or 0 for non-TTY writers.
+// The value is lazily detected and cached; call [Output.RefreshHeight]
+// to re-detect.
+func (o *Output) Height() int {
+	o.heightMu.Lock()
+	defer o.heightMu.Unlock()
+
+	if !o.heightDone {
+		o.heightDone = true
+
+		if o.isTTY && o.fd >= 0 {
+			if _, h, err := term.GetSize(o.fd); err == nil {
+				o.height = h
+			}
+		}
+	}
+
+	return o.height
+}
+
+// RefreshHeight clears the cached terminal height so that the next call
+// to [Output.Height] re-queries the terminal.
+func (o *Output) RefreshHeight() {
+	o.heightMu.Lock()
+	defer o.heightMu.Unlock()
+	o.heightDone = false
+	o.height = 0
 }
 
 // writeString writes s to w, discarding the return values.

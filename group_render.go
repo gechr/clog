@@ -180,6 +180,30 @@ func visibleTaskIndexes(gts []*groupTask, done []bool, now time.Time) []int {
 	return indexes
 }
 
+// prioritiseActive selects up to maxLines indexes, preferring active
+// (started and not done) tasks over completed or pending ones.
+// Within each group the original registration order is preserved.
+func prioritiseActive(visible []int, gts []*groupTask, done []bool, maxLines int) []int {
+	active := make([]int, 0, len(visible))
+	other := make([]int, 0, len(visible))
+	for _, idx := range visible {
+		if gts[idx].Started() && !done[idx] {
+			active = append(active, idx)
+		} else {
+			other = append(other, idx)
+		}
+	}
+	out := make([]int, 0, maxLines)
+	out = append(out, active...)
+	if len(out) < maxLines {
+		out = append(out, other...)
+	}
+	if len(out) > maxLines {
+		out = out[:maxLines]
+	}
+	return out
+}
+
 func renderBarProgress(progress float64, s bar.Style, termWidth int) string {
 	progress = max(0, min(1, progress))
 	current := int(math.Round(progress * monotonicBarScale))
@@ -1172,6 +1196,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	}
 
 	out := gts[0].cfg.out
+	maxLines := gts[0].cfg.output.Height() - 1
+	if maxLines <= 0 {
+		maxLines = len(gts) // no height info; no cap
+	}
 
 	writeString(out, hideCursor)
 	defer writeString(out, showCursor)
@@ -1209,7 +1237,14 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				}
 			}
 			// Batch all writes into a single string.
+			// Cap visible tasks to terminal height so cursor-up
+			// escapes never need to reach scrolled-off lines.
+			// Prioritise active (in-progress) tasks over done or
+			// pending ones when space is limited.
 			visible := visibleTaskIndexes(gts, done, now)
+			if len(visible) > maxLines {
+				visible = prioritiseActive(visible, gts, done, maxLines)
+			}
 			frameBuf.Reset()
 			if numLines > 1 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
