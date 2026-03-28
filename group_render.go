@@ -188,6 +188,10 @@ func visibleTaskIndexes(gts []*groupTask, done []bool, hideDone bool, now time.T
 // (started and not done) tasks over completed or pending ones.
 // Within each group the original registration order is preserved.
 func prioritiseActive(visible []int, gts []*groupTask, done []bool, maxLines int) []int {
+	if maxLines <= 0 {
+		return nil
+	}
+
 	active := make([]int, 0, len(visible))
 	other := make([]int, 0, len(visible))
 	for _, idx := range visible {
@@ -1130,6 +1134,31 @@ func measureGroupRenderLayout(
 	return layout
 }
 
+func groupHeightCap(termHeight, blockTopRow, fallback int) int {
+	if termHeight <= 0 {
+		if fallback > 0 {
+			return fallback
+		}
+		return 1
+	}
+
+	if blockTopRow >= 1 && blockTopRow <= termHeight {
+		// Leave one spare row below the block when possible. An exact-fit
+		// render can still push the prompt just off-screen in some terminals.
+		maxLines := termHeight - blockTopRow
+		if maxLines > 0 {
+			return maxLines
+		}
+		return 1
+	}
+
+	maxLines := termHeight - 1
+	if maxLines > 0 {
+		return maxLines
+	}
+	return 1
+}
+
 // runGroupLoop runs the group render loop, blocking until all tasks complete
 // or the context is cancelled. Called by fxLogger.RunGroup.
 func runGroupLoop(ctx context.Context, g *fx.Group) error {
@@ -1253,6 +1282,11 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	stopResize := output.ListenResize()
 	defer stopResize()
 
+	blockTopRow := 0
+	if pos, ok := output.cursorPosition(); ok {
+		blockTopRow = pos.row
+	}
+
 	writeString(out, hideCursor)
 	defer writeString(out, showCursor)
 	ticker := time.NewTicker(tickRate)
@@ -1288,17 +1322,6 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				default:
 				}
 			}
-			maxLines := output.Height() - 1
-			if maxLines <= 0 {
-				maxLines = len(gts) // no height info; no cap
-			}
-			// Cap visible tasks to terminal height so cursor-up
-			// escapes never need to reach scrolled-off lines.
-			// Prioritise active (in-progress) tasks over done or
-			// pending ones when space is limited.
-			visible := visibleTaskIndexes(gts, done, g.HideDone, now)
-
-			// Update header/footer via callbacks and render as log lines.
 			doneCount := len(gts) - remaining
 			totalCount := len(gts)
 			statusLines := 0
@@ -1319,7 +1342,14 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				}
 			}
 
-			if maxTasks := maxLines - statusLines; len(visible) > maxTasks {
+			maxLines := groupHeightCap(output.Height(), blockTopRow, len(gts)+statusLines)
+			// Cap visible tasks to terminal height so cursor-up
+			// escapes never need to reach scrolled-off lines.
+			// Prioritise active (in-progress) tasks over done or
+			// pending ones when space is limited.
+			visible := visibleTaskIndexes(gts, done, g.HideDone, now)
+			maxTasks := max(0, maxLines-statusLines)
+			if len(visible) > maxTasks {
 				visible = prioritiseActive(visible, gts, done, maxTasks)
 			}
 			frameBuf.Reset()

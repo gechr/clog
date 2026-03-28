@@ -4,8 +4,11 @@ import (
 	"io"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/charmbracelet/colorprofile"
 	"golang.org/x/term"
@@ -27,7 +30,24 @@ type Output struct {
 	heightMu   sync.Mutex
 	heightDone bool
 	height     int
+
+	cursorMu sync.Mutex
+
+	// Tests may override cursor probing to avoid real terminal I/O.
+	queryCursorPosition func(io.Writer) (cursorPosition, bool)
 }
+
+type cursorPosition struct {
+	row    int
+	column int
+}
+
+const (
+	cursorPositionRequest       = "\x1b[6n"
+	cursorPositionFieldCount    = 2
+	cursorPositionResponseLimit = 32
+	cursorPositionTimeout       = 50 * time.Millisecond
+)
 
 // NewOutput creates a new Output that wraps w. TTY detection is automatic
 // for writers that expose an Fd() uintptr method (e.g. [*os.File]). The
@@ -155,9 +175,92 @@ func (o *Output) ListenResize() func() {
 	}
 }
 
+func (o *Output) cursorPosition() (cursorPosition, bool) {
+	if !o.isTTY {
+		return cursorPosition{}, false
+	}
+
+	o.cursorMu.Lock()
+	defer o.cursorMu.Unlock()
+
+	if o.queryCursorPosition != nil {
+		return o.queryCursorPosition(o.w)
+	}
+	return queryCursorPosition(o.w)
+}
+
 // writeString writes s to w, discarding the return values.
 func writeString(w io.Writer, s string) {
 	_, _ = io.WriteString(w, s)
+}
+
+func queryCursorPosition(out io.Writer) (cursorPosition, bool) {
+	//nolint:gosec // Fd() fits in int on all supported platforms.
+	fd := int(os.Stdin.Fd())
+	if !term.IsTerminal(fd) {
+		return cursorPosition{}, false
+	}
+
+	state, err := term.MakeRaw(fd)
+	if err != nil {
+		return cursorPosition{}, false
+	}
+	defer func() { _ = term.Restore(fd, state) }()
+
+	if err := os.Stdin.SetReadDeadline(time.Now().Add(cursorPositionTimeout)); err != nil {
+		return cursorPosition{}, false
+	}
+	defer func() { _ = os.Stdin.SetReadDeadline(time.Time{}) }()
+
+	writeString(out, cursorPositionRequest)
+
+	var buf strings.Builder
+	buf.Grow(cursorPositionResponseLimit)
+	tmp := make([]byte, 1)
+
+	for buf.Len() < cursorPositionResponseLimit {
+		n, err := os.Stdin.Read(tmp)
+		if n > 0 {
+			buf.Write(tmp[:n])
+			if pos, ok := parseCursorPositionReport(buf.String()); ok {
+				return pos, true
+			}
+		}
+		if err != nil {
+			return cursorPosition{}, false
+		}
+	}
+
+	return cursorPosition{}, false
+}
+
+func parseCursorPositionReport(report string) (cursorPosition, bool) {
+	start := strings.LastIndex(report, "\x1b[")
+	if start < 0 {
+		return cursorPosition{}, false
+	}
+
+	end := strings.IndexByte(report[start:], 'R')
+	if end < 0 {
+		return cursorPosition{}, false
+	}
+
+	parts := strings.Split(report[start+2:start+end], ";")
+	if len(parts) != cursorPositionFieldCount {
+		return cursorPosition{}, false
+	}
+
+	row, err := strconv.Atoi(parts[0])
+	if err != nil || row < 1 {
+		return cursorPosition{}, false
+	}
+
+	column, err := strconv.Atoi(parts[1])
+	if err != nil || column < 1 {
+		return cursorPosition{}, false
+	}
+
+	return cursorPosition{row: row, column: column}, true
 }
 
 // detectProfile determines the [colorprofile.Profile] for the given writer,

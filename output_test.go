@@ -2,10 +2,12 @@ package clog
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestStderr(t *testing.T) {
@@ -66,4 +68,42 @@ func TestRefreshWidth(t *testing.T) {
 	// For non-TTY, both should be 0.
 	assert.Equal(t, 0, w1)
 	assert.Equal(t, 0, w2)
+}
+
+func TestCursorPositionUsesInjectedQuery(t *testing.T) {
+	var buf bytes.Buffer
+
+	out := TestOutput(&buf)
+	out.isTTY = true
+	want := cursorPosition{row: 7, column: 11}
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return want, true
+	}
+
+	got, ok := out.cursorPosition()
+
+	require.True(t, ok)
+	assert.Equal(t, want, got)
+}
+
+func TestParseCursorPositionReport(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		got, ok := parseCursorPositionReport("\x1b[12;34R")
+
+		require.True(t, ok)
+		assert.Equal(t, cursorPosition{row: 12, column: 34}, got)
+	})
+
+	t.Run("valid_with_prefix", func(t *testing.T) {
+		got, ok := parseCursorPositionReport("noise\x1b[3;9R")
+
+		require.True(t, ok)
+		assert.Equal(t, cursorPosition{row: 3, column: 9}, got)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		_, ok := parseCursorPositionReport("\x1b[3;R")
+
+		assert.False(t, ok)
+	})
 }

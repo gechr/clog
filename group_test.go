@@ -743,6 +743,28 @@ func TestClearBlock(t *testing.T) {
 	assert.Equal(t, "\x1b[1A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }
 
+func TestPrioritiseActiveZeroLimit(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	visible := []int{0, 1}
+	done := []bool{false, false}
+	gts := []*groupTask{
+		{GroupTask: &fx.GroupTask{Builder: logger.Spinner("one")}},
+		{GroupTask: &fx.GroupTask{Builder: logger.Spinner("two")}},
+	}
+
+	got := prioritiseActive(visible, gts, done, 0)
+
+	assert.Empty(t, got)
+}
+
+func TestGroupHeightCap(t *testing.T) {
+	assert.Equal(t, 14, groupHeightCap(24, 10, 99))
+	assert.Equal(t, 23, groupHeightCap(24, 0, 99))
+	assert.Equal(t, 4, groupHeightCap(5, 8, 99))
+	assert.Equal(t, 99, groupHeightCap(0, 0, 99))
+	assert.Equal(t, 1, groupHeightCap(24, 24, 99))
+}
+
 func TestGroupBarLayoutRightPad(t *testing.T) {
 	layout := &groupBarLayout{}
 	layout.observe("short", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
