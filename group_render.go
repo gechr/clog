@@ -1302,13 +1302,21 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			doneCount := len(gts) - remaining
 			totalCount := len(gts)
 			statusLines := 0
+			showHeader := false
+			showFooter := false
 			if headerGT != nil {
 				g.Header.Callback(doneCount, totalCount, headerUpdate)
-				statusLines++
+				if msg := *headerGT.MsgPtr.Load(); msg != "" {
+					showHeader = true
+					statusLines++
+				}
 			}
 			if footerGT != nil {
 				g.Footer.Callback(doneCount, totalCount, footerUpdate)
-				statusLines++
+				if msg := *footerGT.MsgPtr.Load(); msg != "" {
+					showFooter = true
+					statusLines++
+				}
 			}
 
 			if maxTasks := maxLines - statusLines; len(visible) > maxTasks {
@@ -1333,7 +1341,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 
 			// Header.
-			if headerGT != nil {
+			if showHeader {
 				writeLine(renderTaskLine(headerGT, false, now, layout))
 			}
 			// Task lines.
@@ -1341,7 +1349,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				writeLine(renderTaskLine(gts[taskIndex], done[taskIndex], now, layout))
 			}
 			// Footer.
-			if footerGT != nil {
+			if showFooter {
 				writeLine(renderTaskLine(footerGT, false, now, layout))
 			}
 			// Clear any leftover lines from the previous frame.
