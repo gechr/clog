@@ -42,16 +42,17 @@ type Group struct {
 // GroupTask holds per-animation state for the group render loop.
 // This is exported so the root clog rendering code can access it.
 type GroupTask struct {
-	Builder    *Builder
-	DoneErr    chan error // buffered(1); goroutine sends result here
-	Err        error      // populated by Wait() after DoneErr is drained
-	FieldsPtr  *atomic.Pointer[[]core.Field]
-	FinishedAt atomic.Int64
-	LevelPtr   *atomic.Int64
-	MsgPtr     *atomic.Pointer[string]
-	StartTime  time.Time
-	StartedAt  atomic.Int64
-	SymbolPtr  *atomic.Pointer[string]
+	Builder        *Builder
+	DoneErr        chan error // buffered(1); goroutine sends result here
+	Err            error      // populated by Wait() after DoneErr is drained
+	FieldsPtr      *atomic.Pointer[[]core.Field]
+	FinishedAt     atomic.Int64
+	LevelPtr       *atomic.Int64
+	MsgPtr         *atomic.Pointer[string]
+	StartTime      time.Time
+	StartedAt      atomic.Int64
+	SymbolOverride atomic.Bool // true when SetSymbol has been called; disables animated spinner
+	SymbolPtr      *atomic.Pointer[string]
 }
 
 // Started reports whether the task has begun executing.
@@ -223,12 +224,13 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	g := ge.group
 
 	update := &Update{
-		MsgText:   b.Message,
-		MsgPtr:    t.MsgPtr,
-		FieldsPtr: t.FieldsPtr,
-		Base:      b.Fields,
-		LevelPtr:  t.LevelPtr,
-		SymbolPtr: t.SymbolPtr,
+		MsgText:           b.Message,
+		MsgPtr:            t.MsgPtr,
+		FieldsPtr:         t.FieldsPtr,
+		Base:              b.Fields,
+		LevelPtr:          t.LevelPtr,
+		SymbolOverridePtr: &t.SymbolOverride,
+		SymbolPtr:         t.SymbolPtr,
 	}
 	if b.Mode == AnimationBar {
 		update.ProgressPtr = b.BarProgressPtr

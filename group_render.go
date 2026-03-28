@@ -703,7 +703,6 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 			gt.cfg.styles,
 			gt.cfg.noColor,
 		)
-		// Use a checkmark or the builder symbol for completed items.
 		doneSymbol := styledSymbol(*gt.SymbolPtr.Load(), renderLevel, gt.cfg.styles, gt.cfg.noColor)
 		msg = alignMessageForFields(
 			gt.cfg.order,
@@ -806,10 +805,13 @@ func (gt *groupTask) animDuration(now time.Time) time.Duration {
 
 // resolveSymbol returns the styled symbol for the current animation frame.
 // When [Builder.AnimatedSymbol] is true, it cycles through [SpinnerStyle]
-// frames based on wall-clock time. Otherwise it returns the static symbol.
+// frames based on wall-clock time. When the symbol has been explicitly
+// overridden via [Update.SetSymbol], the static symbol is returned instead
+// so the caller can replace the spinner with a checkmark or other icon.
 func resolveSymbol(gt *groupTask, now time.Time) string {
 	b := gt.Builder
-	if b.AnimatedSymbol && gt.Started() && len(b.SpinnerStyle.Frames) > 0 &&
+	if b.AnimatedSymbol && !gt.SymbolOverride.Load() &&
+		gt.Started() && len(b.SpinnerStyle.Frames) > 0 &&
 		b.SpinnerStyle.Interval > 0 {
 		n := len(b.SpinnerStyle.Frames)
 		i := int(gt.animDuration(now)/b.SpinnerStyle.Interval) % n
