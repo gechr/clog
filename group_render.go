@@ -170,9 +170,12 @@ func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
 	return true
 }
 
-func visibleTaskIndexes(gts []*groupTask, done []bool, now time.Time) []int {
+func visibleTaskIndexes(gts []*groupTask, done []bool, hideDone bool, now time.Time) []int {
 	indexes := make([]int, 0, len(gts))
 	for i, gt := range gts {
+		if hideDone && done[i] {
+			continue
+		}
 		if shouldRenderTask(gt, done[i], now) {
 			indexes = append(indexes, i)
 		}
@@ -1049,12 +1052,13 @@ func measureGroupRenderLayout(
 	done []bool,
 	now time.Time,
 ) *groupRenderLayout {
+	hideDone := g.HideDone
 	layout := &groupRenderLayout{
 		fields: groupFieldLayout{alignment: g.FieldAlignment},
 	}
 	if layout.fields.alignment != fx.FieldAlignmentNone {
 		for i, gt := range gts {
-			if !shouldRenderTask(gt, done[i], now) {
+			if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) {
 				continue
 			}
 			layout.fields.maxStart = max(
@@ -1065,7 +1069,7 @@ func measureGroupRenderLayout(
 	}
 
 	for i, gt := range gts {
-		if !shouldRenderTask(gt, done[i], now) || done[i] || gt.Builder.Mode != fx.AnimationBar {
+		if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) || done[i] || gt.Builder.Mode != fx.AnimationBar {
 			continue
 		}
 
@@ -1096,8 +1100,9 @@ func measureGroupRenderLayout(
 
 	// For PlaceAligned, also measure done tasks so completed messages
 	// (which may be longer) are included in the max parts width.
+	// Skip when HideDone is set since done tasks are not rendered.
 	for i, gt := range gts {
-		if !shouldRenderTask(gt, done[i], now) || !done[i] {
+		if hideDone || !shouldRenderTask(gt, done[i], now) || !done[i] {
 			continue
 		}
 		if gt.Builder.Mode != fx.AnimationBar || gt.Builder.BarStyle.Placement != bar.PlaceAligned {
@@ -1241,7 +1246,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			// escapes never need to reach scrolled-off lines.
 			// Prioritise active (in-progress) tasks over done or
 			// pending ones when space is limited.
-			visible := visibleTaskIndexes(gts, done, now)
+			visible := visibleTaskIndexes(gts, done, g.HideDone, now)
 			if len(visible) > maxLines {
 				visible = prioritiseActive(visible, gts, done, maxLines)
 			}

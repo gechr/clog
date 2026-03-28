@@ -30,6 +30,7 @@ type Group struct {
 	Mu  sync.Mutex
 
 	FieldAlignment FieldAlignment
+	HideDone       bool
 	Log            Logger
 	Monotonic      bool
 	Parallelism    int

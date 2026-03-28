@@ -33,6 +33,15 @@ func WithMonotonic() GroupOption {
 	}
 }
 
+// WithHideDone removes completed tasks from the rendered block so that
+// only active and pending tasks remain visible. Completed tasks reappear
+// in the caller's own logging (e.g. via [WaitResult.Msg]).
+func WithHideDone() GroupOption {
+	return func(g *fx.Group) {
+		g.HideDone = true
+	}
+}
+
 // WithSyncAnimations controls whether animations in the group share a
 // common epoch so that spinners, pulses, and shimmers stay in lockstep.
 // Sync is enabled by default.

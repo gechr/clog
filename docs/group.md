@@ -48,6 +48,13 @@ when task totals grow or progress is reported in phases, enable monotonic mode:
 g := clog.Group(ctx, clog.WithMonotonic())
 ```
 
+To hide completed tasks from the rendered block so only active and pending tasks
+remain visible, use `WithHideDone`:
+
+```go
+g := clog.Group(ctx, clog.WithHideDone())
+```
+
 While the tasks run, the terminal shows all animations updating simultaneously:
 
 ```text
@@ -75,6 +82,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `clog.Group(ctx)`               | Create a group using the `Default` logger                    |
 | `logger.Group(ctx)`             | Create a group using a specific logger                       |
 | `clog.WithFieldAlignment(mode)` | Align the first field column in grouped output               |
+| `clog.WithHideDone()`           | Remove completed tasks from the rendered block               |
 | `clog.WithMonotonic()`          | Clamp grouped bars and percent to the highest shown fraction |
 | `clog.WithParallelism(n)`       | Limit how many group tasks may execute concurrently          |
 | `clog.WithSyncAnimations(b)`    | Sync animation phase across grouped tasks (default `true`)   |
@@ -84,6 +92,9 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `g.Wait()`                      | Block until all tasks complete, returns `*GroupResult`       |
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
+
+`WithHideDone()` removes completed tasks from the rendered block so only active
+and pending tasks are visible. Bar alignment layout only considers visible tasks.
 
 `WithMonotonic()` clamps the rendered bar fill, percentage text, and widget
 values to the highest fraction seen so far. It does not change the underlying
