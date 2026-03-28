@@ -180,6 +180,44 @@ func stylePercent(valStr string, originalValue any, styles *style.Config, revers
 	return ls.Render(valStr)
 }
 
+func styleFraction(valStr string, originalValue any, styles *style.Config, reverse bool) string {
+	f, ok := originalValue.(core.Fraction)
+	if !ok {
+		return ""
+	}
+	if f.Reverse {
+		reverse = !reverse
+	}
+
+	hasGradient := len(styles.PercentGradient) > 0
+
+	if !hasGradient && styles.FieldPercent == nil {
+		return ""
+	}
+
+	var ls lipgloss.Style
+	if styles.FieldPercent != nil {
+		ls = *styles.FieldPercent
+	}
+
+	if hasGradient {
+		t := float64(f.Current) / float64(max(f.Total, 1))
+		if reverse {
+			t = 1 - t
+		}
+
+		var c colorful.Color
+		if len(styles.PercentGradient) == 1 {
+			c = styles.PercentGradient[0].Color
+		} else {
+			c = style.InterpolateGradient(t, styles.PercentGradient)
+		}
+
+		ls = ls.Foreground(lipgloss.Color(c.Clamped().Hex()))
+	}
+	return ls.Render(valStr)
+}
+
 // styleQuantity renders a quantity string with separate styles for the numeric
 // and unit segments (e.g. "5" in FieldQuantityNumber, "km" in FieldQuantityUnit).
 // Per-unit overrides in [style.Config.QuantityUnits] take priority over [style.Config.FieldQuantityUnit].

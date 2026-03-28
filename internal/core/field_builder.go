@@ -201,6 +201,17 @@ func (fb *FieldBuilder[T]) JSON(key string, val any) *T {
 	return fb.Self
 }
 
+// Fraction adds a current/total field with gradient color styling.
+// The color is interpolated based on current/total progress.
+func (fb *FieldBuilder[T]) Fraction(key string, current, total int, opts ...func(*Fraction)) *T {
+	f := Fraction{Current: current, Total: total}
+	for _, o := range opts {
+		o(&f)
+	}
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: f})
+	return fb.Self
+}
+
 // Percent adds a percentage field with gradient color styling.
 // The value is stored as-is; use [Event.Percent] for clamped input.
 func (fb *FieldBuilder[T]) Percent(key string, val float64, opts ...func(*Percent)) *T {

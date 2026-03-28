@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clog/field/fraction"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
 )
@@ -516,6 +517,23 @@ func (e *Event) MsgFunc(createMsg func() string) {
 	}
 
 	e.Msg(createMsg())
+}
+
+// Fraction adds a current/total field with gradient color styling.
+// The color is interpolated from the [style.Config.PercentGradient] stops
+// (default: red → yellow → green) based on current/total progress.
+// Current is clamped to [0, total].
+func (e *Event) Fraction(key string, current, total int, opts ...fraction.Option) *Event {
+	if e == nil {
+		return e
+	}
+	current = max(0, min(current, total))
+	f := core.Fraction{Current: current, Total: total}
+	for _, o := range opts {
+		o(&f)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: f})
+	return e
 }
 
 // Percent adds a percentage field with gradient color styling.

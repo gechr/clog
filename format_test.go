@@ -223,6 +223,36 @@ func TestFormatValue(t *testing.T) {
 	}
 }
 
+func TestFormatValueFraction(t *testing.T) {
+	got, kind := formatValue(
+		core.Fraction{Current: 7, Total: 10},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
+	assert.Equal(t, "7/10", got)
+	assert.Equal(t, kindFraction, kind)
+}
+
+func TestFormatValueFractionZero(t *testing.T) {
+	got, kind := formatValue(
+		core.Fraction{Current: 0, Total: 5},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		"",
+		0,
+		1,
+	)
+	assert.Equal(t, "0/5", got)
+	assert.Equal(t, kindFraction, kind)
+}
+
 func TestFormatValuePercent(t *testing.T) {
 	got, kind := formatValue(
 		core.Percent{Value: 0.75},
@@ -1972,6 +2002,26 @@ func TestInterpolateGradientMidpoint(t *testing.T) {
 	assert.InDelta(t, 1.0, c.R, 0.01)
 	assert.InDelta(t, 1.0, c.G, 0.01)
 	assert.InDelta(t, 0.0, c.B, 0.1)
+}
+
+func TestStyleFractionOutput(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleFraction("7/10", core.Fraction{Current: 7, Total: 10}, styles, false)
+	assert.Contains(t, got, "7/10")
+	assert.Contains(t, got, "\x1b[") // ANSI color applied
+}
+
+func TestStyleFractionNoGradient(t *testing.T) {
+	styles := DefaultStyles()
+	styles.PercentGradient = nil
+	got := styleFraction("3/5", core.Fraction{Current: 3, Total: 5}, styles, false)
+	assert.Empty(t, got)
+}
+
+func TestStyleFractionWrongType(t *testing.T) {
+	styles := DefaultStyles()
+	got := styleFraction("3/5", "not a fraction", styles, false)
+	assert.Empty(t, got)
 }
 
 func TestStylePercentOutput(t *testing.T) {

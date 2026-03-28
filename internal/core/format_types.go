@@ -23,3 +23,12 @@ type Percent struct {
 	Reverse bool
 	Maximum *float64
 }
+
+// Fraction holds a current/total pair rendered as "current/total" with
+// gradient color styling based on current/total progress. When Reverse
+// is true, the gradient is flipped (useful for countdowns).
+type Fraction struct {
+	Current int
+	Total   int
+	Reverse bool
+}

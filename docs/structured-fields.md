@@ -26,6 +26,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Float64`    | `Float64(key string, val float64)`                         | 64-bit float field                                                                  |
 | `Floats32`   | `Floats32(key string, vals []float32)`                     | 32-bit float slice field                                                            |
 | `Floats64`   | `Floats64(key string, vals []float64)`                     | 64-bit float slice field                                                            |
+| `Fraction`   | `Fraction(key string, current, total int, ...Option)`      | Current/total field with gradient color (e.g. `3/10`)                               |
 | `Func`       | `Func(fn func(*Event))`                                    | Lazy field builder; callback skipped on nil (disabled) events                       |
 | `Hex`        | `Hex(key string, val []byte)`                              | Byte slice as hex string                                                            |
 | `Int`        | `Int(key string, val int)`                                 | Integer field                                                                       |

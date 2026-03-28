@@ -45,6 +45,7 @@ const (
 	kindDuration
 	kindElapsed
 	kindError
+	kindFraction
 	kindJSON
 	kindNumber
 	kindPercent
@@ -194,6 +195,8 @@ func formatValue(
 	switch val := v.(type) {
 	case core.ElapsedField:
 		return formatElapsed(time.Duration(val), elapsedPrecision), kindElapsed
+	case core.Fraction:
+		return strconv.Itoa(val.Current) + "/" + strconv.Itoa(val.Total), kindFraction
 	case error:
 		return val.Error(), kindError
 	case core.RawJSON:
@@ -475,6 +478,10 @@ func styleValue(
 		}
 	case kindElapsed:
 		if styled := styleElapsed(valStr, originalValue, styles); styled != "" {
+			return styled
+		}
+	case kindFraction:
+		if styled := styleFraction(valStr, originalValue, styles, percentReverse); styled != "" {
 			return styled
 		}
 	case kindPercent:
