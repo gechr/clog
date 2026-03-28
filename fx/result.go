@@ -1,6 +1,8 @@
 package fx
 
 import (
+	"context"
+	"errors"
 	"fmt"
 
 	"github.com/gechr/clog/internal/core"
@@ -56,8 +58,13 @@ func (w *WaitResult) Msgf(format string, a ...any) error {
 }
 
 // Send finalises the result, logging at the configured success or error
-// level. Returns the error from the task.
+// level. Context cancellation errors are silenced since they indicate
+// an interrupt, not a task failure. Returns the error from the task.
 func (w *WaitResult) Send() error {
+	if w.TaskErr != nil && errors.Is(w.TaskErr, context.Canceled) {
+		return w.TaskErr
+	}
+
 	var lvl core.Level
 	var msg string
 	var errField error
