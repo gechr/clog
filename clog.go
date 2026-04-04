@@ -57,6 +57,9 @@ const (
 	LevelFatalValue = level.FatalValue
 )
 
+// nl is the newline terminator used throughout the package.
+const nl = "\n"
+
 // ErrorKey is the default field key used by [Event.Err] and [Context.Err].
 const ErrorKey = core.ErrorKey
 
@@ -70,48 +73,51 @@ var Default = New(Stdout(ColorAuto))
 type Logger struct {
 	mu *sync.Mutex
 
-	animationInterval time.Duration
-	atomicLevel       atomic.Int32 // lock-free level check for newEvent() hot path
-	exitCode          int          // default exit code for Fatal-level events; 0 means 1
-	exitFunc          func(int)    // called by Fatal-level events; defaults to os.Exit
-	fields            []Field
-	fieldSort         Sort
-	fieldStyleLevel   Level
-	fieldTimeFormat   string
-	handler           Handler
-	hooks             map[HookPoint][]func()
-	indent            int      // number of indent levels for nested output
-	indentPrefixes    []string // per-depth decorations cycled after space indent
-	indentPrefixSep   *string  // separator after indent prefix; nil = default " "
-	indentWidth       int      // spaces per indent level (default 2)
-	labels            LabelMap
-	labelsPadded      LabelMap
-	labelWidth        int
-	level             Level
-	levelAlign        Align
-	nonTTYLevel       Level // events below this level are suppressed on non-TTY writers
-	omitEmpty         bool
-	omitZero          bool
-	output            *Output
-	parts             []Part
-	printIndent       string    // indent string for PrintMultiline; "" = use default ("  ")
-	printMode         PrintMode // default mode for Printer
-	quoteClose        rune      // 0 means same as quoteOpen (or default)
-	quoteMode         QuoteMode
-	quoteOpen         rune // 0 means default ('"' via strconv.Quote)
-	reportTimestamp   bool
-	separatorText     string
-	sliceClose        rune // 0 means default (']')
-	sliceOpen         rune // 0 means default ('[')
-	sliceSep          string
-	spinnerStyle      *spinner.Style // nil = use spinner.DefaultStyle()
-	styles            *style.Config
-	symbol            *string // nil = use default emoji for level
-	symbols           LabelMap
-	timeFormat        string
-	timeLocation      *time.Location
-	tree              []TreePos // nil = no tree mode; one entry per tree level
-	treeChars         TreeChars // box-drawing characters for tree indentation
+	animationInterval  time.Duration
+	atomicLevel        atomic.Int32 // lock-free level check for newEvent() hot path
+	exitCode           int          // default exit code for Fatal-level events; 0 means 1
+	exitFunc           func(int)    // called by Fatal-level events; defaults to os.Exit
+	fields             []Field
+	fieldSort          Sort
+	fieldStyleLevel    Level
+	fieldTimeFormat    string
+	handler            Handler
+	hooks              map[HookPoint][]func()
+	indent             int      // number of indent levels for nested output
+	indentPrefixes     []string // per-depth decorations cycled after space indent
+	indentPrefixSep    *string  // separator after indent prefix; nil = default " "
+	indentWidth        int      // spaces per indent level (default 2)
+	labels             LabelMap
+	labelsPadded       LabelMap
+	labelWidth         int
+	level              Level
+	levelAlign         Align
+	nonTTYLevel        Level // events below this level are suppressed on non-TTY writers
+	omitEmpty          bool
+	omitZero           bool
+	jsonIndent         string        // JSON-specific indent; "" = use printIndent
+	jsonPrintMode      JSONPrintMode // default JSON print mode
+	output             *Output
+	parts              []Part
+	printIndent        string // indent string for Printer output; "" = use default ("  ")
+	quoteClose         rune   // 0 means same as quoteOpen (or default)
+	quoteMode          QuoteMode
+	quoteOpen          rune // 0 means default ('"' via strconv.Quote)
+	reportTimestamp    bool
+	separatorText      string
+	sliceClose         rune // 0 means default (']')
+	sliceOpen          rune // 0 means default ('[')
+	sliceSep           string
+	spinnerStyle       *spinner.Style // nil = use spinner.DefaultStyle()
+	styles             *style.Config
+	symbol             *string // nil = use default emoji for level
+	symbols            LabelMap
+	timeFormat         string
+	timeLocation       *time.Location
+	tree               []TreePos // nil = no tree mode; one entry per tree level
+	treeChars          TreeChars // box-drawing characters for tree indentation
+	yamlIndent         string    // YAML-specific indent; "" = use printIndent
+	yamlIndentSequence *bool     // nil = true (indent sequences by default)
 }
 
 // New creates a new [Logger] that writes to the given [Output].
@@ -513,13 +519,47 @@ func (l *Logger) SetPrintIndent(indent string) {
 	l.printIndent = indent
 }
 
-// SetPrintMode sets the default [PrintMode] for [Printer] output.
-// The default is [PrintMultiline]. Per-call overrides are available
-// via [Printer.Mode].
-func (l *Logger) SetPrintMode(mode PrintMode) {
+// SetJSONIndent sets a JSON-specific indentation string, overriding [SetPrintIndent]
+// for JSON output only. Pass "" to clear and fall back to [SetPrintIndent].
+func (l *Logger) SetJSONIndent(indent string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.printMode = mode
+	l.jsonIndent = indent
+}
+
+// SetJSONPrintMode sets the default [JSONPrintMode] for [Printer] JSON output.
+// The default is [JSONPretty]. Per-call overrides are available
+// via [Printer.Mode].
+func (l *Logger) SetJSONPrintMode(mode JSONPrintMode) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.jsonPrintMode = mode
+}
+
+// SetYAMLIndent sets a YAML-specific indentation string, overriding [SetPrintIndent]
+// for YAML output only. Pass "" to clear and fall back to [SetPrintIndent].
+func (l *Logger) SetYAMLIndent(indent string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.yamlIndent = indent
+}
+
+// SetYAMLIndentSequence controls whether YAML sequences (arrays) are indented
+// under their parent key. Defaults to true. Pass false for compact output:
+//
+//	# true (default)
+//	tags:
+//	  - a
+//	  - b
+//
+//	# false
+//	tags:
+//	- a
+//	- b
+func (l *Logger) SetYAMLIndentSequence(indent bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.yamlIndentSequence = &indent
 }
 
 // SetOutput sets the output.

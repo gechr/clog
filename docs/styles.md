@@ -49,69 +49,69 @@ clog.SetStyles(&style.Config{
 
 ## Styles Reference
 
-| Field                 | Type                     | Alias           | Default                   |
-| --------------------- | ------------------------ | --------------- | ------------------------- |
-| `DurationGradient`    | `[]style.ColorStop`      |                 | green → yellow → red      |
-| `DurationGradientMode`| `style.GradientMode`     |                 | `style.GradientFade`      |
-| `DurationThresholds`  | `map[string][]Threshold` | `ThresholdMap`  | `{}`                      |
-| `DurationUnits`       | `map[string]Style`       | `StyleMap`      | `{}`                      |
-| `ElapsedGradient`     | `[]style.ColorStop`      |                 | green → yellow → red      |
-| `ElapsedGradientMode` | `style.GradientMode`     |                 | `style.GradientFade`      |
-| `FieldDurationNumber` | `Style`                  |                 | magenta                   |
-| `FieldDurationUnit`   | `Style`                  |                 | magenta faint             |
-| `FieldElapsedNumber`  | `Style`                  |                 | `nil` (→ DurationNumber)  |
-| `FieldElapsedUnit`    | `Style`                  |                 | `nil` (→ DurationUnit)    |
-| `FieldError`          | `Style`                  |                 | red                       |
-| `FieldJSON`           | `*style.JSON`            |                 | `style.DefaultJSON()`     |
-| `FieldNumber`         | `Style`                  |                 | magenta                   |
-| `FieldPercent`        | `Style`                  |                 | `nil`                     |
-| `FieldQuantityNumber` | `Style`                  |                 | magenta                   |
-| `FieldQuantityUnit`   | `Style`                  |                 | magenta faint             |
-| `FieldString`         | `Style`                  |                 | white                     |
-| `FieldTime`           | `Style`                  |                 | magenta                   |
-| `KeyDefault`          | `Style`                  |                 | blue                      |
-| `Keys`                | `map[string]Style`       | `StyleMap`      | `{}`                      |
-| `Levels`              | `map[Level]Style`        | `LevelStyleMap` | per-level bold colors     |
-| `Messages`            | `map[Level]Style`        | `LevelStyleMap` | `style.DefaultMessages()` |
-| `PercentGradient`     | `[]style.ColorStop`      |                 | red → yellow → green      |
-| `QuantityThresholds`  | `map[string][]Threshold` | `ThresholdMap`  | `{}`                      |
-| `QuantityUnits`       | `map[string]Style`       | `StyleMap`      | `{}`                      |
-| `Separator`           | `Style`                  |                 | faint                     |
-| `Symbols`             | `map[Level]Style`        | `LevelStyleMap` | `{}`                      |
-| `Timestamp`           | `Style`                  |                 | faint                     |
-| `Values`              | `map[any]Style`          | `ValueStyleMap` | `style.DefaultValues()`   |
+| Field                  | Type                     | Alias           | Default                   |
+| ---------------------- | ------------------------ | --------------- | ------------------------- |
+| `DurationGradient`     | `[]style.ColorStop`      |                 | green → yellow → red      |
+| `DurationGradientMode` | `style.GradientMode`     |                 | `style.GradientFade`      |
+| `DurationThresholds`   | `map[string][]Threshold` | `ThresholdMap`  | `{}`                      |
+| `DurationUnits`        | `map[string]Style`       | `StyleMap`      | `{}`                      |
+| `ElapsedGradient`      | `[]style.ColorStop`      |                 | green → yellow → red      |
+| `ElapsedGradientMode`  | `style.GradientMode`     |                 | `style.GradientFade`      |
+| `FieldDurationNumber`  | `Style`                  |                 | magenta                   |
+| `FieldDurationUnit`    | `Style`                  |                 | magenta faint             |
+| `FieldElapsedNumber`   | `Style`                  |                 | `nil` (→ DurationNumber)  |
+| `FieldElapsedUnit`     | `Style`                  |                 | `nil` (→ DurationUnit)    |
+| `FieldError`           | `Style`                  |                 | red                       |
+| `JSON`                 | `*style.JSON`            |                 | `style.DefaultJSON()`     |
+| `FieldNumber`          | `Style`                  |                 | magenta                   |
+| `FieldPercent`         | `Style`                  |                 | `nil`                     |
+| `FieldQuantityNumber`  | `Style`                  |                 | magenta                   |
+| `FieldQuantityUnit`    | `Style`                  |                 | magenta faint             |
+| `FieldString`          | `Style`                  |                 | white                     |
+| `FieldTime`            | `Style`                  |                 | magenta                   |
+| `KeyDefault`           | `Style`                  |                 | blue                      |
+| `Keys`                 | `map[string]Style`       | `StyleMap`      | `{}`                      |
+| `Levels`               | `map[Level]Style`        | `LevelStyleMap` | per-level bold colors     |
+| `Messages`             | `map[Level]Style`        | `LevelStyleMap` | `style.DefaultMessages()` |
+| `PercentGradient`      | `[]style.ColorStop`      |                 | red → yellow → green      |
+| `QuantityThresholds`   | `map[string][]Threshold` | `ThresholdMap`  | `{}`                      |
+| `QuantityUnits`        | `map[string]Style`       | `StyleMap`      | `{}`                      |
+| `Separator`            | `Style`                  |                 | faint                     |
+| `Symbols`              | `map[Level]Style`        | `LevelStyleMap` | `{}`                      |
+| `Timestamp`            | `Style`                  |                 | faint                     |
+| `Values`               | `map[any]Style`          | `ValueStyleMap` | `style.DefaultValues()`   |
 
-| Field                 | Description                                                                                |
-| --------------------- | ------------------------------------------------------------------------------------------ |
-| `DurationGradient`    | Gradient color stops for `Duration` fields; active when `SetDurationGradientMax` > 0       |
-| `DurationGradientMode`| Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
-| `DurationThresholds`  | Duration unit -> magnitude-based style thresholds                                          |
-| `DurationUnits`       | Duration unit string -> style override                                                     |
-| `ElapsedGradient`     | Gradient color stops for `Elapsed` fields; active when `SetElapsedGradientMax` > 0         |
-| `ElapsedGradientMode` | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
-| `FieldDurationNumber` | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable        |
-| `FieldDurationUnit`   | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable           |
-| `FieldElapsedNumber`  | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber` |
-| `FieldElapsedUnit`    | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`      |
-| `FieldError`          | Style for error field values, nil to disable                                               |
-| `FieldJSON`           | Per-token styles for JSON syntax highlighting; nil disables highlighting                   |
-| `FieldNumber`         | Style for int/float field values, nil to disable                                           |
-| `FieldPercent`        | Base style for `Percent` fields (foreground overridden by gradient), nil to disable        |
-| `FieldQuantityNumber` | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable              |
-| `FieldQuantityUnit`   | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                |
-| `FieldString`         | Style for string field values, nil to disable                                              |
-| `FieldTime`           | Style for `time.Time` field values, nil to disable                                         |
-| `KeyDefault`          | Style for field key names without a per-key override, nil to disable                       |
-| `Keys`                | Field key name -> value style override                                                     |
-| `Levels`              | Per-level label style (e.g. "INF", "ERR"), nil to disable                                  |
-| `Messages`            | Per-level message text style, nil to disable                                               |
-| `PercentGradient`     | Gradient color stops for `Percent` fields                                                  |
-| `QuantityThresholds`  | Quantity unit -> magnitude-based style thresholds                                          |
-| `QuantityUnits`       | Quantity unit string -> style override                                                     |
-| `Separator`           | Style for the separator between key and value                                              |
-| `Symbols`             | Per-level symbol style                                                                     |
-| `Timestamp`           | Style for the timestamp, nil to disable                                                    |
-| `Values`              | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                 |
+| Field                  | Description                                                                                |
+| ---------------------- | ------------------------------------------------------------------------------------------ |
+| `DurationGradient`     | Gradient color stops for `Duration` fields; active when `SetDurationGradientMax` > 0       |
+| `DurationGradientMode` | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
+| `DurationThresholds`   | Duration unit -> magnitude-based style thresholds                                          |
+| `DurationUnits`        | Duration unit string -> style override                                                     |
+| `ElapsedGradient`      | Gradient color stops for `Elapsed` fields; active when `SetElapsedGradientMax` > 0         |
+| `ElapsedGradientMode`  | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
+| `FieldDurationNumber`  | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable        |
+| `FieldDurationUnit`    | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable           |
+| `FieldElapsedNumber`   | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber` |
+| `FieldElapsedUnit`     | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`      |
+| `FieldError`           | Style for error field values, nil to disable                                               |
+| `JSON`                 | Per-token styles for JSON syntax highlighting; nil disables highlighting                   |
+| `FieldNumber`          | Style for int/float field values, nil to disable                                           |
+| `FieldPercent`         | Base style for `Percent` fields (foreground overridden by gradient), nil to disable        |
+| `FieldQuantityNumber`  | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable              |
+| `FieldQuantityUnit`    | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                |
+| `FieldString`          | Style for string field values, nil to disable                                              |
+| `FieldTime`            | Style for `time.Time` field values, nil to disable                                         |
+| `KeyDefault`           | Style for field key names without a per-key override, nil to disable                       |
+| `Keys`                 | Field key name -> value style override                                                     |
+| `Levels`               | Per-level label style (e.g. "INF", "ERR"), nil to disable                                  |
+| `Messages`             | Per-level message text style, nil to disable                                               |
+| `PercentGradient`      | Gradient color stops for `Percent` fields                                                  |
+| `QuantityThresholds`   | Quantity unit -> magnitude-based style thresholds                                          |
+| `QuantityUnits`        | Quantity unit string -> style override                                                     |
+| `Separator`            | Style for the separator between key and value                                              |
+| `Symbols`              | Per-level symbol style                                                                     |
+| `Timestamp`            | Style for the timestamp, nil to disable                                                    |
+| `Values`               | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                 |
 
 ## Configuration
 

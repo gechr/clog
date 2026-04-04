@@ -536,13 +536,13 @@ func TestSpinnerIndent(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Non-TTY initial line: indent should be present in message.
-	assert.Equal(t, "INF ⏳   loading\n", lines[0]+"\n")
+	assert.Equal(t, "INF ⏳   loading\n", lines[0]+nl)
 	// Completion line: indentedLogger applies indent to the result.
-	assert.Equal(t, "INF ℹ️   done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ℹ️   done\n", lines[1]+nl)
 }
 
 func TestSpinnerDepth(t *testing.T) {
@@ -556,12 +556,12 @@ func TestSpinnerDepth(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// 2 levels × 2 width = 4 spaces.
-	assert.Equal(t, "INF ⏳     loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️     done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳     loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️     done\n", lines[1]+nl)
 }
 
 func TestSpinnerIndentOnIndentedLogger(t *testing.T) {
@@ -576,12 +576,12 @@ func TestSpinnerIndentOnIndentedLogger(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Logger depth 1 + builder depth 1 = 2 total → 4 spaces.
-	assert.Equal(t, "INF ⏳     loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️     done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳     loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️     done\n", lines[1]+nl)
 }
 
 func TestSpinnerIndentWithError(t *testing.T) {
@@ -597,12 +597,12 @@ func TestSpinnerIndentWithError(t *testing.T) {
 	require.ErrorIs(t, err, assert.AnError)
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Error completion line should also be indented.
-	assert.Equal(t, "INF ⏳   loading\n", lines[0]+"\n")
-	assert.Equal(t, "ERR ❌   "+assert.AnError.Error()+"\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳   loading\n", lines[0]+nl)
+	assert.Equal(t, "ERR ❌   "+assert.AnError.Error()+nl, lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------
@@ -624,13 +624,13 @@ func TestGroupTaskIndent(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Non-TTY group initial line is indented.
-	assert.Equal(t, "INF ⏳   task\n", lines[0]+"\n")
+	assert.Equal(t, "INF ⏳   task\n", lines[0]+nl)
 	// Completion message is indented via indentedLogger.
-	assert.Equal(t, "INF ℹ️   done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ℹ️   done\n", lines[1]+nl)
 }
 
 func TestGroupTaskDepth(t *testing.T) {
@@ -648,11 +648,11 @@ func TestGroupTaskDepth(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
-	assert.Equal(t, "INF ⏳     task\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️     done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳     task\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️     done\n", lines[1]+nl)
 }
 
 func TestGroupTaskIndentOnIndentedLogger(t *testing.T) {
@@ -671,12 +671,12 @@ func TestGroupTaskIndentOnIndentedLogger(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Logger depth 1 + builder depth 1 = 2 → 4 spaces.
-	assert.Equal(t, "INF ⏳     task\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️     done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳     task\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️     done\n", lines[1]+nl)
 }
 
 func TestGroupTaskIndentWithError(t *testing.T) {
@@ -695,11 +695,11 @@ func TestGroupTaskIndentWithError(t *testing.T) {
 	require.ErrorIs(t, err, assert.AnError)
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
-	assert.Equal(t, "INF ⏳   task\n", lines[0]+"\n")
-	assert.Equal(t, "ERR ❌   "+assert.AnError.Error()+"\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳   task\n", lines[0]+nl)
+	assert.Equal(t, "ERR ❌   "+assert.AnError.Error()+nl, lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------
@@ -717,12 +717,12 @@ func TestSpinnerIndentWithFields(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Non-TTY initial line should have indent + message + field.
-	assert.Equal(t, "INF ⏳   loading file=main.go\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️   done file=main.go\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳   loading file=main.go\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️   done file=main.go\n", lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------
@@ -741,12 +741,12 @@ func TestSpinnerIndentWithPrefixes(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// indent (2 spaces) + prefix "|" + sep " " = "  | "
-	assert.Equal(t, "INF ⏳   | loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️   | done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳   | loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️   | done\n", lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------
@@ -873,12 +873,12 @@ func TestSpinnerDedent(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// net depth 1 → 2 spaces.
-	assert.Equal(t, "INF ⏳   loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️   done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳   loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️   done\n", lines[1]+nl)
 }
 
 func TestSpinnerDedentClampAtZero(t *testing.T) {
@@ -892,9 +892,9 @@ func TestSpinnerDedentClampAtZero(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
-	assert.Equal(t, "INF ⏳ loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️ done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳ loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️ done\n", lines[1]+nl)
 }

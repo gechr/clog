@@ -468,11 +468,11 @@ func TestSpinnerTree(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
-	assert.Equal(t, "INF ⏳ ├── loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️ ├── done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳ ├── loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️ ├── done\n", lines[1]+nl)
 }
 
 func TestSpinnerTreeOnTreeLogger(t *testing.T) {
@@ -487,12 +487,12 @@ func TestSpinnerTreeOnTreeLogger(t *testing.T) {
 		}).Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
 	// Logger tree [middle] + builder tree [last] → "│   └── ".
-	assert.Equal(t, "INF ⏳ │   └── loading\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️ │   └── done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳ │   └── loading\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️ │   └── done\n", lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------
@@ -514,11 +514,11 @@ func TestGroupTaskTree(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 
 	out := buf.String()
-	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	lines := strings.Split(strings.TrimRight(out, nl), nl)
 	require.Len(t, lines, 2)
 
-	assert.Equal(t, "INF ⏳ └── task\n", lines[0]+"\n")
-	assert.Equal(t, "INF ℹ️ └── done\n", lines[1]+"\n")
+	assert.Equal(t, "INF ⏳ └── task\n", lines[0]+nl)
+	assert.Equal(t, "INF ℹ️ └── done\n", lines[1]+nl)
 }
 
 // ---------------------------------------------------------------------------

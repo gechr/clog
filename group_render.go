@@ -1250,7 +1250,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				gt.cfg.indentation+*gt.MsgPtr.Load(),
 				fieldsStr,
 			)
-			writeString(gt.cfg.out, line+"\n")
+			writeString(gt.cfg.out, line+nl)
 		}
 		for _, ft := range fxTasks {
 			select {
@@ -1428,7 +1428,7 @@ func clearBlock(out io.Writer, n int) {
 		fmt.Fprintf(&buf, cursorUpFmt, n-1)
 	}
 	for range n {
-		buf.WriteString(clearLine + "\n")
+		buf.WriteString(clearLine + nl)
 	}
 	fmt.Fprintf(&buf, cursorUpFmt, n)
 	writeString(out, buf.String())

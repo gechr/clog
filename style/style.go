@@ -57,6 +57,13 @@ const (
 // Config holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Config struct {
+	// Per-token styles for JSON syntax highlighting.
+	// nil disables JSON highlighting; use [DefaultJSON] to enable.
+	JSON *JSON
+	// Per-token styles for YAML syntax highlighting.
+	// nil disables YAML highlighting; use [DefaultYAML] to enable.
+	YAML *YAML
+
 	// Style for divider line characters (see [clog.DividerBuilder]) [nil = plain text]
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]
@@ -85,9 +92,6 @@ type Config struct {
 	FieldElapsedUnit *lipgloss.Style
 	// Style for error field values [nil = plain text]
 	FieldError *lipgloss.Style
-	// Per-token styles for JSON syntax highlighting.
-	// nil disables JSON highlighting; use [DefaultJSON] to enable.
-	FieldJSON *JSON
 	// Style for int/float field values [nil = plain text]
 	FieldNumber *lipgloss.Style
 	// Base style for Percent fields (foreground overridden by gradient). nil = gradient color only.

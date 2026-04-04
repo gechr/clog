@@ -157,7 +157,7 @@ func runAnimation(
 				gt.cfg.indentation+*msgPtr.Load(),
 				fieldsStr,
 			)
-			writeString(gt.cfg.out, line+"\n")
+			writeString(gt.cfg.out, line+nl)
 		}
 
 		select {

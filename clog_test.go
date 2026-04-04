@@ -633,7 +633,7 @@ func TestLogFormattedOutputWithTimestamp(t *testing.T) {
 
 	assert.Contains(t, got, "INF")
 	assert.Contains(t, got, "hello")
-	assert.True(t, strings.HasSuffix(got, "\n"))
+	assert.True(t, strings.HasSuffix(got, nl))
 	// Timestamp format "HH:MM:SS.mmm" = 12 chars, plus trailing space.
 	assert.GreaterOrEqual(t, len(got), 12, "output too short for timestamp")
 }
@@ -1085,7 +1085,7 @@ func TestPerLevelMessageStyle(t *testing.T) {
 
 		l.Error().Msg("boom")
 
-		want := l.styles.Levels[LevelError].Render("boom") + "\n"
+		want := l.styles.Levels[LevelError].Render("boom") + nl
 		assert.Equal(t, want, buf.String())
 	})
 
@@ -1147,7 +1147,7 @@ func TestEventPartsOverride(t *testing.T) {
 		l.Info().Parts(PartMessage).Msg("first")
 		l.Info().Msg("second")
 
-		lines := strings.Split(strings.TrimRight(buf.String(), "\n"), "\n")
+		lines := strings.Split(strings.TrimRight(buf.String(), nl), nl)
 		require.Len(t, lines, 2)
 		assert.Equal(t, "first", lines[0])
 		assert.Equal(t, "INF second", lines[1])
@@ -1628,7 +1628,7 @@ func TestConcurrentLogging(t *testing.T) {
 	}
 
 	got := buf.String()
-	lines := strings.Split(strings.TrimSpace(got), "\n")
+	lines := strings.Split(strings.TrimSpace(got), nl)
 	assert.Len(t, lines, goroutines*iterations)
 }
 

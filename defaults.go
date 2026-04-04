@@ -147,8 +147,17 @@ func SetParts(order ...Part) { Default.SetParts(order...) }
 // SetPrintIndent sets the printer indentation string on the [Default] logger.
 func SetPrintIndent(indent string) { Default.SetPrintIndent(indent) }
 
-// SetPrintMode sets the default [PrintMode] on the [Default] logger.
-func SetPrintMode(mode PrintMode) { Default.SetPrintMode(mode) }
+// SetJSONIndent sets a JSON-specific indent on the [Default] logger.
+func SetJSONIndent(indent string) { Default.SetJSONIndent(indent) }
+
+// SetJSONPrintMode sets the default [JSONPrintMode] on the [Default] logger.
+func SetJSONPrintMode(mode JSONPrintMode) { Default.SetJSONPrintMode(mode) }
+
+// SetYAMLIndent sets a YAML-specific indent on the [Default] logger.
+func SetYAMLIndent(indent string) { Default.SetYAMLIndent(indent) }
+
+// SetYAMLIndentSequence controls YAML sequence indentation on the [Default] logger.
+func SetYAMLIndentSequence(indent bool) { Default.SetYAMLIndentSequence(indent) }
 
 // SetSymbols sets the level symbols on the [Default] logger.
 func SetSymbols(symbols LabelMap) { Default.SetSymbols(symbols) }

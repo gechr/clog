@@ -19,15 +19,15 @@ clog.Error().
 
 Use `JSON` when you have a Go value to log; use `RawJSON` when you already have bytes (HTTP response bodies, `json.RawMessage`, database JSON columns) to avoid an unnecessary marshal/unmarshal round-trip. `JSON` logs the error string as the field value if marshalling fails.
 
-Pretty-printed JSON is automatically flattened to a single line. Highlighting uses a Dracula-inspired color scheme by default (space after commas included). Disable or customise it via `FieldJSON` in `Styles`:
+Pretty-printed JSON is automatically flattened to a single line. Highlighting uses a Dracula-inspired color scheme by default (space after commas included). Disable or customise it via `JSON` in `Styles`:
 
 ```go
 // Custom colors
 custom := style.DefaultJSON()
 custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
-clog.SetStyles(&style.Config{FieldJSON: custom})
+clog.SetStyles(&style.Config{JSON: custom})
 
-// Disable highlighting (reset all styles, then re-apply without FieldJSON)
+// Disable highlighting (reset all styles, then re-apply without JSON)
 clog.SetStyles(nil) // reset to defaults
 ```
 
@@ -45,7 +45,7 @@ clog.SetStyles(nil) // reset to defaults
 custom := style.DefaultJSON()
 custom.NumberNegative = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))) // red
 custom.NumberZero = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))     // grey
-styles.FieldJSON = custom
+styles.JSON = custom
 clog.SetStyles(styles)
 ```
 
@@ -62,8 +62,8 @@ Set `style.JSON.Mode` to control how JSON structure is rendered:
 **`style.JSONModeHuman`** - keys are unquoted unless they contain `,{}[]\s:#"'` or start with `//`/`/*`. String values are unquoted unless they start with a forbidden character, end with whitespace, are ambiguous as a JSON keyword (`true`, `false`, `null`), or look like a number. Empty strings always render as `""`.
 
 ```go
-styles.FieldJSON = style.DefaultJSON()
-styles.FieldJSON.Mode = style.JSONModeHuman
+styles.JSON = style.DefaultJSON()
+styles.JSON.Mode = style.JSONModeHuman
 
 clog.Info().
   RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null}`)).
@@ -74,7 +74,7 @@ clog.Info().
 **`style.JSONModeFlat`** - nested objects are recursed into and their keys joined with `.`; arrays are kept intact as values:
 
 ```go
-styles.FieldJSON.Mode = style.JSONModeFlat
+styles.JSON.Mode = style.JSONModeFlat
 
 clog.Info().
   RawJSON("resp", []byte(`{"user":{"name":"alice","role":"admin"},"tags":["a","b"]}`)).
@@ -96,10 +96,10 @@ clog.Info().
 
 ```go
 // Fluent builder
-styles.FieldJSON = style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
+styles.JSON = style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
 
 // Direct assignment
-styles.FieldJSON.Spacing = style.JSONSpacingAfterComma | style.JSONSpacingBeforeObject
+styles.JSON.Spacing = style.JSONSpacingAfterComma | style.JSONSpacingBeforeObject
 ```
 
 `style.JSONSpacingAfterColon` and `style.JSONSpacingBeforeObject`/`style.JSONSpacingBeforeArray` are independent - combining them produces two spaces before a nested value.
@@ -109,8 +109,8 @@ styles.FieldJSON.Spacing = style.JSONSpacingAfterComma | style.JSONSpacingBefore
 Set `OmitCommas: true` to drop the `,` separator. Combine with `style.JSONSpacingAfterComma` to keep a space in its place:
 
 ```go
-styles.FieldJSON.OmitCommas = true
-styles.FieldJSON.Spacing |= style.JSONSpacingAfterComma
+styles.JSON.OmitCommas = true
+styles.JSON.Spacing |= style.JSONSpacingAfterComma
 
 clog.Info().
   RawJSON("r", []byte(`{"a":1,"b":2,"c":true}`)).

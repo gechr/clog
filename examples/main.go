@@ -697,7 +697,7 @@ func main() {
 	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))              // green keys
 	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true)) // red dim null
 	customStyleSet := clog.DefaultStyles()
-	customStyleSet.FieldJSON = customStyles
+	customStyleSet.JSON = customStyles
 	clog.SetStyles(customStyleSet)
 	clog.Info().
 		RawJSON("payload", []byte(`{"id":"abc123","count":42,"ratio":0.875,"active":true,"archived":false,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
@@ -706,8 +706,8 @@ func main() {
 
 	header("RawJSON (human mode)")
 	humanStyles := clog.DefaultStyles()
-	humanStyles.FieldJSON = style.DefaultJSON()
-	humanStyles.FieldJSON.Mode = style.JSONModeHuman
+	humanStyles.JSON = style.DefaultJSON()
+	humanStyles.JSON.Mode = style.JSONModeHuman
 	clog.SetStyles(humanStyles)
 	clog.Info().
 		RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).
@@ -716,8 +716,8 @@ func main() {
 
 	header("RawJSON (flat mode)")
 	flatStyles := clog.DefaultStyles()
-	flatStyles.FieldJSON = style.DefaultJSON()
-	flatStyles.FieldJSON.Mode = style.JSONModeFlat
+	flatStyles.JSON = style.DefaultJSON()
+	flatStyles.JSON.Mode = style.JSONModeFlat
 	clog.SetStyles(flatStyles)
 	clog.Error().
 		Str("batch", "1/1").
@@ -730,7 +730,7 @@ func main() {
 
 	header("RawJSON (no highlighting)")
 	noHighlightStyles := clog.DefaultStyles()
-	noHighlightStyles.FieldJSON = nil
+	noHighlightStyles.JSON = nil
 	clog.SetStyles(noHighlightStyles)
 	clog.Info().
 		RawJSON("payload", []byte(`{"id":"abc123","count":42,"ratio":0.875,"active":true,"archived":false,"deleted_at":null,"tags":["production","staging"],"meta":{"region":"us-east-1","latency_ms":12.5}}`)).

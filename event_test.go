@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/json"
 	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/printer/json"
 	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -505,7 +505,7 @@ func TestEventRawJSONHighlighted(t *testing.T) {
 func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(NewOutput(&buf, ColorAlways))
-	l.styles.FieldJSON = nil
+	l.styles.JSON = nil
 	l.Info().RawJSON("data", []byte(`{"n":1}`)).Msg("ok")
 
 	got := buf.String()
@@ -517,7 +517,7 @@ func TestEventRawJSONUnquoted(t *testing.T) {
 	var buf bytes.Buffer
 	l := NewWriter(&buf)
 	styles := DefaultStyles()
-	styles.FieldJSON = style.DefaultJSON()
+	styles.JSON = style.DefaultJSON()
 	l.SetStyles(styles)
 	l.Info().RawJSON("data", []byte(`{"key":"val","n":1,"ok":true,"x":null}`)).Msg("ok")
 

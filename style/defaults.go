@@ -20,7 +20,8 @@ func Default() *Config {
 		FieldError: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
 		),
-		FieldJSON: DefaultJSON(),
+		JSON: DefaultJSON(),
+		YAML: DefaultYAML(),
 		FieldNumber: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),

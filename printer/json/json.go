@@ -1,4 +1,4 @@
-// Package json provides JSON field styling and rendering for clog.
+// Package json provides JSON syntax highlighting for clog.
 package json
 
 import (
@@ -52,15 +52,19 @@ func Highlight(s string, styles *style.JSON) string {
 	expectKey := false
 	hjson := styles.Mode == style.JSONModeHuman
 	indent := styles.Indent
+	preserve := styles.PreserveFormat
 	depth := 0
 	justOpened := false // true immediately after { or [ (for empty container detection)
 
 	for i < n {
 		c := data[i]
 
-		// Always strip input whitespace; indentation is rebuilt from scratch
-		// when indent is non-empty.
-		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
+		// Whitespace handling: preserve passes through as-is; otherwise strip
+		// (indentation is rebuilt from scratch when indent is non-empty).
+		if isSpace(c) {
+			if preserve {
+				buf.WriteByte(c)
+			}
 			i++
 			continue
 		}
@@ -630,7 +634,7 @@ func hjsonUnquoteValue(raw string, hjson bool) (string, bool) {
 		}
 	}
 	// last character must not be whitespace
-	if last := s[len(s)-1]; last == ' ' || last == '\t' || last == '\n' || last == '\r' {
+	if isSpace(s[len(s)-1]) {
 		return raw, false
 	}
 	// no control characters within the value

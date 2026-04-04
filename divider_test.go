@@ -15,7 +15,7 @@ func TestDividerSend(t *testing.T) {
 	l.Divider().Send()
 
 	got := buf.String()
-	assert.Equal(t, strings.Repeat("─", defaultDividerWidth)+"\n", got)
+	assert.Equal(t, strings.Repeat("─", defaultDividerWidth)+nl, got)
 }
 
 func TestDividerTitle(t *testing.T) {
@@ -38,7 +38,7 @@ func TestDividerTitleAlignLeft(t *testing.T) {
 
 	l.Divider().Align(AlignLeft).Msg("Test")
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// Left-aligned: short leader on the left (dividerMinLeader = 3).
 	leader := strings.Repeat("─", dividerMinLeader)
 	assert.True(t, strings.HasPrefix(got, leader+" "),
@@ -51,7 +51,7 @@ func TestDividerTitleAlignRight(t *testing.T) {
 
 	l.Divider().Align(AlignRight).Msg("Test")
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// Right-aligned: short trailer on the right (dividerMinLeader = 3).
 	trailer := " " + strings.Repeat("─", dividerMinLeader)
 	assert.True(t, strings.HasSuffix(got, trailer),
@@ -64,7 +64,7 @@ func TestDividerTitleAlignCenter(t *testing.T) {
 
 	l.Divider().Align(AlignCenter).Msg("Mid")
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// Centered: find the title position relative to total width.
 	idx := strings.Index(got, " Mid ")
 	assert.Greater(t, idx, dividerMinLeader,
@@ -78,7 +78,7 @@ func TestDividerCustomChar(t *testing.T) {
 	l.Divider().Char('═').Send()
 
 	got := buf.String()
-	assert.Equal(t, strings.Repeat("═", defaultDividerWidth)+"\n", got)
+	assert.Equal(t, strings.Repeat("═", defaultDividerWidth)+nl, got)
 	assert.NotContains(t, got, "─")
 }
 
@@ -103,7 +103,7 @@ func TestDividerWidthFallback(t *testing.T) {
 
 	l.Divider().Send()
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// Count runes: should be defaultDividerWidth.
 	assert.Len(t, []rune(got), defaultDividerWidth)
 }
@@ -115,7 +115,7 @@ func TestDividerTitleLongerThanWidth(t *testing.T) {
 	longTitle := strings.Repeat("X", defaultDividerWidth+10)
 	l.Divider().Msg(longTitle)
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// When the title is longer than width, just print the title.
 	assert.Equal(t, longTitle, got)
 }
@@ -126,7 +126,7 @@ func TestDividerTotalWidth(t *testing.T) {
 
 	l.Divider().Msg("Hi")
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	// Total rune width should equal defaultDividerWidth.
 	assert.Len(t, []rune(got), defaultDividerWidth)
 }
@@ -137,7 +137,7 @@ func TestDividerCustomWidth(t *testing.T) {
 
 	l.Divider().Width(40).Send()
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	assert.Len(t, []rune(got), 40)
 	assert.Equal(t, strings.Repeat("─", 40), got)
 }
@@ -148,7 +148,7 @@ func TestDividerCustomWidthWithTitle(t *testing.T) {
 
 	l.Divider().Width(30).Msg("Hi")
 
-	got := strings.TrimRight(buf.String(), "\n")
+	got := strings.TrimRight(buf.String(), nl)
 	assert.Len(t, []rune(got), 30)
 	assert.Equal(t, "─── Hi ───────────────────────", got)
 }
@@ -163,5 +163,5 @@ func TestDividerPackageLevel(t *testing.T) {
 	Divider().Send()
 
 	got := buf.String()
-	assert.Equal(t, strings.Repeat("─", defaultDividerWidth)+"\n", got)
+	assert.Equal(t, strings.Repeat("─", defaultDividerWidth)+nl, got)
 }

@@ -47,6 +47,9 @@ type JSON struct {
 	// Indent pretty-prints JSON with the given indentation string (e.g. "  "
 	// or "\t"). Empty string (default) flattens to a single line.
 	Indent string
+	// PreserveFormat keeps original whitespace intact instead of stripping
+	// it. When true, Indent is ignored.
+	PreserveFormat bool
 	// OmitCommas omits the comma between items. JSONSpacingAfterComma still
 	// applies and can be used to keep a space separator: {"a":1 "b":2}.
 	OmitCommas bool
@@ -125,7 +128,7 @@ func DefaultJSON() *JSON {
 // WithSpacing returns the receiver with the given spacing flags applied.
 // It modifies and returns the same pointer for fluent chaining:
 //
-//	styles.FieldJSON = style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
+//	styles.JSON = style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
 func (s *JSON) WithSpacing(spacing JSONSpacing) *JSON {
 	s.Spacing = spacing
 	return s

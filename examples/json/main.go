@@ -26,7 +26,7 @@ func main() {
 	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
 	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true))
 	customStyleSet := clog.DefaultStyles()
-	customStyleSet.FieldJSON = customStyles
+	customStyleSet.JSON = customStyles
 	clog.SetStyles(customStyleSet)
 	clog.Info(). Symbol("🎨").
 		RawJSON("payload", []byte(`{"id":"abc123","count":42,"deleted_at":null,"tags":["production"]}`)).
@@ -35,8 +35,8 @@ func main() {
 
 	// Human mode
 	humanStyles := clog.DefaultStyles()
-	humanStyles.FieldJSON = style.DefaultJSON()
-	humanStyles.FieldJSON.Mode = style.JSONModeHuman
+	humanStyles.JSON = style.DefaultJSON()
+	humanStyles.JSON.Mode = style.JSONModeHuman
 	clog.SetStyles(humanStyles)
 	clog.Info(). Symbol("👤").
 		RawJSON("response", []byte(`{"status":"ok","count":42,"active":true,"deleted_at":null}`)).
@@ -45,8 +45,8 @@ func main() {
 
 	// Flat mode
 	flatStyles := clog.DefaultStyles()
-	flatStyles.FieldJSON = style.DefaultJSON()
-	flatStyles.FieldJSON.Mode = style.JSONModeFlat
+	flatStyles.JSON = style.DefaultJSON()
+	flatStyles.JSON.Mode = style.JSONModeFlat
 	clog.SetStyles(flatStyles)
 	clog.Info(). Symbol("📋").
 		RawJSON("response", []byte(`{"user":{"name":"alice","role":"admin"},"tags":["prod","staging"]}`)).

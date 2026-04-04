@@ -26,29 +26,29 @@ func TestPrinterRawJSON(t *testing.T) {
 	assert.Equal(t, want, buf.String())
 }
 
-func TestPrinterRawJSONInlineMode(t *testing.T) {
+func TestPrinterRawJSONFlatMode(t *testing.T) {
 	l, buf := newTestPrinter()
 
-	l.Print().Mode(PrintInline).RawJSON([]byte(`{
+	l.Print().Mode(JSONFlat).RawJSON([]byte(`{
   "name": "alice",
   "age": 30
 }`))
 
-	// Printer uses its own formatting, not FieldJSON spacing.
+	// Printer uses its own formatting, not JSON spacing.
 	want := `{"name":"alice","age":30}`
-	assert.Equal(t, want+"\n", buf.String())
+	assert.Equal(t, want+nl, buf.String())
 }
 
 func TestPrinterRawJSONEmpty(t *testing.T) {
 	l, buf := newTestPrinter()
 	l.Print().RawJSON([]byte{})
-	assert.Equal(t, "\n", buf.String())
+	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawJSONNil(t *testing.T) {
 	l, buf := newTestPrinter()
 	l.Print().RawJSON(nil)
-	assert.Equal(t, "\n", buf.String())
+	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterJSON(t *testing.T) {
@@ -63,13 +63,13 @@ func TestPrinterJSON(t *testing.T) {
 	assert.Equal(t, want, buf.String())
 }
 
-func TestPrinterJSONInline(t *testing.T) {
+func TestPrinterJSONFlat(t *testing.T) {
 	l, buf := newTestPrinter()
 
-	l.Print().Mode(PrintInline).JSON(map[string]int{"a": 1})
+	l.Print().Mode(JSONFlat).JSON(map[string]int{"a": 1})
 
 	want := `{"a":1}`
-	assert.Equal(t, want+"\n", buf.String())
+	assert.Equal(t, want+nl, buf.String())
 }
 
 func TestPrinterJSONMarshalError(t *testing.T) {
@@ -105,34 +105,59 @@ func TestPrinterGlobalModeDefault(t *testing.T) {
 
 func TestPrinterGlobalModeInline(t *testing.T) {
 	l, buf := newTestPrinter()
-	l.SetPrintMode(PrintInline)
+	l.SetJSONPrintMode(JSONFlat)
 
 	l.Print().RawJSON([]byte(`{"a":1}`))
 
 	want := `{"a":1}`
-	assert.Equal(t, want+"\n", buf.String())
+	assert.Equal(t, want+nl, buf.String())
 }
 
 func TestPrinterGlobalModeOverrideToInline(t *testing.T) {
 	l, buf := newTestPrinter()
 
-	l.Print().Mode(PrintInline).RawJSON([]byte(`{"a":1}`))
+	l.Print().Mode(JSONFlat).RawJSON([]byte(`{"a":1}`))
 
 	want := `{"a":1}`
-	assert.Equal(t, want+"\n", buf.String())
+	assert.Equal(t, want+nl, buf.String())
 }
 
 func TestPrinterGlobalModeOverrideToMultiline(t *testing.T) {
 	l, buf := newTestPrinter()
-	l.SetPrintMode(PrintInline)
+	l.SetJSONPrintMode(JSONFlat)
 
-	l.Print().Mode(PrintMultiline).RawJSON([]byte(`{"a":1}`))
+	l.Print().Mode(JSONPretty).RawJSON([]byte(`{"a":1}`))
 
 	want := `{
   "a": 1
 }
 `
 	assert.Equal(t, want, buf.String())
+}
+
+func TestPrinterJSONPreserve(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	// Badly indented but valid JSON — preserve mode keeps it as-is.
+	input := "{\n\"a\": 1,\n\"b\": 2\n}"
+	l.Print().Mode(JSONPreserve).RawJSON([]byte(input))
+
+	assert.Equal(t, input+nl, buf.String())
+}
+
+func TestPrinterJSONPreservePrettyPrinted(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	input := `{
+    "name": "alice",
+    "scores": [
+        1,
+        2
+    ]
+}`
+	l.Print().Mode(JSONPreserve).RawJSON([]byte(input))
+
+	assert.Equal(t, input+nl, buf.String())
 }
 
 func TestPrinterCustomIndent(t *testing.T) {
@@ -145,9 +170,45 @@ func TestPrinterCustomIndent(t *testing.T) {
 	assert.Equal(t, want, buf.String())
 }
 
+func TestPrinterJSONIndentOverridesPrintIndent(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.SetPrintIndent("    ")
+	l.SetJSONIndent("\t")
+
+	l.Print().RawJSON([]byte(`{"a":1}`))
+
+	want := "{\n\t\"a\": 1\n}\n"
+	assert.Equal(t, want, buf.String())
+}
+
+func TestPrinterYAMLIndentOverridesPrintIndent(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.SetPrintIndent("    ")
+	l.SetYAMLIndent("  ")
+
+	l.Print().YAML(map[string]int{"a": 1})
+
+	assert.Equal(t, "a: 1\n", buf.String())
+}
+
+func TestPrinterYAMLIndentSequenceDisabled(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.SetYAMLIndentSequence(false)
+
+	l.Print().YAML(map[string]any{
+		"tags": []string{"a", "b"},
+	})
+
+	want := `tags:
+- a
+- b
+`
+	assert.Equal(t, want, buf.String())
+}
+
 func TestPrinterSubLoggerInheritsSettings(t *testing.T) {
 	l, _ := newTestPrinter()
-	l.SetPrintMode(PrintInline)
+	l.SetJSONPrintMode(JSONFlat)
 	l.SetPrintIndent("\t")
 
 	var buf2 bytes.Buffer
@@ -156,17 +217,17 @@ func TestPrinterSubLoggerInheritsSettings(t *testing.T) {
 
 	sub.Print().RawJSON([]byte(`{"a":1}`))
 
-	// Sub-logger should inherit PrintInline from parent.
+	// Sub-logger should inherit JSONFlat from parent.
 	want := `{"a":1}`
-	assert.Equal(t, want+"\n", buf2.String())
+	assert.Equal(t, want+nl, buf2.String())
 }
 
-func TestPrinterIgnoresFieldJSONMode(t *testing.T) {
+func TestPrinterIgnoresJSONMode(t *testing.T) {
 	l, buf := newTestPrinter()
 
-	// Set FieldJSON to flat mode - Printer should ignore it and use standard JSON.
+	// Set JSON to flat mode - Printer should ignore it and use standard JSON.
 	s := DefaultStyles()
-	s.FieldJSON.Mode = style.JSONModeFlat
+	s.JSON.Mode = style.JSONModeFlat
 	l.SetStyles(s)
 
 	l.Print().RawJSON([]byte(`{"user":{"name":"alice"}}`))
@@ -181,21 +242,77 @@ func TestPrinterIgnoresFieldJSONMode(t *testing.T) {
 	assert.Equal(t, want, buf.String())
 }
 
-func TestPrinterIgnoresFieldJSONSpacing(t *testing.T) {
+func TestPrinterIgnoresJSONSpacing(t *testing.T) {
 	l, buf := newTestPrinter()
-	l.SetPrintMode(PrintInline)
+	l.SetJSONPrintMode(JSONFlat)
 
-	// Set OmitCommas and custom spacing on FieldJSON - Printer should ignore them.
+	// Set OmitCommas and custom spacing on JSON - Printer should ignore them.
 	s := DefaultStyles()
-	s.FieldJSON.OmitCommas = true
-	s.FieldJSON.Spacing = style.JSONSpacingAll
+	s.JSON.OmitCommas = true
+	s.JSON.Spacing = style.JSONSpacingAll
 	l.SetStyles(s)
 
 	l.Print().RawJSON([]byte(`{"a":1,"b":2}`))
 
 	// Printer uses default rendering: commas present, no extra spacing.
 	want := `{"a":1,"b":2}`
-	assert.Equal(t, want+"\n", buf.String())
+	assert.Equal(t, want+nl, buf.String())
+}
+
+func TestPrinterYAML(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	l.Print().YAML(map[string]int{"a": 1})
+
+	assert.Equal(t, "a: 1\n", buf.String())
+}
+
+func TestPrinterYAMLIndentedSequence(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	l.Print().YAML(map[string]any{
+		"tags": []string{"a", "b"},
+	})
+
+	want := `tags:
+  - a
+  - b
+`
+	assert.Equal(t, want, buf.String())
+}
+
+func TestPrinterRawYAML(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	l.Print().RawYAML([]byte("name: alice\nage: 30\n"))
+
+	assert.Equal(t, "name: alice\nage: 30\n", buf.String())
+}
+
+func TestPrinterRawYAMLAddsTrailingNewline(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	l.Print().RawYAML([]byte("key: value"))
+
+	assert.Equal(t, "key: value\n", buf.String())
+}
+
+func TestPrinterRawYAMLNil(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawYAML(nil)
+	assert.Equal(t, nl, buf.String())
+}
+
+func TestPrinterRawYAMLEmpty(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawYAML([]byte{})
+	assert.Equal(t, nl, buf.String())
+}
+
+func TestPrinterYAMLMarshalError(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().YAML(make(chan int))
+	assert.Contains(t, buf.String(), "unknown value type")
 }
 
 func TestPrinterPackageLevel(t *testing.T) {

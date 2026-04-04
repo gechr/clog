@@ -12,10 +12,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
-	"github.com/gechr/clog/field/json"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/field/quantity"
 	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/printer/json"
 	"github.com/gechr/clog/style"
 )
 
@@ -502,7 +502,7 @@ func styleValue(
 			return styles.FieldTime.Render(valStr)
 		}
 	case kindJSON:
-		return json.Highlight(valStr, styles.FieldJSON)
+		return json.Highlight(valStr, styles.JSON)
 	case kindBool, kindSlice, kindDefault:
 		// No type-based style for these.
 	}

@@ -1,25 +1,30 @@
 package clog
 
 import (
+	"bytes"
 	stdjson "encoding/json"
 	"reflect"
 
-	"github.com/gechr/clog/field/json"
+	"github.com/gechr/clog/printer/json"
+	"github.com/gechr/clog/printer/yaml"
 	"github.com/gechr/clog/style"
+	goyaml "github.com/goccy/go-yaml"
 )
 
-// PrintMode controls how the [Printer] formats its output.
-type PrintMode int
+// JSONPrintMode controls how the [Printer] formats its output.
+type JSONPrintMode int
 
 const (
-	// PrintMultiline pretty-prints output with indentation.
-	PrintMultiline PrintMode = iota
-	// PrintInline flattens output to a single line, matching the compact
+	// JSONPretty pretty-prints output with normalized indentation.
+	JSONPretty JSONPrintMode = iota
+	// JSONFlat flattens output to a single line, matching the compact
 	// format used by inline log fields.
-	PrintInline
+	JSONFlat
+	// JSONPreserve keeps original whitespace intact, only adding syntax highlighting.
+	JSONPreserve
 )
 
-// defaultPrintIndent is the default indentation string for [PrintMultiline].
+// defaultPrintIndent is the default indentation string for [JSONPretty].
 const defaultPrintIndent = "  "
 
 // Printer outputs styled data directly to the logger's output, without
@@ -29,37 +34,52 @@ const defaultPrintIndent = "  "
 //	clog.Print().JSON(data)
 //	clog.Print().RawJSON([]byte(`{"a":1}`))
 type Printer struct {
-	logger *Logger
-	mode   *PrintMode // nil = use logger default
+	logger   *Logger
+	modeJSON *JSONPrintMode // nil = use logger default
 }
 
 // Print returns a new [Printer] for writing styled output without a log level.
-// The printer inherits the logger's print mode (see [Logger.SetPrintMode]).
+// The printer inherits the logger's print mode (see [Logger.SetJSONPrintMode]).
 // Use [Printer.Mode] for per-call overrides.
 func (l *Logger) Print() *Printer {
 	return &Printer{logger: l}
 }
 
 // Mode sets the print mode for this call, overriding the logger default.
-func (p *Printer) Mode(mode PrintMode) *Printer {
-	p.mode = &mode
+func (p *Printer) Mode(mode JSONPrintMode) *Printer {
+	p.modeJSON = &mode
 	return p
 }
 
 // effectiveMode returns the effective print mode, falling back to the
 // logger default. Must be called with l.mu held.
-func (p *Printer) effectiveMode() PrintMode {
-	if p.mode != nil {
-		return *p.mode
+func (p *Printer) effectiveMode() JSONPrintMode {
+	if p.modeJSON != nil {
+		return *p.modeJSON
 	}
-	return p.logger.printMode
+	return p.logger.jsonPrintMode
 }
 
-// resolveIndent returns the indent string for the current mode.
+// resolveJSONIndent returns the JSON indent string for the current mode.
 // Empty string means flatten to a single line. Must be called with l.mu held.
-func (p *Printer) resolveIndent() string {
-	if p.effectiveMode() != PrintMultiline {
+func (p *Printer) resolveJSONIndent() string {
+	mode := p.effectiveMode()
+	if mode != JSONPretty {
 		return ""
+	}
+	if p.logger.jsonIndent != "" {
+		return p.logger.jsonIndent
+	}
+	if p.logger.printIndent != "" {
+		return p.logger.printIndent
+	}
+	return defaultPrintIndent
+}
+
+// resolveYAMLIndent returns the YAML indent string. Must be called with l.mu held.
+func (p *Printer) resolveYAMLIndent() string {
+	if p.logger.yamlIndent != "" {
+		return p.logger.yamlIndent
 	}
 	if p.logger.printIndent != "" {
 		return p.logger.printIndent
@@ -79,23 +99,66 @@ func (p *Printer) JSON(v any) {
 }
 
 // RawJSON writes pre-serialized JSON bytes with syntax highlighting.
-// Only token colors are inherited from the logger's FieldJSON configuration;
+// Only token colors are inherited from the logger's JSON configuration;
 // field-specific settings (Mode, Spacing, OmitCommas) are not applied.
 func (p *Printer) RawJSON(data []byte) {
 	l := p.logger
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	indent := p.resolveIndent()
+	indent := p.resolveJSONIndent()
+	preserve := p.effectiveMode() == JSONPreserve
 
-	styles := &style.JSON{Indent: indent}
-	if !l.colorsDisabled() && l.styles.FieldJSON != nil {
-		copyPointerFields(styles, l.styles.FieldJSON)
+	styles := &style.JSON{Indent: indent, PreserveFormat: preserve}
+	if !l.colorsDisabled() && l.styles.JSON != nil {
+		copyPointerFields(styles, l.styles.JSON)
 	}
 
 	highlighted := json.Highlight(string(data), styles)
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), highlighted+"\n")
+	writeString(l.output.Writer(), highlighted+nl)
+	l.runHooks(HookAfterWrite)
+}
+
+// YAML marshals v to YAML and writes syntax-highlighted output.
+// If marshalling fails, the error string is written instead.
+func (p *Printer) YAML(v any) {
+	l := p.logger
+	l.mu.Lock()
+	indent := p.resolveYAMLIndent()
+	indentSeq := l.yamlIndentSequence == nil || *l.yamlIndentSequence
+	l.mu.Unlock()
+
+	var buf bytes.Buffer
+	enc := goyaml.NewEncoder(&buf,
+		goyaml.Indent(len(indent)),
+		goyaml.IndentSequence(indentSeq),
+	)
+	if err := enc.Encode(v); err != nil {
+		p.write(err.Error())
+		return
+	}
+	p.RawYAML(buf.Bytes())
+}
+
+// RawYAML writes pre-serialized YAML bytes with syntax highlighting.
+// Token colors are inherited from the logger's YAML configuration.
+func (p *Printer) RawYAML(data []byte) {
+	l := p.logger
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var styles *style.YAML
+	if !l.colorsDisabled() {
+		styles = l.styles.YAML
+	}
+
+	highlighted := yaml.Highlight(string(data), styles)
+	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
+		highlighted += nl
+	}
+	l.runHooks(HookBeforeWrite)
+	writeString(l.output.Writer(), highlighted)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -118,6 +181,6 @@ func (p *Printer) write(s string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), s+"\n")
+	writeString(l.output.Writer(), s+nl)
 	l.runHooks(HookAfterWrite)
 }

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/json"
+	"github.com/gechr/clog/printer/json"
 	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

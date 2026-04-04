@@ -10,6 +10,7 @@ tool (
 require (
 	charm.land/lipgloss/v2 v2.0.2
 	github.com/charmbracelet/colorprofile v0.4.3
+	github.com/goccy/go-yaml v1.19.2
 	github.com/lucasb-eyer/go-colorful v1.3.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/term v0.41.0
