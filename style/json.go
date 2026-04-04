@@ -44,6 +44,9 @@ type JSON struct {
 	// JSONModeHuman strips quotes from identifier-like keys and simple string values.
 	// JSONModeFlat flattens nested object keys with dot notation; arrays are kept intact.
 	Mode JSONMode
+	// Indent pretty-prints JSON with the given indentation string (e.g. "  "
+	// or "\t"). Empty string (default) flattens to a single line.
+	Indent string
 	// OmitCommas omits the comma between items. JSONSpacingAfterComma still
 	// applies and can be used to keep a space separator: {"a":1 "b":2}.
 	OmitCommas bool

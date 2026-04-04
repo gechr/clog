@@ -10,9 +10,23 @@ import (
 	"github.com/gechr/clog/style"
 )
 
+// JSON token bytes.
+const (
+	tokenLBrace    = '{'
+	tokenRBrace    = '}'
+	tokenLBracket  = '['
+	tokenRBracket  = ']'
+	tokenColon     = ':'
+	tokenComma     = ','
+	tokenQuote     = '"'
+	tokenBackslash = '\\'
+	tokenMinus     = '-'
+)
+
 // Highlight applies syntax highlighting to s using the provided styles.
-// Inter-token whitespace is stripped, flattening pretty-printed JSON to a
-// single line. Returns s unchanged when styles is nil.
+// By default inter-token whitespace is stripped, flattening pretty-printed
+// JSON to a single line. Set [style.JSON.Indent] to a non-empty string to
+// pretty-print with indentation instead. Returns s unchanged when styles is nil.
 //
 // The scanner is defensive: on any unexpected byte the remaining input is
 // emitted unstyled rather than panicking.
@@ -32,24 +46,36 @@ func Highlight(s string, styles *style.JSON) string {
 	n := len(data)
 	i := 0
 
-	// context stack: '{' = inside object, '[' = inside array
+	// context stack: tokenLBrace = inside object, tokenLBracket = inside array
 	const stackInitCap = 8
 	stack := make([]byte, 0, stackInitCap)
 	expectKey := false
 	hjson := styles.Mode == style.JSONModeHuman
+	indent := styles.Indent
+	depth := 0
+	justOpened := false // true immediately after { or [ (for empty container detection)
 
 	for i < n {
 		c := data[i]
 
-		// strip inter-token whitespace to flatten pretty-printed JSON
+		// Always strip input whitespace; indentation is rebuilt from scratch
+		// when indent is non-empty.
 		if c == ' ' || c == '\t' || c == '\n' || c == '\r' {
 			i++
 			continue
 		}
 
+		// Emit newline + indent for the first value after an opening container.
+		// Skipped for } and ] so empty containers ({}, []) stay compact.
+		if indent != "" && justOpened && c != tokenRBrace && c != tokenRBracket {
+			buf.WriteByte('\n')
+			buf.WriteString(strings.Repeat(indent, depth))
+			justOpened = false
+		}
+
 		switch {
-		case c == '{':
-			if len(stack) > 0 && styles.Spacing&style.JSONSpacingBeforeObject != 0 {
+		case c == tokenLBrace:
+			if indent == "" && len(stack) > 0 && styles.Spacing&style.JSONSpacingBeforeObject != 0 {
 				buf.WriteByte(' ')
 			}
 			braceStyle := styles.Brace
@@ -57,11 +83,21 @@ func Highlight(s string, styles *style.JSON) string {
 				braceStyle = styles.BraceRoot
 			}
 			emitStyled(&buf, "{", braceStyle)
-			stack = append(stack, '{')
+			stack = append(stack, tokenLBrace)
+			depth++
+			justOpened = true
 			expectKey = true
 			i++
 
-		case c == '}':
+		case c == tokenRBrace:
+			if depth > 0 {
+				depth--
+			}
+			if indent != "" && !justOpened && len(stack) > 0 {
+				buf.WriteByte('\n')
+				buf.WriteString(strings.Repeat(indent, depth))
+			}
+			justOpened = false
 			braceStyle := styles.Brace
 			if len(stack) == 1 && styles.BraceRoot != nil {
 				braceStyle = styles.BraceRoot
@@ -73,8 +109,8 @@ func Highlight(s string, styles *style.JSON) string {
 			expectKey = false
 			i++
 
-		case c == '[':
-			if len(stack) > 0 && styles.Spacing&style.JSONSpacingBeforeArray != 0 {
+		case c == tokenLBracket:
+			if indent == "" && len(stack) > 0 && styles.Spacing&style.JSONSpacingBeforeArray != 0 {
 				buf.WriteByte(' ')
 			}
 			bracketStyle := styles.Bracket
@@ -82,10 +118,20 @@ func Highlight(s string, styles *style.JSON) string {
 				bracketStyle = styles.BracketRoot
 			}
 			emitStyled(&buf, "[", bracketStyle)
-			stack = append(stack, '[')
+			stack = append(stack, tokenLBracket)
+			depth++
+			justOpened = true
 			i++
 
-		case c == ']':
+		case c == tokenRBracket:
+			if depth > 0 {
+				depth--
+			}
+			if indent != "" && !justOpened && len(stack) > 0 {
+				buf.WriteByte('\n')
+				buf.WriteString(strings.Repeat(indent, depth))
+			}
+			justOpened = false
 			bracketStyle := styles.Bracket
 			if len(stack) == 1 && styles.BracketRoot != nil {
 				bracketStyle = styles.BracketRoot
@@ -96,37 +142,40 @@ func Highlight(s string, styles *style.JSON) string {
 			}
 			i++
 
-		case c == ':':
+		case c == tokenColon:
 			emitStyled(&buf, ":", styles.Colon)
-			if styles.Spacing&style.JSONSpacingAfterColon != 0 {
+			if indent != "" || styles.Spacing&style.JSONSpacingAfterColon != 0 {
 				buf.WriteByte(' ')
 			}
 			expectKey = false
 			i++
 
-		case c == ',':
+		case c == tokenComma:
 			if !styles.OmitCommas {
 				emitStyled(&buf, ",", styles.Comma)
 			}
-			if styles.Spacing&style.JSONSpacingAfterComma != 0 {
+			if indent != "" {
+				buf.WriteByte('\n')
+				buf.WriteString(strings.Repeat(indent, depth))
+			} else if styles.Spacing&style.JSONSpacingAfterComma != 0 {
 				buf.WriteByte(' ')
 			}
-			if len(stack) > 0 && stack[len(stack)-1] == '{' {
+			if len(stack) > 0 && stack[len(stack)-1] == tokenLBrace {
 				expectKey = true
 			}
 			i++
 
-		case c == '"':
+		case c == tokenQuote:
 			j := i + 1
 			for j < n {
-				if data[j] == '\\' {
+				if data[j] == tokenBackslash {
 					j += 2 // skip escaped character
 					if j >= n {
 						break
 					}
 					continue
 				}
-				if data[j] == '"' {
+				if data[j] == tokenQuote {
 					j++
 					break
 				}
@@ -171,17 +220,17 @@ func Highlight(s string, styles *style.JSON) string {
 				return buf.String()
 			}
 
-		case c == '-' || (c >= '0' && c <= '9'):
+		case c == tokenMinus || (isDigit(c)):
 			j := i
 			if data[j] == '-' {
 				j++
 			}
-			for j < n && data[j] >= '0' && data[j] <= '9' {
+			for j < n && isDigit(data[j]) {
 				j++
 			}
 			if j < n && data[j] == '.' {
 				j++
-				for j < n && data[j] >= '0' && data[j] <= '9' {
+				for j < n && isDigit(data[j]) {
 					j++
 				}
 			}
@@ -190,7 +239,7 @@ func Highlight(s string, styles *style.JSON) string {
 				if j < n && (data[j] == '+' || data[j] == '-') {
 					j++
 				}
-				for j < n && data[j] >= '0' && data[j] <= '9' {
+				for j < n && isDigit(data[j]) {
 					j++
 				}
 			}
@@ -452,6 +501,11 @@ func scanValueEnd(data []byte, i int) int {
 	}
 }
 
+// isDigit reports whether c is an ASCII digit.
+func isDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}
+
 // isSpace reports whether c is a JSON whitespace character.
 func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
@@ -597,10 +651,10 @@ func hjsonUnquoteValue(raw string, hjson bool) (string, bool) {
 		}
 	}
 	// ambiguous as number: starts with digit or '-' followed by digit
-	if s[0] >= '0' && s[0] <= '9' {
+	if isDigit(s[0]) {
 		return raw, false
 	}
-	if s[0] == '-' && len(s) > 1 && s[1] >= '0' && s[1] <= '9' {
+	if s[0] == '-' && len(s) > 1 && isDigit(s[1]) {
 		return raw, false
 	}
 	return s, true

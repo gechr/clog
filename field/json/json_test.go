@@ -89,6 +89,95 @@ func TestHighlightJSON(t *testing.T) {
 			want:   `{"a":1,"b":2}`,
 		},
 		{
+			name:   "indent_pretty_prints",
+			input:  `{"a":1,"b":2}`,
+			styles: &style.JSON{Indent: "  "},
+			want: `{
+  "a": 1,
+  "b": 2
+}`,
+		},
+		{
+			name:   "indent_already_formatted",
+			input:  "{\n    \"a\":1\n}",
+			styles: &style.JSON{Indent: "  "},
+			want: `{
+  "a": 1
+}`,
+		},
+		{
+			name:   "indent_empty_object",
+			input:  `{}`,
+			styles: &style.JSON{Indent: "  "},
+			want:   `{}`,
+		},
+		{
+			name:   "indent_empty_array",
+			input:  `[]`,
+			styles: &style.JSON{Indent: "  "},
+			want:   `[]`,
+		},
+		{
+			name:   "indent_nested",
+			input:  `{"a":{"b":1},"c":[1,2]}`,
+			styles: &style.JSON{Indent: "  "},
+			want: `{
+  "a": {
+    "b": 1
+  },
+  "c": [
+    1,
+    2
+  ]
+}`,
+		},
+		{
+			name:   "indent_tab",
+			input:  `{"a":1}`,
+			styles: &style.JSON{Indent: "\t"},
+			want:   "{" + "\n" + "\t" + `"a": 1` + "\n" + "}",
+		},
+		{
+			name:   "indent_array_of_objects",
+			input:  `[{"a":1},{"b":2}]`,
+			styles: &style.JSON{Indent: "  "},
+			want: `[
+  {
+    "a": 1
+  },
+  {
+    "b": 2
+  }
+]`,
+		},
+		{
+			name:   "indent_array_of_arrays",
+			input:  `[[1,2],[3,4]]`,
+			styles: &style.JSON{Indent: "  "},
+			want: `[
+  [
+    1,
+    2
+  ],
+  [
+    3,
+    4
+  ]
+]`,
+		},
+		{
+			name:   "indent_extra_closing_brace_no_panic",
+			input:  `}`,
+			styles: &style.JSON{Indent: "  "},
+			want:   `}`,
+		},
+		{
+			name:   "indent_extra_closing_bracket_no_panic",
+			input:  `]`,
+			styles: &style.JSON{Indent: "  "},
+			want:   `]`,
+		},
+		{
 			name:   "malformed_truncated_true",
 			input:  `{"v":tru`,
 			styles: &style.JSON{},

@@ -94,7 +94,9 @@ type Logger struct {
 	omitZero          bool
 	output            *Output
 	parts             []Part
-	quoteClose        rune // 0 means same as quoteOpen (or default)
+	printIndent       string    // indent string for PrintMultiline; "" = use default ("  ")
+	printMode         PrintMode // default mode for Printer
+	quoteClose        rune      // 0 means same as quoteOpen (or default)
 	quoteMode         QuoteMode
 	quoteOpen         rune // 0 means default ('"' via strconv.Quote)
 	reportTimestamp   bool
@@ -287,6 +289,9 @@ func (l *Logger) Dict() *Event { return &Event{logger: l, dict: true} }
 // Divider returns a new [DividerBuilder] for rendering a horizontal rule
 // using the [Default] logger.
 func Divider() *DividerBuilder { return Default.Divider() }
+
+// Print returns a new [Printer] for writing styled output from the [Default] logger.
+func Print() *Printer { return Default.Print() }
 
 // GetLevel returns the current log level of the [Default] logger.
 func GetLevel() Level {
@@ -498,6 +503,23 @@ func (l *Logger) SetOmitZero(omit bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.omitZero = omit
+}
+
+// SetPrintIndent sets the indentation string used by [Printer] output in
+// [PrintMultiline] mode. Defaults to two spaces ("  ").
+func (l *Logger) SetPrintIndent(indent string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.printIndent = indent
+}
+
+// SetPrintMode sets the default [PrintMode] for [Printer] output.
+// The default is [PrintMultiline]. Per-call overrides are available
+// via [Printer.Mode].
+func (l *Logger) SetPrintMode(mode PrintMode) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.printMode = mode
 }
 
 // SetOutput sets the output.

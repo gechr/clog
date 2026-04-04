@@ -34,5 +34,6 @@
 
 - [Output]()
   - [JSON](json.md)
+  - [Printer](printer.md)
 
 - [Configuration](configuration.md)

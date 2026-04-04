@@ -144,6 +144,12 @@ func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 // SetParts sets the log-line part order on the [Default] logger.
 func SetParts(order ...Part) { Default.SetParts(order...) }
 
+// SetPrintIndent sets the printer indentation string on the [Default] logger.
+func SetPrintIndent(indent string) { Default.SetPrintIndent(indent) }
+
+// SetPrintMode sets the default [PrintMode] on the [Default] logger.
+func SetPrintMode(mode PrintMode) { Default.SetPrintMode(mode) }
+
 // SetSymbols sets the level symbols on the [Default] logger.
 func SetSymbols(symbols LabelMap) { Default.SetSymbols(symbols) }
 

@@ -201,6 +201,8 @@ func (l *Logger) clone() *Logger {
 		omitZero:          l.omitZero,
 		output:            l.output,
 		parts:             l.parts,
+		printIndent:       l.printIndent,
+		printMode:         l.printMode,
 		quoteOpen:         l.quoteOpen,
 		quoteClose:        l.quoteClose,
 		quoteMode:         l.quoteMode,
