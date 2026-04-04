@@ -8,6 +8,7 @@ import (
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/style"
+	"github.com/gechr/clog/theme"
 )
 
 // DefaultStyles returns the default color styles.
@@ -143,6 +144,9 @@ func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 
 // SetParts sets the log-line part order on the [Default] logger.
 func SetParts(order ...Part) { Default.SetParts(order...) }
+
+// SetPrintTheme rebuilds all printer styles from the given theme on the [Default] logger.
+func SetPrintTheme(t theme.Theme) { Default.SetPrintTheme(t) }
 
 // SetPrintIndent sets the printer indentation string on the [Default] logger.
 func SetPrintIndent(indent string) { Default.SetPrintIndent(indent) }

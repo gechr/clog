@@ -1,58 +1,46 @@
 package style
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/theme"
+)
 
 // YAML configures per-token lipgloss styles for YAML syntax highlighting.
 // nil fields render the corresponding token unstyled.
 //
 // Use [DefaultYAML] as a starting point for customization.
 type YAML struct {
-	Alias     *lipgloss.Style // *alias reference
-	Anchor    *lipgloss.Style // &anchor name
-	BoolFalse *lipgloss.Style // false, no, off
-	BoolTrue  *lipgloss.Style // true, yes, on
-	Comment   *lipgloss.Style // # comment text
-	Key       *lipgloss.Style // mapping keys
-	Null      *lipgloss.Style // null, ~
-	Number    *lipgloss.Style // int, float, hex, octal, binary, inf, nan
-	String    *lipgloss.Style // string values (plain, single-quoted, double-quoted)
-	Tag       *lipgloss.Style // !!str, !!int, !custom
+	Alias       *lipgloss.Style // *alias reference
+	Anchor      *lipgloss.Style // &anchor name
+	BoolFalse   *lipgloss.Style // false, no, off
+	BoolTrue    *lipgloss.Style // true, yes, on
+	Comment     *lipgloss.Style // # comment text
+	Key         *lipgloss.Style // mapping keys
+	Null        *lipgloss.Style // null, ~
+	Number      *lipgloss.Style // int, float, hex, octal, binary, inf, nan
+	Punctuation *lipgloss.Style // structural tokens (:, -, [, ], {, }, ,)
+	String      *lipgloss.Style // string values (plain, single-quoted, double-quoted)
+	Tag         *lipgloss.Style // !!str, !!int, !custom
 }
 
-// DefaultYAML returns dracula-inspired lipgloss styles for YAML tokens.
+// DefaultYAML returns Dracula-themed lipgloss styles for YAML tokens.
 func DefaultYAML() *YAML {
+	return NewYAML(theme.Dracula())
+}
+
+// NewYAML returns lipgloss styles for YAML tokens using the given theme.
+func NewYAML(th theme.Theme) *YAML {
 	return &YAML{
-		Alias: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#8be9fd")), // cyan
-		),
-		Anchor: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#8be9fd")), // cyan
-		),
-		BoolFalse: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-		),
-		BoolTrue: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("2")), // green
-		),
-		Comment: new(
-			lipgloss.NewStyle().Faint(true),
-		),
-		Key: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#bd93f9")), // purple
-		),
-		Null: new(
-			lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#8892bf")).
-				Italic(true), // muted blue-grey italic
-		),
-		Number: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6")), // pink
-		),
-		String: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f1fa8c")), // yellow
-		),
-		Tag: new(
-			lipgloss.NewStyle().Faint(true),
-		),
+		Alias:       new(lipgloss.NewStyle().Foreground(th.Accent)),
+		Anchor:      new(lipgloss.NewStyle().Foreground(th.Accent)),
+		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
+		BoolTrue:    new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
+		Comment:     new(lipgloss.NewStyle().Foreground(th.Comment)),
+		Key:         new(lipgloss.NewStyle().Foreground(th.Key)),
+		Null:        new(lipgloss.NewStyle().Foreground(th.Comment).Italic(true)),
+		Number:      new(lipgloss.NewStyle().Foreground(th.Number)),
+		Punctuation: new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		String:      new(lipgloss.NewStyle().Foreground(th.String)),
+		Tag:         new(lipgloss.NewStyle().Foreground(th.Comment)),
 	}
 }

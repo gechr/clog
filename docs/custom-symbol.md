@@ -44,4 +44,4 @@ clog.SetStyles(&style.Config{
 
 Symbol styles also apply to spinner animation frames, so spinners inherit the color of their level.
 
-`Styles.Symbols` is a `LevelStyleMap`. Entries for levels not in the map render unstyled (the default).
+`Styles.Symbols` is a `LevelMap`. Entries for levels not in the map render unstyled (the default).

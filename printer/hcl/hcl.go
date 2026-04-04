@@ -29,7 +29,8 @@ func Highlight(s string, styles *style.HCL) string {
 	var buf strings.Builder
 	buf.Grow(len(s) * 2) //nolint:mnd // extra capacity for ANSI escapes
 
-	pos := 0 // current byte offset into s
+	pos := 0   // current byte offset into s
+	depth := 0 // brace nesting depth
 
 	for i, tok := range tokens {
 		start := tok.Range.Start.Byte
@@ -40,7 +41,14 @@ func Highlight(s string, styles *style.HCL) string {
 			buf.WriteString(s[pos:start])
 		}
 
-		st := resolveStyle(tok, tokens, i, styles)
+		// Track brace depth for nested-key detection.
+		if tok.Type == hclsyntax.TokenOBrace {
+			depth++
+		} else if tok.Type == hclsyntax.TokenCBrace && depth > 0 {
+			depth--
+		}
+
+		st := resolveStyle(tok, tokens, i, depth, styles)
 		text := string(tok.Bytes)
 		printer.EmitStyled(&buf, text, st)
 
@@ -70,12 +78,12 @@ func nextNonNewline(tokens hclsyntax.Tokens, i int) *hclsyntax.Token {
 func resolveStyle(
 	tok hclsyntax.Token,
 	tokens hclsyntax.Tokens,
-	i int,
+	i, depth int,
 	styles *style.HCL,
 ) *lipgloss.Style {
-	switch tok.Type { //nolint:exhaustive // structural tokens are intentionally unstyled
+	switch tok.Type {
 	case hclsyntax.TokenIdent:
-		return resolveIdentStyle(tok, tokens, i, styles)
+		return resolveIdentStyle(tok, tokens, i, depth, styles)
 	case hclsyntax.TokenNumberLit:
 		return styles.Number
 	case hclsyntax.TokenOQuote, hclsyntax.TokenCQuote,
@@ -84,9 +92,32 @@ func resolveStyle(
 		return styles.String
 	case hclsyntax.TokenComment:
 		return styles.Comment
-	default:
+	case hclsyntax.TokenEqual, hclsyntax.TokenOBrace, hclsyntax.TokenCBrace,
+		hclsyntax.TokenOBrack, hclsyntax.TokenCBrack,
+		hclsyntax.TokenOParen, hclsyntax.TokenCParen,
+		hclsyntax.TokenComma, hclsyntax.TokenDot, hclsyntax.TokenEllipsis,
+		hclsyntax.TokenFatArrow, hclsyntax.TokenQuestion, hclsyntax.TokenColon,
+		hclsyntax.TokenDoubleColon,
+		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPlus,
+		hclsyntax.TokenMinus, hclsyntax.TokenPercent,
+		hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
+		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
+		hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang,
+		hclsyntax.TokenBitwiseAnd, hclsyntax.TokenBitwiseOr,
+		hclsyntax.TokenBitwiseNot, hclsyntax.TokenBitwiseXor,
+		hclsyntax.TokenStarStar, hclsyntax.TokenSemicolon:
+		return styles.Punctuation
+	case hclsyntax.TokenTemplateInterp, hclsyntax.TokenTemplateControl,
+		hclsyntax.TokenTemplateSeqEnd,
+		hclsyntax.TokenNewline, hclsyntax.TokenEOF,
+		hclsyntax.TokenApostrophe, hclsyntax.TokenBacktick,
+		hclsyntax.TokenTabs, hclsyntax.TokenInvalid,
+		hclsyntax.TokenBadUTF8, hclsyntax.TokenQuotedNewline,
+		hclsyntax.TokenNil:
 		return nil
 	}
+	return nil
 }
 
 // resolveIdentStyle classifies an identifier token by context:
@@ -97,7 +128,7 @@ func resolveStyle(
 func resolveIdentStyle(
 	tok hclsyntax.Token,
 	tokens hclsyntax.Tokens,
-	i int,
+	i, depth int,
 	styles *style.HCL,
 ) *lipgloss.Style {
 	val := string(tok.Bytes)
@@ -118,11 +149,39 @@ func resolveIdentStyle(
 		return nil
 	}
 
-	switch next.Type { //nolint:exhaustive // only relevant follow tokens checked
+	switch next.Type {
 	case hclsyntax.TokenEqual:
+		if depth >= 2 && styles.NestedKey != nil {
+			return styles.NestedKey
+		}
 		return styles.Key
 	case hclsyntax.TokenOQuote, hclsyntax.TokenOBrace:
 		return styles.BlockType
+	case hclsyntax.TokenCBrace, hclsyntax.TokenOBrack, hclsyntax.TokenCBrack,
+		hclsyntax.TokenOParen, hclsyntax.TokenCParen,
+		hclsyntax.TokenCQuote, hclsyntax.TokenOHeredoc, hclsyntax.TokenCHeredoc,
+		hclsyntax.TokenStar, hclsyntax.TokenSlash, hclsyntax.TokenPlus,
+		hclsyntax.TokenMinus, hclsyntax.TokenPercent,
+		hclsyntax.TokenEqualOp, hclsyntax.TokenNotEqual,
+		hclsyntax.TokenLessThan, hclsyntax.TokenLessThanEq,
+		hclsyntax.TokenGreaterThan, hclsyntax.TokenGreaterThanEq,
+		hclsyntax.TokenAnd, hclsyntax.TokenOr, hclsyntax.TokenBang,
+		hclsyntax.TokenDot, hclsyntax.TokenComma, hclsyntax.TokenDoubleColon,
+		hclsyntax.TokenEllipsis, hclsyntax.TokenFatArrow,
+		hclsyntax.TokenQuestion, hclsyntax.TokenColon,
+		hclsyntax.TokenTemplateInterp, hclsyntax.TokenTemplateControl,
+		hclsyntax.TokenTemplateSeqEnd,
+		hclsyntax.TokenQuotedLit, hclsyntax.TokenStringLit,
+		hclsyntax.TokenNumberLit, hclsyntax.TokenIdent,
+		hclsyntax.TokenComment, hclsyntax.TokenNewline, hclsyntax.TokenEOF,
+		hclsyntax.TokenBitwiseAnd, hclsyntax.TokenBitwiseOr,
+		hclsyntax.TokenBitwiseNot, hclsyntax.TokenBitwiseXor,
+		hclsyntax.TokenStarStar, hclsyntax.TokenApostrophe,
+		hclsyntax.TokenBacktick, hclsyntax.TokenSemicolon,
+		hclsyntax.TokenTabs, hclsyntax.TokenInvalid,
+		hclsyntax.TokenBadUTF8, hclsyntax.TokenQuotedNewline,
+		hclsyntax.TokenNil:
+		return nil
 	}
 
 	return nil

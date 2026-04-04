@@ -70,18 +70,19 @@ custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
 clog.SetStyles(&style.Config{YAML: custom})
 ```
 
-| Style field | Tokens                                            |
-| ----------- | ------------------------------------------------- |
-| `Anchor`    | `&name`                                           |
-| `Alias`     | `*name`                                           |
-| `BoolTrue`  | `true`, `yes`, `on`                               |
-| `BoolFalse` | `false`, `no`, `off`                              |
-| `Comment`   | `# text`                                          |
-| `Key`       | mapping keys                                      |
-| `Null`      | `null`, `~`                                       |
-| `Number`    | integers, floats, hex, octal, binary, inf, nan    |
-| `String`    | plain, single-quoted, double-quoted string values |
-| `Tag`       | `!!str`, `!!int`, `!custom`                       |
+| Style field   | Tokens                                                |
+| ------------- | ----------------------------------------------------- |
+| `Anchor`      | `&name`                                               |
+| `Alias`       | `*name`                                               |
+| `BoolTrue`    | `true`, `yes`, `on`                                   |
+| `BoolFalse`   | `false`, `no`, `off`                                  |
+| `Comment`     | `# text`                                              |
+| `Key`         | mapping keys                                          |
+| `Null`        | `null`, `~`                                           |
+| `Number`      | integers, floats, hex, octal, binary, inf, nan        |
+| `Punctuation` | structural tokens (`:`, `-`, `[`, `]`, `{`, `}`, `,`) |
+| `String`      | plain, single-quoted, double-quoted string values     |
+| `Tag`         | `!!str`, `!!int`, `!custom`                           |
 
 ## TOML
 
@@ -102,17 +103,18 @@ custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
 clog.SetStyles(&style.Config{TOML: custom})
 ```
 
-| Style field | Tokens                                           |
-| ----------- | ------------------------------------------------ |
-| `BoolTrue`  | `true`                                           |
-| `BoolFalse` | `false`                                          |
-| `Comment`   | `# text`                                         |
-| `DateTime`  | dates, times, datetimes                          |
-| `Float`     | floating point, inf, nan                         |
-| `Integer`   | integers, hex, octal, binary                     |
-| `Key`       | bare and dotted keys                             |
-| `String`    | basic and literal strings                        |
-| `TableKey`  | `[table]` and `[[array]]` header keys            |
+| Style field   | Tokens                                           |
+| ------------- | ------------------------------------------------ |
+| `BoolTrue`    | `true`                                           |
+| `BoolFalse`   | `false`                                          |
+| `Comment`     | `# text`                                         |
+| `DateTime`    | dates, times, datetimes                          |
+| `Float`       | floating point, inf, nan                         |
+| `Integer`     | integers, hex, octal, binary                     |
+| `Key`         | bare and dotted keys                             |
+| `Punctuation` | structural tokens (`=`, `[`, `]`, `{`, `}`, `,`) |
+| `String`      | basic and literal strings                        |
+| `TableKey`    | `[table]` and `[[array]]` header keys            |
 
 ## HCL
 
@@ -132,16 +134,50 @@ custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
 clog.SetStyles(&style.Config{HCL: custom})
 ```
 
-| Style field | Tokens                                          |
-| ----------- | ----------------------------------------------- |
-| `BlockType` | block type identifiers (`resource`, `variable`) |
-| `BoolFalse` | `false`                                         |
-| `BoolTrue`  | `true`                                          |
-| `Comment`   | `#`, `//`, `/* */` comments                     |
-| `Key`       | attribute keys (identifier before `=`)          |
-| `Null`      | `null`                                          |
-| `Number`    | numeric literals                                |
-| `String`    | string values and quote markers                 |
+| Style field   | Tokens                                                                |
+| ------------- | --------------------------------------------------------------------- |
+| `BlockType`   | block type identifiers (`resource`, `variable`)                       |
+| `BoolFalse`   | `false`                                                               |
+| `BoolTrue`    | `true`                                                                |
+| `Comment`     | `#`, `//`, `/* */` comments                                           |
+| `Key`         | attribute keys (identifier before `=`)                                |
+| `NestedKey`   | attribute keys inside nested blocks (depth >= 2); falls back to `Key` |
+| `Null`        | `null`                                                                |
+| `Number`      | numeric literals                                                      |
+| `Punctuation` | structural tokens (`=`, `{`, `}`, `[`, `]`)                           |
+| `String`      | string values and quote markers                                       |
+
+## Themes
+
+Printer styles default to the Dracula color theme. Switch all four format styles at once with `SetPrintTheme`:
+
+```go
+clog.SetPrintTheme(theme.Monokai())
+```
+
+Per-token overrides still work after setting a theme:
+
+```go
+clog.SetPrintTheme(theme.Monokai())
+s := clog.DefaultStyles()
+s.JSON.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")))
+clog.SetStyles(s)
+```
+
+To build styles from a theme directly:
+
+```go
+custom := style.NewJSON(theme.Monokai())
+```
+
+Available themes:
+
+- `theme.CatppuccinFrappe()`
+- `theme.CatppuccinLatte()`
+- `theme.CatppuccinMacchiato()`
+- `theme.CatppuccinMocha()`
+- `theme.Dracula()`
+- `theme.Monokai()`
 
 ## Indentation
 

@@ -11,7 +11,7 @@ err := clog.Spinner("Downloading").
   Msg("Downloaded")
 ```
 
-The spinner animates with moon phase emojis (🌔🌓🌒🌑🌘🌗🌖🌕) while the action runs, then logs the result. This is the default style ([`spinner.DefaultStyle`](https://pkg.go.dev/github.com/gechr/clog/fx/spinner#DefaultStyle)), which is used when no `spinner.WithStyle` option is passed.
+The spinner animates with moon phase emojis (🌘🌗🌖🌕🌔🌓🌒🌑) while the action runs, then logs the result. This is the default style ([`spinner.DefaultStyle`](https://pkg.go.dev/github.com/gechr/clog/fx/spinner#DefaultStyle)), which is used when no `spinner.WithStyle` option is passed.
 
 ![Spinner demo](assets/spinner.gif)
 

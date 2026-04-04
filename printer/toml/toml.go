@@ -116,7 +116,7 @@ func highlightKeyValue(data []byte, i, n int, buf *strings.Builder, styles *styl
 		i++
 	}
 	if i < n && data[i] == '=' {
-		buf.WriteByte('=')
+		printer.EmitStyled(buf, "=", styles.Punctuation)
 		i++
 	}
 
@@ -203,7 +203,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 
 // highlightArray highlights a TOML array [...].
 func highlightArray(data []byte, i, n int, buf *strings.Builder, styles *style.TOML) int {
-	buf.WriteByte('[')
+	printer.EmitStyled(buf, "[", styles.Punctuation)
 	i++ // skip '['
 
 	for i < n {
@@ -216,12 +216,12 @@ func highlightArray(data []byte, i, n int, buf *strings.Builder, styles *style.T
 			break
 		}
 		if data[i] == ']' {
-			buf.WriteByte(']')
+			printer.EmitStyled(buf, "]", styles.Punctuation)
 			i++
 			return i
 		}
 		if data[i] == ',' {
-			buf.WriteByte(',')
+			printer.EmitStyled(buf, ",", styles.Punctuation)
 			i++
 			continue
 		}
@@ -238,7 +238,7 @@ func highlightArray(data []byte, i, n int, buf *strings.Builder, styles *style.T
 
 // highlightInlineTable highlights a TOML inline table {...}.
 func highlightInlineTable(data []byte, i, n int, buf *strings.Builder, styles *style.TOML) int {
-	buf.WriteByte('{')
+	printer.EmitStyled(buf, "{", styles.Punctuation)
 	i++ // skip '{'
 
 	for i < n {
@@ -250,12 +250,12 @@ func highlightInlineTable(data []byte, i, n int, buf *strings.Builder, styles *s
 			break
 		}
 		if data[i] == '}' {
-			buf.WriteByte('}')
+			printer.EmitStyled(buf, "}", styles.Punctuation)
 			i++
 			return i
 		}
 		if data[i] == ',' {
-			buf.WriteByte(',')
+			printer.EmitStyled(buf, ",", styles.Punctuation)
 			i++
 			continue
 		}

@@ -1,6 +1,9 @@
 package style
 
-import "charm.land/lipgloss/v2"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/theme"
+)
 
 // JSONSpacing is a bitmask controlling where spaces are inserted in JSON output.
 type JSONSpacing uint
@@ -77,51 +80,29 @@ type JSON struct {
 	Comma       *lipgloss.Style // ,
 }
 
-// DefaultJSON returns dracula-inspired lipgloss styles for JSON tokens.
-// True and False mirror the default value styles (green/red) for consistency.
+// DefaultJSON returns Dracula-themed lipgloss styles for JSON tokens.
 func DefaultJSON() *JSON {
+	return NewJSON(theme.Dracula())
+}
+
+// NewJSON returns lipgloss styles for JSON tokens using the given theme.
+func NewJSON(th theme.Theme) *JSON {
 	return &JSON{
 		Spacing: JSONSpacingAfterComma,
 
-		BoolFalse: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-		),
-		BoolTrue: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("2")), // green
-		),
-		Key: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#bd93f9")), // purple
-		),
-		Null: new(
-			lipgloss.NewStyle().
-				Foreground(lipgloss.Color("#8892bf")).
-				Italic(true), // muted blue-grey italic
-		),
-		Number: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#ff79c6")), // pink
-		),
-		String: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f1fa8c")), // yellow
-		),
+		BoolFalse: new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
+		BoolTrue:  new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
+		Key:       new(lipgloss.NewStyle().Foreground(th.Key)),
+		Null:      new(lipgloss.NewStyle().Foreground(th.Comment).Italic(true)),
+		Number:    new(lipgloss.NewStyle().Foreground(th.Number)),
+		String:    new(lipgloss.NewStyle().Foreground(th.String)),
 
-		Brace: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
-		),
-		BraceRoot: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")).Bold(true), // white bold
-		),
-		Bracket: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
-		),
-		BracketRoot: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")).Bold(true), // white bold
-		),
-		Colon: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
-		),
-		Comma: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#f8f8f2")), // white
-		),
+		Brace:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		BraceRoot:   new(lipgloss.NewStyle().Foreground(th.Foreground).Bold(true)),
+		Bracket:     new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		BracketRoot: new(lipgloss.NewStyle().Foreground(th.Foreground).Bold(true)),
+		Colon:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		Comma:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
 	}
 }
 

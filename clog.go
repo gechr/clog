@@ -24,6 +24,7 @@ import (
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/style"
+	"github.com/gechr/clog/theme"
 )
 
 // Level represents a log level.
@@ -693,6 +694,17 @@ func (l *Logger) SetSpinnerStyle(s spinner.Style) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.spinnerStyle = new(s)
+}
+
+// SetPrintTheme rebuilds all printer styles (JSON, YAML, TOML, HCL) from the
+// given theme. Per-token overrides via [SetStyles] still apply after this call.
+func (l *Logger) SetPrintTheme(t theme.Theme) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.styles.JSON = style.NewJSON(t)
+	l.styles.YAML = style.NewYAML(t)
+	l.styles.TOML = style.NewTOML(t)
+	l.styles.HCL = style.NewHCL(t)
 }
 
 // SetStyles merges the given styles into the current style configuration.

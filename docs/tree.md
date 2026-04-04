@@ -64,6 +64,8 @@ clog.SetTreeChars(clog.TreeChars{
 })
 ```
 
+Defaults include trailing whitespace for alignment (see `DefaultTreeChars()`).
+
 | Field      | Default | Purpose                                   |
 | ---------- | ------- | ----------------------------------------- |
 | `First`    | `├──`   | Connector for `TreeFirst`                 |

@@ -32,8 +32,7 @@
   - [Pulse](pulse.md)
   - [Group](group.md)
 
-- [Output]()
+- [Printer](printer.md)
   - [JSON](json.md)
-  - [Printer](printer.md)
 
 - [Configuration](configuration.md)

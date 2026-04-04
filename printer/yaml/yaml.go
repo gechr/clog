@@ -55,12 +55,25 @@ func stripTrailingNewlines(s string) string {
 
 // isKeyType reports whether the token type can represent a mapping key.
 func isKeyType(t token.Type) bool {
-	switch t { //nolint:exhaustive // only key-eligible types listed
+	switch t {
 	case token.StringType, token.SingleQuoteType, token.DoubleQuoteType, token.MergeKeyType:
 		return true
-	default:
+	case token.UnknownType, token.DocumentHeaderType, token.DocumentEndType,
+		token.SequenceEntryType, token.MappingKeyType, token.MappingValueType,
+		token.CollectEntryType,
+		token.SequenceStartType, token.SequenceEndType,
+		token.MappingStartType, token.MappingEndType,
+		token.CommentType, token.AnchorType, token.AliasType, token.TagType,
+		token.LiteralType, token.FoldedType,
+		token.DirectiveType, token.SpaceType,
+		token.NullType, token.ImplicitNullType,
+		token.InfinityType, token.NanType,
+		token.IntegerType, token.BinaryIntegerType, token.OctetIntegerType,
+		token.HexIntegerType, token.FloatType,
+		token.BoolType, token.InvalidType:
 		return false
 	}
+	return false
 }
 
 // resolveStyle returns the appropriate style for a token based on its type
@@ -74,11 +87,25 @@ func resolveStyle(
 ) *lipgloss.Style {
 	// Anchor/alias name: previous token is Anchor or Alias.
 	if i > 0 {
-		switch tokens[i-1].Type { //nolint:exhaustive // only anchor/alias need context check
+		switch tokens[i-1].Type {
 		case token.AnchorType:
 			return styles.Anchor
 		case token.AliasType:
 			return styles.Alias
+		case token.UnknownType, token.DocumentHeaderType, token.DocumentEndType,
+			token.SequenceEntryType, token.MappingKeyType, token.MappingValueType,
+			token.MergeKeyType, token.CollectEntryType,
+			token.SequenceStartType, token.SequenceEndType,
+			token.MappingStartType, token.MappingEndType,
+			token.CommentType, token.TagType,
+			token.LiteralType, token.FoldedType,
+			token.SingleQuoteType, token.DoubleQuoteType,
+			token.DirectiveType, token.SpaceType,
+			token.NullType, token.ImplicitNullType,
+			token.InfinityType, token.NanType,
+			token.IntegerType, token.BinaryIntegerType, token.OctetIntegerType,
+			token.HexIntegerType, token.FloatType,
+			token.StringType, token.BoolType, token.InvalidType:
 		}
 	}
 
@@ -87,7 +114,7 @@ func resolveStyle(
 		return styles.Key
 	}
 
-	switch tok.Type { //nolint:exhaustive // structural tokens are intentionally unstyled
+	switch tok.Type {
 	case token.AnchorType:
 		return styles.Anchor
 	case token.AliasType:
@@ -113,7 +140,17 @@ func resolveStyle(
 		return styles.String
 	case token.TagType:
 		return styles.Tag
-	default:
+	case token.MappingValueType, token.MappingKeyType,
+		token.SequenceEntryType,
+		token.MappingStartType, token.MappingEndType,
+		token.SequenceStartType, token.SequenceEndType,
+		token.CollectEntryType,
+		token.DocumentHeaderType, token.DocumentEndType:
+		return styles.Punctuation
+	case token.UnknownType, token.MergeKeyType,
+		token.DirectiveType, token.SpaceType,
+		token.InvalidType:
 		return nil
 	}
+	return nil
 }
