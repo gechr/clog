@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/printer"
 	"github.com/gechr/clog/style"
 )
 
@@ -518,7 +519,10 @@ func isSpace(c byte) bool {
 // emitStyled writes text to buf, applying style if non-nil.
 func emitStyled(buf *strings.Builder, text string, style *lipgloss.Style) {
 	if style != nil {
-		buf.WriteString(style.Render(text))
+		prefix, content, suffix := printer.SplitOriginWhitespace(text)
+		buf.WriteString(prefix)
+		buf.WriteString(style.Render(content))
+		buf.WriteString(suffix)
 	} else {
 		buf.WriteString(text)
 	}

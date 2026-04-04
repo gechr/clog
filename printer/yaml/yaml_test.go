@@ -109,7 +109,7 @@ func TestHighlightRoundTripFallback(t *testing.T) {
 	// Use a case known to not round-trip: explicit key syntax.
 	input := "? [a, b]\n: 1"
 	got := yaml.Highlight(input, &style.YAML{})
-	// Should either round-trip or fall back to original — never produce mangled output.
+	// Should either round-trip or fall back to original - never produce mangled output.
 	if got != input {
 		// If it didn't fall back, verify it at least doesn't lose content.
 		assert.Contains(t, got, "a")
@@ -120,7 +120,7 @@ func TestHighlightRoundTripFallback(t *testing.T) {
 func TestHighlightFlowStyle(t *testing.T) {
 	input := "{a: 1, b: 2}"
 	got := yaml.Highlight(input, &style.YAML{})
-	// Should either preserve or fall back — not crash.
+	// Should either preserve or fall back - not crash.
 	assert.NotEmpty(t, got)
 }
 

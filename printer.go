@@ -5,10 +5,13 @@ import (
 	stdjson "encoding/json"
 	"reflect"
 
+	"github.com/gechr/clog/printer/hcl"
 	"github.com/gechr/clog/printer/json"
+	"github.com/gechr/clog/printer/toml"
 	"github.com/gechr/clog/printer/yaml"
 	"github.com/gechr/clog/style"
 	goyaml "github.com/goccy/go-yaml"
+	gotoml "github.com/pelletier/go-toml/v2"
 )
 
 // JSONPrintMode controls how the [Printer] formats its output.
@@ -154,6 +157,59 @@ func (p *Printer) RawYAML(data []byte) {
 	}
 
 	highlighted := yaml.Highlight(string(data), styles)
+	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
+		highlighted += nl
+	}
+	l.runHooks(HookBeforeWrite)
+	writeString(l.output.Writer(), highlighted)
+	l.runHooks(HookAfterWrite)
+}
+
+// TOML marshals v to TOML and writes syntax-highlighted output.
+// If marshalling fails, the error string is written instead.
+func (p *Printer) TOML(v any) {
+	data, err := gotoml.Marshal(v)
+	if err != nil {
+		p.write(err.Error())
+		return
+	}
+	p.RawTOML(data)
+}
+
+// RawTOML writes pre-serialized TOML bytes with syntax highlighting.
+// Token colors are inherited from the logger's TOML configuration.
+func (p *Printer) RawTOML(data []byte) {
+	l := p.logger
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var styles *style.TOML
+	if !l.colorsDisabled() {
+		styles = l.styles.TOML
+	}
+
+	highlighted := toml.Highlight(string(data), styles)
+	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
+		highlighted += nl
+	}
+	l.runHooks(HookBeforeWrite)
+	writeString(l.output.Writer(), highlighted)
+	l.runHooks(HookAfterWrite)
+}
+
+// RawHCL writes pre-serialized HCL bytes with syntax highlighting.
+// Token colors are inherited from the logger's HCL configuration.
+func (p *Printer) RawHCL(data []byte) {
+	l := p.logger
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	var styles *style.HCL
+	if !l.colorsDisabled() {
+		styles = l.styles.HCL
+	}
+
+	highlighted := hcl.Highlight(string(data), styles)
 	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
 		highlighted += nl
 	}

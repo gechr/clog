@@ -138,7 +138,7 @@ func TestPrinterGlobalModeOverrideToMultiline(t *testing.T) {
 func TestPrinterJSONPreserve(t *testing.T) {
 	l, buf := newTestPrinter()
 
-	// Badly indented but valid JSON — preserve mode keeps it as-is.
+	// Badly indented but valid JSON - preserve mode keeps it as-is.
 	input := "{\n\"a\": 1,\n\"b\": 2\n}"
 	l.Print().Mode(JSONPreserve).RawJSON([]byte(input))
 
@@ -313,6 +313,61 @@ func TestPrinterYAMLMarshalError(t *testing.T) {
 	l, buf := newTestPrinter()
 	l.Print().YAML(make(chan int))
 	assert.Contains(t, buf.String(), "unknown value type")
+}
+
+func TestPrinterTOML(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	type Config struct {
+		Port int `toml:"port"`
+	}
+	l.Print().TOML(Config{Port: 8080})
+
+	assert.Equal(t, "port = 8080\n", buf.String())
+}
+
+func TestPrinterRawTOML(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	l.Print().RawTOML([]byte("[server]\nhost = \"localhost\"\n"))
+
+	assert.Equal(t, "[server]\nhost = \"localhost\"\n", buf.String())
+}
+
+func TestPrinterRawTOMLNil(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawTOML(nil)
+	assert.Equal(t, nl, buf.String())
+}
+
+func TestPrinterRawTOMLEmpty(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawTOML([]byte{})
+	assert.Equal(t, nl, buf.String())
+}
+
+func TestPrinterRawHCL(t *testing.T) {
+	l, buf := newTestPrinter()
+
+	input := `resource "aws_instance" "web" {
+  ami = "ami-12345678"
+}
+`
+	l.Print().RawHCL([]byte(input))
+
+	assert.Equal(t, input, buf.String())
+}
+
+func TestPrinterRawHCLNil(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawHCL(nil)
+	assert.Equal(t, nl, buf.String())
+}
+
+func TestPrinterRawHCLEmpty(t *testing.T) {
+	l, buf := newTestPrinter()
+	l.Print().RawHCL([]byte{})
+	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterPackageLevel(t *testing.T) {

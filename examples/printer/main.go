@@ -78,4 +78,59 @@ features:
   - name: beta-api
     enabled: false  # not yet GA
 `))
+
+	fmt.Println()
+
+	// TOML: marshal a Go value.
+	type DB struct {
+		Host string `toml:"host"`
+		Port int    `toml:"port"`
+	}
+	type Config struct {
+		Debug    bool `toml:"debug"`
+		Database DB   `toml:"database"`
+	}
+	clog.Print().TOML(Config{
+		Debug:    true,
+		Database: DB{Host: "localhost", Port: 5432},
+	})
+
+	fmt.Println()
+
+	// TOML: pre-serialized bytes with comments and nested tables.
+	clog.Print().RawTOML([]byte(`# Application config
+[server]
+host = "0.0.0.0"
+port = 8080       # listen port
+debug = false
+
+[server.tls]
+enabled = true
+cert = "/etc/ssl/cert.pem"
+
+[[routes]]
+path = "/api"
+timeout = 30.5
+methods = ["GET", "POST"]
+`))
+
+	fmt.Println()
+
+	// HCL: pre-serialized bytes (Terraform-style config).
+	clog.Print().RawHCL([]byte(`# AWS infrastructure
+resource "aws_instance" "web" {
+  ami           = "ami-12345678"
+  instance_type = "t2.micro"
+  count         = 2
+  monitoring    = true
+
+  tags = {
+    Name = "web-server"
+  }
+}
+
+variable "region" {
+  default = "us-east-1"
+}
+`))
 }

@@ -62,7 +62,6 @@ clog.SetStyles(&style.Config{
 | `FieldElapsedNumber`   | `Style`                  |                 | `nil` (→ DurationNumber)  |
 | `FieldElapsedUnit`     | `Style`                  |                 | `nil` (→ DurationUnit)    |
 | `FieldError`           | `Style`                  |                 | red                       |
-| `JSON`                 | `*style.JSON`            |                 | `style.DefaultJSON()`     |
 | `FieldNumber`          | `Style`                  |                 | magenta                   |
 | `FieldPercent`         | `Style`                  |                 | `nil`                     |
 | `FieldQuantityNumber`  | `Style`                  |                 | magenta                   |
@@ -81,6 +80,21 @@ clog.SetStyles(&style.Config{
 | `Timestamp`            | `Style`                  |                 | faint                     |
 | `Values`               | `map[any]Style`          | `ValueStyleMap` | `style.DefaultValues()`   |
 
+### Syntax Highlighting
+
+Per-token styles for the [Printer](printer.md). Each has a `Default*()` constructor with Dracula-inspired colors. Set to `nil` to disable highlighting for that format.
+
+| Field  | Type          | Default               |
+| ------ | ------------- | --------------------- |
+| `HCL`  | `*style.HCL`  | `style.DefaultHCL()`  |
+| `JSON` | `*style.JSON` | `style.DefaultJSON()` |
+| `TOML` | `*style.TOML` | `style.DefaultTOML()` |
+| `YAML` | `*style.YAML` | `style.DefaultYAML()` |
+
+See [Printer](printer.md) for per-format token style tables.
+
+### Field Descriptions
+
 | Field                  | Description                                                                                |
 | ---------------------- | ------------------------------------------------------------------------------------------ |
 | `DurationGradient`     | Gradient color stops for `Duration` fields; active when `SetDurationGradientMax` > 0       |
@@ -94,7 +108,6 @@ clog.SetStyles(&style.Config{
 | `FieldElapsedNumber`   | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber` |
 | `FieldElapsedUnit`     | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`      |
 | `FieldError`           | Style for error field values, nil to disable                                               |
-| `JSON`                 | Per-token styles for JSON syntax highlighting; nil disables highlighting                   |
 | `FieldNumber`          | Style for int/float field values, nil to disable                                           |
 | `FieldPercent`         | Base style for `Percent` fields (foreground overridden by gradient), nil to disable        |
 | `FieldQuantityNumber`  | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable              |

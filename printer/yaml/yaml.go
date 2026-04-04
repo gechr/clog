@@ -3,9 +3,9 @@ package yaml
 
 import (
 	"strings"
-	"unicode"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/printer"
 	"github.com/gechr/clog/style"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/token"
@@ -45,7 +45,7 @@ func Highlight(s string, styles *style.YAML) string {
 			// Style only the visible content, not surrounding whitespace.
 			// Origin includes leading/trailing whitespace that lipgloss
 			// would pad into a block if styled together.
-			prefix, content, suffix := splitOriginWhitespace(tok.Origin)
+			prefix, content, suffix := printer.SplitOriginWhitespace(tok.Origin)
 			buf.WriteString(prefix)
 			buf.WriteString(st.Render(content))
 			buf.WriteString(suffix)
@@ -55,16 +55,6 @@ func Highlight(s string, styles *style.YAML) string {
 	}
 
 	return buf.String()
-}
-
-// splitOriginWhitespace splits Origin into leading whitespace, visible
-// content, and trailing whitespace. This avoids passing newlines into
-// lipgloss.Render, which pads shorter lines to match the widest line.
-func splitOriginWhitespace(origin string) (string, string, string) {
-	trimmed := strings.TrimRightFunc(origin, unicode.IsSpace)
-	suffix := origin[len(trimmed):]
-	prefixLen := len(trimmed) - len(strings.TrimLeftFunc(trimmed, unicode.IsSpace))
-	return origin[:prefixLen], trimmed[prefixLen:], suffix
 }
 
 // stripTrailingNewlines removes trailing newline characters for round-trip
@@ -113,7 +103,14 @@ func resolveStyle(
 	case token.AliasType:
 		return styles.Alias
 	case token.BoolType:
-		return styles.Bool
+		switch tok.Value {
+		case "y", "Y", "yes", "Yes", "YES",
+			"true", "True", "TRUE",
+			"on", "On", "ON":
+			return styles.BoolTrue
+		default:
+			return styles.BoolFalse
+		}
 	case token.CommentType:
 		return styles.Comment
 	case token.NullType, token.ImplicitNullType:

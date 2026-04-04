@@ -57,9 +57,15 @@ const (
 // Config holds lipgloss styles for the logger's pretty output.
 // Pointer fields can be set to nil to disable that style entirely.
 type Config struct {
+	// Per-token styles for HCL syntax highlighting.
+	// nil disables HCL highlighting; use [DefaultHCL] to enable.
+	HCL *HCL
 	// Per-token styles for JSON syntax highlighting.
 	// nil disables JSON highlighting; use [DefaultJSON] to enable.
 	JSON *JSON
+	// Per-token styles for TOML syntax highlighting.
+	// nil disables TOML highlighting; use [DefaultTOML] to enable.
+	TOML *TOML
 	// Per-token styles for YAML syntax highlighting.
 	// nil disables YAML highlighting; use [DefaultYAML] to enable.
 	YAML *YAML

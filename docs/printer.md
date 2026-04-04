@@ -74,13 +74,74 @@ clog.SetStyles(&style.Config{YAML: custom})
 | ----------- | ------------------------------------------------- |
 | `Anchor`    | `&name`                                           |
 | `Alias`     | `*name`                                           |
-| `Bool`      | `true`, `false`, `yes`, `no`, `on`, `off`         |
+| `BoolTrue`  | `true`, `yes`, `on`                               |
+| `BoolFalse` | `false`, `no`, `off`                              |
 | `Comment`   | `# text`                                          |
 | `Key`       | mapping keys                                      |
 | `Null`      | `null`, `~`                                       |
 | `Number`    | integers, floats, hex, octal, binary, inf, nan    |
 | `String`    | plain, single-quoted, double-quoted string values |
 | `Tag`       | `!!str`, `!!int`, `!custom`                       |
+
+## TOML
+
+`TOML` marshals any Go value; `RawTOML` accepts pre-serialized bytes:
+
+```go
+clog.Print().TOML(configStruct)
+clog.Print().RawTOML(configBytes)
+```
+
+### TOML Styling
+
+Token colors are configured via `TOML` in styles:
+
+```go
+custom := style.DefaultTOML()
+custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
+clog.SetStyles(&style.Config{TOML: custom})
+```
+
+| Style field | Tokens                                           |
+| ----------- | ------------------------------------------------ |
+| `BoolTrue`  | `true`                                           |
+| `BoolFalse` | `false`                                          |
+| `Comment`   | `# text`                                         |
+| `DateTime`  | dates, times, datetimes                          |
+| `Float`     | floating point, inf, nan                         |
+| `Integer`   | integers, hex, octal, binary                     |
+| `Key`       | bare and dotted keys                             |
+| `String`    | basic and literal strings                        |
+| `TableKey`  | `[table]` and `[[array]]` header keys            |
+
+## HCL
+
+`RawHCL` accepts pre-serialized HCL bytes (there is no marshal method since HCL has no standard Go marshal API):
+
+```go
+clog.Print().RawHCL(terraformConfig)
+```
+
+### HCL Styling
+
+Token colors are configured via `HCL` in styles:
+
+```go
+custom := style.DefaultHCL()
+custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
+clog.SetStyles(&style.Config{HCL: custom})
+```
+
+| Style field | Tokens                                          |
+| ----------- | ----------------------------------------------- |
+| `BlockType` | block type identifiers (`resource`, `variable`) |
+| `BoolFalse` | `false`                                         |
+| `BoolTrue`  | `true`                                          |
+| `Comment`   | `#`, `//`, `/* */` comments                     |
+| `Key`       | attribute keys (identifier before `=`)          |
+| `Null`      | `null`                                          |
+| `Number`    | numeric literals                                |
+| `String`    | string values and quote markers                 |
 
 ## Indentation
 
