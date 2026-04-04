@@ -87,7 +87,7 @@ func Highlight(s string, styles *style.JSON) string {
 			if len(stack) == 0 && styles.BraceRoot != nil {
 				braceStyle = styles.BraceRoot
 			}
-			emitStyled(&buf, "{", braceStyle)
+			printer.EmitStyled(&buf, "{", braceStyle)
 			stack = append(stack, tokenLBrace)
 			depth++
 			justOpened = true
@@ -107,7 +107,7 @@ func Highlight(s string, styles *style.JSON) string {
 			if len(stack) == 1 && styles.BraceRoot != nil {
 				braceStyle = styles.BraceRoot
 			}
-			emitStyled(&buf, "}", braceStyle)
+			printer.EmitStyled(&buf, "}", braceStyle)
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
 			}
@@ -122,7 +122,7 @@ func Highlight(s string, styles *style.JSON) string {
 			if len(stack) == 0 && styles.BracketRoot != nil {
 				bracketStyle = styles.BracketRoot
 			}
-			emitStyled(&buf, "[", bracketStyle)
+			printer.EmitStyled(&buf, "[", bracketStyle)
 			stack = append(stack, tokenLBracket)
 			depth++
 			justOpened = true
@@ -141,14 +141,14 @@ func Highlight(s string, styles *style.JSON) string {
 			if len(stack) == 1 && styles.BracketRoot != nil {
 				bracketStyle = styles.BracketRoot
 			}
-			emitStyled(&buf, "]", bracketStyle)
+			printer.EmitStyled(&buf, "]", bracketStyle)
 			if len(stack) > 0 {
 				stack = stack[:len(stack)-1]
 			}
 			i++
 
 		case c == tokenColon:
-			emitStyled(&buf, ":", styles.Colon)
+			printer.EmitStyled(&buf, ":", styles.Colon)
 			if indent != "" || styles.Spacing&style.JSONSpacingAfterColon != 0 {
 				buf.WriteByte(' ')
 			}
@@ -157,7 +157,7 @@ func Highlight(s string, styles *style.JSON) string {
 
 		case c == tokenComma:
 			if !styles.OmitCommas {
-				emitStyled(&buf, ",", styles.Comma)
+				printer.EmitStyled(&buf, ",", styles.Comma)
 			}
 			if indent != "" {
 				buf.WriteByte('\n')
@@ -191,7 +191,7 @@ func Highlight(s string, styles *style.JSON) string {
 			}
 			raw := string(data[i:j])
 			text, style := resolveStringToken(raw, expectKey, hjson, styles)
-			emitStyled(&buf, text, style)
+			printer.EmitStyled(&buf, text, style)
 			if expectKey {
 				expectKey = false
 			}
@@ -199,7 +199,7 @@ func Highlight(s string, styles *style.JSON) string {
 
 		case c == 't':
 			if i+4 <= n && data[i+1] == 'r' && data[i+2] == 'u' && data[i+3] == 'e' {
-				emitStyled(&buf, "true", styles.BoolTrue)
+				printer.EmitStyled(&buf, "true", styles.BoolTrue)
 				i += 4
 			} else {
 				buf.Write(data[i:])
@@ -209,7 +209,7 @@ func Highlight(s string, styles *style.JSON) string {
 		case c == 'f':
 			if i+5 <= n && data[i+1] == 'a' && data[i+2] == 'l' && data[i+3] == 's' &&
 				data[i+4] == 'e' {
-				emitStyled(&buf, "false", styles.BoolFalse)
+				printer.EmitStyled(&buf, "false", styles.BoolFalse)
 				i += 5
 			} else {
 				buf.Write(data[i:])
@@ -218,7 +218,7 @@ func Highlight(s string, styles *style.JSON) string {
 
 		case c == 'n':
 			if i+4 <= n && data[i+1] == 'u' && data[i+2] == 'l' && data[i+3] == 'l' {
-				emitStyled(&buf, "null", styles.Null)
+				printer.EmitStyled(&buf, "null", styles.Null)
 				i += 4
 			} else {
 				buf.Write(data[i:])
@@ -248,7 +248,11 @@ func Highlight(s string, styles *style.JSON) string {
 					j++
 				}
 			}
-			emitStyled(&buf, string(data[i:j]), resolveNumberStyle(string(data[i:j]), styles))
+			printer.EmitStyled(
+				&buf,
+				string(data[i:j]),
+				resolveNumberStyle(string(data[i:j]), styles),
+			)
 			i = j
 
 		default:
@@ -310,26 +314,26 @@ func renderFlat(s string, styles *style.JSON) string {
 	if braceStyle == nil {
 		braceStyle = styles.Brace
 	}
-	emitStyled(&buf, "{", braceStyle)
+	printer.EmitStyled(&buf, "{", braceStyle)
 
 	for i, p := range pairs {
 		if i > 0 {
 			if !styles.OmitCommas {
-				emitStyled(&buf, ",", styles.Comma)
+				printer.EmitStyled(&buf, ",", styles.Comma)
 			}
 			if styles.Spacing&style.JSONSpacingAfterComma != 0 {
 				buf.WriteByte(' ')
 			}
 		}
-		emitStyled(&buf, p.Key, styles.Key)
-		emitStyled(&buf, ":", styles.Colon)
+		printer.EmitStyled(&buf, p.Key, styles.Key)
+		printer.EmitStyled(&buf, ":", styles.Colon)
 		if styles.Spacing&style.JSONSpacingAfterColon != 0 {
 			buf.WriteByte(' ')
 		}
 		buf.WriteString(Highlight(string(p.Value), &valueStyles))
 	}
 
-	emitStyled(&buf, "}", braceStyle)
+	printer.EmitStyled(&buf, "}", braceStyle)
 	return buf.String()
 }
 
@@ -514,18 +518,6 @@ func isDigit(c byte) bool {
 // isSpace reports whether c is a JSON whitespace character.
 func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
-}
-
-// emitStyled writes text to buf, applying style if non-nil.
-func emitStyled(buf *strings.Builder, text string, style *lipgloss.Style) {
-	if style != nil {
-		prefix, content, suffix := printer.SplitOriginWhitespace(text)
-		buf.WriteString(prefix)
-		buf.WriteString(style.Render(content))
-		buf.WriteString(suffix)
-	} else {
-		buf.WriteString(text)
-	}
 }
 
 // resolveNumberStyle resolves the effective style for a JSON number token.

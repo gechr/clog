@@ -42,17 +42,7 @@ func Highlight(s string, styles *style.HCL) string {
 
 		st := resolveStyle(tok, tokens, i, styles)
 		text := string(tok.Bytes)
-		if st != nil {
-			// Style only the visible content, not surrounding whitespace.
-			// Token bytes may include trailing newlines (e.g. comments)
-			// that lipgloss would pad into a block if styled together.
-			prefix, content, suffix := printer.SplitOriginWhitespace(text)
-			buf.WriteString(prefix)
-			buf.WriteString(st.Render(content))
-			buf.WriteString(suffix)
-		} else {
-			buf.WriteString(text)
-		}
+		printer.EmitStyled(&buf, text, st)
 
 		pos = end
 	}

@@ -41,17 +41,7 @@ func Highlight(s string, styles *style.YAML) string {
 
 	for i, tok := range tokens {
 		st := resolveStyle(tok, tokens, i, styles)
-		if st != nil {
-			// Style only the visible content, not surrounding whitespace.
-			// Origin includes leading/trailing whitespace that lipgloss
-			// would pad into a block if styled together.
-			prefix, content, suffix := printer.SplitOriginWhitespace(tok.Origin)
-			buf.WriteString(prefix)
-			buf.WriteString(st.Render(content))
-			buf.WriteString(suffix)
-		} else {
-			buf.WriteString(tok.Origin)
-		}
+		printer.EmitStyled(&buf, tok.Origin, st)
 	}
 
 	return buf.String()

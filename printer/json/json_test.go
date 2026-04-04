@@ -1,7 +1,6 @@
 package json_test
 
 import (
-	"strings"
 	"testing"
 
 	"charm.land/lipgloss/v2"
@@ -1219,25 +1218,6 @@ func TestIsJSONSpace(t *testing.T) {
 	assert.False(t, json.IsSpace('a'))
 	assert.False(t, json.IsSpace('0'))
 	assert.False(t, json.IsSpace(0))
-}
-
-// ---------------------------------------------------------------------------
-// json.EmitStyled
-// ---------------------------------------------------------------------------
-
-func TestEmitStyled(t *testing.T) {
-	t.Run("nil_style", func(t *testing.T) {
-		var buf strings.Builder
-		json.EmitStyled(&buf, "text", nil)
-		assert.Equal(t, "text", buf.String())
-	})
-
-	t.Run("with_style", func(t *testing.T) {
-		style := lipgloss.NewStyle().Bold(true)
-		var buf strings.Builder
-		json.EmitStyled(&buf, "text", &style)
-		assert.Equal(t, style.Render("text"), buf.String())
-	})
 }
 
 // ---------------------------------------------------------------------------

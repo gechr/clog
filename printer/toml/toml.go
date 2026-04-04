@@ -42,7 +42,7 @@ func Highlight(s string, styles *style.TOML) string {
 		case '#':
 			end := scanToEOL(data, i)
 			buf.Write(data[lineStart:i])
-			emitStyled(&buf, string(data[i:end]), styles.Comment)
+			printer.EmitStyled(&buf, string(data[i:end]), styles.Comment)
 			i = end
 
 		case '[':
@@ -87,7 +87,7 @@ func highlightTableHeader(data []byte, i, n int, buf *strings.Builder, styles *s
 		j++
 	}
 
-	emitStyled(buf, string(data[start:j]), styles.TableKey)
+	printer.EmitStyled(buf, string(data[start:j]), styles.TableKey)
 
 	// Emit any trailing comment on the same line.
 	for j < n && (data[j] == ' ' || data[j] == '\t') {
@@ -96,7 +96,7 @@ func highlightTableHeader(data []byte, i, n int, buf *strings.Builder, styles *s
 	}
 	if j < n && data[j] == '#' {
 		end := scanToEOL(data, j)
-		emitStyled(buf, string(data[j:end]), styles.Comment)
+		printer.EmitStyled(buf, string(data[j:end]), styles.Comment)
 		j = end
 	}
 
@@ -108,7 +108,7 @@ func highlightKeyValue(data []byte, i, n int, buf *strings.Builder, styles *styl
 	// Scan key (bare or quoted).
 	keyStart := i
 	i = scanKey(data, i, n)
-	emitStyled(buf, string(data[keyStart:i]), styles.Key)
+	printer.EmitStyled(buf, string(data[keyStart:i]), styles.Key)
 
 	// Emit whitespace and '='.
 	for i < n && (data[i] == ' ' || data[i] == '\t') {
@@ -158,14 +158,14 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 	case c == '"' || c == '\'':
 		start := i
 		i = scanQuotedString(data, i, n)
-		emitStyled(buf, string(data[start:i]), styles.String)
+		printer.EmitStyled(buf, string(data[start:i]), styles.String)
 
 	case c == 't' && i+4 <= n && string(data[i:i+4]) == "true":
-		emitStyled(buf, "true", styles.BoolTrue)
+		printer.EmitStyled(buf, "true", styles.BoolTrue)
 		i += 4
 
 	case c == 'f' && i+5 <= n && string(data[i:i+5]) == "false":
-		emitStyled(buf, "false", styles.BoolFalse)
+		printer.EmitStyled(buf, "false", styles.BoolFalse)
 		i += 5
 
 	case c == '[':
@@ -179,7 +179,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 		i = scanBareValue(data, i, n)
 		val := string(data[start:i])
 		st := classifyNumber(val, styles)
-		emitStyled(buf, val, st)
+		printer.EmitStyled(buf, val, st)
 
 	default:
 		end := scanToEOL(data, i)
@@ -194,7 +194,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 	}
 	if i < n && data[i] == '#' {
 		end := scanToEOL(data, i)
-		emitStyled(buf, string(data[i:end]), styles.Comment)
+		printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
 		i = end
 	}
 
@@ -227,7 +227,7 @@ func highlightArray(data []byte, i, n int, buf *strings.Builder, styles *style.T
 		}
 		if data[i] == '#' {
 			end := scanToEOL(data, i)
-			emitStyled(buf, string(data[i:end]), styles.Comment)
+			printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
 			i = end
 			continue
 		}
@@ -370,15 +370,4 @@ func classifyNumber(val string, styles *style.TOML) *lipgloss.Style {
 
 func isDigit(c byte) bool {
 	return c >= '0' && c <= '9'
-}
-
-func emitStyled(buf *strings.Builder, text string, st *lipgloss.Style) {
-	if st != nil {
-		prefix, content, suffix := printer.SplitOriginWhitespace(text)
-		buf.WriteString(prefix)
-		buf.WriteString(st.Render(content))
-		buf.WriteString(suffix)
-	} else {
-		buf.WriteString(text)
-	}
 }

@@ -7,7 +7,6 @@ var (
 	CollectFlatPairs   = collectFlatPairs
 	ScanValueEnd       = scanValueEnd
 	IsSpace            = isSpace
-	EmitStyled         = emitStyled
 	ResolveNumberStyle = resolveNumberStyle
 	HjsonUnquoteKey    = hjsonUnquoteKey
 	HjsonUnquoteValue  = hjsonUnquoteValue

@@ -49,7 +49,7 @@ func DefaultTOML() *TOML {
 				Foreground(lipgloss.Color("#f1fa8c")), // yellow (matches JSON/YAML String)
 		),
 		TableKey: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("#bd93f9")).Bold(true), // purple bold
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#8be9fd")), // cyan
 		),
 	}
 }
