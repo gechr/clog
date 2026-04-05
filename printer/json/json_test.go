@@ -447,6 +447,55 @@ func TestHighlightJSONUnterminatedString(t *testing.T) {
 	assert.Equal(t, "{\"key\":\"unterminated", got)
 }
 
+func TestHighlightJSONUnterminatedStringWithEscapeAtEnd(t *testing.T) {
+	styles := &style.JSON{}
+
+	// Backslash at very end of input: escape scanning overshoots, j>n clamped.
+	got := json.Highlight(`{"key":"val\`, styles)
+	//nolint:testifylint // intentionally malformed JSON, not comparable with JSONEq
+	assert.Equal(t, `{"key":"val\`, got)
+}
+
+func TestHighlightJSONPreserveFormat(t *testing.T) {
+	styles := &style.JSON{PreserveFormat: true}
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "preserves_whitespace",
+			input: "{ \"a\" : 1 , \"b\" : 2 }",
+			want:  "{ \"a\" : 1 , \"b\" : 2 }",
+		},
+		{
+			name:  "preserves_newlines_and_indentation",
+			input: "{\n  \"a\": 1,\n  \"b\": 2\n}",
+			want:  "{\n  \"a\": 1,\n  \"b\": 2\n}",
+		},
+		{
+			name:  "preserves_tabs",
+			input: "{\t\"a\":\t1}",
+			want:  "{\t\"a\":\t1}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := json.Highlight(tt.input, styles)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestHighlightJSONFlatModeDeepNestedWithArrayOfObjects(t *testing.T) {
+	styles := &style.JSON{Mode: style.JSONModeFlat}
+
+	got := json.Highlight(`{"a":{"b":[{"c":1},{"d":2}]}}`, styles)
+	assert.Equal(t, `{a.b:[{c:1},{d:2}]}`, got)
+}
+
 // ---------------------------------------------------------------------------
 // json.RenderFlat
 // ---------------------------------------------------------------------------
@@ -620,6 +669,64 @@ func TestCollectFlatPairsMalformedKey(t *testing.T) {
 	assert.Empty(t, pairs)
 }
 
+func TestCollectFlatPairsEscapedKeyInNestedObject(t *testing.T) {
+	pairs := json.CollectFlatPairs([]byte(`{"outer":{"in\"ner":1}}`), "")
+	require.Len(t, pairs, 1)
+	assert.Equal(t, `outer.in\"ner`, pairs[0].Key)
+}
+
+func TestCollectFlatPairsMissingColon(t *testing.T) {
+	// Malformed: no colon after key - should bail gracefully.
+	pairs := json.CollectFlatPairs([]byte(`{"key"123}`), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsUnterminatedKey(t *testing.T) {
+	// Key string never closed - should bail gracefully.
+	pairs := json.CollectFlatPairs([]byte(`{"unterminated`), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsKeyWithEscapeAtEnd(t *testing.T) {
+	// Escaped char at end of key string data.
+	pairs := json.CollectFlatPairs([]byte(`{"k\`), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsTruncatedAfterColon(t *testing.T) {
+	// Input ends right after whitespace following colon - empty value.
+	pairs := json.CollectFlatPairs([]byte(`{"k": `), "")
+	require.Len(t, pairs, 1)
+	assert.Equal(t, "k", pairs[0].Key)
+	assert.Empty(t, string(pairs[0].Value))
+}
+
+func TestCollectFlatPairsTruncatedAfterKey(t *testing.T) {
+	// Input ends right after key, no colon present.
+	pairs := json.CollectFlatPairs([]byte(`{"key"`), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsTruncatedAfterKeyWhitespace(t *testing.T) {
+	// Input ends with whitespace after key, no colon.
+	pairs := json.CollectFlatPairs([]byte(`{"key"  `), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsOnlyWhitespaceAfterBrace(t *testing.T) {
+	// Input has only whitespace after opening brace.
+	pairs := json.CollectFlatPairs([]byte(`{  `), "")
+	assert.Empty(t, pairs)
+}
+
+func TestCollectFlatPairsTruncatedAfterColon2(t *testing.T) {
+	// Input ends immediately after the colon, no value at all.
+	pairs := json.CollectFlatPairs([]byte(`{"k":`), "")
+	require.Len(t, pairs, 1)
+	assert.Equal(t, "k", pairs[0].Key)
+	assert.Empty(t, string(pairs[0].Value))
+}
+
 // ---------------------------------------------------------------------------
 // scanJSONValueEnd
 // ---------------------------------------------------------------------------
@@ -750,6 +857,42 @@ func TestScanJSONValueEnd(t *testing.T) {
 			data:    "42 ",
 			startAt: 0,
 			want:    2,
+		},
+		{
+			name:    "unterminated_string_escape_at_end",
+			data:    `"val\`,
+			startAt: 0,
+			want:    5,
+		},
+		{
+			name:    "unterminated_string_inside_object",
+			data:    `{"k":"unterminated`,
+			startAt: 0,
+			want:    18,
+		},
+		{
+			name:    "escaped_char_at_boundary_in_object",
+			data:    `{"k":"val\"}`,
+			startAt: 0,
+			want:    12,
+		},
+		{
+			name:    "array_with_unterminated_string",
+			data:    `["unterminated`,
+			startAt: 0,
+			want:    14,
+		},
+		{
+			name:    "object_with_escape_at_end_of_string",
+			data:    `{"k":"v\`,
+			startAt: 0,
+			want:    8,
+		},
+		{
+			name:    "array_with_escape_at_end",
+			data:    `["v\`,
+			startAt: 0,
+			want:    4,
 		},
 	}
 

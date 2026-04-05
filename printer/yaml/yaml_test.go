@@ -84,13 +84,11 @@ func TestHighlightQuotedKeysGetKeyStyle(t *testing.T) {
 
 	styles := &style.YAML{Key: new(keyStyle), String: new(strStyle)}
 
-	// Single-quoted key should use Key style, not String.
 	got := yaml.Highlight("'a b': val", styles)
-	assert.Contains(t, got, "\x1b[31m", "single-quoted key should have Key ANSI color")
+	assert.Equal(t, "\x1b[31m'a b'\x1b[m: \x1b[32mval\x1b[m", got)
 
-	// Double-quoted key
 	got = yaml.Highlight(`"a b": val`, styles)
-	assert.Contains(t, got, "\x1b[31m", "double-quoted key should have Key ANSI color")
+	assert.Equal(t, "\x1b[31m\"a b\"\x1b[m: \x1b[32mval\x1b[m", got)
 }
 
 func TestHighlightStyledOutput(t *testing.T) {
@@ -99,9 +97,7 @@ func TestHighlightStyledOutput(t *testing.T) {
 
 	styles := &style.YAML{Key: new(keyStyle), Number: new(numStyle)}
 	got := yaml.Highlight("port: 8080", styles)
-
-	// Should contain ANSI escape sequences.
-	assert.Contains(t, got, "\x1b[")
+	assert.Equal(t, "\x1b[31mport\x1b[m: \x1b[32m8080\x1b[m", got)
 }
 
 func TestHighlightRoundTripFallback(t *testing.T) {
@@ -109,12 +105,7 @@ func TestHighlightRoundTripFallback(t *testing.T) {
 	// Use a case known to not round-trip: explicit key syntax.
 	input := "? [a, b]\n: 1"
 	got := yaml.Highlight(input, &style.YAML{})
-	// Should either round-trip or fall back to original - never produce mangled output.
-	if got != input {
-		// If it didn't fall back, verify it at least doesn't lose content.
-		assert.Contains(t, got, "a")
-		assert.Contains(t, got, "b")
-	}
+	assert.Equal(t, input, got)
 }
 
 func TestHighlightFlowStyle(t *testing.T) {
@@ -138,4 +129,130 @@ func TestHighlightMultilineString(t *testing.T) {
 	got := yaml.Highlight(input, &style.YAML{})
 	// Should contain the multi-line content.
 	assert.True(t, strings.Contains(got, "line one") || got == input)
+}
+
+func TestHighlightMergeKeyGetsKeyStyle(t *testing.T) {
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styles := &style.YAML{Key: new(keyStyle)}
+
+	input := "defaults: &defaults\n  host: localhost\ndev:\n  <<: *defaults"
+	got := yaml.Highlight(input, styles)
+	assert.Equal(
+		t,
+		"\x1b[31mdefaults\x1b[m: &defaults\n  \x1b[31mhost\x1b[m: localhost\n\x1b[31mdev\x1b[m:\n  \x1b[31m<<\x1b[m: *defaults",
+		got,
+	)
+}
+
+func TestHighlightAnchorNameStyle(t *testing.T) {
+	anchorStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles := &style.YAML{Anchor: new(anchorStyle)}
+
+	input := "defaults: &myanchor\n  host: localhost"
+	got := yaml.Highlight(input, styles)
+	assert.Equal(t, "defaults: \x1b[33m&\x1b[m\x1b[33mmyanchor\x1b[m\n  host: localhost", got)
+}
+
+func TestHighlightAliasNameStyle(t *testing.T) {
+	aliasStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	styles := &style.YAML{Alias: new(aliasStyle)}
+
+	input := "defaults: &defaults\n  host: localhost\ndev:\n  <<: *defaults"
+	got := yaml.Highlight(input, styles)
+	assert.Equal(
+		t,
+		"defaults: &defaults\n  host: localhost\ndev:\n  <<: \x1b[35m*\x1b[m\x1b[35mdefaults\x1b[m",
+		got,
+	)
+}
+
+func TestHighlightTagStyle(t *testing.T) {
+	tagStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	styles := &style.YAML{Tag: new(tagStyle)}
+
+	input := "typed: !!str 42"
+	got := yaml.Highlight(input, styles)
+	assert.Equal(t, "typed: \x1b[36m!!str\x1b[m 42", got)
+}
+
+func TestHighlightBoolFalseVariants(t *testing.T) {
+	boolFalseStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
+	styles := &style.YAML{BoolFalse: new(boolFalseStyle)}
+
+	for _, v := range []string{"false", "False", "FALSE"} {
+		got := yaml.Highlight("key: "+v, styles)
+		assert.Equal(t, "key: \x1b[31m"+v+"\x1b[m", got)
+	}
+}
+
+func TestHighlightBoolTrueVariants(t *testing.T) {
+	boolTrueStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styles := &style.YAML{BoolTrue: new(boolTrueStyle)}
+
+	for _, v := range []string{"true", "True", "TRUE"} {
+		got := yaml.Highlight("key: "+v, styles)
+		assert.Equal(t, "key: \x1b[32m"+v+"\x1b[m", got)
+	}
+}
+
+func TestHighlightNullStyle(t *testing.T) {
+	nullStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
+	styles := &style.YAML{Null: new(nullStyle)}
+
+	for _, v := range []string{"null", "~"} {
+		got := yaml.Highlight("key: "+v, styles)
+		assert.Equal(t, "key: \x1b[34m"+v+"\x1b[m", got)
+	}
+}
+
+func TestHighlightPunctuationStyle(t *testing.T) {
+	punctStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
+	styles := &style.YAML{Punctuation: new(punctStyle)}
+
+	assert.Equal(t, "a\x1b[36m:\x1b[m b", yaml.Highlight("a: b", styles))
+	assert.Equal(
+		t,
+		"items\x1b[36m:\x1b[m\n  \x1b[36m-\x1b[m one",
+		yaml.Highlight("items:\n  - one", styles),
+	)
+	assert.Equal(
+		t,
+		"\x1b[36m---\x1b[m\nkey\x1b[36m:\x1b[m val\n\x1b[36m...\x1b[m",
+		yaml.Highlight("---\nkey: val\n...", styles),
+	)
+	assert.Equal(
+		t,
+		"\x1b[36m{\x1b[ma\x1b[36m:\x1b[m 1\x1b[36m,\x1b[m b\x1b[36m:\x1b[m 2\x1b[36m}\x1b[m",
+		yaml.Highlight("{a: 1, b: 2}", styles),
+	)
+	assert.Equal(
+		t,
+		"items\x1b[36m:\x1b[m \x1b[36m[\x1b[m1\x1b[36m,\x1b[m 2\x1b[36m]\x1b[m",
+		yaml.Highlight("items: [1, 2]", styles),
+	)
+}
+
+func TestHighlightNumberTypes(t *testing.T) {
+	numStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	styles := &style.YAML{Number: new(numStyle)}
+
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"integer", "val: 42", "val: \x1b[33m42\x1b[m"},
+		{"hex", "val: 0xFF", "val: \x1b[33m0xFF\x1b[m"},
+		{"octal", "val: 0o77", "val: \x1b[33m0o77\x1b[m"},
+		{"binary", "val: 0b1010", "val: \x1b[33m0b1010\x1b[m"},
+		{"float", "val: 3.14", "val: \x1b[33m3.14\x1b[m"},
+		{"infinity", "val: .inf", "val: \x1b[33m.inf\x1b[m"},
+		{"nan", "val: .nan", "val: \x1b[33m.nan\x1b[m"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, yaml.Highlight(tt.input, styles))
+		})
+	}
 }

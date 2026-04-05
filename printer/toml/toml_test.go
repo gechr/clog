@@ -137,8 +137,7 @@ func TestHighlightStyledOutput(t *testing.T) {
 
 	styles := &style.TOML{Key: new(keyStyle), Integer: new(intStyle)}
 	got := toml.Highlight("port = 8080\n", styles)
-
-	assert.Contains(t, got, "\x1b[")
+	assert.Equal(t, "\x1b[31mport\x1b[m = \x1b[32m8080\x1b[m\n", got)
 }
 
 func TestHighlightPreservesFormatting(t *testing.T) {
@@ -152,4 +151,146 @@ func TestHighlightPreservesFormatting(t *testing.T) {
 `
 	got := toml.Highlight(input, &style.TOML{})
 	assert.Equal(t, input, got)
+}
+
+func TestHighlightWhitespaceOnly(t *testing.T) {
+	input := "   \t  "
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightNewlineOnly(t *testing.T) {
+	input := "\n\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightTableHeaderWithComment(t *testing.T) {
+	input := "[server] # main server\nhost = \"localhost\"\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightArrayTableWithComment(t *testing.T) {
+	input := "[[items]] # list of items\nname = \"widget\"\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightValueAtEndOfInput(t *testing.T) {
+	// Value line with no trailing newline.
+	input := "key ="
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightUnrecognizedValue(t *testing.T) {
+	// A bare value that doesn't match any known type falls to default.
+	input := "key = @unknown\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightInlineCommentAfterValue(t *testing.T) {
+	input := "name = \"alice\" # user name\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightArrayWithComments(t *testing.T) {
+	input := "tags = [\n  # first\n  \"a\",\n  # second\n  \"b\"\n]\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightUnterminatedArray(t *testing.T) {
+	input := "tags = [\"a\", \"b\""
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightNestedArrays(t *testing.T) {
+	input := "matrix = [[1, 2], [3, 4]]\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightUnterminatedInlineTable(t *testing.T) {
+	input := "point = {x = 1, y = 2"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightMultilineBasicStringWithEscape(t *testing.T) {
+	input := "desc = \"\"\"hello\\nworld\"\"\"\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightMultilineLiteralString(t *testing.T) {
+	input := "regex = '''\\d+\\.\\d+'''\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightUnterminatedMultilineString(t *testing.T) {
+	input := "desc = \"\"\"hello\nworld"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightUnterminatedSingleLineString(t *testing.T) {
+	input := "name = \"hello\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightEscapeAtEndOfString(t *testing.T) {
+	input := "name = \"hello\\"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightSignedNumbers(t *testing.T) {
+	input := "pos = +42\nneg = -3.14\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightSpecialFloats(t *testing.T) {
+	input := "a = +inf\nb = -inf\nc = +nan\nd = -nan\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightHexOctBin(t *testing.T) {
+	input := "h = 0xCAFE\no = 0o777\nb = 0b11001\n"
+	got := toml.Highlight(input, &style.TOML{})
+	assert.Equal(t, input, got)
+}
+
+func TestHighlightSignedNumbersStyled(t *testing.T) {
+	floatStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+	intStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
+
+	styles := &style.TOML{Float: new(floatStyle), Integer: new(intStyle)}
+
+	got := toml.Highlight("a = +inf\nb = -nan\nc = +42\nd = -3.14\n", styles)
+	assert.Equal(
+		t,
+		"a = \x1b[33m+inf\x1b[m\nb = \x1b[33m-nan\x1b[m\nc = \x1b[34m+42\x1b[m\nd = \x1b[33m-3.14\x1b[m\n",
+		got,
+	)
+}
+
+func TestHighlightHexOctBinStyled(t *testing.T) {
+	intStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	styles := &style.TOML{Integer: new(intStyle)}
+
+	got := toml.Highlight("h = 0xDEAD\no = 0o755\nb = 0b1010\n", styles)
+	assert.Equal(
+		t,
+		"h = \x1b[35m0xDEAD\x1b[m\no = \x1b[35m0o755\x1b[m\nb = \x1b[35m0b1010\x1b[m\n",
+		got,
+	)
 }
