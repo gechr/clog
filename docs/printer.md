@@ -11,7 +11,7 @@ clog.Print().RawJSON([]byte(`{"status":"ok","count":42,"active":true}`))
 // }
 ```
 
-The `Printer` writes directly to the logger's output, bypassing any custom [Handler](handlers.md). It uses the logger's `JSON` and `YAML` style configurations for token colors.
+The `Printer` writes directly to the logger's output, bypassing any custom [Handler](handlers.md). It uses the logger's style configurations for token colors.
 
 ## JSON
 
@@ -22,7 +22,7 @@ clog.Print().JSON(userStruct)
 clog.Print().RawJSON(responseBody)
 ```
 
-### JSON Print Mode
+### Print Mode
 
 The default mode is `JSONPretty`, which pretty-prints with indentation. Set the global default with `SetJSONPrintMode`, or override per-call with `Mode`:
 
@@ -41,7 +41,7 @@ clog.Print().Mode(clog.JSONFlat).RawJSON(data)
 | `JSONFlat`     | Flatten to a single line (matches inline log fields)   |
 | `JSONPreserve` | Keep original whitespace, only add syntax highlighting |
 
-### JSON Styling
+### Styling
 
 Printer JSON inherits token colors (keys, strings, numbers, etc.) from the logger's `JSON` styles. Field-specific rendering modes (`JSONModeHuman`, `JSONModeFlat`) are not applied -- the Printer always uses standard JSON rendering.
 
@@ -60,29 +60,7 @@ clog.Print().YAML(configStruct)
 clog.Print().RawYAML(responseBody)
 ```
 
-### YAML Styling
-
-Token colors are configured via `YAML` in styles:
-
-```go
-custom := style.DefaultYAML()
-custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
-clog.SetStyles(&style.Config{YAML: custom})
-```
-
-| Style field   | Tokens                                                |
-| ------------- | ----------------------------------------------------- |
-| `Anchor`      | `&name`                                               |
-| `Alias`       | `*name`                                               |
-| `BoolTrue`    | `true`, `yes`, `on`                                   |
-| `BoolFalse`   | `false`, `no`, `off`                                  |
-| `Comment`     | `# text`                                              |
-| `Key`         | mapping keys                                          |
-| `Null`        | `null`, `~`                                           |
-| `Number`      | integers, floats, hex, octal, binary, inf, nan        |
-| `Punctuation` | structural tokens (`:`, `-`, `[`, `]`, `{`, `}`, `,`) |
-| `String`      | plain, single-quoted, double-quoted string values     |
-| `Tag`         | `!!str`, `!!int`, `!custom`                           |
+See [YAML](yaml.md) for styling options.
 
 ## TOML
 
@@ -93,28 +71,7 @@ clog.Print().TOML(configStruct)
 clog.Print().RawTOML(configBytes)
 ```
 
-### TOML Styling
-
-Token colors are configured via `TOML` in styles:
-
-```go
-custom := style.DefaultTOML()
-custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
-clog.SetStyles(&style.Config{TOML: custom})
-```
-
-| Style field   | Tokens                                           |
-| ------------- | ------------------------------------------------ |
-| `BoolTrue`    | `true`                                           |
-| `BoolFalse`   | `false`                                          |
-| `Comment`     | `# text`                                         |
-| `DateTime`    | dates, times, datetimes                          |
-| `Float`       | floating point, inf, nan                         |
-| `Integer`     | integers, hex, octal, binary                     |
-| `Key`         | bare and dotted keys                             |
-| `Punctuation` | structural tokens (`=`, `[`, `]`, `{`, `}`, `,`) |
-| `String`      | basic and literal strings                        |
-| `TableKey`    | `[table]` and `[[array]]` header keys            |
+See [TOML](toml.md) for styling options.
 
 ## HCL
 
@@ -124,28 +81,7 @@ clog.SetStyles(&style.Config{TOML: custom})
 clog.Print().RawHCL(terraformConfig)
 ```
 
-### HCL Styling
-
-Token colors are configured via `HCL` in styles:
-
-```go
-custom := style.DefaultHCL()
-custom.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))
-clog.SetStyles(&style.Config{HCL: custom})
-```
-
-| Style field   | Tokens                                                                |
-| ------------- | --------------------------------------------------------------------- |
-| `BlockType`   | block type identifiers (`resource`, `variable`)                       |
-| `BoolFalse`   | `false`                                                               |
-| `BoolTrue`    | `true`                                                                |
-| `Comment`     | `#`, `//`, `/* */` comments                                           |
-| `Key`         | attribute keys (identifier before `=`)                                |
-| `NestedKey`   | attribute keys inside nested blocks (depth >= 2); falls back to `Key` |
-| `Null`        | `null`                                                                |
-| `Number`      | numeric literals                                                      |
-| `Punctuation` | structural tokens (`=`, `{`, `}`, `[`, `]`)                           |
-| `String`      | string values and quote markers                                       |
+See [HCL](hcl.md) for styling options.
 
 ## Themes
 

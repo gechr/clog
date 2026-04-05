@@ -34,5 +34,8 @@
 
 - [Printer](printer.md)
   - [JSON](json.md)
+  - [YAML](yaml.md)
+  - [TOML](toml.md)
+  - [HCL](hcl.md)
 
 - [Configuration](configuration.md)
