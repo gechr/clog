@@ -116,6 +116,10 @@ var (
 		Frames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
+	DotsBounce = Style{
+		Frames:   []string{"⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓"},
+		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
+	}
 	Dots11 = Style{
 		Frames:   []string{"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
