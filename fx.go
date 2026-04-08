@@ -212,10 +212,13 @@ func runAnimation(
 			writeString(gt.cfg.out, frameBuf.String())
 			rendered = true
 		case <-ctx.Done():
-			if b.ClearOnCancel && rendered {
+			switch {
+			case b.ClearOnCancel && rendered:
 				writeString(gt.cfg.out, fmt.Sprintf(cursorUpFmt, 1)+clearLine)
-			} else {
+			case !b.ClearOnCancel:
 				writeString(gt.cfg.out, nl)
+			default:
+				writeString(gt.cfg.out, clearLine)
 			}
 			return ctx.Err()
 		}

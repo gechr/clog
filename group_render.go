@@ -1409,9 +1409,11 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			writeString(out, frameBuf.String())
-			// Park cursor one line below the block so terminal-echoed
-			// characters (e.g. ^C) don't land on the last rendered line.
-			writeString(out, nl)
+			// Park cursor one line below the block only while a block is
+			// still rendered, so zero-line frames don't leave a blank gap.
+			if totalLines > 0 {
+				writeString(out, nl)
+			}
 			numLines = totalLines
 			// If all done, break out after one final render.
 			if remaining == 0 {
@@ -1430,7 +1432,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 // cursor on the last line of the block.
 func cursorToLastLine(out io.Writer, n int) {
 	if n > 0 {
-		writeString(out, fmt.Sprintf(cursorUpFmt, 1))
+		writeString(out, clearLine+fmt.Sprintf(cursorUpFmt, 1))
 	}
 }
 
