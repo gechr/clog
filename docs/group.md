@@ -45,6 +45,12 @@ To keep grouped bar fills and their percentage text from visibly moving backward
 g := clog.Group(ctx, clog.WithMonotonic())
 ```
 
+When the context is cancelled (e.g. on `SIGINT`), the last rendered frame is preserved so the user can see what was on screen. To clear the block instead, use `WithClearOnCancel`:
+
+```go
+g := clog.Group(ctx, clog.WithClearOnCancel())
+```
+
 To hide completed tasks from the rendered block so only active and pending tasks remain visible, use `WithHideDone`:
 
 ```go
@@ -91,6 +97,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | -------------------------------- | ------------------------------------------------------------ |
 | `clog.Group(ctx)`                | Create a group using the `Default` logger                    |
 | `logger.Group(ctx)`              | Create a group using a specific logger                       |
+| `clog.WithClearOnCancel()`       | Clear the rendered block on context cancellation             |
 | `clog.WithFieldAlignment(mode)`  | Align the first field column in grouped output               |
 | `clog.WithFooter(b, fn)`         | Add a status line below the task block, updated each tick    |
 | `clog.WithHeader(b, fn)`         | Add a status line above the task block, updated each tick    |

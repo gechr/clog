@@ -82,6 +82,15 @@ func WithHideDone() GroupOption {
 	}
 }
 
+// WithClearOnCancel controls whether the rendered block is erased when
+// the context is cancelled. By default the last frame is preserved so the
+// user can see what was on screen when the interrupt arrived.
+func WithClearOnCancel() GroupOption {
+	return func(g *fx.Group) {
+		g.ClearOnCancel = true
+	}
+}
+
 // WithSyncAnimations controls whether animations in the group share a
 // common epoch so that spinners, pulses, and shimmers stay in lockstep.
 // Sync is enabled by default.

@@ -2,6 +2,7 @@ package clog
 
 import (
 	"context"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -176,6 +177,7 @@ func runAnimation(
 	defer ticker.Stop()
 
 	var frameBuf strings.Builder
+	rendered := false
 
 	for {
 		select {
@@ -186,20 +188,35 @@ func runAnimation(
 				resetBarWidgetState(gt)
 				line := renderTaskLine(gt, false, time.Now(), nil)
 				frameBuf.Reset()
+				if rendered {
+					fmt.Fprintf(&frameBuf, cursorUpFmt, 1)
+				}
 				frameBuf.WriteString(clearLine)
 				frameBuf.WriteString(line)
 				writeString(gt.cfg.out, frameBuf.String())
+			}
+			if rendered {
+				writeString(gt.cfg.out, fmt.Sprintf(cursorUpFmt, 1))
 			}
 			writeString(gt.cfg.out, clearLine)
 			return err
 		case now := <-ticker.C:
 			line := renderTaskLine(gt, false, now, nil)
 			frameBuf.Reset()
+			if rendered {
+				fmt.Fprintf(&frameBuf, cursorUpFmt, 1)
+			}
 			frameBuf.WriteString(clearLine)
 			frameBuf.WriteString(line)
+			frameBuf.WriteString(nl)
 			writeString(gt.cfg.out, frameBuf.String())
+			rendered = true
 		case <-ctx.Done():
-			writeString(gt.cfg.out, clearLine)
+			if b.ClearOnCancel && rendered {
+				writeString(gt.cfg.out, fmt.Sprintf(cursorUpFmt, 1)+clearLine)
+			} else {
+				writeString(gt.cfg.out, nl)
+			}
 			return ctx.Err()
 		}
 	}

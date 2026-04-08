@@ -29,6 +29,7 @@ type Group struct {
 	Ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
 	Mu  sync.Mutex
 
+	ClearOnCancel    bool
 	FieldAlignment   FieldAlignment
 	Footer           *GroupStatus
 	Header           *GroupStatus

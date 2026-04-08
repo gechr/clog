@@ -1300,7 +1300,12 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	for remaining > 0 {
 		select {
 		case <-ctx.Done():
-			clearBlock(out, numLines)
+			if g.ClearOnCancel {
+				cursorToLastLine(out, numLines)
+				clearBlock(out, numLines)
+			} else {
+				preserveBlock(out, numLines)
+			}
 			for i, ft := range fxTasks {
 				if !done[i] {
 					ft.Err = ctx.Err()
@@ -1365,8 +1370,8 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 			frameBuf.Reset()
 			totalLines := len(visible) + statusLines
-			if numLines > 1 {
-				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
+			if numLines > 0 {
+				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines)
 			}
 			layout := measureGroupRenderLayout(g, gts, done, now)
 			renderLines := max(numLines, totalLines)
@@ -1404,6 +1409,9 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
 			}
 			writeString(out, frameBuf.String())
+			// Park cursor one line below the block so terminal-echoed
+			// characters (e.g. ^C) don't land on the last rendered line.
+			writeString(out, nl)
 			numLines = totalLines
 			// If all done, break out after one final render.
 			if remaining == 0 {
@@ -1412,8 +1420,28 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		}
 	}
 
+	cursorToLastLine(out, numLines)
 	clearBlock(out, numLines)
 	return nil
+}
+
+// cursorToLastLine moves the cursor from one line below the block back to
+// the last content line. This is needed before clearBlock, which expects the
+// cursor on the last line of the block.
+func cursorToLastLine(out io.Writer, n int) {
+	if n > 0 {
+		writeString(out, fmt.Sprintf(cursorUpFmt, 1))
+	}
+}
+
+// preserveBlock moves the cursor past the rendered block without erasing it.
+// The cursor is expected to be one line below the block (after the trailing
+// newline written each tick). A single newline is written to move past any
+// terminal-echoed characters (e.g. ^C from SIGINT).
+func preserveBlock(out io.Writer, n int) {
+	if n > 0 {
+		writeString(out, nl)
+	}
 }
 
 // clearBlock erases n lines starting from the current cursor line and
