@@ -78,21 +78,30 @@ type groupTask struct {
 	barWidgetValid bool
 }
 
+// effectiveLevel returns the level set via [Update.SetLevel] if present,
+// otherwise the builder's original level.
+func (gt *groupTask) effectiveLevel() Level {
+	if gt.LevelPtr != nil {
+		if override := Level(gt.LevelPtr.Load()); override != UnsetLevel {
+			return override
+		}
+	}
+	return gt.Builder.Level
+}
+
 // resolveLevel returns the effective level and styled level symbol for a
 // completed task. If SetLevel was called on the Update, the overridden
 // level is used; otherwise the builder's original level applies.
 func (gt *groupTask) resolveLevel() (Level, string) {
-	b := gt.Builder
-	if gt.LevelPtr != nil {
-		if override := Level(gt.LevelPtr.Load()); override != UnsetLevel {
-			label := gt.cfg.labels[override]
-			if s := gt.cfg.styles.Levels[override]; s != nil && !gt.cfg.noColor {
-				return override, s.Render(label)
-			}
-			return override, label
-		}
+	lvl := gt.effectiveLevel()
+	if lvl == gt.Builder.Level {
+		return lvl, gt.cfg.levelSymbol
 	}
-	return b.Level, gt.cfg.levelSymbol
+	label := gt.cfg.labels[lvl]
+	if s := gt.cfg.styles.Levels[lvl]; s != nil && !gt.cfg.noColor {
+		return lvl, s.Render(label)
+	}
+	return lvl, label
 }
 
 type barWidgetState struct {
@@ -841,6 +850,8 @@ func (gt *groupTask) animDuration(now time.Time) time.Duration {
 // frames based on wall-clock time. When the symbol has been explicitly
 // overridden via [Update.SetSymbol], the static symbol is returned instead
 // so the caller can replace the spinner with a checkmark or other icon.
+// If [Update.SetLevel] was also called, the overridden level is used for
+// styling so the symbol color matches the intended level.
 func resolveSymbol(gt *groupTask, now time.Time) string {
 	b := gt.Builder
 	if b.AnimatedSymbol && !gt.SymbolOverride.Load() &&
@@ -853,7 +864,7 @@ func resolveSymbol(gt *groupTask, now time.Time) string {
 		}
 		return styledSymbol(b.SpinnerStyle.Frames[i], b.Level, gt.cfg.styles, gt.cfg.noColor)
 	}
-	return styledSymbol(*gt.SymbolPtr.Load(), b.Level, gt.cfg.styles, gt.cfg.noColor)
+	return styledSymbol(*gt.SymbolPtr.Load(), gt.effectiveLevel(), gt.cfg.styles, gt.cfg.noColor)
 }
 
 func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
