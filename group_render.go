@@ -1331,6 +1331,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 					done[i] = true
 					justCompleted[i] = true
 					remaining--
+					// Force bar to 100% so the final flash frame shows a full bar.
+					if b := gts[i].Builder; b.Mode == fx.AnimationBar && b.BarProgressPtr != nil {
+						b.BarProgressPtr.Store(b.BarTotalPtr.Load())
+					}
 				default:
 				}
 			}
