@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1294,6 +1295,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 
 	numLines := 0
 	done := make([]bool, len(gts))
+	justCompleted := make([]bool, len(gts))
 	remaining := len(gts)
 	var frameBuf strings.Builder
 
@@ -1314,6 +1316,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			return ctx.Err()
 		case <-ticker.C:
 			now := time.Now()
+			// Reset just-completed flags from previous tick.
+			for i := range justCompleted {
+				justCompleted[i] = false
+			}
 			// Drain completed tasks.
 			for i, ft := range fxTasks {
 				if done[i] {
@@ -1323,8 +1329,23 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				case err := <-ft.DoneErr:
 					ft.Err = err
 					done[i] = true
+					justCompleted[i] = true
 					remaining--
 				default:
+				}
+			}
+			// effectiveDone treats just-completed tasks as not-done so they
+			// receive one final bar render at full progress before being hidden.
+			effectiveDone := done
+			for _, jc := range justCompleted {
+				if jc {
+					effectiveDone = slices.Clone(done)
+					for i, jc2 := range justCompleted {
+						if jc2 {
+							effectiveDone[i] = false
+						}
+					}
+					break
 				}
 			}
 			doneCount := len(gts) - remaining
@@ -1363,7 +1384,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			// escapes never need to reach scrolled-off lines.
 			// Prioritise active (in-progress) tasks over done or
 			// pending ones when space is limited.
-			visible := visibleTaskIndexes(gts, done, g.HideDone, now)
+			visible := visibleTaskIndexes(gts, effectiveDone, g.HideDone, now)
 			maxTasks := max(0, maxLines-statusLines)
 			if len(visible) > maxTasks {
 				visible = prioritiseActive(visible, gts, done, maxTasks)
@@ -1373,7 +1394,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			if numLines > 0 {
 				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines)
 			}
-			layout := measureGroupRenderLayout(g, gts, done, now)
+			layout := measureGroupRenderLayout(g, gts, effectiveDone, now)
 			renderLines := max(numLines, totalLines)
 			lineIdx := 0
 
@@ -1392,7 +1413,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 			// Task lines.
 			for _, taskIndex := range visible {
-				writeLine(renderTaskLine(gts[taskIndex], done[taskIndex], now, layout))
+				writeLine(renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout))
 			}
 			// Footer.
 			if showFooter {
