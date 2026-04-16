@@ -172,8 +172,8 @@ func SetQuoteChar(char rune) { Default.SetQuoteChar(char) }
 // SetQuoteChars sets the opening and closing quote characters on the [Default] logger.
 func SetQuoteChars(openChar, closeChar rune) { Default.SetQuoteChars(openChar, closeChar) }
 
-// SetQuoteMode sets the quoting behaviour on the [Default] logger.
-func SetQuoteMode(mode QuoteMode) { Default.SetQuoteMode(mode) }
+// SetQuote sets the quoting behaviour on the [Default] logger.
+func SetQuote(mode Quote) { Default.SetQuote(mode) }
 
 // SetReportTimestamp enables or disables timestamps on the [Default] logger.
 func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
@@ -204,6 +204,9 @@ func SetTimeLocation(loc *time.Location) { Default.SetTimeLocation(loc) }
 
 // SetTreeChars sets the tree-drawing characters on the [Default] logger.
 func SetTreeChars(chars TreeChars) { Default.SetTreeChars(chars) }
+
+// SetWrap sets the line wrapping behaviour on the [Default] logger.
+func SetWrap(wrap Wrap) { Default.SetWrap(wrap) }
 
 // DefaultLabels returns a copy of the default level labels.
 func DefaultLabels() LabelMap {

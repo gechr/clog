@@ -1,6 +1,6 @@
 # Quoting
 
-By default, field values containing spaces or special characters are wrapped in Go-style double quotes (`"hello world"`). This behaviour can be customised with `SetQuoteMode`.
+By default, field values containing spaces or special characters are wrapped in Go-style double quotes (`"hello world"`). This behaviour can be customised with `SetQuote`.
 
 ## Quote Modes
 
@@ -16,12 +16,12 @@ clog.Info().Str("reason", "timeout").Str("msg", "hello world").Msg("test")
 // INF ℹ️ test reason=timeout msg="hello world"
 
 // Always quote string values
-clog.SetQuoteMode(clog.QuoteAlways)
+clog.SetQuote(clog.QuoteAlways)
 clog.Info().Str("reason", "timeout").Msg("test")
 // INF ℹ️ test reason="timeout"
 
 // Never quote
-clog.SetQuoteMode(clog.QuoteNever)
+clog.SetQuote(clog.QuoteNever)
 clog.Info().Str("msg", "hello world").Msg("test")
 // INF ℹ️ test msg=hello world
 ```

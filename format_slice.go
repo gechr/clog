@@ -179,7 +179,7 @@ func formatStringSlice(
 	vals []string,
 	sf sliceFormat,
 	styles *style.Config,
-	quoteMode QuoteMode,
+	quoteMode Quote,
 	quoteOpen, quoteClose rune,
 ) string {
 	var buf strings.Builder
@@ -224,7 +224,7 @@ func formatAnySlice(
 	sf sliceFormat,
 	styles *style.Config,
 	ignoreCase bool,
-	quoteMode QuoteMode,
+	quoteMode Quote,
 	quoteOpen, quoteClose rune,
 	percentReverse bool,
 ) string {

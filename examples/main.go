@@ -630,23 +630,23 @@ func main() {
 		Msg("All zero/empty values omitted")
 	clog.SetOmitZero(false) // reset
 
-	// --- QuoteMode ---
-	header("QuoteMode: Never")
-	clog.SetQuoteMode(clog.QuoteNever)
+	// --- Quote ---
+	header("Quote: Never")
+	clog.SetQuote(clog.QuoteNever)
 	clog.Info().
 		Str("msg", "hello world").
 		Strs("tags", []string{"has space", "ok"}).
 		Msg("Quotes suppressed even for values with spaces")
 
-	header("QuoteMode: Always")
-	clog.SetQuoteMode(clog.QuoteAlways)
+	header("Quote: Always")
+	clog.SetQuote(clog.QuoteAlways)
 	clog.Info().
 		Str("reason", "timeout").
 		Str("msg", "hello world").
 		Msg("All string values are quoted")
 
-	header("QuoteMode: Auto (default)")
-	clog.SetQuoteMode(clog.QuoteAuto)
+	header("Quote: Auto (default)")
+	clog.SetQuote(clog.QuoteAuto)
 	clog.Info().
 		Str("reason", "timeout").
 		Str("msg", "hello world").

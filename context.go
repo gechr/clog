@@ -219,6 +219,7 @@ func (l *Logger) clone() *Logger {
 		timeLocation:       l.timeLocation,
 		tree:               append([]TreePos{}, l.tree...),
 		treeChars:          l.treeChars,
+		wrap:               l.wrap,
 		yamlIndent:         l.yamlIndent,
 		yamlIndentSequence: l.yamlIndentSequence,
 	}

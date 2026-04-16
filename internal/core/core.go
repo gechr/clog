@@ -45,13 +45,13 @@ const (
 	SortDescending
 )
 
-// QuoteMode controls how field values are quoted in log output.
-type QuoteMode int
+// Quote controls how field values are quoted in log output.
+type Quote int
 
 const (
 	// QuoteAuto quotes values only when they contain spaces, unprintable
 	// characters, or embedded quotes. This is the default.
-	QuoteAuto QuoteMode = iota
+	QuoteAuto Quote = iota
 	// QuoteAlways quotes all string, error, and default-kind values.
 	QuoteAlways
 	// QuoteNever disables quoting entirely.

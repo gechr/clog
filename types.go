@@ -32,13 +32,26 @@ const (
 	AlignCenter
 )
 
-// QuoteMode controls how field values are quoted in log output.
-type QuoteMode = core.QuoteMode
+// Quote controls how field values are quoted in log output.
+type Quote = core.Quote
 
 const (
 	QuoteAuto   = core.QuoteAuto
 	QuoteAlways = core.QuoteAlways
 	QuoteNever  = core.QuoteNever
+)
+
+// Wrap controls how log lines are wrapped when they exceed the terminal width.
+type Wrap int
+
+const (
+	// WrapNone disables wrapping; lines are written as-is (default).
+	WrapNone Wrap = iota
+	// WrapHard breaks at the terminal width, even mid-word.
+	WrapHard
+	// WrapSoft breaks at word boundaries (spaces), falling back to
+	// hard breaks only for words longer than the terminal width.
+	WrapSoft
 )
 
 // Sort controls how fields are sorted in output.

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/field/quantity"
@@ -1463,7 +1464,7 @@ func TestPackageLevelSetSliceSeparator(t *testing.T) {
 	assert.Equal(t, " ", Default.sliceSep)
 }
 
-func TestQuoteModeAuto(t *testing.T) {
+func TestQuoteAuto(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
@@ -1473,44 +1474,106 @@ func TestQuoteModeAuto(t *testing.T) {
 	assert.Equal(t, "INF ℹ️ test simple=timeout spaced=\"hello world\"\n", buf.String())
 }
 
-func TestQuoteModeAlways(t *testing.T) {
+func TestQuoteAlways(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteMode(QuoteAlways)
+	l.SetQuote(QuoteAlways)
 	l.Info().Str("reason", "timeout").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test reason=\"timeout\"\n", buf.String())
 }
 
-func TestQuoteModeNever(t *testing.T) {
+func TestQuoteNever(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteMode(QuoteNever)
+	l.SetQuote(QuoteNever)
 	l.Info().Str("msg", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test msg=hello world\n", buf.String())
 }
 
-func TestQuoteModeAlwaysInStringSlice(t *testing.T) {
+func TestQuoteAlwaysInStringSlice(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteMode(QuoteAlways)
+	l.SetQuote(QuoteAlways)
 	l.Info().Strs("tags", []string{"api", "v2"}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test tags=[\"api\", \"v2\"]\n", buf.String())
 }
 
-func TestPackageLevelSetQuoteMode(t *testing.T) {
+func TestPackageLevelSetQuote(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 
 	Default = NewWriter(io.Discard)
-	SetQuoteMode(QuoteAlways)
+	SetQuote(QuoteAlways)
 
 	assert.Equal(t, QuoteAlways, Default.quoteMode)
+}
+
+func TestWrapNone(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.Info().Str("reason", "timeout").Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test reason=timeout\n", buf.String())
+}
+
+func TestWrapHard(t *testing.T) {
+	line := "abc repositories=[alpha bravo charlie delta echo foxtrot golf hotel]"
+	got := wrapLine(line, 30, WrapHard)
+
+	// Hard wrap should break at exactly the column limit, even mid-word.
+	assert.Contains(t, got, "\n")
+
+	for l := range strings.SplitSeq(got, "\n") {
+		assert.LessOrEqual(t, ansi.StringWidth(l), 30)
+	}
+}
+
+func TestWrapSoft(t *testing.T) {
+	line := "abc repositories=[alpha bravo charlie delta echo foxtrot golf hotel]"
+	got := wrapLine(line, 30, WrapSoft)
+
+	// Soft wrap should break at word boundaries.
+	assert.Contains(t, got, "\n")
+
+	for l := range strings.SplitSeq(got, "\n") {
+		assert.LessOrEqual(t, ansi.StringWidth(l), 30)
+	}
+}
+
+func TestWrapSoftBreaksOnSpace(t *testing.T) {
+	line := "hello world foo bar"
+	got := wrapLine(line, 12, WrapSoft)
+
+	// Should break at space boundaries, not mid-word.
+	lines := strings.SplitSeq(got, "\n")
+	for l := range lines {
+		// No line should start with a partial word from the previous line.
+		assert.False(t, strings.HasPrefix(l, "ld"), "soft wrap broke mid-word")
+	}
+}
+
+func TestWrapNonePassthrough(t *testing.T) {
+	line := "a very long line that exceeds the width"
+	got := wrapLine(line, 10, WrapNone)
+
+	assert.Equal(t, line, got)
+}
+
+func TestPackageLevelSetWrap(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = NewWriter(io.Discard)
+	SetWrap(WrapSoft)
+
+	assert.Equal(t, WrapSoft, Default.wrap)
 }
 
 func TestSetFieldStyleLevel(t *testing.T) {

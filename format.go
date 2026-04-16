@@ -27,7 +27,7 @@ type formatFieldsOpts struct {
 	noColor         bool
 	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
 	quoteClose      rune // 0 means same as quoteOpen (or default)
-	quoteMode       QuoteMode
+	quoteMode       Quote
 	separatorText   string
 	sliceClose      rune // 0 means default (']')
 	sliceOpen       rune // 0 means default ('[')
@@ -186,7 +186,7 @@ func (opts formatFieldsOpts) sliceFmt() sliceFormat {
 func formatValue(
 	v any,
 	sf sliceFormat,
-	quoteMode QuoteMode,
+	quoteMode Quote,
 	quoteOpen, quoteClose rune,
 	timeFormat string,
 	percentPrecision int,
@@ -396,7 +396,7 @@ func styledSlice(
 	sf sliceFormat,
 	styles *style.Config,
 	ignoreCase bool,
-	quoteMode QuoteMode,
+	quoteMode Quote,
 	quoteOpen, quoteClose rune,
 	percentReverse bool,
 ) string {

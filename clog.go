@@ -25,6 +25,7 @@ import (
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/style"
 	"github.com/gechr/clog/theme"
+	xansi "github.com/gechr/x/ansi"
 )
 
 // Level represents a log level.
@@ -102,7 +103,7 @@ type Logger struct {
 	parts              []Part
 	printIndent        string // indent string for Printer output; "" = use default ("  ")
 	quoteClose         rune   // 0 means same as quoteOpen (or default)
-	quoteMode          QuoteMode
+	quoteMode          Quote
 	quoteOpen          rune // 0 means default ('"' via strconv.Quote)
 	reportTimestamp    bool
 	separatorText      string
@@ -117,8 +118,9 @@ type Logger struct {
 	timeLocation       *time.Location
 	tree               []TreePos // nil = no tree mode; one entry per tree level
 	treeChars          TreeChars // box-drawing characters for tree indentation
-	yamlIndent         string    // YAML-specific indent; "" = use printIndent
-	yamlIndentSequence *bool     // nil = true (indent sequences by default)
+	wrap               Wrap
+	yamlIndent         string // YAML-specific indent; "" = use printIndent
+	yamlIndentSequence *bool  // nil = true (indent sequences by default)
 }
 
 // New creates a new [Logger] that writes to the given [Output].
@@ -628,10 +630,10 @@ func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 	l.quoteClose = closeChar
 }
 
-// SetQuoteMode sets the quoting behaviour for field values.
+// SetQuote sets the quoting behaviour for field values.
 // [QuoteAuto] (default) quotes only when needed; [QuoteAlways] always quotes
 // string/error/default-kind values; [QuoteNever] never quotes.
-func (l *Logger) SetQuoteMode(mode QuoteMode) {
+func (l *Logger) SetQuote(mode Quote) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quoteMode = mode
@@ -744,6 +746,16 @@ func (l *Logger) SetTreeChars(chars TreeChars) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.treeChars = chars
+}
+
+// SetWrap sets the line wrapping behaviour. When set to [WrapHard] or
+// [WrapSoft], log lines exceeding the terminal width are wrapped before
+// writing. [WrapSoft] prefers breaking at word boundaries.
+// Has no effect on non-TTY outputs.
+func (l *Logger) SetWrap(wrap Wrap) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.wrap = wrap
 }
 
 // LevelConfig configures a custom log level for use with [RegisterLevel].
@@ -1066,9 +1078,16 @@ func (l *Logger) log(e *Event, msg string) {
 		}
 		lineBuf.WriteString(p)
 	}
-	lineBuf.WriteByte('\n')
+
+	line := lineBuf.String()
+	if l.wrap != WrapNone {
+		if w := l.output.Width(); w > 0 {
+			line = wrapLine(line, w, l.wrap)
+		}
+	}
+
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), lineBuf.String())
+	writeString(l.output.Writer(), line+nl)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -1155,4 +1174,17 @@ func computeTreeIndent(tree []TreePos, chars TreeChars) string {
 		}
 	}
 	return b.String()
+}
+
+// wrapLine wraps a single log line to fit within width columns.
+// The wrapping is ANSI-aware, preserving escape sequences (colors, hyperlinks).
+func wrapLine(line string, width int, mode Wrap) string {
+	switch mode { //nolint:exhaustive // WrapNone handled by default
+	case WrapHard:
+		return xansi.WrapHard(line, width)
+	case WrapSoft:
+		return xansi.WrapSoft(line, width)
+	default:
+		return line
+	}
 }
