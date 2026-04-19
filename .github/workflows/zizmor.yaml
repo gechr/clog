@@ -10,6 +10,10 @@ on:
 
 permissions: {}
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   zizmor:
     runs-on: ubuntu-latest
@@ -26,5 +30,7 @@ jobs:
         with:
           inputs: ./.github/
           advanced-security: false
+          persona: pedantic
+          min-severity: low
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
