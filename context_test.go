@@ -185,13 +185,13 @@ func TestContextColumnMinimum(t *testing.T) {
 	assert.Equal(t, "main.go:1:1", ctx.Fields[0].Value)
 }
 
-func TestContextLineMinimum(t *testing.T) {
+func TestContextLineOmittedWhenZero(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Line("file", "main.go", 0)
 
 	require.Len(t, ctx.Fields, 1)
 	assert.Equal(t, "file", ctx.Fields[0].Key)
-	// line < 1 is clamped to 1.
-	assert.Equal(t, "main.go:1", ctx.Fields[0].Value)
+	// Line number 0 omits the line suffix - equivalent to Path().
+	assert.Equal(t, "main.go", ctx.Fields[0].Value)
 }
 
 func TestContextStringer(t *testing.T) {

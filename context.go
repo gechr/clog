@@ -74,10 +74,12 @@ func (c *Context) Dict(key string, dict *Event) *Context {
 }
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
+// Respects the logger's [ColorMode] setting. If line < 1, the line number is
+// omitted and the field is rendered as a plain path hyperlink (equivalent to
+// [Context.Path]).
 func (c *Context) Line(key, path string, line int) *Context {
 	if line < 1 {
-		line = 1
+		return c.Path(key, path)
 	}
 
 	c.Fields = append(

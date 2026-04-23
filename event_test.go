@@ -915,14 +915,14 @@ func TestEventLineColorNever(t *testing.T) {
 	assert.Equal(t, "main.go:10", e.fields[0].Value)
 }
 
-func TestEventLineMinimum(t *testing.T) {
+func TestEventLineOmittedWhenZero(t *testing.T) {
 	l := NewWriter(io.Discard)
 	e := l.Info()
 	e.Line("file", "main.go", 0)
 
 	require.Len(t, e.fields, 1)
-	// Line number 0 should be clamped to 1.
-	assert.Equal(t, "main.go:1", e.fields[0].Value)
+	// Line number 0 omits the line suffix - equivalent to Path().
+	assert.Equal(t, "main.go", e.fields[0].Value)
 }
 
 func TestEventColumn(t *testing.T) {

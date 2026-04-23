@@ -404,14 +404,16 @@ func (e *Event) Ints64(key string, vals []int64) *Event {
 }
 
 // Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
+// Respects the logger's [ColorMode] setting. If line < 1, the line number is
+// omitted and the field is rendered as a plain path hyperlink (equivalent to
+// [Event.Path]).
 func (e *Event) Line(key, path string, line int) *Event {
 	if e == nil {
 		return e
 	}
 
 	if line < 1 {
-		line = 1
+		return e.Path(key, path)
 	}
 
 	output := Default.Output()
