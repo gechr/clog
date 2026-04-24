@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
+	xansi "github.com/gechr/x/ansi"
 )
 
 // taskConfig is an immutable snapshot of logger settings captured under the
@@ -1299,8 +1300,8 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		blockTopRow = pos.row
 	}
 
-	writeString(out, hideCursor)
-	defer writeString(out, showCursor)
+	writeString(out, xansi.HideCursor)
+	defer writeString(out, xansi.ShowCursor)
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
@@ -1407,7 +1408,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			frameBuf.Reset()
 			totalLines := len(visible) + statusLines
 			if numLines > 0 {
-				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines)
+				frameBuf.WriteString(xansi.CursorUp(numLines))
 			}
 			layout := measureGroupRenderLayout(g, gts, effectiveDone, now)
 			renderLines := max(numLines, totalLines)
@@ -1415,9 +1416,9 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 
 			writeLine := func(line string) {
 				if lineIdx < renderLines-1 {
-					fmt.Fprintf(&frameBuf, "%s%s\n", clearLine, line)
+					fmt.Fprintf(&frameBuf, "%s%s\n", xansi.ClearLine, line)
 				} else {
-					fmt.Fprintf(&frameBuf, "%s%s", clearLine, line)
+					fmt.Fprintf(&frameBuf, "%s%s", xansi.ClearLine, line)
 				}
 				lineIdx++
 			}
@@ -1440,9 +1441,9 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 			switch {
 			case numLines > totalLines && totalLines > 0:
-				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-totalLines)
+				frameBuf.WriteString(xansi.CursorUp(numLines - totalLines))
 			case numLines > 1 && totalLines == 0:
-				fmt.Fprintf(&frameBuf, cursorUpFmt, numLines-1)
+				frameBuf.WriteString(xansi.CursorUp(numLines - 1))
 			}
 			writeString(out, frameBuf.String())
 			// Park cursor one line below the block only while a block is
@@ -1468,7 +1469,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 // cursor on the last line of the block.
 func cursorToLastLine(out io.Writer, n int) {
 	if n > 0 {
-		writeString(out, clearLine+fmt.Sprintf(cursorUpFmt, 1))
+		writeString(out, xansi.ClearLine+xansi.CursorUp(1))
 	}
 }
 
@@ -1491,11 +1492,11 @@ func clearBlock(out io.Writer, n int) {
 	}
 	var buf strings.Builder
 	if n > 1 {
-		fmt.Fprintf(&buf, cursorUpFmt, n-1)
+		buf.WriteString(xansi.CursorUp(n - 1))
 	}
 	for range n {
-		buf.WriteString(clearLine + nl)
+		buf.WriteString(xansi.ClearLine + nl)
 	}
-	fmt.Fprintf(&buf, cursorUpFmt, n)
+	buf.WriteString(xansi.CursorUp(n))
 	writeString(out, buf.String())
 }

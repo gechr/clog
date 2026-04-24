@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
+	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
 )
 
@@ -43,7 +44,6 @@ type cursorPosition struct {
 }
 
 const (
-	cursorPositionRequest       = "\x1b[6n"
 	cursorPositionFieldCount    = 2
 	cursorPositionResponseLimit = 32
 	cursorPositionTimeout       = 50 * time.Millisecond
@@ -212,7 +212,7 @@ func queryCursorPosition(out io.Writer) (cursorPosition, bool) {
 	}
 	defer func() { _ = os.Stdin.SetReadDeadline(time.Time{}) }()
 
-	writeString(out, cursorPositionRequest)
+	writeString(out, xansi.RequestCursorPosition)
 
 	var buf strings.Builder
 	buf.Grow(cursorPositionResponseLimit)
@@ -235,7 +235,7 @@ func queryCursorPosition(out io.Writer) (cursorPosition, bool) {
 }
 
 func parseCursorPositionReport(report string) (cursorPosition, bool) {
-	start := strings.LastIndex(report, "\x1b[")
+	start := strings.LastIndex(report, xansi.CSI)
 	if start < 0 {
 		return cursorPosition{}, false
 	}

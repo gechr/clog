@@ -756,13 +756,13 @@ func TestClearBlock(t *testing.T) {
 	clearBlock(&buf, 1)
 	out := buf.String()
 	// Single line: no initial move-up, clear one line, then move up 1.
-	assert.Equal(t, "\x1b[2K\r\n\x1b[1A", out)
+	assert.Equal(t, "\x1b[2K\r\n\x1b[A", out)
 
 	buf.Reset()
 	clearBlock(&buf, 2)
 	out = buf.String()
 	// Two lines: move up 1 (not 2), clear both, then move up 2.
-	assert.Equal(t, "\x1b[1A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
+	assert.Equal(t, "\x1b[A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }
 
 func TestPrioritiseActiveZeroLimit(t *testing.T) {

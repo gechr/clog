@@ -2,13 +2,13 @@ package clog
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
+	xansi "github.com/gechr/x/ansi"
 )
 
 // Convenience aliases so callers can reference common fx types without
@@ -18,19 +18,20 @@ type (
 	TaskResult = fx.TaskResult
 )
 
-// clearLine is the ANSI escape to erase the entire current line (EL2),
-// followed by a carriage return to reset the cursor to column 0.
-const clearLine = "\x1b[2K\r"
-
-// cursorUpFmt is an fmt format string for the CUU (Cursor Up) escape.
-// Use with fmt.Fprintf(w, cursorUpFmt, n) to move the cursor up n lines.
-const cursorUpFmt = "\x1b[%dA"
-
-// hideCursor is the ANSI escape sequence to hide the cursor (DECTCEM reset).
-const hideCursor = "\x1b[?25l"
-
-// showCursor is the ANSI escape sequence to show the cursor (DECTCEM set).
-const showCursor = "\x1b[?25h"
+// frameRows returns the number of physical terminal rows the rendered line
+// occupies once wrapping at termWidth is accounted for. ANSI escape codes
+// are stripped before measuring. Falls back to 1 when the width is unknown
+// (e.g. Output.Width() == 0).
+func frameRows(line string, termWidth int) int {
+	if termWidth <= 0 {
+		return 1
+	}
+	w := xansi.StringWidth(line)
+	if w <= 0 {
+		return 1
+	}
+	return (w + termWidth - 1) / termWidth
+}
 
 // fxLogger adapts *Logger to the fx.Logger interface. This allows the fx
 // package types (Builder, WaitResult, Group, etc.) to call back into root
@@ -170,14 +171,15 @@ func runAnimation(
 	}
 
 	// Hide cursor during animation.
-	writeString(gt.cfg.out, hideCursor)
-	defer writeString(gt.cfg.out, showCursor)
+	writeString(gt.cfg.out, xansi.HideCursor)
+	defer writeString(gt.cfg.out, xansi.ShowCursor)
 
 	ticker := time.NewTicker(gt.tickRate)
 	defer ticker.Stop()
 
 	var frameBuf strings.Builder
 	rendered := false
+	prevLineCount := 1
 
 	for {
 		select {
@@ -189,36 +191,45 @@ func runAnimation(
 				line := renderTaskLine(gt, false, time.Now(), nil)
 				frameBuf.Reset()
 				if rendered {
-					fmt.Fprintf(&frameBuf, cursorUpFmt, 1)
+					frameBuf.WriteString(xansi.CursorUp(prevLineCount))
+					frameBuf.WriteString(xansi.EraseScreenBelow)
+				} else {
+					frameBuf.WriteString(xansi.ClearLine)
 				}
-				frameBuf.WriteString(clearLine)
 				frameBuf.WriteString(line)
+				frameBuf.WriteString(nl)
 				writeString(gt.cfg.out, frameBuf.String())
+				rendered = true
+				prevLineCount = frameRows(line, gt.cfg.output.Width())
 			}
 			if rendered {
-				writeString(gt.cfg.out, fmt.Sprintf(cursorUpFmt, 1))
+				writeString(gt.cfg.out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
+			} else {
+				writeString(gt.cfg.out, xansi.ClearLine)
 			}
-			writeString(gt.cfg.out, clearLine)
 			return err
 		case now := <-ticker.C:
 			line := renderTaskLine(gt, false, now, nil)
 			frameBuf.Reset()
 			if rendered {
-				fmt.Fprintf(&frameBuf, cursorUpFmt, 1)
+				frameBuf.WriteString(xansi.CursorUp(prevLineCount))
+				frameBuf.WriteString(xansi.EraseScreenBelow)
+			} else {
+				frameBuf.WriteString(xansi.ClearLine)
 			}
-			frameBuf.WriteString(clearLine)
 			frameBuf.WriteString(line)
 			frameBuf.WriteString(nl)
 			writeString(gt.cfg.out, frameBuf.String())
 			rendered = true
+			prevLineCount = frameRows(line, gt.cfg.output.Width())
 		case <-ctx.Done():
 			switch {
 			case b.ClearOnCancel && rendered:
-				writeString(gt.cfg.out, fmt.Sprintf(cursorUpFmt, 1)+clearLine)
+				writeString(gt.cfg.out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
 			case !b.ClearOnCancel:
 				writeString(gt.cfg.out, nl)
 			default:
-				writeString(gt.cfg.out, clearLine)
+				writeString(gt.cfg.out, xansi.ClearLine)
 			}
 			return ctx.Err()
 		}
