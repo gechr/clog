@@ -38,6 +38,7 @@ const (
 	LevelTrace = level.Trace
 	LevelDebug = level.Debug
 	LevelInfo  = level.Info
+	LevelHint  = level.Hint
 	LevelDry   = level.Dry
 	LevelWarn  = level.Warn
 	LevelError = level.Error
@@ -53,6 +54,7 @@ const (
 	LevelTraceValue = level.TraceValue
 	LevelDebugValue = level.DebugValue
 	LevelInfoValue  = level.InfoValue
+	LevelHintValue  = level.HintValue
 	LevelDryValue   = level.DryValue
 	LevelWarnValue  = level.WarnValue
 	LevelErrorValue = level.ErrorValue
@@ -176,6 +178,9 @@ func (l *Logger) Debug() *Event { return l.newEvent(LevelDebug) }
 // Info returns a new [Event] at info level, or nil if info is disabled.
 func (l *Logger) Info() *Event { return l.newEvent(LevelInfo) }
 
+// Hint returns a new [Event] at hint level, or nil if hint is disabled.
+func (l *Logger) Hint() *Event { return l.newEvent(LevelHint) }
+
 // Dry returns a new [Event] at dry level, or nil if dry is disabled.
 func (l *Logger) Dry() *Event { return l.newEvent(LevelDry) }
 
@@ -254,6 +259,9 @@ func Debug() *Event { return Default.Debug() }
 
 // Info returns a new info-level [Event] from the [Default] logger.
 func Info() *Event { return Default.Info() }
+
+// Hint returns a new hint-level [Event] from the [Default] logger.
+func Hint() *Event { return Default.Hint() }
 
 // Dry returns a new dry-level [Event] from the [Default] logger.
 func Dry() *Event { return Default.Dry() }

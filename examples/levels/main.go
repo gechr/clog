@@ -5,8 +5,8 @@ import (
 	"github.com/gechr/clog"
 )
 
-// Define a custom level between Info (0) and Dry (2).
-const SuccessLevel clog.Level = clog.LevelInfo + 1
+// Define a custom level between Dry (2) and Warn (5).
+const SuccessLevel clog.Level = clog.LevelDry + 1
 
 func main() {
 	clog.RegisterLevel(SuccessLevel, clog.LevelConfig{

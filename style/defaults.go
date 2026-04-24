@@ -54,6 +54,9 @@ func Default() *Config {
 			level.Info: new(lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("2"))), // green
+			level.Hint: new(lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("4"))), // blue
 			level.Dry: new(lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("5"))), // magenta

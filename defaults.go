@@ -227,6 +227,7 @@ var defaultSymbols = LabelMap{
 	LevelTrace: "🔍",
 	LevelDebug: "🐞",
 	LevelInfo:  "ℹ️",
+	LevelHint:  "💡",
 	LevelDry:   "🚧",
 	LevelWarn:  "⚠️",
 	LevelError: "❌",

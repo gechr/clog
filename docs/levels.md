@@ -5,12 +5,13 @@
 | `Trace` |   -10 | `TRC` | 🔍     | Finest-grained output, hidden by default                      |
 | `Debug` |    -5 | `DBG` | 🐞     | Verbose output, hidden by default                             |
 | `Info`  |     0 | `INF` | ℹ️     | General operational messages (default minimum level)          |
+| `Hint`  |     1 | `HNT` | 💡     | Tips or suggestions                                           |
 | `Dry`   |     2 | `DRY` | 🚧     | Dry-run indicators                                            |
 | `Warn`  |     5 | `WRN` | ⚠️     | Warnings that don't prevent operation                         |
 | `Error` |    10 | `ERR` | ❌     | Errors that need attention                                    |
 | `Fatal` |    15 | `FTL` | 💥     | Fatal errors - calls `os.Exit` after logging                  |
 
-Built-in levels use gaps of 5 between them (except around `Dry`, which sits at 2), leaving room for custom levels at any position (see [Custom Levels](#custom-levels)).
+Built-in levels use gaps of 5 between them (except around `Hint` and `Dry`, which sit at 1 and 2), leaving room for custom levels at any position (see [Custom Levels](#custom-levels)).
 
 ## Setting the Level
 
@@ -22,7 +23,7 @@ clog.SetLevel(clog.LevelDebug)
 // export CLOG_LOG_LEVEL=debug
 ```
 
-Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `dry`, `warn`, `warning`, `error`, `fatal`, `critical`.
+Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `hint`, `dry`, `warn`, `warning`, `error`, `fatal`, `critical`.
 
 Setting `trace` or `debug` also enables timestamps.
 
@@ -57,7 +58,7 @@ clog.SetNonTTYLevel(clog.UnsetLevel)
 Define custom levels at any numeric value between the built-in levels. Use `RegisterLevel` to configure the label, symbol, style, and canonical name.
 
 ```go
-const SuccessLevel clog.Level = clog.LevelInfo + 1
+const SuccessLevel clog.Level = clog.LevelDry + 1
 
 func init() {
     clog.RegisterLevel(SuccessLevel, clog.LevelConfig{

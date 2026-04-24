@@ -25,7 +25,8 @@ const (
 	Trace Level = -10
 	Debug Level = -5
 	Info  Level = 0
-	Dry   Level = 2 // between Info and Warn
+	Hint  Level = 1
+	Dry   Level = 2
 	Warn  Level = 5
 	Error Level = 10
 	Fatal Level = 15
@@ -41,27 +42,25 @@ const (
 	TraceValue = "trace"
 	DebugValue = "debug"
 	InfoValue  = "info"
+	HintValue  = "hint"
 	DryValue   = "dry"
 	WarnValue  = "warn"
 	ErrorValue = "error"
 	FatalValue = "fatal"
 )
 
-// builtins is the set of built-in levels that cannot be overridden.
 var builtins = map[Level]bool{
-	Trace: true, Debug: true, Info: true, Dry: true,
+	Trace: true, Debug: true, Info: true, Hint: true, Dry: true,
 	Warn: true, Error: true, Fatal: true,
 }
 
-// labels are the short display labels for each level.
 var labels = map[Level]string{
-	Trace: "TRC", Debug: "DBG", Info: "INF", Dry: "DRY",
+	Trace: "TRC", Debug: "DBG", Info: "INF", Hint: "HNT", Dry: "DRY",
 	Warn: "WRN", Error: "ERR", Fatal: "FTL",
 }
 
-// names maps levels to their canonical lowercase names.
 var names = map[Level]string{
-	Trace: TraceValue, Debug: DebugValue, Info: InfoValue, Dry: DryValue,
+	Trace: TraceValue, Debug: DebugValue, Info: InfoValue, Hint: HintValue, Dry: DryValue,
 	Warn: WarnValue, Error: ErrorValue, Fatal: FatalValue,
 }
 
@@ -130,7 +129,7 @@ func (l *Level) UnmarshalText(text []byte) error {
 }
 
 // Parse maps a level name string to a [Level] value.
-// It accepts the canonical names ("trace", "debug", "info", "dry", "warn",
+// It accepts the canonical names ("trace", "debug", "info", "hint", "dry", "warn",
 // "error", "fatal") plus aliases ("warning" → Warn, "critical" → Fatal).
 // Matching is case-insensitive.
 func Parse(s string) (Level, error) {
@@ -143,6 +142,8 @@ func Parse(s string) (Level, error) {
 		return Debug, nil
 	case InfoValue:
 		return Info, nil
+	case HintValue:
+		return Hint, nil
 	case DryValue:
 		return Dry, nil
 	case WarnValue, "warning":

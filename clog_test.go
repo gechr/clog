@@ -2435,7 +2435,7 @@ func TestWithContextAndCtx(t *testing.T) {
 }
 
 func TestRegisterLevel(t *testing.T) {
-	const testLevel Level = 1 // between Info (0) and Dry (2)
+	const testLevel Level = 3 // between Dry (2) and Warn (5)
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
 		Name:  "success",
@@ -2459,7 +2459,7 @@ func TestRegisterLevel(t *testing.T) {
 }
 
 func TestLogCustomLevel(t *testing.T) {
-	const testLevel Level = 1
+	const testLevel Level = 3
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
 		Name:  "success",
@@ -2484,7 +2484,7 @@ func TestLogCustomLevel(t *testing.T) {
 }
 
 func TestRegisterLevelFiltering(t *testing.T) {
-	const testLevel Level = 1
+	const testLevel Level = 3
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
 		Name:  "success",
@@ -2502,12 +2502,12 @@ func TestRegisterLevelFiltering(t *testing.T) {
 	l.recomputePaddedLabels()
 	l.mu.Unlock()
 
-	// Custom level (1) should be visible at LevelInfo (0).
+	// Custom level (3) should be visible at LevelInfo (0).
 	l.SetLevel(LevelInfo)
 	l.Log(testLevel).Msg("visible")
 	assert.Equal(t, "SCS visible\n", buf.String())
 
-	// Custom level (1) should be hidden at LevelWarn (5).
+	// Custom level (3) should be hidden at LevelWarn (5).
 	buf.Reset()
 	l.SetLevel(LevelWarn)
 	e := l.Log(testLevel)
@@ -2545,7 +2545,7 @@ func TestRegisterLevelDefaultLabel(t *testing.T) {
 }
 
 func TestLevelsIncludesCustom(t *testing.T) {
-	const testLevel Level = 1
+	const testLevel Level = 7
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
 		Name: "success",

@@ -5,7 +5,7 @@ Define custom log levels at any numeric value between the built-in levels. Built
 ## Registering a Custom Level
 
 ```go
-const SuccessLevel clog.Level = clog.LevelInfo + 1
+const SuccessLevel clog.Level = clog.LevelDry + 1
 
 func init() {
     clog.RegisterLevel(SuccessLevel, clog.LevelConfig{
@@ -28,7 +28,7 @@ clog.Log(SuccessLevel).Str("pkg", "api").Msg("Build completed")
 
 ## Level Filtering
 
-Custom levels respect the same filtering rules as built-in levels. A custom level with value `1` (between `LevelInfo` at `0` and `LevelDry` at `2`) is visible when the minimum level is `LevelInfo` but hidden when the minimum level is `LevelDry` or higher.
+Custom levels respect the same filtering rules as built-in levels. A custom level with value `3` (between `LevelDry` at `2` and `LevelWarn` at `5`) is visible when the minimum level is `LevelInfo` but hidden when the minimum level is `LevelWarn` or higher.
 
 ## ParseLevel and Marshalling
 
