@@ -2,7 +2,6 @@ package clog
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"math"
 	"slices"
@@ -1172,6 +1171,14 @@ func groupHeightCap(termHeight, blockTopRow, fallback int) int {
 	return 1
 }
 
+func groupFrameRows(lines []string, termWidth int) int {
+	rows := 0
+	for _, line := range lines {
+		rows += frameRows(line, termWidth)
+	}
+	return rows
+}
+
 // runGroupLoop runs the group render loop, blocking until all tasks complete
 // or the context is cancelled. Called by fxLogger.RunGroup.
 func runGroupLoop(ctx context.Context, g *fx.Group) error {
@@ -1305,7 +1312,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
-	numLines := 0
+	renderedRows := 0
 	done := make([]bool, len(gts))
 	justCompleted := make([]bool, len(gts))
 	remaining := len(gts)
@@ -1315,10 +1322,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		select {
 		case <-ctx.Done():
 			if g.ClearOnCancel {
-				cursorToLastLine(out, numLines)
-				clearBlock(out, numLines)
+				cursorToLastLine(out, renderedRows)
+				clearBlock(out, renderedRows)
 			} else {
-				preserveBlock(out, numLines)
+				preserveBlock(out, renderedRows)
 			}
 			for i, ft := range fxTasks {
 				if !done[i] {
@@ -1406,52 +1413,47 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				visible = prioritiseActive(visible, gts, done, maxTasks)
 			}
 			frameBuf.Reset()
-			totalLines := len(visible) + statusLines
-			if numLines > 0 {
-				frameBuf.WriteString(xansi.CursorUp(numLines))
-			}
 			layout := measureGroupRenderLayout(g, gts, effectiveDone, now)
-			renderLines := max(numLines, totalLines)
-			lineIdx := 0
-
-			writeLine := func(line string) {
-				if lineIdx < renderLines-1 {
-					fmt.Fprintf(&frameBuf, "%s%s\n", xansi.ClearLine, line)
-				} else {
-					fmt.Fprintf(&frameBuf, "%s%s", xansi.ClearLine, line)
-				}
-				lineIdx++
-			}
+			lines := make([]string, 0, len(visible)+statusLines)
 
 			// Header.
 			if showHeader {
-				writeLine(renderTaskLine(headerGT, false, now, layout))
+				lines = append(lines, renderTaskLine(headerGT, false, now, layout))
 			}
 			// Task lines.
 			for _, taskIndex := range visible {
-				writeLine(renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout))
+				lines = append(
+					lines,
+					renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout),
+				)
 			}
 			// Footer.
 			if showFooter {
-				writeLine(renderTaskLine(footerGT, false, now, layout))
+				lines = append(lines, renderTaskLine(footerGT, false, now, layout))
 			}
-			// Clear any leftover lines from the previous frame.
-			for lineIdx < renderLines {
-				writeLine("")
+			if renderedRows > 0 {
+				frameBuf.WriteString(xansi.CursorUp(renderedRows))
+				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
+				frameBuf.WriteString(xansi.EraseScreenBelow)
+			} else {
+				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
+				frameBuf.WriteString(xansi.ClearLine)
 			}
-			switch {
-			case numLines > totalLines && totalLines > 0:
-				frameBuf.WriteString(xansi.CursorUp(numLines - totalLines))
-			case numLines > 1 && totalLines == 0:
-				frameBuf.WriteString(xansi.CursorUp(numLines - 1))
+			for i, line := range lines {
+				if i > 0 {
+					frameBuf.WriteString(xansi.CursorNextLine(1))
+				}
+				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
+				frameBuf.WriteString(xansi.ClearLine)
+				frameBuf.WriteString(line)
 			}
 			writeString(out, frameBuf.String())
 			// Park cursor one line below the block only while a block is
 			// still rendered, so zero-line frames don't leave a blank gap.
-			if totalLines > 0 {
-				writeString(out, nl)
+			if len(lines) > 0 {
+				writeString(out, xansi.CursorNextLine(1))
 			}
-			numLines = totalLines
+			renderedRows = groupFrameRows(lines, output.Width())
 			// If all done, break out after one final render.
 			if remaining == 0 {
 				break
@@ -1459,8 +1461,8 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		}
 	}
 
-	cursorToLastLine(out, numLines)
-	clearBlock(out, numLines)
+	cursorToLastLine(out, renderedRows)
+	clearBlock(out, renderedRows)
 	return nil
 }
 

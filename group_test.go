@@ -16,6 +16,7 @@ import (
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
+	xansi "github.com/gechr/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -785,6 +786,58 @@ func TestGroupHeightCap(t *testing.T) {
 	assert.Equal(t, 4, groupHeightCap(5, 8, 99))
 	assert.Equal(t, 99, groupHeightCap(0, 0, 99))
 	assert.Equal(t, 1, groupHeightCap(24, 24, 99))
+}
+
+func TestGroupFrameRowsCountsWrappedLines(t *testing.T) {
+	lines := []string{
+		"short",
+		"this line wraps across more than one terminal row",
+	}
+
+	assert.Equal(t, 4, groupFrameRows(lines, 20))
+}
+
+func TestGroupRepaintClearsWrappedRows(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 32
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	release := make(chan struct{})
+	g := logger.Group(context.Background(), WithHeader(
+		logger.Spinner("overall", spinner.WithInterval(time.Millisecond)),
+		func(_, _ int, update *Update) {
+			update.Msg("overall progress").Str("count", "0/1").Send()
+		},
+	))
+	g.Add(logger.Spinner("processing", spinner.WithInterval(time.Millisecond)).
+		Str("detail", strings.Repeat("x", 64))).
+		Progress(func(ctx context.Context, _ *Update) error {
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+
+	result := make(chan error, 1)
+	go func() { result <- g.Wait().Silent() }()
+	time.Sleep(20 * time.Millisecond)
+	close(release)
+
+	require.NoError(t, <-result)
+	got := buf.String()
+	assert.Contains(t, got, xansi.CursorUp(5)+xansi.CursorHorizontalAbsolute(1))
+	assert.NotContains(t, got, xansi.CursorUp(2)+xansi.CursorHorizontalAbsolute(1))
 }
 
 func TestGroupBarLayoutRightPad(t *testing.T) {
