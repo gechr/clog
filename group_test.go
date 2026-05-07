@@ -867,6 +867,65 @@ func TestGroupFrameRowsCountsWrappedLines(t *testing.T) {
 	assert.Equal(t, 4, groupFrameRows(lines, 20))
 }
 
+func TestGroupFrameFitsViewportRequiresParkingRow(t *testing.T) {
+	out := TestOutput(io.Discard)
+	out.isTTY = true
+	out.heightDone = true
+	out.height = 24
+
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 24, column: 1}, true
+	}
+	assert.False(t, groupFrameFitsViewport(out, 0, 1))
+
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 23, column: 1}, true
+	}
+	assert.True(t, groupFrameFitsViewport(out, 0, 1))
+	assert.False(t, groupFrameFitsViewport(out, 0, 2))
+
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 24, column: 1}, true
+	}
+	assert.True(t, groupFrameFitsViewport(out, 1, 1))
+	assert.False(t, groupFrameFitsViewport(out, 1, 2))
+}
+
+func TestGroupSuppressesLiveFrameAtViewportBottom(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 24, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	release := make(chan struct{})
+	g := logger.Group(context.Background())
+	g.Add(logger.Spinner("processing", spinner.WithInterval(time.Millisecond))).
+		Progress(func(ctx context.Context, _ *Update) error {
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		})
+
+	result := make(chan error, 1)
+	go func() { result <- g.Wait().Silent() }()
+	time.Sleep(20 * time.Millisecond)
+	close(release)
+
+	require.NoError(t, <-result)
+	assert.Empty(t, buf.String())
+}
+
 func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)

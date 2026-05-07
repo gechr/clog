@@ -1179,6 +1179,33 @@ func groupFrameRows(lines []string, termWidth int) int {
 	return rows
 }
 
+func groupFrameFitsViewport(output *Output, renderedRows, frameRows int) bool {
+	if frameRows == 0 {
+		return true
+	}
+	termHeight := output.Height()
+	if termHeight <= 0 {
+		return true
+	}
+	pos, ok := output.cursorPosition()
+	if !ok || pos.row <= 0 {
+		return true
+	}
+
+	topRow := pos.row
+	if renderedRows > 0 {
+		topRow -= renderedRows
+		if topRow < 1 {
+			topRow = 1
+		}
+	}
+
+	// The renderer parks the cursor one row below the block after each frame.
+	// Treat that parking row as required space so a one-line frame on the
+	// bottom terminal row is suppressed instead of scrolling the viewport.
+	return topRow+frameRows <= termHeight
+}
+
 func drainGroupCompletions(
 	fxTasks []*fx.GroupTask,
 	gts []*groupTask,
@@ -1499,6 +1526,10 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			if showFooter {
 				lines = append(lines, renderTaskLine(footerGT, false, now, layout))
 			}
+			frameRows := groupFrameRows(lines, output.Width())
+			if !groupFrameFitsViewport(output, renderedRows, frameRows) {
+				continue
+			}
 			if renderedRows > 0 {
 				frameBuf.WriteString(xansi.CursorUp(renderedRows))
 				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
@@ -1524,7 +1555,7 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			if len(lines) > 0 {
 				writeString(out, xansi.CursorNextLine(1))
 			}
-			renderedRows = groupFrameRows(lines, output.Width())
+			renderedRows = frameRows
 		}
 	}
 
