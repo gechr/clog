@@ -13,6 +13,8 @@ linters:
     - maintidx # noisy
     - gochecknoglobals # lipgloss styles are globals
     - gochecknoinits # init is appropriate for reading env vars at startup
+    - goconst # noisy for spinner frame tables
+    - gomodguard # deprecated
     - gocognit # noisy
     - gosmopolitan # time.Local is correct for CLI tools
     - gocyclo # noisy

@@ -157,5 +157,7 @@ func showStyles() {
 	for _, e := range all {
 		g.Add(clog.Bar(e.name, 1000, bar.WithStyle(e.style))).Progress(fill)
 	}
-	g.Wait().Symbol("✅").Msg("All bar styles complete")
+	if err := g.Wait().Symbol("✅").Msg("All bar styles complete"); err != nil {
+		clog.Fatal().Err(err).Msg("bar styles failed")
+	}
 }

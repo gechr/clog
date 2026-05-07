@@ -39,8 +39,11 @@ type Group struct {
 	MaxHeightPercent float64
 	Monotonic        bool
 	Parallelism      int
+	RenderDelay      time.Duration
 	SyncAnimations   bool
 	Tasks            []*GroupTask
+	TransientFooter  bool
+	TransientHeader  bool
 
 	sem chan struct{}
 }

@@ -2,6 +2,7 @@ package clog
 
 import (
 	"context"
+	"time"
 
 	"github.com/gechr/clog/fx"
 )
@@ -46,12 +47,34 @@ func WithFooter(b *fx.Builder, fn GroupStatusFunc) GroupOption {
 	}
 }
 
+// WithTransientFooter hides the footer when no task rows are visible.
+func WithTransientFooter() GroupOption {
+	return func(g *fx.Group) {
+		g.TransientFooter = true
+	}
+}
+
 // WithHeader adds a status line above the task block, updated each tick.
 // The builder provides initial config (level, symbol, message, fields).
 // The callback updates the message and fields each tick based on progress.
 func WithHeader(b *fx.Builder, fn GroupStatusFunc) GroupOption {
 	return func(g *fx.Group) {
 		g.Header = &fx.GroupStatus{Builder: b, Callback: fn}
+	}
+}
+
+// WithTransientHeader hides the header when no task rows are visible.
+func WithTransientHeader() GroupOption {
+	return func(g *fx.Group) {
+		g.TransientHeader = true
+	}
+}
+
+// WithRenderDelay suppresses group rendering until d has elapsed. If all
+// tasks finish before the delay, the group produces no live-render output.
+func WithRenderDelay(d time.Duration) GroupOption {
+	return func(g *fx.Group) {
+		g.RenderDelay = d
 	}
 }
 

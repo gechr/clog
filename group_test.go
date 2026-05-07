@@ -135,6 +135,76 @@ func TestGroupFooterOption(t *testing.T) {
 	assert.Equal(t, "footer", g.Footer.Builder.Message)
 }
 
+func TestGroupTransientStatusOptions(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithTransientHeader(), WithTransientFooter())
+
+	assert.True(t, g.TransientHeader)
+	assert.True(t, g.TransientFooter)
+}
+
+func TestGroupRenderDelayOption(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	g := logger.Group(context.Background(), WithRenderDelay(250*time.Millisecond))
+
+	assert.Equal(t, 250*time.Millisecond, g.RenderDelay)
+}
+
+func TestGroupRenderDelaySkipsShortLivedTTYGroup(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	g := logger.Group(context.Background(), WithRenderDelay(time.Second))
+	g.Add(logger.Spinner("quick")).
+		Run(func(_ context.Context) error {
+			return nil
+		})
+	g.Wait()
+
+	assert.Empty(t, buf.String())
+}
+
+func TestGroupTransientHeaderHidesWhenNoTaskRowsVisible(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	g := logger.Group(
+		context.Background(),
+		WithTransientHeader(),
+		WithHeader(logger.Spinner("header", spinner.WithInterval(time.Millisecond)),
+			func(done, total int, update *Update) {
+				update.Msg("header").Int("done", done).Int("total", total).Send()
+			}),
+	)
+	g.Add(logger.Spinner("quick", spinner.WithInterval(time.Millisecond)).After(time.Second)).
+		Run(func(_ context.Context) error {
+			return nil
+		})
+	g.Wait()
+
+	assert.NotContains(t, buf.String(), "header")
+}
+
 func TestGroupMaxHeightPercentOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	g := logger.Group(context.Background(), WithMaxHeightPercent(0.5))

@@ -1179,6 +1179,51 @@ func groupFrameRows(lines []string, termWidth int) int {
 	return rows
 }
 
+func drainGroupCompletions(
+	fxTasks []*fx.GroupTask,
+	gts []*groupTask,
+	done []bool,
+	justCompleted []bool,
+	remaining int,
+) int {
+	for i := range justCompleted {
+		justCompleted[i] = false
+	}
+	for i, ft := range fxTasks {
+		if done[i] {
+			continue
+		}
+		select {
+		case err := <-ft.DoneErr:
+			ft.Err = err
+			done[i] = true
+			justCompleted[i] = true
+			remaining--
+			// Force bar to 100% so the final flash frame shows a full bar.
+			if b := gts[i].Builder; b.Mode == fx.AnimationBar && b.BarProgressPtr != nil {
+				b.BarProgressPtr.Store(b.BarTotalPtr.Load())
+			}
+		default:
+		}
+	}
+	return remaining
+}
+
+func effectiveGroupDone(done []bool, justCompleted []bool) []bool {
+	for _, jc := range justCompleted {
+		if jc {
+			effectiveDone := slices.Clone(done)
+			for i, jc2 := range justCompleted {
+				if jc2 {
+					effectiveDone[i] = false
+				}
+			}
+			return effectiveDone
+		}
+	}
+	return done
+}
+
 // runGroupLoop runs the group render loop, blocking until all tasks complete
 // or the context is cancelled. Called by fxLogger.RunGroup.
 func runGroupLoop(ctx context.Context, g *fx.Group) error {
@@ -1307,16 +1352,28 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 		blockTopRow = pos.row
 	}
 
-	writeString(out, xansi.HideCursor)
-	defer writeString(out, xansi.ShowCursor)
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
+	renderStart := time.Now()
 	renderedRows := 0
 	done := make([]bool, len(gts))
 	justCompleted := make([]bool, len(gts))
 	remaining := len(gts)
 	var frameBuf strings.Builder
+	cursorHidden := false
+	defer func() {
+		if cursorHidden {
+			writeString(out, xansi.ShowCursor)
+		}
+	}()
+	hideCursor := func() {
+		if cursorHidden {
+			return
+		}
+		writeString(out, xansi.HideCursor)
+		cursorHidden = true
+	}
 
 	for remaining > 0 {
 		select {
@@ -1335,63 +1392,36 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			return ctx.Err()
 		case <-ticker.C:
 			now := time.Now()
-			// Reset just-completed flags from previous tick.
-			for i := range justCompleted {
-				justCompleted[i] = false
-			}
-			// Drain completed tasks.
-			for i, ft := range fxTasks {
-				if done[i] {
-					continue
-				}
-				select {
-				case err := <-ft.DoneErr:
-					ft.Err = err
-					done[i] = true
-					justCompleted[i] = true
-					remaining--
-					// Force bar to 100% so the final flash frame shows a full bar.
-					if b := gts[i].Builder; b.Mode == fx.AnimationBar && b.BarProgressPtr != nil {
-						b.BarProgressPtr.Store(b.BarTotalPtr.Load())
-					}
-				default:
-				}
-			}
-			// effectiveDone treats just-completed tasks as not-done so they
-			// receive one final bar render at full progress before being hidden.
-			effectiveDone := done
-			for _, jc := range justCompleted {
-				if jc {
-					effectiveDone = slices.Clone(done)
-					for i, jc2 := range justCompleted {
-						if jc2 {
-							effectiveDone[i] = false
-						}
-					}
-					break
-				}
+			remaining = drainGroupCompletions(fxTasks, gts, done, justCompleted, remaining)
+			effectiveDone := effectiveGroupDone(done, justCompleted)
+			if g.RenderDelay > 0 && now.Sub(renderStart) < g.RenderDelay {
+				continue
 			}
 			doneCount := len(gts) - remaining
 			totalCount := len(gts)
-			statusLines := 0
-			showHeader := false
-			showFooter := false
+			headerCandidate := false
+			footerCandidate := false
 			if headerGT != nil {
 				g.Header.Callback(doneCount, totalCount, headerUpdate)
 				if msg := *headerGT.MsgPtr.Load(); msg != "" {
-					showHeader = true
-					statusLines++
+					headerCandidate = true
 				}
 			}
 			if footerGT != nil {
 				g.Footer.Callback(doneCount, totalCount, footerUpdate)
 				if msg := *footerGT.MsgPtr.Load(); msg != "" {
-					showFooter = true
-					statusLines++
+					footerCandidate = true
 				}
 			}
 
-			maxLines := groupHeightCap(output.Height(), blockTopRow, len(gts)+statusLines)
+			candidateStatusLines := 0
+			if headerCandidate {
+				candidateStatusLines++
+			}
+			if footerCandidate {
+				candidateStatusLines++
+			}
+			maxLines := groupHeightCap(output.Height(), blockTopRow, len(gts)+candidateStatusLines)
 			if g.MaxHeightPercent > 0 {
 				if pctLines := int(
 					float64(output.Height()) * g.MaxHeightPercent,
@@ -1408,9 +1438,47 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			// Prioritise active (in-progress) tasks over done or
 			// pending ones when space is limited.
 			visible := visibleTaskIndexes(gts, effectiveDone, g.HideDone, now)
-			maxTasks := max(0, maxLines-statusLines)
+			persistentStatusLines := 0
+			if headerCandidate && !g.TransientHeader {
+				persistentStatusLines++
+			}
+			if footerCandidate && !g.TransientFooter {
+				persistentStatusLines++
+			}
+			maxTasks := max(0, maxLines-persistentStatusLines)
 			if len(visible) > maxTasks {
 				visible = prioritiseActive(visible, gts, done, maxTasks)
+			}
+			showHeader := headerCandidate && (!g.TransientHeader || len(visible) > 0)
+			showFooter := footerCandidate && (!g.TransientFooter || len(visible) > 0)
+			statusLines := 0
+			if showHeader {
+				statusLines++
+			}
+			if showFooter {
+				statusLines++
+			}
+			if len(visible) > 0 && maxLines-statusLines <= 0 {
+				if showFooter && g.TransientFooter {
+					showFooter = false
+					statusLines--
+				}
+				if showHeader && g.TransientHeader && maxLines-statusLines <= 0 {
+					showHeader = false
+					statusLines--
+				}
+			}
+			maxTasks = max(0, maxLines-statusLines)
+			if len(visible) > maxTasks {
+				visible = prioritiseActive(visible, gts, done, maxTasks)
+			}
+			if len(visible) == 0 {
+				if g.TransientHeader {
+					showHeader = false
+				}
+				if g.TransientFooter {
+					showFooter = false
+				}
 			}
 			frameBuf.Reset()
 			layout := measureGroupRenderLayout(g, gts, effectiveDone, now)
@@ -1447,17 +1515,16 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				frameBuf.WriteString(xansi.ClearLine)
 				frameBuf.WriteString(line)
 			}
-			writeString(out, frameBuf.String())
+			if frameBuf.Len() > 0 {
+				hideCursor()
+				writeString(out, frameBuf.String())
+			}
 			// Park cursor one line below the block only while a block is
 			// still rendered, so zero-line frames don't leave a blank gap.
 			if len(lines) > 0 {
 				writeString(out, xansi.CursorNextLine(1))
 			}
 			renderedRows = groupFrameRows(lines, output.Width())
-			// If all done, break out after one final render.
-			if remaining == 0 {
-				break
-			}
 		}
 	}
 

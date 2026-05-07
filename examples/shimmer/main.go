@@ -27,7 +27,7 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Search catalogue rebuilt")
 
 	_ = clog.Shimmer("Deploying service to production cluster",
@@ -41,7 +41,7 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}). Symbol("🚀").
+		}).Symbol("🚀").
 		Msg("Service deployed")
 }
 
@@ -86,5 +86,7 @@ func showDirections() {
 		shimmer.WithGradient(rainbow...),
 		shimmer.WithDirection(shimmer.BounceOut))).
 		Run(sleep)
-	g.Wait().Symbol("✅").Msg("All directions complete")
+	if err := g.Wait().Symbol("✅").Msg("All directions complete"); err != nil {
+		clog.Fatal().Err(err).Msg("shimmer directions failed")
+	}
 }

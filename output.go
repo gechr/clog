@@ -59,7 +59,6 @@ func NewOutput(w io.Writer, mode ColorMode) *Output {
 	o := &Output{w: w, fd: -1}
 
 	if f, ok := w.(interface{ Fd() uintptr }); ok {
-		//nolint:gosec // Fd() fits in int on all supported platforms
 		o.fd = int(f.Fd())
 		o.isTTY = term.IsTerminal(o.fd)
 	}
@@ -195,7 +194,6 @@ func writeString(w io.Writer, s string) {
 }
 
 func queryCursorPosition(out io.Writer) (cursorPosition, bool) {
-	//nolint:gosec // Fd() fits in int on all supported platforms.
 	fd := int(os.Stdin.Fd())
 	if !term.IsTerminal(fd) {
 		return cursorPosition{}, false

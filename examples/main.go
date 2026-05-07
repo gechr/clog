@@ -96,7 +96,9 @@ func main() {
 			shimmer.WithGradient(rainbow...),
 			shimmer.WithSpeed(1.0))).
 			Run(sleep3s)
-		shimmerGroup.Wait().Symbol("✅").Msg("Shimmer demo complete")
+		if err := shimmerGroup.Wait().Symbol("✅").Msg("Shimmer demo complete"); err != nil {
+			clog.Fatal().Err(err).Msg("shimmer demo failed")
+		}
 
 		// --- Group (bar styles + spinner + pulse running concurrently) ---
 		header("Bar")
@@ -175,7 +177,9 @@ func main() {
 				time.Sleep(3 * time.Second)
 				return nil
 			})
-		g.Wait().Symbol("✅").Msg("Group demo complete")
+		if err := g.Wait().Symbol("✅").Msg("Group demo complete"); err != nil {
+			clog.Fatal().Err(err).Msg("group demo failed")
+		}
 
 		// --- Spinner ---
 		header("Spinner")
@@ -867,7 +871,9 @@ func spinners(filter string) {
 	}
 	g.Wait()
 	for i, e := range all {
-		results[i].Symbol(check).Msg(e.name)
+		if err := results[i].Symbol(check).Msg(e.name); err != nil {
+			clog.Fatal().Err(err).Msg("spinner demo failed")
+		}
 	}
 }
 

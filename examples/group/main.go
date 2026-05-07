@@ -66,5 +66,7 @@ func main() {
 			time.Sleep(5 * time.Second)
 			return nil
 		})
-	g.Wait().Symbol("✅").Msg("All tasks complete")
+	if err := g.Wait().Symbol("✅").Msg("All tasks complete"); err != nil {
+		clog.Fatal().Err(err).Msg("group demo failed")
+	}
 }

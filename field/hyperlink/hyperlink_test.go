@@ -8,6 +8,7 @@ import (
 
 	"github.com/gechr/clog/field/hyperlink"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSetHyperlinksEnabled(t *testing.T) {
@@ -372,7 +373,7 @@ func TestIsDirectory(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f.Close()
+	require.NoError(t, f.Close())
 
 	assert.False(t, hyperlink.IsDirectory(f.Name()))
 }
