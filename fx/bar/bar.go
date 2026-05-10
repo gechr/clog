@@ -275,16 +275,21 @@ func resolveWidth(s Style, termWidth int) int {
 // FormatLine positions barPart relative to msgParts according to the
 // placement mode and terminal width. sep is the fallback separator used
 // when the terminal is too narrow for padding.
+//
+// PlaceRightPad and PlaceLeftPad reserve one column of safety margin at the
+// right edge: a line of exactly tw chars sits at the auto-margin boundary
+// and can wrap visibly in some terminals depending on what is emitted next.
+// One column of slack avoids the boundary entirely.
 func FormatLine(msgParts, barPart, sep string, placement Placement, tw int) string {
 	switch placement {
 	case PlaceRightPad:
-		gap := tw - lipgloss.Width(msgParts) - lipgloss.Width(barPart)
+		gap := tw - 1 - lipgloss.Width(msgParts) - lipgloss.Width(barPart)
 		if gap > 0 {
 			return msgParts + strings.Repeat(" ", gap) + barPart
 		}
 		return msgParts + sep + barPart
 	case PlaceLeftPad:
-		gap := tw - lipgloss.Width(barPart) - lipgloss.Width(msgParts)
+		gap := tw - 1 - lipgloss.Width(barPart) - lipgloss.Width(msgParts)
 		if gap > 0 {
 			return barPart + strings.Repeat(" ", gap) + msgParts
 		}

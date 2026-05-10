@@ -926,6 +926,41 @@ func TestGroupSuppressesLiveFrameAtViewportBottom(t *testing.T) {
 	assert.Empty(t, buf.String())
 }
 
+func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	successBuilder := logger.Bar("success", 10)
+	failedBuilder := logger.Bar("failed", 10)
+	successBuilder.BarProgressPtr.Store(9)
+	failedBuilder.BarProgressPtr.Store(9)
+
+	successTask := &fx.GroupTask{
+		Builder: successBuilder,
+		DoneErr: make(chan error, 1),
+	}
+	failedTask := &fx.GroupTask{
+		Builder: failedBuilder,
+		DoneErr: make(chan error, 1),
+	}
+	successTask.DoneErr <- nil
+	failedTask.DoneErr <- errors.New("boom")
+
+	done := []bool{false, false}
+	justCompleted := []bool{false, false}
+	remaining := drainGroupCompletions(
+		[]*fx.GroupTask{successTask, failedTask},
+		[]*groupTask{{GroupTask: successTask}, {GroupTask: failedTask}},
+		done,
+		justCompleted,
+		2,
+	)
+
+	assert.Equal(t, 0, remaining)
+	assert.Equal(t, []bool{true, true}, done)
+	assert.Equal(t, []bool{true, false}, justCompleted)
+	assert.Equal(t, int64(10), successBuilder.BarProgressPtr.Load())
+	assert.Equal(t, int64(9), failedBuilder.BarProgressPtr.Load())
+}
+
 func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
@@ -969,6 +1004,56 @@ func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	assert.NotContains(t, got, xansi.CursorUp(2)+xansi.CursorHorizontalAbsolute(1))
 }
 
+// TestGroupAdvancementUsesLineFeed guards against reintroducing
+// xansi.CursorNextLine for inter-line or parking advancement. CSI E clamps
+// at the viewport bottom and silently fails to scroll, leaving renderedRows
+// out of sync with the cursor's true position. Group rendering must always
+// use a literal newline so the terminal scrolls when the block reaches the
+// last viewport row.
+func TestGroupAdvancementUsesLineFeed(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	release := make(chan struct{})
+	g := logger.Group(context.Background())
+	for range 3 {
+		g.Add(logger.Spinner("task", spinner.WithInterval(time.Millisecond))).
+			Progress(func(ctx context.Context, _ *Update) error {
+				select {
+				case <-release:
+					return nil
+				case <-ctx.Done():
+					return ctx.Err()
+				}
+			})
+	}
+
+	result := make(chan error, 1)
+	go func() { result <- g.Wait().Silent() }()
+	time.Sleep(20 * time.Millisecond)
+	close(release)
+
+	require.NoError(t, <-result)
+	got := buf.String()
+	assert.NotContains(
+		t,
+		got,
+		xansi.CursorNextLine(1),
+		"group rendering must use \\n for advancement, never CSI E (CursorNextLine), "+
+			"because CSI E clamps at the viewport bottom and breaks the cursor-up arithmetic",
+	)
+}
+
 func TestGroupBarLayoutRightPad(t *testing.T) {
 	layout := &groupBarLayout{}
 	layout.observe("short", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
@@ -978,8 +1063,9 @@ func TestGroupBarLayoutRightPad(t *testing.T) {
 	line2 := layout.format("much longer message", "", "BAR", "", " ", bar.PlaceRightPad, 40)
 
 	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
-	assert.Len(t, line1, 40)
-	assert.Len(t, line2, 40)
+	// 1-column right-edge slack means rendered lines are at most tw-1.
+	assert.Len(t, line1, 39)
+	assert.Len(t, line2, 39)
 }
 
 func TestGroupBarLayoutRightPadFallsBackWhenTooNarrow(t *testing.T) {
@@ -1026,6 +1112,88 @@ func TestGroupBarLayoutAlignedNoPadForLongest(t *testing.T) {
 	// The longest message should not get extra padding.
 	line := layout.format("longest msg", "", "BAR", "", " ", bar.PlaceAligned, 80)
 	assert.Equal(t, "longest msg BAR", line)
+}
+
+func TestGroupBarLayoutAlignedCapsToTerminalWidth(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe(strings.Repeat("long ", 20), "", "BAR", "", bar.PlaceAligned)
+
+	line := layout.format("short", "", "BAR", "", " ", bar.PlaceAligned, 20)
+
+	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
+	assert.Contains(t, line, "BAR")
+}
+
+func TestGroupBarLayoutAlignedTruncatesOutlierParts(t *testing.T) {
+	layout := &groupBarLayout{}
+	parts := strings.Repeat("long ", 20)
+	layout.observe(parts, "", "BAR", "", bar.PlaceAligned)
+
+	line := layout.format(parts, "", "BAR", "", " ", bar.PlaceAligned, 20)
+
+	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
+	assert.Contains(t, line, "BAR")
+	assert.NotEqual(t, parts+" BAR", line)
+}
+
+func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	styleOpts := []bar.Option{
+		bar.WithPlacement(bar.PlaceAligned),
+		bar.WithWidth(10),
+		bar.WithWidgetLeft(widget.None()),
+		bar.WithWidgetRight(widget.None()),
+	}
+	visibleBuilder := logger.Bar("short", 1, styleOpts...)
+	hiddenBuilder := logger.Bar(strings.Repeat("long ", 40), 1, styleOpts...)
+
+	visibleMsg := visibleBuilder.Message
+	hiddenMsg := hiddenBuilder.Message
+	emptyFields := []Field{}
+	symbol := "·"
+	visibleMsgPtr := &atomic.Pointer[string]{}
+	hiddenMsgPtr := &atomic.Pointer[string]{}
+	visibleFieldsPtr := &atomic.Pointer[[]Field]{}
+	hiddenFieldsPtr := &atomic.Pointer[[]Field]{}
+	visibleSymbolPtr := &atomic.Pointer[string]{}
+	hiddenSymbolPtr := &atomic.Pointer[string]{}
+	visibleMsgPtr.Store(&visibleMsg)
+	hiddenMsgPtr.Store(&hiddenMsg)
+	visibleFieldsPtr.Store(&emptyFields)
+	hiddenFieldsPtr.Store(&emptyFields)
+	visibleSymbolPtr.Store(&symbol)
+	hiddenSymbolPtr.Store(&symbol)
+
+	visibleGT := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   visibleBuilder,
+			FieldsPtr: visibleFieldsPtr,
+			MsgPtr:    visibleMsgPtr,
+			SymbolPtr: visibleSymbolPtr,
+		},
+	}
+	hiddenGT := &groupTask{
+		GroupTask: &fx.GroupTask{
+			Builder:   hiddenBuilder,
+			FieldsPtr: hiddenFieldsPtr,
+			MsgPtr:    hiddenMsgPtr,
+			SymbolPtr: hiddenSymbolPtr,
+		},
+	}
+	captureTaskConfig(visibleGT)
+	captureTaskConfig(hiddenGT)
+
+	gts := []*groupTask{visibleGT, hiddenGT}
+	done := []bool{false, false}
+	now := time.Unix(1, 0)
+	allLayout := measureGroupRenderLayoutForIndexes(&fx.Group{}, gts, done, []int{0, 1}, now)
+	visibleLayout := measureGroupRenderLayoutForIndexes(&fx.Group{}, gts, done, []int{0}, now)
+
+	allLine := renderTaskLine(visibleGT, false, now, allLayout)
+	visibleLine := renderTaskLine(visibleGT, false, now, visibleLayout)
+
+	assert.Greater(t, xansi.StringWidth(allLine), 100)
+	assert.Less(t, xansi.StringWidth(visibleLine), 40)
 }
 
 func TestBuildTaskBarPartsPendingHide(t *testing.T) {

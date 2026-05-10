@@ -328,10 +328,10 @@ func TestFormatLineRightPad(t *testing.T) {
 	tw := 50
 
 	got := bar.FormatLine(msg, b, " ", bar.PlaceRightPad, tw)
-	// gap = 50 - 15 - 16 = 19 spaces
-	expected := msg + strings.Repeat(" ", 19) + b
+	// gap = 50 - 1 (slack) - 15 - 16 = 18 spaces
+	expected := msg + strings.Repeat(" ", 18) + b
 	assert.Equal(t, expected, got)
-	assert.Len(t, got, 50) // total width matches terminal
+	assert.Len(t, got, 49) // 1-column right-edge slack reserved
 }
 
 func TestFormatLineLeftPad(t *testing.T) {
@@ -340,10 +340,10 @@ func TestFormatLineLeftPad(t *testing.T) {
 	tw := 50
 
 	got := bar.FormatLine(msg, b, " ", bar.PlaceLeftPad, tw)
-	// gap = 50 - 16 - 15 = 19 spaces
-	expected := b + strings.Repeat(" ", 19) + msg
+	// gap = 50 - 1 (slack) - 16 - 15 = 18 spaces
+	expected := b + strings.Repeat(" ", 18) + msg
 	assert.Equal(t, expected, got)
-	assert.Len(t, got, 50)
+	assert.Len(t, got, 49)
 }
 
 func TestFormatLineRightPadNarrow(t *testing.T) {

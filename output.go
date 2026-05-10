@@ -114,13 +114,19 @@ func (o *Output) Width() int {
 	return o.width
 }
 
-// RefreshWidth clears the cached terminal width so that the next call
-// to [Output.Width] re-queries the terminal.
+// RefreshWidth re-queries the terminal for the current width and updates the
+// cached value. If the query fails (or the writer is not a TTY) the cache is
+// left untouched, so manually-seeded test widths survive a refresh.
 func (o *Output) RefreshWidth() {
 	o.widthMu.Lock()
 	defer o.widthMu.Unlock()
-	o.widthDone = false
-	o.width = 0
+	if !o.isTTY || o.fd < 0 {
+		return
+	}
+	if w, _, err := term.GetSize(o.fd); err == nil {
+		o.width = w
+		o.widthDone = true
+	}
 }
 
 // Height returns the terminal height, or 0 for non-TTY writers.
@@ -143,13 +149,19 @@ func (o *Output) Height() int {
 	return o.height
 }
 
-// RefreshHeight clears the cached terminal height so that the next call
-// to [Output.Height] re-queries the terminal.
+// RefreshHeight re-queries the terminal for the current height and updates
+// the cached value. If the query fails (or the writer is not a TTY) the
+// cache is left untouched, so manually-seeded test heights survive a refresh.
 func (o *Output) RefreshHeight() {
 	o.heightMu.Lock()
 	defer o.heightMu.Unlock()
-	o.heightDone = false
-	o.height = 0
+	if !o.isTTY || o.fd < 0 {
+		return
+	}
+	if _, h, err := term.GetSize(o.fd); err == nil {
+		o.height = h
+		o.heightDone = true
+	}
 }
 
 // ListenResize starts a background goroutine that refreshes the cached

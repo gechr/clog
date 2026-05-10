@@ -76,6 +76,53 @@ type groupTask struct {
 	// throttled timing snapshot (bar mode with UpdateInterval only)
 	barWidgetState barWidgetState
 	barWidgetValid bool
+
+	// per-frame atomic snapshot. Populated by snapshotFrameValues at the
+	// start of each render tick so that measureGroupRenderLayout and the
+	// subsequent renderTaskLine calls observe the same current/total/fields
+	// values. Without this, an in-flight progress update between layout
+	// measurement and task rendering produces lines wider than the layout
+	// allowed for, which wraps visibly at the right edge.
+	frameBarCurrent    int64
+	frameBarTotal      int64
+	frameFieldsPtr     *[]core.Field
+	frameSnapshotValid bool
+}
+
+// barProgress returns the per-frame snapshot of (current, total). Falls back
+// to a direct atomic load when no snapshot is in effect (e.g. utility paths
+// outside the render loop).
+func (gt *groupTask) barProgress() (int, int) {
+	if gt.frameSnapshotValid {
+		return int(gt.frameBarCurrent), int(gt.frameBarTotal)
+	}
+	return int(gt.Builder.BarProgressPtr.Load()), int(gt.Builder.BarTotalPtr.Load())
+}
+
+// fieldsSnapshot returns the per-frame snapshot of the fields pointer. Falls
+// back to a direct atomic load when no snapshot is in effect.
+func (gt *groupTask) fieldsSnapshot() *[]core.Field {
+	if gt.frameSnapshotValid {
+		return gt.frameFieldsPtr
+	}
+	return gt.FieldsPtr.Load()
+}
+
+// snapshotFrameValues captures BarProgressPtr / BarTotalPtr / FieldsPtr for
+// every task in the group at the start of a render tick. Call once per tick
+// before measureGroupRenderLayout so that all width calculations and
+// per-task rendering observe identical atomic values.
+func snapshotFrameValues(gts []*groupTask) {
+	for _, gt := range gts {
+		if gt.Builder.BarProgressPtr != nil {
+			gt.frameBarCurrent = gt.Builder.BarProgressPtr.Load()
+		}
+		if gt.Builder.BarTotalPtr != nil {
+			gt.frameBarTotal = gt.Builder.BarTotalPtr.Load()
+		}
+		gt.frameFieldsPtr = gt.FieldsPtr.Load()
+		gt.frameSnapshotValid = true
+	}
 }
 
 // effectiveLevel returns the level set via [Update.SetLevel] if present,
@@ -279,7 +326,7 @@ func (l *groupBarLayout) format(
 	case bar.PlaceRightPad:
 		return l.formatRightPad(parts, leftText, barStr, rightText, sep, termWidth)
 	case bar.PlaceAligned:
-		return l.formatAligned(parts, leftText, barStr, rightText, sep)
+		return l.formatAligned(parts, leftText, barStr, rightText, sep, termWidth)
 	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
 		barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
 		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
@@ -287,6 +334,14 @@ func (l *groupBarLayout) format(
 
 	return ""
 }
+
+// rightEdgeSlack is the column count reserved at the right edge of every
+// padded bar layout. Lines that would otherwise sit at exactly termWidth
+// trigger the terminal's auto-margin boundary, which can cause visible wraps
+// when a per-task width snapshot is one column wider than the layout's
+// observed max (e.g. "99%" -> "100%" between layout measurement and task
+// rendering). Reserving a column makes the math forgiving of that drift.
+const rightEdgeSlack = 1
 
 func (l *groupBarLayout) formatLeftPad(
 	parts, leftText, barStr, rightText, sep string,
@@ -298,7 +353,7 @@ func (l *groupBarLayout) formatLeftPad(
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
 	}
 
-	gap := termWidth - shared.maxParts - shared.barWidth(sep)
+	gap := termWidth - rightEdgeSlack - shared.maxParts - shared.barWidth(sep)
 	if gap < 0 {
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
 	}
@@ -318,7 +373,7 @@ func (l *groupBarLayout) formatRightPad(
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
 	}
 
-	gap := termWidth - shared.maxParts - shared.barWidth(sep)
+	gap := termWidth - rightEdgeSlack - shared.maxParts - shared.barWidth(sep)
 	if gap < 0 {
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
 	}
@@ -328,6 +383,7 @@ func (l *groupBarLayout) formatRightPad(
 
 func (l *groupBarLayout) formatAligned(
 	parts, leftText, barStr, rightText, sep string,
+	termWidth int,
 ) string {
 	a := l.aligned
 	barCols := groupBarColumns{
@@ -338,14 +394,38 @@ func (l *groupBarLayout) formatAligned(
 		maxRight: a.maxRight,
 	}
 	barFull := assembleBarColumns(barCols, leftText, barStr, rightText, sep)
+	effectiveMax := a.maxParts
+	if termWidth > 0 && termWidth <= rightEdgeSlack {
+		return ""
+	}
+	if termWidth > 0 {
+		var ok bool
+		parts, effectiveMax, ok = capAlignedParts(parts, barFull, sep, effectiveMax, termWidth)
+		if !ok {
+			return xansi.Truncate(barFull, termWidth-rightEdgeSlack, "")
+		}
+	}
 	if a.maxParts == 0 {
 		return parts + sep + barFull
 	}
-	padding := a.maxParts - lipgloss.Width(parts)
+	padding := effectiveMax - lipgloss.Width(parts)
 	if padding <= 0 {
 		return parts + sep + barFull
 	}
 	return parts + strings.Repeat(" ", padding) + sep + barFull
+}
+
+func capAlignedParts(parts, barFull, sep string, maxParts, termWidth int) (string, int, bool) {
+	target := termWidth - rightEdgeSlack
+	budget := target - lipgloss.Width(sep) - lipgloss.Width(barFull)
+	if budget < 0 {
+		return parts, maxParts, false
+	}
+	maxParts = min(maxParts, budget)
+	if lipgloss.Width(parts) > budget {
+		parts = xansi.Truncate(parts, budget, "")
+	}
+	return parts, maxParts, true
 }
 
 func (c groupBarColumns) barWidth(sep string) int {
@@ -725,11 +805,10 @@ func measureTaskFieldStart(
 // It does not perform any I/O.
 func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRenderLayout) string {
 	b := gt.Builder
-	fieldsPtr := gt.FieldsPtr.Load()
+	fieldsPtr := gt.fieldsSnapshot()
 	current, total := 0, 0
 	if b.Mode == fx.AnimationBar {
-		current = int(b.BarProgressPtr.Load())
-		total = int(b.BarTotalPtr.Load())
+		current, total = gt.barProgress()
 	}
 	dur := gt.Duration(now)
 	fieldsStr := renderTaskFields(gt, fieldsPtr, dur, current, total)
@@ -770,8 +849,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 	// Bar mode has its own rendering path.
 	if b.Mode == fx.AnimationBar {
 		state := loadBarWidgetState(gt, now)
-		current := int(gt.Builder.BarProgressPtr.Load())
-		total := int(gt.Builder.BarTotalPtr.Load())
+		current, total := gt.barProgress()
 		if gt.monotonic {
 			progress := float64(current) / float64(max(total, 1))
 			clamped := max(gt.maxBarProgress, progress)
@@ -780,7 +858,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 		}
 		fieldsStr = renderTaskFields(
 			gt,
-			gt.FieldsPtr.Load(),
+			gt.fieldsSnapshot(),
 			state.elapsed,
 			current,
 			total,
@@ -946,8 +1024,7 @@ func buildTaskBarParts(
 		layout,
 	)
 
-	current := int(b.BarProgressPtr.Load())
-	total := int(b.BarTotalPtr.Load())
+	current, total := gt.barProgress()
 	progress := float64(current) / float64(max(total, 1))
 	renderProgress := progress
 	if gt.monotonic {
@@ -1069,12 +1146,23 @@ func measureGroupRenderLayout(
 	done []bool,
 	now time.Time,
 ) *groupRenderLayout {
+	return measureGroupRenderLayoutForIndexes(g, gts, done, allGroupTaskIndexes(len(gts)), now)
+}
+
+func measureGroupRenderLayoutForIndexes(
+	g *fx.Group,
+	gts []*groupTask,
+	done []bool,
+	indexes []int,
+	now time.Time,
+) *groupRenderLayout {
 	hideDone := g.HideDone
 	layout := &groupRenderLayout{
 		fields: groupFieldLayout{alignment: g.FieldAlignment},
 	}
 	if layout.fields.alignment != fx.FieldAlignmentNone {
-		for i, gt := range gts {
+		for _, i := range indexes {
+			gt := gts[i]
 			if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) {
 				continue
 			}
@@ -1085,18 +1173,18 @@ func measureGroupRenderLayout(
 		}
 	}
 
-	for i, gt := range gts {
+	for _, i := range indexes {
+		gt := gts[i]
 		if (hideDone && done[i]) || !shouldRenderTask(gt, done[i], now) || done[i] ||
 			gt.Builder.Mode != fx.AnimationBar {
 			continue
 		}
 
 		state := loadBarWidgetState(gt, now)
-		current := int(gt.Builder.BarProgressPtr.Load())
-		total := int(gt.Builder.BarTotalPtr.Load())
+		current, total := gt.barProgress()
 		fieldsStr := renderTaskFields(
 			gt,
-			gt.FieldsPtr.Load(),
+			gt.fieldsSnapshot(),
 			state.elapsed,
 			current,
 			total,
@@ -1119,7 +1207,8 @@ func measureGroupRenderLayout(
 	// For PlaceAligned, also measure done tasks so completed messages
 	// (which may be longer) are included in the max parts width.
 	// Skip when HideDone is set since done tasks are not rendered.
-	for i, gt := range gts {
+	for _, i := range indexes {
+		gt := gts[i]
 		if hideDone || !shouldRenderTask(gt, done[i], now) || !done[i] {
 			continue
 		}
@@ -1130,7 +1219,7 @@ func measureGroupRenderLayout(
 		msg := gt.cfg.indentation + styledMsg(
 			*gt.MsgPtr.Load(), gt.Builder.Level, gt.cfg.styles, gt.cfg.noColor,
 		)
-		fieldsStr := renderTaskFields(gt, gt.FieldsPtr.Load(), gt.Duration(now), 0, 0)
+		fieldsStr := renderTaskFields(gt, gt.fieldsSnapshot(), gt.Duration(now), 0, 0)
 		parts := buildLine(
 			gt.cfg.order,
 			gt.cfg.reportTS,
@@ -1146,6 +1235,57 @@ func measureGroupRenderLayout(
 	return layout
 }
 
+func allGroupTaskIndexes(n int) []int {
+	indexes := make([]int, n)
+	for i := range indexes {
+		indexes[i] = i
+	}
+	return indexes
+}
+
+func buildGroupFrameLines(
+	headerGT, footerGT *groupTask,
+	gts []*groupTask,
+	visible []int,
+	effectiveDone []bool,
+	now time.Time,
+	layout *groupRenderLayout,
+	showHeader, showFooter bool,
+) ([]string, int, int, int) {
+	lineCap := len(visible)
+	if showHeader {
+		lineCap++
+	}
+	if showFooter {
+		lineCap++
+	}
+	lines := make([]string, 0, lineCap)
+
+	headerLineCount := 0
+	if showHeader {
+		lines = append(lines, renderTaskLine(headerGT, false, now, layout))
+		headerLineCount = 1
+	}
+
+	taskLineCount := 0
+	for _, taskIndex := range visible {
+		lines = append(lines, renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout))
+		taskLineCount++
+	}
+
+	footerLineCount := 0
+	if showFooter {
+		lines = append(lines, renderTaskLine(footerGT, false, now, layout))
+		footerLineCount = 1
+	}
+
+	return lines, headerLineCount, taskLineCount, footerLineCount
+}
+
+// groupHeightCap returns the maximum number of physical terminal rows the
+// rendered block may occupy. The caller is responsible for measuring rendered
+// lines via frameRows / groupFrameRows and trimming content that would push
+// the physical row count past this cap.
 func groupHeightCap(termHeight, blockTopRow, fallback int) int {
 	if termHeight <= 0 {
 		if fallback > 0 {
@@ -1224,9 +1364,15 @@ func drainGroupCompletions(
 		case err := <-ft.DoneErr:
 			ft.Err = err
 			done[i] = true
-			justCompleted[i] = true
 			remaining--
-			// Force bar to 100% so the final flash frame shows a full bar.
+			if err != nil {
+				continue
+			}
+			justCompleted[i] = true
+			// Force successful bars to 100% so the final flash frame shows a
+			// full bar. Failed tasks should become done immediately; callers
+			// often attach long error fields that must not participate in
+			// aligned bar layout for one extra frame.
 			if b := gts[i].Builder; b.Mode == fx.AnimationBar && b.BarProgressPtr != nil {
 				b.BarProgressPtr.Store(b.BarTotalPtr.Load())
 			}
@@ -1419,8 +1565,20 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			return ctx.Err()
 		case <-ticker.C:
 			now := time.Now()
+			// Refresh terminal dimensions every tick so the layout is
+			// computed against current reality, not a stale SIGWINCH-cached
+			// value. SIGWINCH delivery can be coalesced or one-frame-lagged
+			// under script(1), tmux pane resize, etc.; an extra ioctl per
+			// tick is cheaper than emitting a line wider than the viewport.
+			output.RefreshWidth()
+			output.RefreshHeight()
 			remaining = drainGroupCompletions(fxTasks, gts, done, justCompleted, remaining)
 			effectiveDone := effectiveGroupDone(done, justCompleted)
+			// Snapshot per-task atomics once per tick so measure and render
+			// observe the same values. Must run after drainGroupCompletions,
+			// which forces just-completed bars to 100%, and before
+			// measureGroupRenderLayout consumes them.
+			snapshotFrameValues(gts)
 			if g.RenderDelay > 0 && now.Sub(renderStart) < g.RenderDelay {
 				continue
 			}
@@ -1508,25 +1666,52 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				}
 			}
 			frameBuf.Reset()
-			layout := measureGroupRenderLayout(g, gts, effectiveDone, now)
-			lines := make([]string, 0, len(visible)+statusLines)
-
-			// Header.
-			if showHeader {
-				lines = append(lines, renderTaskLine(headerGT, false, now, layout))
-			}
-			// Task lines.
-			for _, taskIndex := range visible {
-				lines = append(
-					lines,
-					renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout),
+			layout := measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
+			lines, headerLineCount, taskLineCount, footerLineCount := buildGroupFrameLines(
+				headerGT,
+				footerGT,
+				gts,
+				visible,
+				effectiveDone,
+				now,
+				layout,
+				showHeader,
+				showFooter,
+			)
+			width := output.Width()
+			// Physical-row cap: maxLines is a physical-row budget (terminal
+			// rows after wrap). Drop the lowest-priority task lines from the
+			// tail until the rendered block fits. Header and footer are
+			// preserved when possible because they were already accounted for
+			// when computing maxTasks above.
+			physRows := groupFrameRows(lines, width)
+			for physRows > maxLines && taskLineCount > 0 {
+				visible = visible[:taskLineCount-1]
+				layout = measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
+				lines, headerLineCount, taskLineCount, footerLineCount = buildGroupFrameLines(
+					headerGT,
+					footerGT,
+					gts,
+					visible,
+					effectiveDone,
+					now,
+					layout,
+					showHeader,
+					showFooter,
 				)
+				physRows = groupFrameRows(lines, width)
 			}
-			// Footer.
-			if showFooter {
-				lines = append(lines, renderTaskLine(footerGT, false, now, layout))
+			// If we couldn't fit any tasks, transient header/footer should
+			// drop too so we don't render a status-only block.
+			if taskLineCount == 0 {
+				if footerLineCount == 1 && g.TransientFooter {
+					lines = lines[:len(lines)-1]
+				}
+				if headerLineCount == 1 && g.TransientHeader {
+					lines = lines[1:]
+				}
 			}
-			frameRows := groupFrameRows(lines, output.Width())
+			frameRows := groupFrameRows(lines, width)
 			if !groupFrameFitsViewport(output, renderedRows, frameRows) {
 				continue
 			}
@@ -1535,14 +1720,18 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
 				frameBuf.WriteString(xansi.EraseScreenBelow)
 			} else {
-				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
 				frameBuf.WriteString(xansi.ClearLine)
 			}
+			// Inter-line: write a literal newline so the terminal advances
+			// (and scrolls when the block reaches the viewport bottom). Using
+			// CursorNextLine here would clamp at the bottom row and silently
+			// fail to advance, leaving renderedRows out of sync with reality.
+			// xansi.ClearLine ends with "\r" so the column is reset before
+			// the next line is written.
 			for i, line := range lines {
 				if i > 0 {
-					frameBuf.WriteString(xansi.CursorNextLine(1))
+					frameBuf.WriteString(nl)
 				}
-				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
 				frameBuf.WriteString(xansi.ClearLine)
 				frameBuf.WriteString(line)
 			}
@@ -1552,8 +1741,11 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 			// Park cursor one line below the block only while a block is
 			// still rendered, so zero-line frames don't leave a blank gap.
+			// Use a literal newline (not CursorNextLine) for the same reason:
+			// at the viewport bottom only LF triggers the scroll that the
+			// next frame's CursorUp(renderedRows) arithmetic depends on.
 			if len(lines) > 0 {
-				writeString(out, xansi.CursorNextLine(1))
+				writeString(out, nl)
 			}
 			renderedRows = frameRows
 		}
