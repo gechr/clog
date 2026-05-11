@@ -1559,7 +1559,11 @@ func runGroupLoop(ctx context.Context, g *fx.Group) error {
 			}
 			for i, ft := range fxTasks {
 				if !done[i] {
-					ft.Err = ctx.Err()
+					select {
+					case ft.Err = <-ft.DoneErr:
+					default:
+						ft.Err = ctx.Err()
+					}
 				}
 			}
 			return ctx.Err()

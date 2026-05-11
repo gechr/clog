@@ -961,6 +961,35 @@ func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
 	assert.Equal(t, int64(9), failedBuilder.BarProgressPtr.Load())
 }
 
+func TestRunGroupLoopTTYCancelPreservesReadyTaskError(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Hour)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	g := logger.Group(ctx)
+	realErr := errors.New("real failure")
+	g.Add(logger.Spinner("failed", spinner.WithInterval(time.Hour)))
+	g.Add(logger.Spinner("gated", spinner.WithInterval(time.Hour)))
+	g.Tasks[0].DoneErr <- realErr
+	cancel()
+
+	err := runGroupLoop(ctx, g)
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, g.Tasks[0].Err, realErr)
+	require.ErrorIs(t, g.Tasks[1].Err, context.Canceled)
+}
+
 func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
