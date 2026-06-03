@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
+	"github.com/gechr/clog/theme"
 	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
 )
@@ -31,6 +32,11 @@ type Output struct {
 	heightMu   sync.Mutex
 	heightDone bool
 	height     int
+
+	bgMu   sync.Mutex
+	bgDone bool
+	bg     theme.Background
+	bgOK   bool
 
 	cursorMu sync.Mutex
 
@@ -92,6 +98,29 @@ func (o *Output) IsTTY() bool { return o.isTTY }
 // ColorsDisabled returns true if this output should suppress colors.
 func (o *Output) ColorsDisabled() bool {
 	return o.profile == colorprofile.NoTTY
+}
+
+// background lazily detects and caches the terminal background for this
+// output, querying the terminal at most once. The boolean reports whether
+// detection succeeded; it is false for non-terminal or non-file writers.
+func (o *Output) background() (theme.Background, bool) {
+	o.bgMu.Lock()
+	defer o.bgMu.Unlock()
+
+	if !o.bgDone {
+		o.bgDone = true
+		o.bg, o.bgOK = theme.DetectBackground(o.file())
+	}
+
+	return o.bg, o.bgOK
+}
+
+// file returns the underlying [*os.File], or nil for non-file writers.
+func (o *Output) file() *os.File {
+	if f, ok := o.w.(*os.File); ok {
+		return f
+	}
+	return nil
 }
 
 // Width returns the terminal width, or 0 for non-TTY writers.

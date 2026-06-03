@@ -23,13 +23,15 @@ type YAML struct {
 	Tag         *lipgloss.Style // !!str, !!int, !custom
 }
 
-// DefaultYAML returns Dracula-themed lipgloss styles for YAML tokens.
+// DefaultYAML returns lipgloss styles for YAML tokens using clog's default
+// dark theme. Terminal-aware light/dark selection is applied by the [Logger];
+// see [github.com/gechr/clog.Logger.SetPrintTheme].
 func DefaultYAML() *YAML {
-	return NewYAML(theme.Dracula())
+	return NewYAML(theme.Dark())
 }
 
 // NewYAML returns lipgloss styles for YAML tokens using the given theme.
-func NewYAML(th theme.Theme) *YAML {
+func NewYAML(th *theme.Theme) *YAML {
 	return &YAML{
 		Alias:       new(lipgloss.NewStyle().Foreground(th.Accent)),
 		Anchor:      new(lipgloss.NewStyle().Foreground(th.Accent)),

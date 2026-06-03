@@ -85,10 +85,10 @@ See [HCL](hcl.md) for styling options.
 
 ## Themes
 
-Printer styles default to the Dracula color theme. Switch all four format styles at once with `SetPrintTheme`:
+Printer styles default to terminal-aware light/dark selection: on the first colored write the logger detects the background of its own output and picks a matching theme (dark mode preserves the original Dracula-based colors). The terminal is queried at most once, and never for non-terminal or color-disabled outputs, which use the dark theme. Switch all four format styles at once with `SetPrintTheme`:
 
 ```go
-clog.SetPrintTheme(theme.Monokai())
+clog.SetPrintTheme(theme.Light())
 ```
 
 Per-token overrides still work after setting a theme:
@@ -106,8 +106,46 @@ To build styles from a theme directly:
 custom := style.NewJSON(theme.Monokai())
 ```
 
+To require an explicit light/dark pair:
+
+```go
+themes := theme.MustPair(theme.CatppuccinLatte(), theme.Dracula())
+clog.SetPrintTheme(themes.Auto())
+```
+
+### Environment variables
+
+The default logger reads its theme from the environment (highest precedence first):
+
+1. `CLOG_THEME` - an explicit theme, applied directly with no background detection:
+
+   ```sh
+   CLOG_THEME=monokai
+   ```
+
+2. `CLOG_THEME_LIGHT` and `CLOG_THEME_DARK` - a light/dark pair; the entry matching the terminal background is selected on the first write:
+
+   ```sh
+   CLOG_THEME_LIGHT=catppuccin-latte
+   CLOG_THEME_DARK=dracula
+   ```
+
+`CLOG_THEME` takes precedence over the light/dark pair when both are set. With a custom prefix (see `SetEnvPrefix`), `<PREFIX>_THEME*` is checked first, then the `CLOG_*` fallback.
+
+The same pair can also be loaded programmatically:
+
+```go
+themes, err := theme.PairFromEnv()
+if err != nil {
+    return err
+}
+clog.SetPrintTheme(themes.Auto())
+```
+
 Available themes:
 
+- `theme.Dark()`
+- `theme.Light()`
 - `theme.CatppuccinFrappe()`
 - `theme.CatppuccinLatte()`
 - `theme.CatppuccinMacchiato()`

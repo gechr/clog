@@ -22,13 +22,15 @@ type HCL struct {
 	String      *lipgloss.Style // string values (quoted literals and quote markers)
 }
 
-// DefaultHCL returns Dracula-themed lipgloss styles for HCL tokens.
+// DefaultHCL returns lipgloss styles for HCL tokens using clog's default
+// dark theme. Terminal-aware light/dark selection is applied by the [Logger];
+// see [github.com/gechr/clog.Logger.SetPrintTheme].
 func DefaultHCL() *HCL {
-	return NewHCL(theme.Dracula())
+	return NewHCL(theme.Dark())
 }
 
 // NewHCL returns lipgloss styles for HCL tokens using the given theme.
-func NewHCL(th theme.Theme) *HCL {
+func NewHCL(th *theme.Theme) *HCL {
 	return &HCL{
 		BlockType:   new(lipgloss.NewStyle().Foreground(th.Accent)),
 		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),

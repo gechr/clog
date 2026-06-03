@@ -80,13 +80,15 @@ type JSON struct {
 	Comma       *lipgloss.Style // ,
 }
 
-// DefaultJSON returns Dracula-themed lipgloss styles for JSON tokens.
+// DefaultJSON returns lipgloss styles for JSON tokens using clog's default
+// dark theme. Terminal-aware light/dark selection is applied by the [Logger];
+// see [github.com/gechr/clog.Logger.SetPrintTheme].
 func DefaultJSON() *JSON {
-	return NewJSON(theme.Dracula())
+	return NewJSON(theme.Dark())
 }
 
 // NewJSON returns lipgloss styles for JSON tokens using the given theme.
-func NewJSON(th theme.Theme) *JSON {
+func NewJSON(th *theme.Theme) *JSON {
 	return &JSON{
 		Spacing: JSONSpacingAfterComma,
 

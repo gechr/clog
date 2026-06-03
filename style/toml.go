@@ -22,13 +22,15 @@ type TOML struct {
 	TableKey    *lipgloss.Style // [table] and [[array]] header keys
 }
 
-// DefaultTOML returns Dracula-themed lipgloss styles for TOML tokens.
+// DefaultTOML returns lipgloss styles for TOML tokens using clog's default
+// dark theme. Terminal-aware light/dark selection is applied by the [Logger];
+// see [github.com/gechr/clog.Logger.SetPrintTheme].
 func DefaultTOML() *TOML {
-	return NewTOML(theme.Dracula())
+	return NewTOML(theme.Dark())
 }
 
 // NewTOML returns lipgloss styles for TOML tokens using the given theme.
-func NewTOML(th theme.Theme) *TOML {
+func NewTOML(th *theme.Theme) *TOML {
 	return &TOML{
 		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
 		BoolTrue:    new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),

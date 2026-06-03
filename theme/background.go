@@ -1,0 +1,193 @@
+package theme
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/muesli/termenv"
+	"golang.org/x/term"
+)
+
+// Background describes the terminal background a theme is designed for.
+type Background int
+
+const (
+	BackgroundUnspecified Background = iota
+	BackgroundLight
+	BackgroundDark
+)
+
+const darkBackgroundLightnessThreshold = 0.5
+
+func (b Background) String() string {
+	switch b {
+	case BackgroundUnspecified:
+		return "unspecified"
+	case BackgroundLight:
+		return "light"
+	case BackgroundDark:
+		return "dark"
+	default:
+		return "unspecified"
+	}
+}
+
+func (b Background) valid() bool {
+	return b == BackgroundLight || b == BackgroundDark
+}
+
+// DetectBackground queries a terminal for its background color.
+func DetectBackground(out *os.File) (Background, bool) {
+	if out == nil || !term.IsTerminal(int(out.Fd())) {
+		return BackgroundDark, false
+	}
+
+	bg := termenv.NewOutput(out, termenv.WithTTY(true)).BackgroundColor()
+	if _, ok := bg.(termenv.NoColor); ok {
+		return BackgroundDark, false
+	}
+
+	_, _, lightness := termenv.ConvertToRGB(bg).Hsl()
+	if lightness < darkBackgroundLightnessThreshold {
+		return BackgroundDark, true
+	}
+	return BackgroundLight, true
+}
+
+// Pair holds the light and dark themes an application supports.
+type Pair struct {
+	Light    *Theme
+	Dark     *Theme
+	Fallback Background
+}
+
+// Auto selects from clog's built-in themes using the terminal background.
+// Defaults to os.Stdout if no files are provided.
+func Auto(files ...*os.File) *Theme {
+	return DefaultPair().Auto(files...)
+}
+
+// DefaultPair returns clog's built-in light/dark theme pair.
+func DefaultPair(opts ...PairOption) *Pair {
+	return MustPair(Light(), Dark(), opts...)
+}
+
+// PairOption configures a theme Pair.
+type PairOption func(*Pair)
+
+// WithFallback sets the background used when terminal detection is unavailable.
+func WithFallback(bg Background) PairOption {
+	return func(p *Pair) {
+		p.Fallback = bg
+	}
+}
+
+// NewPair creates a theme pair with one light theme and one dark theme.
+func NewPair(light, dark *Theme, opts ...PairOption) (*Pair, error) {
+	p := &Pair{
+		Light:    light,
+		Dark:     dark,
+		Fallback: BackgroundDark,
+	}
+	for _, opt := range opts {
+		opt(p)
+	}
+	if err := p.validate(); err != nil {
+		return nil, err
+	}
+	return p, nil
+}
+
+// MustPair creates a theme pair and panics if it is invalid.
+func MustPair(light, dark *Theme, opts ...PairOption) *Pair {
+	p, err := NewPair(light, dark, opts...)
+	if err != nil {
+		panic(err)
+	}
+	return p
+}
+
+// Auto selects from the pair using the terminal background.
+// Defaults to os.Stdout if no files are provided.
+// All provided files must report the same background, otherwise the pair fallback is used.
+func (p *Pair) Auto(files ...*os.File) *Theme {
+	if len(files) == 0 {
+		files = []*os.File{os.Stdout}
+	}
+
+	bg, ok := detectBackground(files)
+	if !ok {
+		bg = p.Fallback
+	}
+	return p.ForBackground(bg)
+}
+
+// ForTerminal queries out and returns the theme matching its terminal background.
+func (p *Pair) ForTerminal(out *os.File) *Theme {
+	bg, ok := DetectBackground(out)
+	if !ok {
+		bg = p.Fallback
+	}
+	return p.ForBackground(bg)
+}
+
+func detectBackground(files []*os.File) (Background, bool) {
+	var detected Background
+	for i, f := range files {
+		bg, ok := DetectBackground(f)
+		if !ok {
+			return BackgroundDark, false
+		}
+		if i == 0 {
+			detected = bg
+			continue
+		}
+		if bg != detected {
+			return BackgroundDark, false
+		}
+	}
+	return detected, true
+}
+
+// ForBackground returns the theme matching bg.
+func (p *Pair) ForBackground(bg Background) *Theme {
+	if bg == BackgroundLight {
+		return p.Light
+	}
+	return p.Dark
+}
+
+func (p *Pair) validate() error {
+	if p == nil {
+		return fmt.Errorf("theme pair is nil")
+	}
+	if p.Light == nil {
+		return fmt.Errorf("light theme is required")
+	}
+	if p.Dark == nil {
+		return fmt.Errorf("dark theme is required")
+	}
+	if p.Light.Background != BackgroundLight {
+		return fmt.Errorf(
+			"light theme must declare background %q, got %q",
+			BackgroundLight,
+			p.Light.Background,
+		)
+	}
+	if p.Dark.Background != BackgroundDark {
+		return fmt.Errorf(
+			"dark theme must declare background %q, got %q",
+			BackgroundDark,
+			p.Dark.Background,
+		)
+	}
+	if !p.Fallback.valid() {
+		return fmt.Errorf(
+			"fallback background must be %q or %q, got %q",
+			BackgroundLight,
+			BackgroundDark,
+			p.Fallback,
+		)
+	}
+	return nil
+}

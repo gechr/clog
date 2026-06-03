@@ -506,6 +506,7 @@ func TestEventRawJSONNoHighlightWhenNil(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(NewOutput(&buf, ColorAlways))
 	l.styles.JSON = nil
+	l.printThemeDirty = false // configured printer styles opt out of auto-detection
 	l.Info().RawJSON("data", []byte(`{"n":1}`)).Msg("ok")
 
 	got := buf.String()

@@ -146,7 +146,7 @@ func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 func SetParts(order ...Part) { Default.SetParts(order...) }
 
 // SetPrintTheme rebuilds all printer styles from the given theme on the [Default] logger.
-func SetPrintTheme(t theme.Theme) { Default.SetPrintTheme(t) }
+func SetPrintTheme(t *theme.Theme) { Default.SetPrintTheme(t) }
 
 // SetPrintIndent sets the printer indentation string on the [Default] logger.
 func SetPrintIndent(indent string) { Default.SetPrintIndent(indent) }

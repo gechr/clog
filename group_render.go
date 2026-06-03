@@ -508,6 +508,7 @@ func captureTaskConfig(gt *groupTask) {
 	b := gt.Builder
 	l := b.Log.(fxLogger).l //nolint:errcheck,forcetypeassert // fxLogger is the only Logger impl
 	l.mu.Lock()
+	l.resolvePrintThemeLocked()
 	animInterval := l.animationInterval
 	order := l.parts
 	if b.PartOverrides != nil {

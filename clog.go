@@ -114,7 +114,9 @@ type Logger struct {
 	sliceSep           string
 	spinnerStyle       *spinner.Style // nil = use spinner.DefaultStyle()
 	styles             *style.Config
-	symbol             *string // nil = use default emoji for level
+	printThemePair     *theme.Pair // light/dark source for auto-detection; nil = built-in default pair
+	printThemeDirty    bool        // printer styles need (re)building from the detected background
+	symbol             *string     // nil = use default emoji for level
 	symbols            LabelMap
 	timeFormat         string
 	timeLocation       *time.Location
@@ -148,6 +150,7 @@ func New(output *Output) *Logger {
 		separatorText:     "=",
 		sliceSep:          ", ",
 		styles:            DefaultStyles(),
+		printThemeDirty:   true,
 		timeFormat:        "15:04:05.000",
 		timeLocation:      time.Local,
 		treeChars:         DefaultTreeChars(),
@@ -707,10 +710,52 @@ func (l *Logger) SetSpinnerStyle(s spinner.Style) {
 }
 
 // SetPrintTheme rebuilds all printer styles (JSON, YAML, TOML, HCL) from the
-// given theme. Per-token overrides via [SetStyles] still apply after this call.
-func (l *Logger) SetPrintTheme(t theme.Theme) {
+// given theme, disabling automatic light/dark detection. Passing nil restores
+// the default behavior of selecting a theme from the terminal background.
+// Per-token overrides via [SetStyles] still apply after this call.
+func (l *Logger) SetPrintTheme(t *theme.Theme) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.printThemePair = nil
+	if t == nil {
+		l.printThemeDirty = true
+		return
+	}
+	l.printThemeDirty = false
+	l.applyPrintThemeLocked(t)
+}
+
+// setPrintPair selects the light/dark pair used for automatic detection and
+// defers rebuilding the printer styles until the next write.
+func (l *Logger) setPrintPair(pair *theme.Pair) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.printThemePair = pair
+	l.printThemeDirty = true
+}
+
+// resolvePrintThemeLocked lazily themes the printer styles from the output's
+// terminal background, at most once. It is a no-op when colors are disabled,
+// a theme was set explicitly, or it has already run. l.mu must be held.
+func (l *Logger) resolvePrintThemeLocked() {
+	if !l.printThemeDirty || l.colorsDisabled() {
+		return
+	}
+	l.printThemeDirty = false
+
+	pair := l.printThemePair
+	if pair == nil {
+		pair = theme.DefaultPair()
+	}
+	bg, ok := l.output.background()
+	if !ok {
+		bg = pair.Fallback
+	}
+	l.applyPrintThemeLocked(pair.ForBackground(bg))
+}
+
+// applyPrintThemeLocked rebuilds the four printer styles from t. l.mu must be held.
+func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
 	l.styles.JSON = style.NewJSON(t)
 	l.styles.YAML = style.NewYAML(t)
 	l.styles.TOML = style.NewTOML(t)
@@ -725,9 +770,15 @@ func (l *Logger) SetStyles(styles *style.Config) {
 	defer l.mu.Unlock()
 	if styles == nil {
 		l.styles = DefaultStyles()
+		l.printThemePair = nil
+		l.printThemeDirty = true
 		return
 	}
 	l.styles.Merge(styles)
+	// Explicitly supplied printer styles take precedence over auto-detection.
+	if styles.HCL != nil || styles.JSON != nil || styles.TOML != nil || styles.YAML != nil {
+		l.printThemeDirty = false
+	}
 }
 
 // SetTimeFormat sets the timestamp format string.
@@ -992,6 +1043,7 @@ func (l *Logger) log(e *Event, msg string) {
 
 	// Built-in pretty formatter.
 	noColor := l.colorsDisabled()
+	l.resolvePrintThemeLocked()
 
 	// Resolve parts: event override -> logger default.
 	partsOrder := l.parts
