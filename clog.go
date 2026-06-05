@@ -14,6 +14,7 @@ import (
 	"io"
 	"maps"
 	"os"
+	"reflect"
 	"slices"
 	"strings"
 	"sync"
@@ -73,6 +74,17 @@ const Nil = core.Nil
 // Default is the default logger instance.
 var Default = New(Stdout(ColorAuto))
 
+// styleOverride records which theme-derived styles the user supplied
+// explicitly via [Logger.SetStyles]. Each set flag is excluded from
+// background-driven theme resolution so it is never overwritten.
+type styleOverride struct {
+	json     bool
+	yaml     bool
+	toml     bool
+	hcl      bool
+	gradient bool
+}
+
 // Logger is the main structured logger.
 type Logger struct {
 	mu *sync.Mutex
@@ -114,9 +126,10 @@ type Logger struct {
 	sliceSep           string
 	spinnerStyle       *spinner.Style // nil = use spinner.DefaultStyle()
 	styles             *style.Config
-	printThemePair     *theme.Pair // light/dark source for auto-detection; nil = built-in default pair
-	printThemeDirty    bool        // printer styles need (re)building from the detected background
-	symbol             *string     // nil = use default emoji for level
+	printThemePair     *theme.Pair   // light/dark source for auto-detection; nil = built-in default pair
+	printThemeDirty    bool          // printer styles need (re)building from the detected background
+	styleOverride      styleOverride // theme-derived styles the user supplied explicitly
+	symbol             *string       // nil = use default emoji for level
 	symbols            LabelMap
 	timeFormat         string
 	timeLocation       *time.Location
@@ -754,12 +767,28 @@ func (l *Logger) resolvePrintThemeLocked() {
 	l.applyPrintThemeLocked(pair.ForBackground(bg))
 }
 
-// applyPrintThemeLocked rebuilds the four printer styles from t. l.mu must be held.
+// applyPrintThemeLocked rebuilds the theme-derived styles (printer styles and
+// value gradients) from t. l.mu must be held. Any style the user supplied
+// explicitly via [Logger.SetStyles] is left untouched, so overriding one (e.g.
+// JSON) does not opt the rest out of background detection.
 func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
-	l.styles.JSON = style.NewJSON(t)
-	l.styles.YAML = style.NewYAML(t)
-	l.styles.TOML = style.NewTOML(t)
-	l.styles.HCL = style.NewHCL(t)
+	if !l.styleOverride.json {
+		l.styles.JSON = style.NewJSON(t)
+	}
+	if !l.styleOverride.yaml {
+		l.styles.YAML = style.NewYAML(t)
+	}
+	if !l.styleOverride.toml {
+		l.styles.TOML = style.NewTOML(t)
+	}
+	if !l.styleOverride.hcl {
+		l.styles.HCL = style.NewHCL(t)
+	}
+	if !l.styleOverride.gradient {
+		l.styles.DurationGradient = style.ElapsedGradientFor(t.Background)
+		l.styles.ElapsedGradient = style.ElapsedGradientFor(t.Background)
+		l.styles.PercentGradient = style.PercentGradientFor(t.Background)
+	}
 }
 
 // SetStyles merges the given styles into the current style configuration.
@@ -772,12 +801,58 @@ func (l *Logger) SetStyles(styles *style.Config) {
 		l.styles = DefaultStyles()
 		l.printThemePair = nil
 		l.printThemeDirty = true
+		l.styleOverride = styleOverride{}
 		return
 	}
 	l.styles.Merge(styles)
-	// Explicitly supplied printer styles take precedence over auto-detection.
-	if styles.HCL != nil || styles.JSON != nil || styles.TOML != nil || styles.YAML != nil {
-		l.printThemeDirty = false
+	// A theme-derived style counts as an override only when it differs from the
+	// background-adaptable default. Passing DefaultStyles() through unchanged
+	// (or with unrelated fields tweaked) must still adapt to the terminal, and
+	// each style opts out individually so the rest keep adapting.
+	if customStyle(styles.JSON, style.DefaultJSON()) {
+		l.styleOverride.json = true
+	}
+	if customStyle(styles.YAML, style.DefaultYAML()) {
+		l.styleOverride.yaml = true
+	}
+	if customStyle(styles.TOML, style.DefaultTOML()) {
+		l.styleOverride.toml = true
+	}
+	if customStyle(styles.HCL, style.DefaultHCL()) {
+		l.styleOverride.hcl = true
+	}
+	if customGradient(styles) {
+		l.styleOverride.gradient = true
+	}
+}
+
+// customStyle reports whether v is a deliberate override rather than the
+// background-adaptable default def. A nil v (field left unset) or one matching
+// the default is not an override, so it continues to track the terminal.
+//
+// Printer style structs hold *lipgloss.Style, which is neither ==-comparable
+// nor exposes value equality, so a deep compare is the only option here; it
+// runs on the cold SetStyles path, never during rendering.
+func customStyle[T any](v, def *T) bool {
+	return v != nil && !reflect.DeepEqual(v, def)
+}
+
+// customGradient reports whether any gradient in s diverges from its
+// background-adaptable default. DefaultStyles() pre-populates these with the
+// dark defaults, so only a value-level difference counts as a real override.
+// ColorStop is all float64 fields, so slices.Equal compares them directly.
+func customGradient(s *style.Config) bool {
+	elapsedDefault := style.DefaultElapsedGradient()
+	percentDefault := style.DefaultPercentGradient()
+	switch {
+	case s.DurationGradient != nil && !slices.Equal(s.DurationGradient, elapsedDefault):
+		return true
+	case s.ElapsedGradient != nil && !slices.Equal(s.ElapsedGradient, elapsedDefault):
+		return true
+	case s.PercentGradient != nil && !slices.Equal(s.PercentGradient, percentDefault):
+		return true
+	default:
+		return false
 	}
 }
 

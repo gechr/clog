@@ -77,6 +77,61 @@ func TestSetStylesNilReenablesAutoDetection(t *testing.T) {
 	require.Nil(t, l.printThemePair)
 }
 
+// lightLogger returns a logger whose background resolves to light (detection is
+// unavailable on a buffer, so the pair fallback decides).
+func lightLogger(t *testing.T) *Logger {
+	t.Helper()
+	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
+	l.setPrintPair(theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)))
+	return l
+}
+
+func resolved(t *testing.T, l *Logger) {
+	t.Helper()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.resolvePrintThemeLocked()
+}
+
+func TestSetStylesDefaultPassthroughStillAdapts(t *testing.T) {
+	// Passing DefaultStyles() through (as apps do when tweaking unrelated
+	// fields) must NOT freeze the gradient/printer styles at their dark
+	// defaults: they still adapt to the terminal background.
+	l := lightLogger(t)
+	l.SetStyles(DefaultStyles())
+	resolved(t, l)
+
+	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.ElapsedGradient)
+	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.DurationGradient)
+	require.Equal(t, style.PercentGradientFor(theme.BackgroundLight), l.styles.PercentGradient)
+	require.Equal(t, style.NewJSON(theme.Light()), l.styles.JSON)
+}
+
+func TestSetStylesCustomGradientPreserved(t *testing.T) {
+	// A gradient that differs from the default is a deliberate override and
+	// survives background resolution.
+	l := lightLogger(t)
+	custom := []style.ColorStop{{Position: 0, Color: style.DefaultElapsedGradient()[2].Color}}
+	l.SetStyles(&style.Config{ElapsedGradient: custom})
+	resolved(t, l)
+
+	// Overriding any gradient opts the gradient set out of adaptation, so the
+	// custom value is kept verbatim rather than replaced by the light stops.
+	require.Equal(t, custom, l.styles.ElapsedGradient)
+}
+
+func TestSetStylesPerStyleOverrideIsGranular(t *testing.T) {
+	// Overriding one printer style must not opt the others out of adaptation.
+	l := lightLogger(t)
+	customJSON := style.NewJSON(theme.Monokai())
+	l.SetStyles(&style.Config{JSON: customJSON})
+	resolved(t, l)
+
+	require.Equal(t, customJSON, l.styles.JSON)
+	require.Equal(t, style.NewYAML(theme.Light()), l.styles.YAML)
+	require.Equal(t, style.NewHCL(theme.Light()), l.styles.HCL)
+}
+
 func TestLoadThemeFromEnvExplicit(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
