@@ -905,7 +905,7 @@ func TestLogFormattedOutputColored(t *testing.T) {
 	// With colors enabled, output should contain ANSI escape codes.
 	assert.Equal(
 		t,
-		"\x1b[1;32mINF\x1b[m ℹ️ hello \x1b[34mk\x1b[m\x1b[2m=\x1b[m\x1b[97mv\x1b[m\n",
+		"\x1b[1;32mINF\x1b[m ℹ️ hello \x1b[34mk\x1b[m\x1b[2m=\x1b[mv\n",
 		got,
 	)
 }

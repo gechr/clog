@@ -33,9 +33,7 @@ func Default() *Config {
 		FieldQuantityUnit: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
-		FieldString: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("15")), // white
-		),
+		FieldString: new(lipgloss.NewStyle()),
 		FieldTime: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
