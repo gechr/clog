@@ -8,7 +8,7 @@ type GroupOption func(*Group)
 // WithFieldAlignment sets the group-level field alignment mode.
 func WithFieldAlignment(alignment FieldAlignment) GroupOption {
 	return func(g *Group) {
-		g.FieldAlignment = alignment
+		g.fieldAlignment = alignment
 	}
 }
 
@@ -16,7 +16,7 @@ func WithFieldAlignment(alignment FieldAlignment) GroupOption {
 // Values less than or equal to zero disable the limit.
 func WithParallelism(parallelism int) GroupOption {
 	return func(g *Group) {
-		g.Parallelism = parallelism
+		g.parallelism = parallelism
 	}
 }
 
@@ -25,7 +25,7 @@ func WithParallelism(parallelism int) GroupOption {
 // shown for each task.
 func WithMonotonic() GroupOption {
 	return func(g *Group) {
-		g.Monotonic = true
+		g.monotonic = true
 	}
 }
 
@@ -34,14 +34,14 @@ func WithMonotonic() GroupOption {
 // The callback updates the message and fields each tick based on progress.
 func WithFooter(b *Builder, fn GroupStatusFunc) GroupOption {
 	return func(g *Group) {
-		g.Footer = &GroupStatus{Builder: b, Callback: fn}
+		g.footer = &groupStatus{builder: b, callback: fn}
 	}
 }
 
 // WithTransientFooter hides the footer when no task rows are visible.
 func WithTransientFooter() GroupOption {
 	return func(g *Group) {
-		g.TransientFooter = true
+		g.transientFooter = true
 	}
 }
 
@@ -50,14 +50,14 @@ func WithTransientFooter() GroupOption {
 // The callback updates the message and fields each tick based on progress.
 func WithHeader(b *Builder, fn GroupStatusFunc) GroupOption {
 	return func(g *Group) {
-		g.Header = &GroupStatus{Builder: b, Callback: fn}
+		g.header = &groupStatus{builder: b, callback: fn}
 	}
 }
 
 // WithTransientHeader hides the header when no task rows are visible.
 func WithTransientHeader() GroupOption {
 	return func(g *Group) {
-		g.TransientHeader = true
+		g.transientHeader = true
 	}
 }
 
@@ -65,7 +65,7 @@ func WithTransientHeader() GroupOption {
 // tasks finish before the delay, the group produces no live-render output.
 func WithRenderDelay(d time.Duration) GroupOption {
 	return func(g *Group) {
-		g.RenderDelay = d
+		g.renderDelay = d
 	}
 }
 
@@ -74,7 +74,7 @@ func WithRenderDelay(d time.Duration) GroupOption {
 // Values less than or equal to zero are ignored.
 func WithMaxLines(n int) GroupOption {
 	return func(g *Group) {
-		g.MaxLines = n
+		g.maxLines = n
 	}
 }
 
@@ -83,7 +83,7 @@ func WithMaxLines(n int) GroupOption {
 // When both WithMaxLines and WithMaxHeightPercent are set, the smaller wins.
 func WithMaxHeightPercent(percent float64) GroupOption {
 	return func(g *Group) {
-		g.MaxHeightPercent = max(0, min(percent, 1))
+		g.maxHeightPercent = max(0, min(percent, 1))
 	}
 }
 
@@ -92,7 +92,7 @@ func WithMaxHeightPercent(percent float64) GroupOption {
 // in the caller's own logging (e.g. via [WaitResult.Msg]).
 func WithHideDone() GroupOption {
 	return func(g *Group) {
-		g.HideDone = true
+		g.hideDone = true
 	}
 }
 
@@ -101,7 +101,7 @@ func WithHideDone() GroupOption {
 // user can see what was on screen when the interrupt arrived.
 func WithClearOnCancel() GroupOption {
 	return func(g *Group) {
-		g.ClearOnCancel = true
+		g.clearOnCancel = true
 	}
 }
 
@@ -110,6 +110,6 @@ func WithClearOnCancel() GroupOption {
 // lockstep. Sync is enabled by default.
 func WithoutSyncAnimations() GroupOption {
 	return func(g *Group) {
-		g.SyncAnimations = false
+		g.syncAnimations = false
 	}
 }

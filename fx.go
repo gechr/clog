@@ -1,14 +1,9 @@
 package clog
 
 import (
-	"context"
-	"strings"
-	"sync/atomic"
-	"time"
-
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
-	xansi "github.com/gechr/x/ansi"
+	"github.com/gechr/clog/style"
 )
 
 // Convenience aliases so callers can reference common fx types without
@@ -18,31 +13,16 @@ type (
 	TaskResult = fx.TaskResult
 )
 
-// frameRows returns the number of physical terminal rows the rendered line
-// occupies once wrapping at termWidth is accounted for. ANSI escape codes
-// are stripped before measuring. Falls back to 1 when the width is unknown
-// (e.g. Output.Width() == 0).
-func frameRows(line string, termWidth int) int {
-	if termWidth <= 0 {
-		return 1
-	}
-	w := xansi.StringWidth(line)
-	if w <= 0 {
-		return 1
-	}
-	return (w + termWidth - 1) / termWidth
-}
-
 // fxLogger adapts *Logger to the fx.Logger interface. This allows the fx
 // package types (Builder, WaitResult, Group, etc.) to call back into root
-// clog's logging and animation infrastructure without importing root clog.
+// clog's logging infrastructure without importing root clog.
 type fxLogger struct{ l *Logger }
 
 // Ensure fxLogger satisfies fx.Logger at compile time.
 var _ fx.Logger = fxLogger{}
 
-// Ensure *Output satisfies fx.Output at compile time.
-var _ fx.Output = (*Output)(nil)
+// Ensure *Output satisfies fx.RenderOutput (and fx.Output) at compile time.
+var _ fx.RenderOutput = (*Output)(nil)
 
 func (f fxLogger) Done(evt fx.DoneEvent) {
 	e := f.l.newEvent(evt.Level)
@@ -78,160 +58,112 @@ func (f fxLogger) Output() fx.Output {
 	return f.l.Output()
 }
 
-func (f fxLogger) RunAnimation(ctx context.Context, cfg fx.AnimationConfig) error {
-	return runAnimation(
-		ctx,
-		cfg.Builder,
-		cfg.Task,
-		cfg.MsgPtr,
-		cfg.FieldsPtr,
-		cfg.LevelPtr,
-		cfg.SymbolPtr,
-		cfg.StartTime,
-	)
+// TaskConfig locks the logger, snapshots every setting per-tick rendering
+// needs, and wraps the root-only formatting and styling logic in closures so
+// the fx render loops never touch the logger again.
+func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
+	l := f.l
+	l.mu.Lock()
+	l.resolvePrintThemeLocked()
+	order := l.parts
+	if b.PartOverrides != nil {
+		order = *b.PartOverrides
+	}
+	combinedTree := l.tree
+	if len(b.TreePos) > 0 {
+		combinedTree = append(append([]TreePos{}, l.tree...), b.TreePos...)
+	}
+	noColor := l.output.ColorsDisabled()
+	styles := l.styles
+	label := l.formatLabel(b.Level)
+	labels := l.allPaddedLabels()
+	cfg := fx.TaskConfig{
+		AnimationInterval: l.animationInterval,
+		Indentation: computeIndent(
+			l.indent+b.IndentDepth,
+			l.indentWidth,
+			l.indentPrefixes,
+			l.indentPrefixSep,
+		) + computeTreeIndent(combinedTree, l.treeChars),
+		IsTTY: l.output.IsTTY(),
+		Label: label,
+		NonTTYSilent: b.SuppressNonTTY ||
+			(l.nonTTYLevel != UnsetLevel && b.Level < l.nonTTYLevel),
+		Order:           order,
+		Out:             l.output.Writer(),
+		Output:          l.output,
+		ReportTimestamp: l.reportTimestamp,
+		TimeFormat:      l.timeFormat,
+		TimeLocation:    l.timeLocation,
+	}
+	fieldOpts := formatFieldsOpts{
+		fieldSort:       l.fieldSort,
+		fieldStyleLevel: l.fieldStyleLevel,
+		level:           b.Level,
+		noColor:         noColor,
+		quoteOpen:       l.quoteOpen,
+		quoteClose:      l.quoteClose,
+		quoteMode:       l.quoteMode,
+		separatorText:   l.separatorText,
+		sliceClose:      l.sliceClose,
+		sliceOpen:       l.sliceOpen,
+		sliceSep:        l.sliceSep,
+		styles:          l.styles,
+		timeFormat:      l.fieldTimeFormat,
+	}
+	l.mu.Unlock()
+
+	// Styled level symbol for the builder's own level.
+	if s := styles.Levels[b.Level]; s != nil && !noColor {
+		cfg.LevelSymbol = s.Render(label)
+	} else {
+		cfg.LevelSymbol = label
+	}
+
+	cfg.FormatFields = func(fields []core.Field) string {
+		return formatFields(fields, fieldOpts)
+	}
+	cfg.StyleLevel = func(lvl core.Level) string {
+		lab := labels[lvl]
+		if s := styles.Levels[lvl]; s != nil && !noColor {
+			return s.Render(lab)
+		}
+		return lab
+	}
+	cfg.StyleMessage = func(msg string, lvl core.Level) string {
+		return styledMsg(msg, lvl, styles, noColor)
+	}
+	cfg.StyleSymbol = func(symbol string, lvl core.Level) string {
+		return styledSymbol(symbol, lvl, styles, noColor)
+	}
+	cfg.StyleTimestamp = func(ts string) string {
+		if styles.Timestamp != nil && !noColor {
+			return styles.Timestamp.Render(ts)
+		}
+		return ts
+	}
+	return cfg
 }
 
-func (f fxLogger) RunGroup(ctx context.Context, g *fx.Group) error {
-	return runGroupLoop(ctx, g)
+// styledMsg applies the message style for the given level, if any.
+func styledMsg(msg string, level Level, styles *style.Config, noColor bool) string {
+	if noColor {
+		return msg
+	}
+	if s := styles.Messages[level]; s != nil {
+		return s.Render(msg)
+	}
+	if styles.Message != nil {
+		return styles.Message.Render(msg)
+	}
+	return msg
 }
 
-func runAnimation(
-	ctx context.Context,
-	b *fx.Builder,
-	task fx.TaskFunc,
-	msgPtr *atomic.Pointer[string],
-	fields *atomic.Pointer[[]core.Field],
-	levelPtr *atomic.Int64,
-	symbolPtr *atomic.Pointer[string],
-	startTime time.Time,
-) error {
-	// Run the task in a goroutine.
-	done := make(chan error, 1)
-	go func() {
-		done <- task(ctx)
-	}()
-
-	// If a delay is configured, wait for it to elapse before showing
-	// any animation. If the task completes first, return immediately.
-	if b.DelayDur > 0 {
-		timer := time.NewTimer(b.DelayDur)
-		select {
-		case err := <-done:
-			timer.Stop()
-			return err
-		case <-ctx.Done():
-			timer.Stop()
-			return ctx.Err()
-		case <-timer.C:
+func styledSymbol(symbol string, level Level, styles *style.Config, noColor bool) string {
+	if !noColor {
+		if s := styles.Symbols[level]; s != nil {
+			return s.Render(symbol)
 		}
 	}
-
-	// Build the gt and snapshot the logger's settings.
-	gt := &groupTask{
-		GroupTask: &fx.GroupTask{
-			Builder:   b,
-			FieldsPtr: fields,
-			LevelPtr:  levelPtr,
-			MsgPtr:    msgPtr,
-			StartTime: startTime,
-			SymbolPtr: symbolPtr,
-		},
-	}
-	captureTaskConfig(gt)
-
-	// Don't animate if not a TTY (CI, piped output, etc.).
-	// Print the initial message so the user knows something is in progress,
-	// unless NonTTYSilent() was set, in which case suppress all output.
-	// Dynamic fields (elapsed, bar percent) are stripped because their
-	// initial zero values are meaningless without live updates.
-	if !gt.cfg.isTTY {
-		if !gt.cfg.nonTTYSilent {
-			fieldsStr := strings.TrimLeft(
-				formatFields(b.StripDynamicFields(*fields.Load()), gt.fieldOpts),
-				" ",
-			)
-			line := buildLine(
-				gt.cfg.order,
-				gt.cfg.reportTS,
-				time.Now().In(gt.cfg.timeLoc).Format(gt.cfg.timeFmt),
-				gt.cfg.label,
-				*gt.SymbolPtr.Load(),
-				gt.cfg.indentation+*msgPtr.Load(),
-				fieldsStr,
-			)
-			writeString(gt.cfg.out, line+nl)
-		}
-
-		select {
-		case err := <-done:
-			return err
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-
-	// Hide cursor during animation.
-	writeString(gt.cfg.out, xansi.HideCursor)
-	defer writeString(gt.cfg.out, xansi.ShowCursor)
-
-	ticker := time.NewTicker(gt.tickRate)
-	defer ticker.Stop()
-
-	var frameBuf strings.Builder
-	rendered := false
-	prevLineCount := 1
-
-	for {
-		select {
-		case err := <-done:
-			// For bar animations, render one final frame so 100% is visible
-			// before the line is cleared and replaced with the completion message.
-			if b.Mode == fx.AnimationBar && err == nil {
-				resetBarWidgetState(gt)
-				line := renderTaskLine(gt, false, time.Now(), nil)
-				frameBuf.Reset()
-				if rendered {
-					frameBuf.WriteString(xansi.CursorUp(prevLineCount))
-					frameBuf.WriteString(xansi.EraseScreenBelow)
-				} else {
-					frameBuf.WriteString(xansi.ClearLine)
-				}
-				frameBuf.WriteString(line)
-				frameBuf.WriteString(nl)
-				writeString(gt.cfg.out, frameBuf.String())
-				rendered = true
-				prevLineCount = frameRows(line, gt.cfg.output.Width())
-			}
-			if rendered {
-				writeString(gt.cfg.out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
-			} else {
-				writeString(gt.cfg.out, xansi.ClearLine)
-			}
-			return err
-		case now := <-ticker.C:
-			line := renderTaskLine(gt, false, now, nil)
-			frameBuf.Reset()
-			if rendered {
-				frameBuf.WriteString(xansi.CursorUp(prevLineCount))
-				frameBuf.WriteString(xansi.EraseScreenBelow)
-			} else {
-				frameBuf.WriteString(xansi.ClearLine)
-			}
-			frameBuf.WriteString(line)
-			frameBuf.WriteString(nl)
-			writeString(gt.cfg.out, frameBuf.String())
-			rendered = true
-			prevLineCount = frameRows(line, gt.cfg.output.Width())
-		case <-ctx.Done():
-			switch {
-			case b.ClearOnCancel && rendered:
-				writeString(gt.cfg.out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
-			case !b.ClearOnCancel:
-				writeString(gt.cfg.out, nl)
-			default:
-				writeString(gt.cfg.out, xansi.ClearLine)
-			}
-			return ctx.Err()
-		}
-	}
+	return symbol
 }

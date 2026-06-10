@@ -215,6 +215,14 @@ func (o *Output) ListenResize() func() {
 	}
 }
 
+// CursorPosition reports the cursor's current 1-based row, if known.
+// It returns false for non-TTY writers or when the terminal does not
+// answer the cursor-position query in time.
+func (o *Output) CursorPosition() (int, bool) {
+	pos, ok := o.cursorPosition()
+	return pos.row, ok
+}
+
 func (o *Output) cursorPosition() (cursorPosition, bool) {
 	if !o.isTTY {
 		return cursorPosition{}, false

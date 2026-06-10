@@ -23,29 +23,40 @@ const (
 )
 
 // Group manages a set of concurrent animations rendered as a multi-line
-// block. Create one with root clog's Group function, add animations with
-// [Group.Add], then call [Group.Wait] to run the render loop.
+// block. Create one with [NewGroup] (or root clog's Group function), add
+// animations with [Group.Add], then call [Group.Wait] to run the render loop.
 type Group struct {
-	Ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
-	Mu  sync.Mutex
+	ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
+	mu  sync.Mutex
 
-	ClearOnCancel    bool
-	FieldAlignment   FieldAlignment
-	Footer           *GroupStatus
-	Header           *GroupStatus
-	HideDone         bool
-	Log              Logger
-	MaxLines         int
-	MaxHeightPercent float64
-	Monotonic        bool
-	Parallelism      int
-	RenderDelay      time.Duration
-	SyncAnimations   bool
-	Tasks            []*GroupTask
-	TransientFooter  bool
-	TransientHeader  bool
+	clearOnCancel    bool
+	fieldAlignment   FieldAlignment
+	footer           *groupStatus
+	header           *groupStatus
+	hideDone         bool
+	log              Logger
+	maxLines         int
+	maxHeightPercent float64
+	monotonic        bool
+	parallelism      int
+	renderDelay      time.Duration
+	syncAnimations   bool
+	tasks            []*GroupTask
+	transientFooter  bool
+	transientHeader  bool
 
 	sem chan struct{}
+}
+
+// NewGroup creates a new animation group bound to ctx and log. Configure it
+// with [GroupOption] values; animations in a group share a common epoch
+// unless [WithoutSyncAnimations] is given.
+func NewGroup(ctx context.Context, log Logger, opts ...GroupOption) *Group {
+	g := &Group{ctx: ctx, log: log, syncAnimations: true}
+	for _, opt := range opts {
+		opt(g)
+	}
+	return g
 }
 
 // GroupStatusFunc is called each render tick with the number of completed
@@ -53,27 +64,26 @@ type Group struct {
 // that tick.
 type GroupStatusFunc func(done, total int, u *Update)
 
-// GroupStatus pairs a [Builder] (for initial config like level, symbol,
+// groupStatus pairs a [Builder] (for initial config like level, symbol,
 // parts) with a [GroupStatusFunc] callback that updates it each tick.
-type GroupStatus struct {
-	Builder  *Builder
-	Callback GroupStatusFunc
+type groupStatus struct {
+	builder  *Builder
+	callback GroupStatusFunc
 }
 
 // GroupTask holds per-animation state for the group render loop.
-// This is exported so the root clog rendering code can access it.
 type GroupTask struct {
-	Builder        *Builder
-	DoneErr        chan error // buffered(1); goroutine sends result here
-	Err            error      // populated by Wait() after DoneErr is drained
-	FieldsPtr      *atomic.Pointer[[]core.Field]
-	FinishedAt     atomic.Int64
-	LevelPtr       *atomic.Int64
-	MsgPtr         *atomic.Pointer[string]
-	StartTime      time.Time
-	StartedAt      atomic.Int64
-	SymbolOverride atomic.Bool // true when SetSymbol has been called; disables animated spinner
-	SymbolPtr      *atomic.Pointer[string]
+	builder        *Builder
+	doneErr        chan error // buffered(1); goroutine sends result here
+	err            error      // populated by Wait() after doneErr is drained
+	fieldsPtr      *atomic.Pointer[[]core.Field]
+	finishedAt     atomic.Int64
+	levelPtr       *atomic.Int64
+	msgPtr         *atomic.Pointer[string]
+	start          time.Time
+	startedAt      atomic.Int64
+	symbolOverride atomic.Bool // true when SetSymbol has been called; disables animated spinner
+	symbolPtr      *atomic.Pointer[string]
 }
 
 // Started reports whether the task has begun executing.
@@ -95,12 +105,12 @@ func (t *GroupTask) MarkStarted(now time.Time) {
 	if now.IsZero() {
 		return
 	}
-	t.StartedAt.Store(now.UnixNano())
+	t.startedAt.Store(now.UnixNano())
 }
 
 // FinishTime returns the actual finish time, or the zero value if unfinished.
 func (t *GroupTask) FinishTime() time.Time {
-	if finishedAt := t.FinishedAt.Load(); finishedAt > 0 {
+	if finishedAt := t.finishedAt.Load(); finishedAt > 0 {
 		return time.Unix(0, finishedAt)
 	}
 	return time.Time{}
@@ -111,21 +121,21 @@ func (t *GroupTask) MarkFinished(now time.Time) {
 	if now.IsZero() {
 		return
 	}
-	t.FinishedAt.Store(now.UnixNano())
+	t.finishedAt.Store(now.UnixNano())
 }
 
 func (t *GroupTask) startTime() time.Time {
-	if startedAt := t.StartedAt.Load(); startedAt > 0 {
+	if startedAt := t.startedAt.Load(); startedAt > 0 {
 		return time.Unix(0, startedAt)
 	}
-	return t.StartTime
+	return t.start
 }
 
 // Add registers an animation builder with the group and returns a
 // [GroupEntry] for starting the task.
 func (g *Group) Add(b *Builder) *GroupEntry {
 	if b.Log == nil {
-		b.Log = g.Log
+		b.Log = g.log
 	}
 
 	msgPtr := &atomic.Pointer[string]{}
@@ -143,17 +153,17 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 	levelPtr.Store(int64(level.Unset))
 
 	gt := &GroupTask{
-		Builder:   b,
-		DoneErr:   make(chan error, 1),
-		FieldsPtr: fieldsPtr,
-		LevelPtr:  levelPtr,
-		MsgPtr:    msgPtr,
-		SymbolPtr: symbolPtr,
+		builder:   b,
+		doneErr:   make(chan error, 1),
+		fieldsPtr: fieldsPtr,
+		levelPtr:  levelPtr,
+		msgPtr:    msgPtr,
+		symbolPtr: symbolPtr,
 	}
 
-	g.Mu.Lock()
-	g.Tasks = append(g.Tasks, gt)
-	g.Mu.Unlock()
+	g.mu.Lock()
+	g.tasks = append(g.tasks, gt)
+	g.mu.Unlock()
 
 	return &GroupEntry{task: gt, group: g}
 }
@@ -161,15 +171,13 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 // Wait runs the render loop, blocking until all tasks complete or the context
 // is cancelled. The returned [GroupResult] can be used to log a single summary line.
 func (g *Group) Wait() *GroupResult {
-	g.Mu.Lock()
-	tasks := g.Tasks
-	g.Mu.Unlock()
-
-	l := g.Log
+	g.mu.Lock()
+	tasks := g.tasks
+	g.mu.Unlock()
 
 	result := &GroupResult{
 		resultBase: resultBase[GroupResult]{
-			Log:          l,
+			Log:          g.log,
 			SuccessLevel: level.Info,
 			LevelError:   level.Error,
 		},
@@ -181,13 +189,12 @@ func (g *Group) Wait() *GroupResult {
 		return result
 	}
 
-	// Delegate the actual render loop to the Logger implementation.
-	_ = l.RunGroup(g.Ctx, g)
+	_ = runGroupLoop(g.ctx, g)
 	return result
 }
 
 func (g *Group) acquireSlot(ctx context.Context) error {
-	if g.Parallelism <= 0 {
+	if g.parallelism <= 0 {
 		return nil
 	}
 
@@ -201,7 +208,7 @@ func (g *Group) acquireSlot(ctx context.Context) error {
 }
 
 func (g *Group) releaseSlot() {
-	if g.Parallelism <= 0 {
+	if g.parallelism <= 0 {
 		return
 	}
 
@@ -212,14 +219,14 @@ func (g *Group) releaseSlot() {
 }
 
 func (g *Group) semaphore() chan struct{} {
-	g.Mu.Lock()
-	defer g.Mu.Unlock()
+	g.mu.Lock()
+	defer g.mu.Unlock()
 
-	if g.Parallelism <= 0 {
+	if g.parallelism <= 0 {
 		return nil
 	}
 	if g.sem == nil {
-		g.sem = make(chan struct{}, g.Parallelism)
+		g.sem = make(chan struct{}, g.parallelism)
 	}
 	return g.sem
 }
@@ -241,17 +248,17 @@ func (ge *GroupEntry) Run(task TaskFunc) *TaskResult {
 // Progress starts a task with progress update capability and returns a [TaskResult].
 func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	t := ge.task
-	b := t.Builder
+	b := t.builder
 	g := ge.group
 
 	update := &Update{
 		MsgText:           b.Message,
-		MsgPtr:            t.MsgPtr,
-		FieldsPtr:         t.FieldsPtr,
+		MsgPtr:            t.msgPtr,
+		FieldsPtr:         t.fieldsPtr,
 		Base:              b.Fields,
-		LevelPtr:          t.LevelPtr,
-		SymbolOverridePtr: &t.SymbolOverride,
-		SymbolPtr:         t.SymbolPtr,
+		LevelPtr:          t.levelPtr,
+		SymbolOverridePtr: &t.symbolOverride,
+		SymbolPtr:         t.symbolPtr,
 	}
 	if b.Mode == AnimationBar {
 		update.ProgressPtr = b.BarProgressPtr
@@ -262,23 +269,23 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				t.DoneErr <- fmt.Errorf("panic: %v", r)
+				t.doneErr <- fmt.Errorf("panic: %v", r)
 			}
 		}()
-		if err := g.acquireSlot(g.Ctx); err != nil {
-			t.DoneErr <- err
+		if err := g.acquireSlot(g.ctx); err != nil {
+			t.doneErr <- err
 			return
 		}
 		defer g.releaseSlot()
 		t.MarkStarted(time.Now())
-		err := task(g.Ctx, update)
+		err := task(g.ctx, update)
 		t.MarkFinished(time.Now())
-		t.DoneErr <- err
+		t.doneErr <- err
 	}()
 
 	l := b.Log
 	if l == nil {
-		l = g.Log
+		l = g.log
 	}
 
 	r := &TaskResult{
@@ -316,14 +323,14 @@ func (r *TaskResult) Msg(msg string) error {
 // Send finalises the result, logging at the configured success or error level.
 func (r *TaskResult) Send() error {
 	t := r.task
-	err := t.Err
+	err := t.err
 
 	msg := r.SuccessMsg
 	if msg == "" {
-		msg = *t.MsgPtr.Load()
+		msg = *t.msgPtr.Load()
 	}
 
-	finalFields := t.Builder.ResolveDynamicFields(*t.FieldsPtr.Load(), t.Duration(time.Now()))
+	finalFields := t.builder.ResolveDynamicFields(*t.fieldsPtr.Load(), t.Duration(time.Now()))
 	if len(r.Fields) > 0 {
 		finalFields = core.MergeFields(finalFields, r.Fields)
 	}
@@ -344,7 +351,7 @@ func (r *TaskResult) Send() error {
 
 // Silent returns just the error without logging anything.
 func (r *TaskResult) Silent() error {
-	return r.task.Err
+	return r.task.err
 }
 
 // GroupResult holds the aggregate result of a [Group.Wait].
@@ -389,9 +396,9 @@ func (r *GroupResult) Silent() error {
 
 func (r *GroupResult) joinErrors() error {
 	var errs []error
-	for _, t := range r.group.Tasks {
-		if t.Err != nil {
-			errs = append(errs, t.Err)
+	for _, t := range r.group.tasks {
+		if t.err != nil {
+			errs = append(errs, t.err)
 		}
 	}
 	return errors.Join(errs...)

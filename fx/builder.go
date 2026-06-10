@@ -317,15 +317,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 
 	startTime := time.Now()
 	l := b.Log
-	err := l.RunAnimation(ctx, AnimationConfig{
-		Builder:   b,
-		Task:      wrapped,
-		MsgPtr:    &msgPtr,
-		FieldsPtr: &fieldsPtr,
-		LevelPtr:  &levelPtr,
-		StartTime: startTime,
-		SymbolPtr: &symbolPtr,
-	})
+	err := runAnimation(ctx, b, wrapped, &msgPtr, &fieldsPtr, &levelPtr, &symbolPtr, startTime)
 
 	msg := *msgPtr.Load()
 	w := NewWaitResult(err, b.IndentedLogger(l), b.PartOverrides, b.Level, msg)

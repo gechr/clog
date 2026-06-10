@@ -3,9 +3,7 @@
 package fx
 
 import (
-	"context"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/gechr/clog/internal/core"
@@ -24,11 +22,10 @@ type Logger interface {
 	// Output returns the Output associated with this Logger.
 	Output() Output
 
-	// RunAnimation runs the animation loop for a single builder.
-	RunAnimation(ctx context.Context, cfg AnimationConfig) error
-
-	// RunGroup runs the group render loop.
-	RunGroup(ctx context.Context, g *Group) error
+	// TaskConfig snapshots everything rendering needs for one task,
+	// captured under the logger's lock. Closures carry the root-only
+	// formatting logic into fx.
+	TaskConfig(b *Builder) TaskConfig
 }
 
 // Output provides terminal capabilities needed by animation types.
@@ -41,15 +38,44 @@ type Output interface {
 	Hyperlink(url, text string) string
 }
 
-// AnimationConfig holds the parameters for running a single animation.
-type AnimationConfig struct {
-	Builder   *Builder
-	FieldsPtr *atomic.Pointer[[]core.Field]
-	LevelPtr  *atomic.Int64
-	MsgPtr    *atomic.Pointer[string]
-	StartTime time.Time
-	SymbolPtr *atomic.Pointer[string]
-	Task      TaskFunc
+// RenderOutput extends [Output] with the terminal-geometry queries the
+// render loops need to size and reposition the live block.
+type RenderOutput interface {
+	Output
+
+	Height() int
+	// CursorPosition reports the cursor's current 1-based row, if known.
+	CursorPosition() (row int, ok bool)
+	// ListenResize starts refreshing cached dimensions on terminal resize.
+	// Call the returned stop function to release the listener.
+	ListenResize() (stop func())
+	RefreshWidth()
+	RefreshHeight()
+}
+
+// TaskConfig is an immutable snapshot of logger settings captured under the
+// logger's mutex. It stores exactly what per-tick rendering needs so the
+// animation loops never touch the logger after the initial capture.
+type TaskConfig struct {
+	AnimationInterval time.Duration // minimum tick interval; 0 = no clamp
+	Indentation       string        // pre-computed indent string before message
+	IsTTY             bool          // output.IsTTY()
+	Label             string        // pre-computed padded label for the builder's level
+	LevelSymbol       string        // styled padded label for the builder's level
+	NonTTYSilent      bool          // suppress all output on non-TTY writers
+	Order             []core.Part   // log-line part order
+	Out               io.Writer     // output.Writer()
+	Output            RenderOutput  // for Width()/Height()/cursor queries
+	ReportTimestamp   bool
+	TimeFormat        string
+	TimeLocation      *time.Location
+
+	// Closures over root-private formatting and styling state.
+	FormatFields   func(fields []core.Field) string
+	StyleLevel     func(lvl core.Level) string // styled padded label for level overrides
+	StyleMessage   func(msg string, lvl core.Level) string
+	StyleSymbol    func(symbol string, lvl core.Level) string
+	StyleTimestamp func(ts string) string
 }
 
 // DoneEvent holds the parameters for logging a done event.
