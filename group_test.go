@@ -99,7 +99,7 @@ func TestGroupMixedAnimations(t *testing.T) {
 
 func TestGroupFieldAlignmentOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithFieldAlignment(FieldAlignmentMessage))
+	g := logger.Group(context.Background(), fx.WithFieldAlignment(FieldAlignmentMessage))
 
 	assert.Equal(t, FieldAlignmentMessage, g.FieldAlignment)
 }
@@ -107,20 +107,20 @@ func TestGroupFieldAlignmentOption(t *testing.T) {
 func TestGroupParallelismOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 
-	g := logger.Group(context.Background(), WithParallelism(3))
+	g := logger.Group(context.Background(), fx.WithParallelism(3))
 	assert.Equal(t, 3, g.Parallelism)
 
-	g = logger.Group(context.Background(), WithParallelism(0))
+	g = logger.Group(context.Background(), fx.WithParallelism(0))
 	assert.Zero(t, g.Parallelism)
 
-	g = logger.Group(context.Background(), WithParallelism(-1))
+	g = logger.Group(context.Background(), fx.WithParallelism(-1))
 	assert.Equal(t, -1, g.Parallelism)
 }
 
 func TestGroupHeaderOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	cb := func(_, _ int, _ *Update) {}
-	g := logger.Group(context.Background(), WithHeader(logger.Spinner("header"), cb))
+	g := logger.Group(context.Background(), fx.WithHeader(logger.Spinner("header"), cb))
 
 	assert.NotNil(t, g.Header)
 	assert.Equal(t, "header", g.Header.Builder.Message)
@@ -129,7 +129,7 @@ func TestGroupHeaderOption(t *testing.T) {
 func TestGroupFooterOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
 	cb := func(_, _ int, _ *Update) {}
-	g := logger.Group(context.Background(), WithFooter(logger.Spinner("footer"), cb))
+	g := logger.Group(context.Background(), fx.WithFooter(logger.Spinner("footer"), cb))
 
 	assert.NotNil(t, g.Footer)
 	assert.Equal(t, "footer", g.Footer.Builder.Message)
@@ -137,7 +137,7 @@ func TestGroupFooterOption(t *testing.T) {
 
 func TestGroupTransientStatusOptions(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithTransientHeader(), WithTransientFooter())
+	g := logger.Group(context.Background(), fx.WithTransientHeader(), fx.WithTransientFooter())
 
 	assert.True(t, g.TransientHeader)
 	assert.True(t, g.TransientFooter)
@@ -145,7 +145,7 @@ func TestGroupTransientStatusOptions(t *testing.T) {
 
 func TestGroupRenderDelayOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithRenderDelay(250*time.Millisecond))
+	g := logger.Group(context.Background(), fx.WithRenderDelay(250*time.Millisecond))
 
 	assert.Equal(t, 250*time.Millisecond, g.RenderDelay)
 }
@@ -164,7 +164,7 @@ func TestGroupRenderDelaySkipsShortLivedTTYGroup(t *testing.T) {
 	logger := New(out)
 	logger.SetAnimationInterval(time.Millisecond)
 
-	g := logger.Group(context.Background(), WithRenderDelay(time.Second))
+	g := logger.Group(context.Background(), fx.WithRenderDelay(time.Second))
 	g.Add(logger.Spinner("quick")).
 		Run(func(_ context.Context) error {
 			return nil
@@ -190,8 +190,8 @@ func TestGroupTransientHeaderHidesWhenNoTaskRowsVisible(t *testing.T) {
 
 	g := logger.Group(
 		context.Background(),
-		WithTransientHeader(),
-		WithHeader(logger.Spinner("header", spinner.WithInterval(time.Millisecond)),
+		fx.WithTransientHeader(),
+		fx.WithHeader(logger.Spinner("header", spinner.WithInterval(time.Millisecond)),
 			func(done, total int, update *Update) {
 				update.Msg("header").Int("done", done).Int("total", total).Send()
 			}),
@@ -207,36 +207,36 @@ func TestGroupTransientHeaderHidesWhenNoTaskRowsVisible(t *testing.T) {
 
 func TestGroupMaxHeightPercentOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithMaxHeightPercent(0.5))
+	g := logger.Group(context.Background(), fx.WithMaxHeightPercent(0.5))
 	assert.InDelta(t, 0.5, g.MaxHeightPercent, 0.001)
 }
 
 func TestGroupMaxHeightPercentClamped(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithMaxHeightPercent(1.5))
+	g := logger.Group(context.Background(), fx.WithMaxHeightPercent(1.5))
 	assert.InDelta(t, 1.0, g.MaxHeightPercent, 0.001)
 
-	g = logger.Group(context.Background(), WithMaxHeightPercent(-0.5))
+	g = logger.Group(context.Background(), fx.WithMaxHeightPercent(-0.5))
 	assert.InDelta(t, 0.0, g.MaxHeightPercent, 0.001)
 }
 
 func TestGroupMaxLinesOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithMaxLines(10))
+	g := logger.Group(context.Background(), fx.WithMaxLines(10))
 
 	assert.Equal(t, 10, g.MaxLines)
 }
 
 func TestGroupMonotonicOption(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithMonotonic())
+	g := logger.Group(context.Background(), fx.WithMonotonic())
 
 	assert.True(t, g.Monotonic)
 }
 
 func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithParallelism(2))
+	g := logger.Group(context.Background(), fx.WithParallelism(2))
 
 	var active atomic.Int64
 	var maxActive atomic.Int64
@@ -282,7 +282,7 @@ func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
 
 func TestGroupFieldAlignmentMessageAlignsFields(t *testing.T) {
 	logger := NewWriter(io.Discard)
-	g := logger.Group(context.Background(), WithFieldAlignment(FieldAlignmentMessage))
+	g := logger.Group(context.Background(), fx.WithFieldAlignment(FieldAlignmentMessage))
 	g.Add(logger.Spinner("short").Str("stage", "queued"))
 	g.Add(logger.Spinner("much longer repo").Str("stage", "queued"))
 
@@ -1005,7 +1005,7 @@ func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	logger.SetAnimationInterval(time.Millisecond)
 
 	release := make(chan struct{})
-	g := logger.Group(context.Background(), WithHeader(
+	g := logger.Group(context.Background(), fx.WithHeader(
 		logger.Spinner("overall", spinner.WithInterval(time.Millisecond)),
 		func(_, _ int, update *Update) {
 			update.Msg("overall progress").Str("count", "0/1").Send()

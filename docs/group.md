@@ -21,48 +21,48 @@ g.Add(clog.Bar("Downloading", 100)).
 g.Wait().Symbol("✅").Msg("All tasks complete")
 ```
 
-To align the first field column across rows, enable group field alignment:
+Group options live in the `fx` package (`github.com/gechr/clog/fx`). To align the first field column across rows, enable group field alignment:
 
 ```go
-g := clog.Group(ctx, clog.WithFieldAlignment(clog.FieldAlignmentMessage))
+g := clog.Group(ctx, fx.WithFieldAlignment(fx.FieldAlignmentMessage))
 ```
 
 To let `clog` limit how many tasks run at once, use `WithParallelism`:
 
 ```go
-g := clog.Group(ctx, clog.WithParallelism(5))
+g := clog.Group(ctx, fx.WithParallelism(5))
 ```
 
 By default, all animations in a group share a common epoch so spinners, pulses, and shimmers stay in lockstep regardless of when each task starts. To let each task animate from its own start time instead, disable sync:
 
 ```go
-g := clog.Group(ctx, clog.WithSyncAnimations(false))
+g := clog.Group(ctx, fx.WithoutSyncAnimations())
 ```
 
 To keep grouped bar fills and their percentage text from visibly moving backward when task totals grow or progress is reported in phases, enable monotonic mode:
 
 ```go
-g := clog.Group(ctx, clog.WithMonotonic())
+g := clog.Group(ctx, fx.WithMonotonic())
 ```
 
 When the context is cancelled (e.g. on `SIGINT`), the last rendered frame is preserved so the user can see what was on screen. To clear the block instead, use `WithClearOnCancel`:
 
 ```go
-g := clog.Group(ctx, clog.WithClearOnCancel())
+g := clog.Group(ctx, fx.WithClearOnCancel())
 ```
 
 To hide completed tasks from the rendered block so only active and pending tasks remain visible, use `WithHideDone`:
 
 ```go
-g := clog.Group(ctx, clog.WithHideDone())
+g := clog.Group(ctx, fx.WithHideDone())
 ```
 
 To add a header or footer status line that updates each tick, use `WithHeader` or `WithFooter`. Pass a builder for the initial config (level, symbol, parts) and a callback that updates the message and fields each tick:
 
 ```go
 g := clog.Group(ctx,
-  clog.WithHideDone(),
-  clog.WithFooter(
+  fx.WithHideDone(),
+  fx.WithFooter(
     clog.Spinner("Cloned"),
     func(done, total int, u *clog.Update) {
       u.Msg("Cloned").Str("progress", fmt.Sprintf("%d/%d", done, total)).Send()
@@ -97,16 +97,16 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | -------------------------------- | ------------------------------------------------------------ |
 | `clog.Group(ctx)`                | Create a group using the `Default` logger                    |
 | `logger.Group(ctx)`              | Create a group using a specific logger                       |
-| `clog.WithClearOnCancel()`       | Clear the rendered block on context cancellation             |
-| `clog.WithFieldAlignment(mode)`  | Align the first field column in grouped output               |
-| `clog.WithFooter(b, fn)`         | Add a status line below the task block, updated each tick    |
-| `clog.WithHeader(b, fn)`         | Add a status line above the task block, updated each tick    |
-| `clog.WithHideDone()`            | Remove completed tasks from the rendered block               |
-| `clog.WithMaxHeightPercent(pct)` | Cap the group block to a percentage of terminal height       |
-| `clog.WithMaxLines(n)`           | Cap the number of visible lines in the group render block    |
-| `clog.WithMonotonic()`           | Clamp grouped bars and percent to the highest shown fraction |
-| `clog.WithParallelism(n)`        | Limit how many group tasks may execute concurrently          |
-| `clog.WithSyncAnimations(b)`     | Sync animation phase across grouped tasks (default `true`)   |
+| `fx.WithClearOnCancel()`         | Clear the rendered block on context cancellation             |
+| `fx.WithFieldAlignment(mode)`    | Align the first field column in grouped output               |
+| `fx.WithFooter(b, fn)`           | Add a status line below the task block, updated each tick    |
+| `fx.WithHeader(b, fn)`           | Add a status line above the task block, updated each tick    |
+| `fx.WithHideDone()`              | Remove completed tasks from the rendered block               |
+| `fx.WithMaxHeightPercent(pct)`   | Cap the group block to a percentage of terminal height       |
+| `fx.WithMaxLines(n)`             | Cap the number of visible lines in the group render block    |
+| `fx.WithMonotonic()`             | Clamp grouped bars and percent to the highest shown fraction |
+| `fx.WithParallelism(n)`          | Limit how many group tasks may execute concurrently          |
+| `fx.WithoutSyncAnimations()`     | Let each task animate from its own start time (sync default) |
 | `g.Add(builder)`                 | Register an animation builder, returns `*GroupEntry`         |
 | `entry.Run(task)`                | Start a `TaskFunc`, returns `*TaskResult`                    |
 | `entry.Progress(task)`           | Start an `UpdateFunc`, returns `*TaskResult`                 |
@@ -126,7 +126,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 
 `WithParallelism(n)` removes the limit when `n <= 0`.
 
-`WithSyncAnimations(true)` (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task.
+Animation sync (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task. `WithoutSyncAnimations()` disables this and lets each task animate from its own start time.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 
