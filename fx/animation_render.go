@@ -120,6 +120,17 @@ func runAnimation(
 	var frameBuf strings.Builder
 	rendered := false
 	prevLineCount := 1
+	lastLine := ""
+	lastWidth := 0
+
+	// prevRows returns the physical row count of the block currently on
+	// screen: zero before the first frame is rendered.
+	prevRows := func() int {
+		if rendered {
+			return prevLineCount
+		}
+		return 0
+	}
 
 	for {
 		select {
@@ -130,42 +141,40 @@ func runAnimation(
 				resetBarWidgetState(gt)
 				line := renderTaskLine(gt, false, time.Now(), nil)
 				frameBuf.Reset()
-				if rendered {
-					frameBuf.WriteString(xansi.CursorUp(prevLineCount))
-					frameBuf.WriteString(xansi.EraseScreenBelow)
-				} else {
-					frameBuf.WriteString(xansi.ClearLine)
-				}
-				frameBuf.WriteString(line)
-				frameBuf.WriteString(nl)
+				prevLineCount = appendRepaint(
+					&frameBuf, []string{line}, prevRows(), gt.cfg.Output.Width(),
+				)
 				writeString(gt.cfg.Out, frameBuf.String())
 				rendered = true
-				prevLineCount = frameRows(line, gt.cfg.Output.Width())
 			}
 			if rendered {
-				writeString(gt.cfg.Out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
+				writeString(gt.cfg.Out, syncFrame(
+					xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow,
+				))
 			} else {
 				writeString(gt.cfg.Out, xansi.ClearLine)
 			}
 			return err
 		case now := <-ticker.C:
 			line := renderTaskLine(gt, false, now, nil)
-			frameBuf.Reset()
-			if rendered {
-				frameBuf.WriteString(xansi.CursorUp(prevLineCount))
-				frameBuf.WriteString(xansi.EraseScreenBelow)
-			} else {
-				frameBuf.WriteString(xansi.ClearLine)
+			width := gt.cfg.Output.Width()
+			// Skip identical frames: nothing on screen would change, so a
+			// write would be wasted bandwidth.
+			if rendered && line == lastLine && width == lastWidth {
+				continue
 			}
-			frameBuf.WriteString(line)
-			frameBuf.WriteString(nl)
+			frameBuf.Reset()
+			prevLineCount = appendRepaint(&frameBuf, []string{line}, prevRows(), width)
 			writeString(gt.cfg.Out, frameBuf.String())
 			rendered = true
-			prevLineCount = frameRows(line, gt.cfg.Output.Width())
+			lastLine = line
+			lastWidth = width
 		case <-ctx.Done():
 			switch {
 			case b.ClearOnCancel && rendered:
-				writeString(gt.cfg.Out, xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow)
+				writeString(gt.cfg.Out, syncFrame(
+					xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow,
+				))
 			case !b.ClearOnCancel:
 				writeString(gt.cfg.Out, nl)
 			default:

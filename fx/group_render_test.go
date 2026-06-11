@@ -340,6 +340,115 @@ func TestClearBlock(t *testing.T) {
 	assert.Equal(t, "\x1b[A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
 }
 
+func TestAppendRepaint(t *testing.T) {
+	const width = 10
+
+	repaint := func(lines []string, prevRows, w int) (string, int) {
+		var buf strings.Builder
+		rows := appendRepaint(&buf, lines, prevRows, w)
+		return buf.String(), rows
+	}
+
+	t.Run("first frame", func(t *testing.T) {
+		got, rows := repaint([]string{"task"}, 0, width)
+		// No block yet: clear the current line, paint, park, then erase
+		// below (row count changed from 0 to 1).
+		want := xansi.EnableSyncOutput +
+			xansi.ClearLine + "task" + nl +
+			xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 1, rows)
+	})
+
+	t.Run("steady state has no erase", func(t *testing.T) {
+		got, rows := repaint([]string{"one", "two"}, 2, width)
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.ClearLine + "one" + nl +
+			xansi.ClearLine + "two" + nl +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 2, rows)
+		assert.NotContains(t, got, xansi.EraseScreenBelow)
+	})
+
+	t.Run("shrinking block erases below the park row", func(t *testing.T) {
+		got, rows := repaint([]string{"one"}, 3, width)
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(3) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.ClearLine + "one" + nl +
+			xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 1, rows)
+	})
+
+	t.Run("zero-line frame erases the previous block", func(t *testing.T) {
+		got, rows := repaint(nil, 2, width)
+		// No lines and no park newline: the cursor stays at the block top
+		// and everything below it is erased.
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 0, rows)
+	})
+
+	t.Run("partial final wrap row is trimmed with EL0", func(t *testing.T) {
+		line := strings.Repeat("x", 2*width+5) // wraps to 3 rows, last one partial
+		got, rows := repaint([]string{line}, 3, width)
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(3) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.ClearLine + line + xansi.EraseLineRight + nl +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 3, rows)
+	})
+
+	t.Run("exactly full final row skips EL0", func(t *testing.T) {
+		// The cursor sits in the deferred-wrap state after an exactly full
+		// row; EL0 there would erase the last glyph. The row is fully
+		// overwritten anyway, so nothing needs trimming.
+		line := strings.Repeat("x", 2*width)
+		got, rows := repaint([]string{line}, 2, width)
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.ClearLine + line + nl +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 2, rows)
+	})
+
+	t.Run("unknown width falls back to upfront erase", func(t *testing.T) {
+		got, rows := repaint([]string{"task"}, 2, 0)
+		want := xansi.EnableSyncOutput +
+			xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.EraseScreenBelow +
+			xansi.ClearLine + "task" + nl +
+			xansi.DisableSyncOutput
+		assert.Equal(t, want, got)
+		assert.Equal(t, 1, rows)
+	})
+}
+
+func TestEraseBlockSync(t *testing.T) {
+	var buf strings.Builder
+	eraseBlockSync(&buf, 0)
+	assert.Empty(t, buf.String())
+
+	buf.Reset()
+	eraseBlockSync(&buf, 2)
+	// Clear the park line, step onto the block's last line, then the
+	// clearBlock sequence, all inside one synchronized-output frame.
+	want := xansi.EnableSyncOutput +
+		xansi.ClearLine + xansi.CursorUp(1) +
+		xansi.CursorUp(1) + xansi.ClearLine + nl + xansi.ClearLine + nl + xansi.CursorUp(2) +
+		xansi.DisableSyncOutput
+	assert.Equal(t, want, buf.String())
+}
+
 func TestPrioritiseActiveZeroLimit(t *testing.T) {
 	log := newStubLogger()
 	visible := []int{0, 1}

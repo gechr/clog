@@ -1408,6 +1408,9 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 
 	renderStart := time.Now()
 	renderedRows := 0
+	hasRendered := false
+	var lastLines []string
+	lastWidth := 0
 	done := make([]bool, len(gts))
 	justCompleted := make([]bool, len(gts))
 	remaining := len(gts)
@@ -1430,8 +1433,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		select {
 		case <-ctx.Done():
 			if g.clearOnCancel {
-				cursorToLastLine(out, renderedRows)
-				clearBlock(out, renderedRows)
+				eraseBlockSync(out, renderedRows)
 			} else {
 				preserveBlock(out, renderedRows)
 			}
@@ -1597,54 +1599,101 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			if !groupFrameFitsViewport(output, renderedRows, frameRows) {
 				continue
 			}
-			if renderedRows > 0 {
-				frameBuf.WriteString(xansi.CursorUp(renderedRows))
-				frameBuf.WriteString(xansi.CursorHorizontalAbsolute(1))
-				frameBuf.WriteString(xansi.EraseScreenBelow)
-			} else {
-				frameBuf.WriteString(xansi.ClearLine)
+			// Skip identical frames: nothing on screen would change, so a
+			// write would be wasted bandwidth. The cursor is already parked
+			// one line below the block from the previous frame.
+			if hasRendered && width == lastWidth && slices.Equal(lines, lastLines) {
+				continue
 			}
-			// Inter-line: write a literal newline so the terminal advances
-			// (and scrolls when the block reaches the viewport bottom). Using
-			// CursorNextLine here would clamp at the bottom row and silently
-			// fail to advance, leaving renderedRows out of sync with reality.
-			// xansi.ClearLine ends with "\r" so the column is reset before
-			// the next line is written.
-			for i, line := range lines {
-				if i > 0 {
-					frameBuf.WriteString(nl)
-				}
-				frameBuf.WriteString(xansi.ClearLine)
-				frameBuf.WriteString(line)
-			}
-			if frameBuf.Len() > 0 {
-				hideCursor()
-				writeString(out, frameBuf.String())
-			}
-			// Park cursor one line below the block only while a block is
-			// still rendered, so zero-line frames don't leave a blank gap.
-			// Use a literal newline (not CursorNextLine) for the same reason:
-			// at the viewport bottom only LF triggers the scroll that the
-			// next frame's CursorUp(renderedRows) arithmetic depends on.
-			if len(lines) > 0 {
-				writeString(out, nl)
-			}
-			renderedRows = frameRows
+			renderedRows = appendRepaint(&frameBuf, lines, renderedRows, width)
+			hideCursor()
+			writeString(out, frameBuf.String())
+			hasRendered = true
+			lastLines = lines
+			lastWidth = width
 		}
 	}
 
-	cursorToLastLine(out, renderedRows)
-	clearBlock(out, renderedRows)
+	eraseBlockSync(out, renderedRows)
 	return nil
 }
 
-// cursorToLastLine moves the cursor from one line below the block back to
-// the last content line. This is needed before clearBlock, which expects the
-// cursor on the last line of the block.
-func cursorToLastLine(out io.Writer, n int) {
-	if n > 0 {
-		writeString(out, xansi.ClearLine+xansi.CursorUp(1))
+// syncFrame brackets s with DEC 2026 synchronized-output markers so
+// supporting terminals apply the whole sequence atomically (no tearing);
+// terminals without support ignore the markers.
+func syncFrame(s string) string {
+	return xansi.EnableSyncOutput + s + xansi.DisableSyncOutput
+}
+
+// appendRepaint appends an overwrite-in-place repaint of lines over the
+// previously rendered block of prevRows physical rows, bracketed by DEC 2026
+// synchronized-output markers. The block is not erased up front - that would
+// flash blank on terminals without synchronized output - instead each line
+// clears only the rows it touches, and rows the new frame no longer covers
+// are erased at the end. Returns the physical row count of the new frame.
+func appendRepaint(buf *strings.Builder, lines []string, prevRows, width int) int {
+	rows := groupFrameRows(lines, width)
+	buf.WriteString(xansi.EnableSyncOutput)
+	if prevRows > 0 {
+		buf.WriteString(xansi.CursorUp(prevRows))
+		buf.WriteString(xansi.CursorHorizontalAbsolute(1))
+		if width <= 0 {
+			// Wrap math is unreliable without a known width; fall back to
+			// erasing the whole block before repainting.
+			buf.WriteString(xansi.EraseScreenBelow)
+		}
 	}
+	for i, line := range lines {
+		if i > 0 {
+			// Literal newline so the terminal advances (and scrolls when
+			// the block reaches the viewport bottom). CursorNextLine would
+			// clamp at the bottom row and silently fail to advance, leaving
+			// the row arithmetic out of sync with reality. xansi.ClearLine
+			// ends with "\r" so the column is reset before the next line is
+			// written.
+			buf.WriteString(nl)
+		}
+		buf.WriteString(xansi.ClearLine)
+		buf.WriteString(line)
+		// ClearLine only cleared the first physical row of a wrapped line;
+		// intermediate rows are fully overwritten by the content itself,
+		// but a partial final row keeps its stale tail. Trim it unless the
+		// row is exactly full: the cursor then sits in the deferred-wrap
+		// state, where EL0 would erase the last glyph instead.
+		if w := xansi.StringWidth(line); width > 0 && w > width && w%width != 0 {
+			buf.WriteString(xansi.EraseLineRight)
+		}
+	}
+	// Park the cursor one line below the block only while a block is still
+	// rendered, so zero-line frames don't leave a blank gap. Literal newline
+	// for the same scroll-at-bottom reason as above.
+	if len(lines) > 0 {
+		buf.WriteString(nl)
+	}
+	// Rows the new frame no longer covers (a shrinking block, or a zero-line
+	// frame replacing a previous block) are erased below the park position.
+	// Steady-state frames skip the erase entirely.
+	if width > 0 && rows != prevRows {
+		buf.WriteString(xansi.CursorHorizontalAbsolute(1))
+		buf.WriteString(xansi.EraseScreenBelow)
+	}
+	buf.WriteString(xansi.DisableSyncOutput)
+	return rows
+}
+
+// eraseBlockSync erases a rendered block of n physical rows as a single
+// synchronized-output frame. The cursor is expected to be one line below the
+// block (after the park newline written each frame); the park line is
+// cleared first because it may hold terminal-echoed characters (e.g. ^C
+// from SIGINT). The cursor ends up back on the block's first row.
+func eraseBlockSync(out io.Writer, n int) {
+	if n == 0 {
+		return
+	}
+	var buf strings.Builder
+	buf.WriteString(xansi.ClearLine + xansi.CursorUp(1))
+	appendClearBlock(&buf, n)
+	writeString(out, syncFrame(buf.String()))
 }
 
 // preserveBlock moves the cursor past the rendered block without erasing it.
@@ -1665,6 +1714,14 @@ func clearBlock(out io.Writer, n int) {
 		return
 	}
 	var buf strings.Builder
+	appendClearBlock(&buf, n)
+	writeString(out, buf.String())
+}
+
+// appendClearBlock appends the escape sequence that erases n lines starting
+// from the current cursor line and repositions the cursor back to the first
+// cleared line.
+func appendClearBlock(buf *strings.Builder, n int) {
 	if n > 1 {
 		buf.WriteString(xansi.CursorUp(n - 1))
 	}
@@ -1672,5 +1729,4 @@ func clearBlock(out io.Writer, n int) {
 		buf.WriteString(xansi.ClearLine + nl)
 	}
 	buf.WriteString(xansi.CursorUp(n))
-	writeString(out, buf.String())
 }

@@ -1,6 +1,6 @@
 # Group
 
-`Group` runs multiple animations concurrently in a multi-line block, redrawn each tick.
+`Group` runs multiple animations concurrently in a multi-line block, redrawn in place each tick (frames are skipped when nothing changed, and repaints use synchronized output on terminals that support it).
 
 ![Group demo](assets/group.gif)
 

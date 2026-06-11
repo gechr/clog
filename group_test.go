@@ -694,3 +694,111 @@ func TestGroupAdvancementUsesLineFeed(t *testing.T) {
 			"because CSI E clamps at the viewport bottom and breaks the cursor-up arithmetic",
 	)
 }
+
+// TestGroupFrameSynchronizationAndSkip verifies that group repaints are
+// bracketed in DEC 2026 synchronized-output markers, that identical frames
+// are skipped instead of rewritten, and that steady-state repaints never
+// erase the block up front (the erase-then-rewrite blank flash on terminals
+// without synchronized output).
+func TestGroupFrameSynchronizationAndSkip(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
+		return cursorPosition{row: 1, column: 1}, true
+	}
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	release := make(chan struct{})
+	g := logger.Group(context.Background())
+	// A single-frame spinner renders the same line every tick, so every
+	// frame after the first must be skipped.
+	g.Add(logger.Spinner("processing", spinner.WithStyle(spinner.Style{
+		Frames:   []string{"·"},
+		Interval: time.Millisecond,
+	}))).Progress(func(ctx context.Context, _ *Update) error {
+		select {
+		case <-release:
+			return nil
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	})
+
+	result := make(chan error, 1)
+	go func() { result <- g.Wait().Silent() }()
+	time.Sleep(50 * time.Millisecond)
+	close(release)
+
+	require.NoError(t, <-result)
+	got := buf.String()
+
+	syncCount := strings.Count(got, xansi.EnableSyncOutput)
+	assert.Positive(t, syncCount)
+	assert.Equal(t, syncCount, strings.Count(got, xansi.DisableSyncOutput))
+
+	// ~50 ticks elapsed but the frame never changed: only a handful of
+	// writes may remain (initial frame, completion flash, final erase).
+	assert.LessOrEqual(t, syncCount, 5,
+		"identical frames must be skipped, not rewritten every tick")
+
+	assert.NotContains(
+		t,
+		got,
+		xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.EraseScreenBelow,
+		"repaints must overwrite in place, not erase the block up front",
+	)
+}
+
+// TestAnimationFrameSynchronizationAndSkip is the single-animation
+// equivalent of TestGroupFrameSynchronizationAndSkip.
+func TestAnimationFrameSynchronizationAndSkip(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	out.heightDone = true
+	out.height = 24
+	logger := New(out)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	release := make(chan struct{})
+	result := make(chan error, 1)
+	go func() {
+		result <- logger.Spinner("processing", spinner.WithStyle(spinner.Style{
+			Frames:   []string{"·"},
+			Interval: time.Millisecond,
+		})).Wait(context.Background(), func(ctx context.Context) error {
+			select {
+			case <-release:
+				return nil
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}).Silent()
+	}()
+	time.Sleep(50 * time.Millisecond)
+	close(release)
+
+	require.NoError(t, <-result)
+	got := buf.String()
+
+	syncCount := strings.Count(got, xansi.EnableSyncOutput)
+	assert.Positive(t, syncCount)
+	assert.Equal(t, syncCount, strings.Count(got, xansi.DisableSyncOutput))
+	assert.LessOrEqual(t, syncCount, 5,
+		"identical frames must be skipped, not rewritten every tick")
+
+	// The completion erase is its own synchronized frame.
+	assert.Contains(
+		t,
+		got,
+		xansi.EnableSyncOutput+xansi.CursorUp(1)+xansi.EraseScreenBelow+xansi.DisableSyncOutput,
+	)
+}
