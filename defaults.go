@@ -120,6 +120,9 @@ func SetIndentPrefixSeparator(sep string) { Default.SetIndentPrefixSeparator(sep
 // SetIndentWidth sets the indent width on the [Default] logger.
 func SetIndentWidth(width int) { Default.SetIndentWidth(width) }
 
+// SetLabelWidth sets an explicit minimum level-label width on the [Default] logger.
+func SetLabelWidth(width int) { Default.SetLabelWidth(width) }
+
 // SetLevel sets the minimum log level on the [Default] logger.
 func SetLevel(level Level) { Default.SetLevel(level) }
 
