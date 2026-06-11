@@ -25,36 +25,40 @@ link := clog.Hyperlink("https://example.com", "docs")  // arbitrary URL
 
 ## IDE Integration
 
-Configure hyperlinks to open files directly in your editor:
+Configure hyperlinks to open files directly in your editor via [`FieldFormats`](configuration.md#field-formats):
 
 ```go
+f := clog.DefaultFieldFormats()
+
 // Generic fallback for any path (file or directory)
-clog.SetHyperlinkPathFormat("vscode://file{path}")
+f.HyperlinkPathFormat = "vscode://file{path}"
 
 // File-specific (overrides path format for files)
-clog.SetHyperlinkFileFormat("vscode://file{path}")
+f.HyperlinkFileFormat = "vscode://file{path}"
 
 // Directory-specific (overrides path format for directories)
-clog.SetHyperlinkDirFormat("finder://{path}")
+f.HyperlinkDirFormat = "finder://{path}"
 
 // File+line hyperlinks (Line, PathLink with line > 0)
-clog.SetHyperlinkLineFormat("vscode://file{path}:{line}")
-clog.SetHyperlinkLineFormat("idea://open?file={path}&line={line}")
+f.HyperlinkLineFormat = "vscode://file{path}:{line}"
+f.HyperlinkLineFormat = "idea://open?file={path}&line={line}"
 
 // File+line+column hyperlinks (Column)
-clog.SetHyperlinkColumnFormat("vscode://file{path}:{line}:{column}")
+f.HyperlinkColumnFormat = "vscode://file{path}:{line}:{column}"
+
+clog.SetFieldFormats(f)
 ```
 
 Use `{path}`, `{line}`, and `{column}` (or `{col}`) as placeholders. Default format is `file://{path}`.
 
 Format resolution order:
 
-| Context        | Fallback chain                                    |
-| -------------- | ------------------------------------------------- |
-| Directory      | `DirFormat`    -> `PathFormat` -> `file://{path}` |
-| File (no line) | `FileFormat`   -> `PathFormat` -> `file://{path}` |
-| File + line    | `LineFormat`   -> `file://{path}`                 |
-| File + column  | `ColumnFormat` -> `LineFormat` -> `file://{path}` |
+| Context        | Fallback chain                                                       |
+| -------------- | -------------------------------------------------------------------- |
+| Directory      | `HyperlinkDirFormat`    -> `HyperlinkPathFormat` -> `file://{path}`  |
+| File (no line) | `HyperlinkFileFormat`   -> `HyperlinkPathFormat` -> `file://{path}`  |
+| File + line    | `HyperlinkLineFormat`   -> `file://{path}`                           |
+| File + column  | `HyperlinkColumnFormat` -> `HyperlinkLineFormat` -> `file://{path}`  |
 
 These can also be set via environment variables:
 
@@ -67,12 +71,35 @@ export CLOG_HYPERLINK_LINE_FORMAT="vscode://{path}:{line}"
 export CLOG_HYPERLINK_COLUMN_FORMAT="vscode://{path}:{line}:{column}"
 ```
 
-`CLOG_HYPERLINK_FORMAT` accepts a preset name and configures all slots at once. Individual format vars override the preset for their specific slot.
+`CLOG_HYPERLINK_FORMAT` accepts a preset name and configures all slots at once. Individual format vars override the preset for their specific slot. Environment variables apply to the `Default` logger's `FieldFormats`.
 
 ## Named Presets
 
+Hyperlink format fields accept a preset name (e.g. `"vscode"`) in place of a full format string - it is expanded for that slot when `SetFieldFormats` is called:
+
 ```go
-clog.SetHyperlinkPreset("vscode") // or CLOG_HYPERLINK_FORMAT=vscode
+f := clog.DefaultFieldFormats()
+f.HyperlinkLineFormat = "vscode"
+clog.SetFieldFormats(f)
+```
+
+To apply a preset to all format slots at once, use `hyperlink.Preset` (or set `CLOG_HYPERLINK_FORMAT=vscode` in the environment):
+
+```go
+import "github.com/gechr/clog/field/hyperlink"
+
+cfg, err := hyperlink.Preset("vscode")
+if err != nil {
+  // unknown preset name
+}
+
+f := clog.DefaultFieldFormats()
+f.HyperlinkPathFormat = cfg.PathFormat
+f.HyperlinkFileFormat = cfg.FileFormat
+f.HyperlinkDirFormat = cfg.DirFormat
+f.HyperlinkLineFormat = cfg.LineFormat
+f.HyperlinkColumnFormat = cfg.ColumnFormat
+clog.SetFieldFormats(f)
 ```
 
 | Preset            | Scheme                 |
@@ -91,8 +118,9 @@ clog.SetHyperlinkPreset("vscode") // or CLOG_HYPERLINK_FORMAT=vscode
 Hyperlinks are enabled by default (when colors are active). Disable them programmatically:
 
 ```go
-clog.SetHyperlinkEnabled(false) // disable all hyperlink rendering
-clog.SetHyperlinkEnabled(true)  // re-enable
+f := clog.DefaultFieldFormats()
+f.HyperlinkEnabled = false // disable all hyperlink rendering
+clog.SetFieldFormats(f)
 ```
 
 Hyperlinks are automatically disabled when colors are disabled.

@@ -151,10 +151,33 @@ func TestEnvLoadAllFromEnvReChecksNoColor(t *testing.T) {
 	assert.True(t, noColorEnvSet.Load(), "noColorEnvSet should be true when NO_COLOR is set")
 }
 
-func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
-	saveEnvPrefix(t)
-	clearFormats(t)
+func TestEnvHyperlinkPresetApplied(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
 
+	saveEnvPrefix(t)
+
+	Default = NewWriter(io.Discard)
+	t.Setenv("CLOG_HYPERLINK_FORMAT", "vscode")
+	// Individual format vars override the preset.
+	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "custom://{path}")
+	envPrefix.Store("")
+
+	loadHyperlinkFormatsFromEnv()
+
+	formats := Default.FieldFormats()
+	assert.Equal(t, "custom://{path}", formats.HyperlinkPathFormat)
+	assert.Equal(t, "vscode://file{path}:{line}", formats.HyperlinkLineFormat)
+	assert.Equal(t, "vscode://file{path}:{line}:{column}", formats.HyperlinkColumnFormat)
+}
+
+func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	saveEnvPrefix(t)
+
+	Default = NewWriter(io.Discard)
 	t.Setenv("MYAPP_HYPERLINK_PATH_FORMAT", "vscode://file{path}")
 	t.Setenv("MYAPP_HYPERLINK_LINE_FORMAT", "vscode://file{path}:{line}")
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "")
@@ -162,11 +185,21 @@ func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
+	formats := Default.FieldFormats()
+	assert.Equal(t, "vscode://file{path}", formats.HyperlinkPathFormat)
+	assert.Equal(t, "vscode://file{path}:{line}", formats.HyperlinkLineFormat)
+
+	cfg := hyperlink.Config{
+		Enabled:    true,
+		PathFormat: formats.HyperlinkPathFormat,
+		LineFormat: formats.HyperlinkLineFormat,
+	}
+
 	// Path format applied to file-only URL.
-	got := hyperlink.ResolvePathURL("/test/file.go", 0, 0)
+	got := cfg.ResolvePathURL("/test/file.go", 0, 0)
 	assert.Equal(t, "vscode://file/test/file.go", got)
 
 	// Line format applied to file+line URL.
-	got = hyperlink.ResolvePathURL("/test/file.go", 42, 0)
+	got = cfg.ResolvePathURL("/test/file.go", 42, 0)
 	assert.Equal(t, "vscode://file/test/file.go:42", got)
 }

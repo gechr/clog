@@ -29,6 +29,7 @@ func (l *Logger) Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
 		Logger:       fxLogger{l},
 		Mode:         fx.AnimationBar,
 		Level:        LevelInfo,
+		PercentMax:   l.loadFieldFormats().PercentMaximum,
 		Message:      msg,
 		BarStyle:     bar.ApplyOptions(opts),
 		BarProgress:  progressPtr,

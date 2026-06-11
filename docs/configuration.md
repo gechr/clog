@@ -58,6 +58,49 @@ For simple cases where you just need a writer with default color detection:
 logger := clog.NewWriter(os.Stderr) // equivalent to New(NewOutput(os.Stderr, ColorAuto))
 ```
 
+## Field Formats
+
+Field formatting (durations, elapsed timers, percentages, hyperlinks, quantity units) is configured per-logger via the `FieldFormats` struct. Start from `DefaultFieldFormats()`, set the fields you want, and apply with `SetFieldFormats` - configuration is per-`Logger`, so two loggers can format fields differently:
+
+```go
+f := clog.DefaultFieldFormats()
+f.PercentPrecision = 1                  // "75.0%" instead of "75%"
+f.ElapsedGradientMax = 30 * time.Second // enable the elapsed gradient
+f.HyperlinkLineFormat = "vscode"        // preset name, expanded on SetFieldFormats
+logger.SetFieldFormats(f)
+
+// Or configure the package-level Default logger:
+clog.SetFieldFormats(f)
+
+// Read back the current configuration:
+current := logger.FieldFormats()
+```
+
+`SetFieldFormats` has replace-all semantics (like `SetParts`): the struct you pass replaces the logger's entire field-format configuration, so always start from `DefaultFieldFormats()` (or `logger.FieldFormats()`) rather than a zero value.
+
+| Field                     | Type                         | Default          | Description                                                                                  |
+| ------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`) |
+| `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                               |
+| `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                   |
+| `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                        |
+| `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                               |
+| `ElapsedPrecision`        | `int`                        | `0`              | Decimal places for elapsed display (`0` = `3s`, `1` = `3.2s`)                                |
+| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Rounding granularity for elapsed values (`0` disables rounding)                              |
+| `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                       |
+| `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                   |
+| `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                          |
+| `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                          |
+| `HyperlinkLineFormat`     | `string`                     | `""`             | URL format for file+line hyperlinks                                                          |
+| `HyperlinkPathFormat`     | `string`                     | `""`             | Generic fallback URL format for any path                                                     |
+| `PercentFormat`           | `func(float64) string`       | `nil` (built-in) | Custom formatter for `Percent` fields (receives the display value, already scaled to 0–100)  |
+| `PercentMaximum`          | `float64`                    | `0` (= `1.0`)    | Percent input maximum (`0` means `1.0` = fractions 0–1; set `100` for 0–100 input)           |
+| `PercentPrecision`        | `int`                        | `0`              | Decimal places for `Percent` display (`0` = `75%`, `1` = `75.0%`)                            |
+| `PercentReverseGradient`  | `bool`                       | `false`          | Reverse the percent gradient (green=0%, red=100%)                                            |
+| `QuantityUnitsIgnoreCase` | `bool`                       | `true`           | Case-insensitive quantity unit matching                                                      |
+
+Hyperlink format fields accept either a full format string with `{path}`/`{line}`/`{column}` placeholders, or a named preset (e.g. `"vscode"`), which is expanded when `SetFieldFormats` is called. See [Hyperlinks](hyperlinks.md) for details.
+
 ## Utility Functions
 
 ```go
@@ -69,7 +112,6 @@ clog.SetOutput(out)              // change the output (accepts *Output)
 clog.SetOutputWriter(w)          // change the output writer (with ColorAuto)
 clog.SetExitCode(2)              // set default Fatal exit code (default: 1)
 clog.SetExitFunc(fn)             // override os.Exit for Fatal (useful in tests)
-clog.SetHyperlinkEnabled(false)  // disable all hyperlink rendering
 logger.Output()                  // returns the Logger's *Output
 ```
 

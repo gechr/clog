@@ -95,64 +95,48 @@ See [Printer](printer.md) for per-format token style tables.
 
 ### Field Descriptions
 
-| Field                  | Description                                                                                |
-| ---------------------- | ------------------------------------------------------------------------------------------ |
-| `DurationGradient`     | Gradient color stops for `Duration` fields; active when `SetDurationGradientMax` > 0       |
-| `DurationGradientMode` | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
-| `DurationThresholds`   | Duration unit -> magnitude-based style thresholds                                          |
-| `DurationUnits`        | Duration unit string -> style override                                                     |
-| `ElapsedGradient`      | Gradient color stops for `Elapsed` fields; active when `SetElapsedGradientMax` > 0         |
-| `ElapsedGradientMode`  | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)             |
-| `FieldDurationNumber`  | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable        |
-| `FieldDurationUnit`    | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable           |
-| `FieldElapsedNumber`   | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber` |
-| `FieldElapsedUnit`     | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`      |
-| `FieldError`           | Style for error field values, nil to disable                                               |
-| `FieldNumber`          | Style for int/float field values, nil to disable                                           |
-| `FieldPercent`         | Base style for `Percent` fields (foreground overridden by gradient), nil to disable        |
-| `FieldQuantityNumber`  | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable              |
-| `FieldQuantityUnit`    | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                |
-| `FieldString`          | Style for string field values, nil to disable                                              |
-| `FieldTime`            | Style for `time.Time` field values, nil to disable                                         |
-| `KeyDefault`           | Style for field key names without a per-key override, nil to disable                       |
-| `Keys`                 | Field key name -> value style override                                                     |
-| `Levels`               | Per-level label style (e.g. "INF", "ERR"), nil to disable                                  |
-| `Messages`             | Per-level message text style, nil to disable                                               |
-| `PercentGradient`      | Gradient color stops for `Percent` fields                                                  |
-| `QuantityThresholds`   | Quantity unit -> magnitude-based style thresholds                                          |
-| `QuantityUnits`        | Quantity unit string -> style override                                                     |
-| `Separator`            | Style for the separator between key and value                                              |
-| `Symbols`              | Per-level symbol style                                                                     |
-| `Timestamp`            | Style for the timestamp, nil to disable                                                    |
-| `Values`               | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                 |
+| Field                  | Description                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `DurationGradient`     | Gradient color stops for `Duration` fields; active when `FieldFormats.DurationGradientMax` > 0 |
+| `DurationGradientMode` | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                 |
+| `DurationThresholds`   | Duration unit -> magnitude-based style thresholds                                              |
+| `DurationUnits`        | Duration unit string -> style override                                                         |
+| `ElapsedGradient`      | Gradient color stops for `Elapsed` fields; active when `FieldFormats.ElapsedGradientMax` > 0   |
+| `ElapsedGradientMode`  | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                 |
+| `FieldDurationNumber`  | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable            |
+| `FieldDurationUnit`    | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable               |
+| `FieldElapsedNumber`   | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber`     |
+| `FieldElapsedUnit`     | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`          |
+| `FieldError`           | Style for error field values, nil to disable                                                   |
+| `FieldNumber`          | Style for int/float field values, nil to disable                                               |
+| `FieldPercent`         | Base style for `Percent` fields (foreground overridden by gradient), nil to disable            |
+| `FieldQuantityNumber`  | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable                  |
+| `FieldQuantityUnit`    | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                    |
+| `FieldString`          | Style for string field values, nil to disable                                                  |
+| `FieldTime`            | Style for `time.Time` field values, nil to disable                                             |
+| `KeyDefault`           | Style for field key names without a per-key override, nil to disable                           |
+| `Keys`                 | Field key name -> value style override                                                         |
+| `Levels`               | Per-level label style (e.g. "INF", "ERR"), nil to disable                                      |
+| `Messages`             | Per-level message text style, nil to disable                                                   |
+| `PercentGradient`      | Gradient color stops for `Percent` fields                                                      |
+| `QuantityThresholds`   | Quantity unit -> magnitude-based style thresholds                                              |
+| `QuantityUnits`        | Quantity unit string -> style override                                                         |
+| `Separator`            | Style for the separator between key and value                                                  |
+| `Symbols`              | Per-level symbol style                                                                         |
+| `Timestamp`            | Style for the timestamp, nil to disable                                                        |
+| `Values`               | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                     |
 
 ## Configuration
 
-Behavioural settings are configured via setter methods on `Logger` (or package-level convenience functions for the `Default` logger). Settings marked **pkg** are package-level functions only (not Logger methods):
+Behavioural settings are configured via setter methods on `Logger` (or package-level convenience functions for the `Default` logger):
 
-| Setter                       | Type                         | Default       | Scope  | Description                                                          |
-| ---------------------------- | ---------------------------- | ------------- | ------ | -------------------------------------------------------------------- |
-| `SetAnimationInterval`       | `time.Duration`              | `67ms`        | Logger | Minimum refresh interval for all animations (0 = use built-in rates) |
-| `SetDurationGradientMax`     | `time.Duration`              | `0`           | pkg    | Max duration for `Duration` field gradient (0 = disabled)            |
-| `SetElapsedFormatFunc`       | `func(time.Duration) string` | `nil`         | pkg    | Custom format function for `Elapsed` fields                          |
-| `SetElapsedGradientMax`      | `time.Duration`              | `0`           | pkg    | Max duration for elapsed gradient (0 = disabled)                     |
-| `SetElapsedMinimum`          | `time.Duration`              | `time.Second` | pkg    | Minimum duration for `Elapsed` fields to be displayed                |
-| `SetElapsedPrecision`        | `int`                        | `0`           | pkg    | Decimal places for `Elapsed` display (0 = "3s", 1 = "3.2s")          |
-| `SetElapsedRound`            | `time.Duration`              | `time.Second` | pkg    | Rounding granularity for `Elapsed` values (0 to disable)             |
-| `SetFieldSort`               | `Sort`                       | `SortNone`    | Logger | Sort order: `SortNone`, `SortAscending`, `SortDescending`            |
-| `SetHyperlinkColumnFormat`   | `string`                     | `nil`         | pkg    | URL format for file+line+column hyperlinks                           |
-| `SetHyperlinkDirFormat`      | `string`                     | `nil`         | pkg    | URL format for directory hyperlinks                                  |
-| `SetHyperlinkEnabled`        | `bool`                       | `true`        | pkg    | Enable/disable all hyperlink rendering                               |
-| `SetHyperlinkFileFormat`     | `string`                     | `nil`         | pkg    | URL format for file-only hyperlinks                                  |
-| `SetHyperlinkLineFormat`     | `string`                     | `nil`         | pkg    | URL format for file+line hyperlinks                                  |
-| `SetHyperlinkPathFormat`     | `string`                     | `nil`         | pkg    | Generic fallback URL format for any path                             |
-| `SetHyperlinkPreset`         | `string`                     | `""`          | pkg    | Configure all format slots via named preset (returns `error`)        |
-| `SetPercentFormatFunc`       | `func(float64) string`       | `nil`         | pkg    | Custom format function for `Percent` fields                          |
-| `SetPercentReverseGradient`  | `bool`                       | `false`       | pkg    | Reverse the percent gradient (green=0%, red=100%)                    |
-| `SetPercentPrecision`        | `int`                        | `0`           | pkg    | Decimal places for `Percent` display (0 = "75%", 1 = "75.0%")        |
-| `SetPercentMaximum`          | `float64`                    | `1.0`         | pkg    | Percent input maximum (1 = fractions 0–1, 100 = 0–100)               |
-| `SetQuantityUnitsIgnoreCase` | `bool`                       | `true`        | pkg    | Case-insensitive quantity unit matching                              |
-| `SetSeparatorText`           | `string`                     | `"="`         | Logger | Key/value separator string                                           |
+| Setter                 | Type            | Default    | Description                                                          |
+| ---------------------- | --------------- | ---------- | -------------------------------------------------------------------- |
+| `SetAnimationInterval` | `time.Duration` | `67ms`     | Minimum refresh interval for all animations (0 = use built-in rates) |
+| `SetFieldSort`         | `Sort`          | `SortNone` | Sort order: `SortNone`, `SortAscending`, `SortDescending`            |
+| `SetSeparatorText`     | `string`        | `"="`      | Key/value separator string                                           |
+
+Field formatting behaviour (gradient maxima, format functions, percent precision, hyperlink formats, etc.) is configured per-logger via the `FieldFormats` struct - see [Field Formats](configuration.md#field-formats).
 
 Each `Threshold` pairs a minimum value with style overrides:
 
@@ -203,10 +187,12 @@ Use `style.DefaultPercentGradient()` to get the default red → yellow → green
 By default the `Percent` gradient runs red (0%) → yellow (50%) → green (100%) - useful when a higher value is better (e.g. battery, health score). For metrics where a lower value is better (CPU usage, disk usage, error rate), reverse the gradient:
 
 ```go
-// Global: all Percent fields
-clog.SetPercentReverseGradient(true)
+// Logger-wide: all Percent fields
+f := clog.DefaultFieldFormats()
+f.PercentReverseGradient = true
+clog.SetFieldFormats(f)
 
-// Per-field: just this Percent field, regardless of the global setting
+// Per-field: just this Percent field, regardless of the logger setting
 clog.Info().
   Percent("cpu", 0.92, percent.WithReverseGradient()).
   Percent("battery", 0.85).
@@ -214,14 +200,16 @@ clog.Info().
 // "cpu" renders red at 92%, "battery" renders green at 85%
 ```
 
-`percent.WithReverseGradient()` is a `percent.Option` passed directly to `Event.Percent`. It **toggles** the package-level setting for that field - so if the gradient is already reversed, `percent.WithReverseGradient()` flips it back to normal. This makes it easy to mix metrics with different semantics on the same log line regardless of the global default.
+`percent.WithReverseGradient()` is a `percent.Option` passed directly to `Event.Percent`. It **toggles** the logger's `PercentReverseGradient` setting for that field - so if the gradient is already reversed, `percent.WithReverseGradient()` flips it back to normal. This makes it easy to mix metrics with different semantics on the same log line regardless of the logger default.
 
 ## Duration Gradient
 
 Color `Duration` fields on a gradient that transitions from green (fast) through yellow to red (slow). Set a max duration to enable the gradient - duration values are mapped onto 0→max, clamping at max:
 
 ```go
-clog.SetDurationGradientMax(20 * time.Second)
+f := clog.DefaultFieldFormats()
+f.DurationGradientMax = 20 * time.Second
+clog.SetFieldFormats(f)
 ```
 
 When active, the gradient overrides `FieldDurationNumber` / `FieldDurationUnit` and colors the entire formatted string. When the max is 0 (the default) or `DurationGradient` stops are nil, the existing number/unit split styling is used.
@@ -235,7 +223,9 @@ The `DurationGradientMode` field controls transition style - see [Gradient Mode]
 Color elapsed-time fields on a gradient that transitions from green (fast) through yellow to red (slow). Set a max duration to enable the gradient - elapsed values are mapped onto 0→max, clamping at max:
 
 ```go
-clog.SetElapsedGradientMax(30 * time.Second)
+f := clog.DefaultFieldFormats()
+f.ElapsedGradientMax = 30 * time.Second
+clog.SetFieldFormats(f)
 ```
 
 When active, the gradient overrides `FieldElapsedNumber` / `FieldElapsedUnit` and colors the entire formatted string. When the max is 0 (the default) or `ElapsedGradient` stops are nil, the existing number/unit split styling is used.
@@ -270,21 +260,25 @@ clog.SetStyles(&style.Config{
 
 ## Format Hooks
 
-Override the default formatting for `Elapsed` and `Percent` fields:
+Override the default formatting for `Elapsed` and `Percent` fields via `FieldFormats`:
 
 ```go
+f := clog.DefaultFieldFormats()
+
 // Custom elapsed format: truncate to whole seconds
-clog.SetElapsedFormatFunc(func(d time.Duration) string {
+f.ElapsedFormat = func(d time.Duration) string {
   return d.Truncate(time.Second).String()
-})
+}
 
 // Custom percent format: "75/100" instead of "75%"
-clog.SetPercentFormatFunc(func(v float64) string {
+f.PercentFormat = func(v float64) string {
   return fmt.Sprintf("%.0f/100", v)
-})
+}
+
+clog.SetFieldFormats(f)
 ```
 
-When set to `nil` (the default), the built-in formatters are used (`formatElapsed` with `SetElapsedPrecision` for elapsed, `strconv.FormatFloat` with `SetPercentPrecision` + "%" for percent). Custom percent format functions receive the **display** percentage (0–100), not the raw stored value.
+When set to `nil` (the default), the built-in formatters are used (`formatElapsed` with `ElapsedPrecision` for elapsed, `strconv.FormatFloat` with `PercentPrecision` + "%" for percent). Custom percent format functions receive the **display** percentage (0–100), not the raw stored value.
 
 ## Field Sort Order
 

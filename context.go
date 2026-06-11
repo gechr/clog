@@ -178,7 +178,7 @@ func (c *Context) URLs(key string, urls []string) *Context {
 // The caller must hold l.mu. The returned Logger has its own mutex;
 // callers that want to share the parent mutex should reassign l.mu after cloning.
 func (l *Logger) clone() *Logger {
-	return &Logger{
+	c := &Logger{
 		mu: &sync.Mutex{}, // placeholder; callers typically override
 
 		animationInterval:  l.animationInterval,
@@ -225,4 +225,6 @@ func (l *Logger) clone() *Logger {
 		yamlIndent:         l.yamlIndent,
 		yamlIndentSequence: l.yamlIndentSequence,
 	}
+	c.fieldFormats.Store(l.fieldFormats.Load())
+	return c
 }

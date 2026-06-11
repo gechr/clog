@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/spinner"
 	xansi "github.com/gechr/x/ansi"
@@ -271,8 +270,9 @@ func TestGroupNonTTY(t *testing.T) {
 func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	elapsed.SetMinimum(0)
-	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
+	formats := DefaultFieldFormats()
+	formats.ElapsedMinimum = 0
+	logger.SetFieldFormats(formats)
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Bar("downloading", 100).
@@ -342,8 +342,9 @@ func TestGroupTaskResultOnError(t *testing.T) {
 func TestGroupTaskResultElapsed(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	elapsed.SetMinimum(0) // show all elapsed values
-	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
+	formats := DefaultFieldFormats()
+	formats.ElapsedMinimum = 0 // show all elapsed values
+	logger.SetFieldFormats(formats)
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("timed").Elapsed("elapsed")).

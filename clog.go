@@ -90,9 +90,10 @@ type Logger struct {
 	mu *sync.Mutex
 
 	animationInterval  time.Duration
-	atomicLevel        atomic.Int32 // lock-free level check for newEvent() hot path
-	exitCode           int          // default exit code for Fatal-level events; 0 means 1
-	exitFunc           func(int)    // called by Fatal-level events; defaults to os.Exit
+	atomicLevel        atomic.Int32                 // lock-free level check for newEvent() hot path
+	fieldFormats       atomic.Pointer[FieldFormats] // immutable snapshot; nil = DefaultFieldFormats
+	exitCode           int                          // default exit code for Fatal-level events; 0 means 1
+	exitFunc           func(int)                    // called by Fatal-level events; defaults to os.Exit
 	fields             []Field
 	fieldSort          Sort
 	fieldStyleLevel    Level
@@ -589,8 +590,13 @@ func (l *Logger) SetYAMLIndentSequence(indent bool) {
 	l.yamlIndentSequence = &indent
 }
 
-// SetOutput sets the output.
+// SetOutput sets the output. The logger's hyperlink formats are pushed to
+// the new output so [Output.PathLink] and [Output.Hyperlink] keep honouring
+// the logger's [FieldFormats].
 func (l *Logger) SetOutput(out *Output) {
+	if f := l.fieldFormats.Load(); f != nil {
+		out.setHyperlinks(f.hyperlinkConfig())
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output = out
@@ -1187,6 +1193,7 @@ func (l *Logger) log(e *Event, msg string) {
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
 				fieldSort:       l.fieldSort,
 				fieldStyleLevel: l.fieldStyleLevel,
+				formats:         l.loadFieldFormats(),
 				level:           e.level,
 				noColor:         noColor,
 				quoteOpen:       l.quoteOpen,

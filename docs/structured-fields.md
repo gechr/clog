@@ -83,23 +83,27 @@ clog.SetSliceBracket('|')          // |a, b, c| - same char for open and close
 
 ## Duration Formatting
 
-By default, `Duration` fields use Go's built-in `time.Duration.String()` (e.g. `3.2s`, `1m30s`). Use `SetDurationFormatFunc` to apply a custom formatter globally:
+By default, `Duration` fields use Go's built-in `time.Duration.String()` (e.g. `3.2s`, `1m30s`). Set the `DurationFormat` field of [`FieldFormats`](configuration.md#field-formats) to apply a custom formatter per-logger:
 
 ```go
-clog.SetDurationFormatFunc(commonutil.FormatDuration)
+f := clog.DefaultFieldFormats()
+f.DurationFormat = commonutil.FormatDuration
+clog.SetFieldFormats(f)
 
 clog.Info().Duration("took", time.Since(start)).Msg("done")
 // INF ℹ️ done took=2.3s
 ```
 
-`SetDurationFormatFunc` also applies as a fallback for [`Elapsed`](elapsed.md) fields. See [Elapsed Configuration](elapsed.md#elapsed-configuration) for details.
+`DurationFormat` also applies as a fallback for [`Elapsed`](elapsed.md) fields. See [Elapsed Configuration](elapsed.md#elapsed-configuration) for details.
 
 ## Duration Gradient
 
 `Duration` fields support the same green → yellow → red gradient as `Elapsed` fields. Enable it by setting a max duration:
 
 ```go
-clog.SetDurationGradientMax(20 * time.Second)
+f := clog.DefaultFieldFormats()
+f.DurationGradientMax = 20 * time.Second
+clog.SetFieldFormats(f)
 
 clog.Info().Duration("duration", 500*time.Millisecond).Msg("fast")  // green
 clog.Info().Duration("duration", 10*time.Second).Msg("medium")       // yellow

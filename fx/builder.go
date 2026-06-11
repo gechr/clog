@@ -5,7 +5,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/fx/spinner"
@@ -37,6 +36,7 @@ type Builder struct {
 	Message        string
 	Mode           Animation
 	PartOverrides  *[]core.Part // nil = use logger's parts
+	PercentMax     float64      // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
 	PulseStops     []gradient.ColorStop
 	ShimmerDir     shimmer.Direction
 	ShimmerStops   []gradient.ColorStop
@@ -57,6 +57,7 @@ type BuilderConfig struct {
 	Logger         Logger
 	Message        string
 	Mode           Animation
+	PercentMax     float64
 	PulseStops     []gradient.ColorStop
 	ShimmerDir     shimmer.Direction
 	ShimmerStops   []gradient.ColorStop
@@ -76,6 +77,7 @@ func NewBuilder(cfg BuilderConfig) *Builder {
 		Log:            cfg.Logger,
 		Mode:           cfg.Mode,
 		Message:        cfg.Message,
+		PercentMax:     cfg.PercentMax,
 		SymbolIcon:     cfg.SymbolIcon,
 		PulseStops:     cfg.PulseStops,
 		ShimmerDir:     cfg.ShimmerDir,
@@ -190,9 +192,18 @@ func (b *Builder) BarPercent(key string) *Builder {
 func (b *Builder) BarPercentValue() core.Percent {
 	cur := int(b.BarProgressPtr.Load())
 	tot := int(b.BarTotalPtr.Load())
-	m := percent.Maximum()
+	m := b.percentMaximum()
 	pct := float64(cur) / float64(max(tot, 1)) * m
 	return core.Percent{Value: min(pct, m)}
+}
+
+// percentMaximum returns the stamped percent input-range maximum,
+// defaulting to 1.0 when unset.
+func (b *Builder) percentMaximum() float64 {
+	if b.PercentMax > 0 {
+		return b.PercentMax
+	}
+	return 1
 }
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.

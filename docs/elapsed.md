@@ -82,24 +82,26 @@ e.Msg("query")
 
 ## Elapsed Configuration
 
-The elapsed field respects the same configuration as animation elapsed fields:
+The elapsed field respects the same per-logger [`FieldFormats`](configuration.md#field-formats) configuration as animation elapsed fields:
 
-| Function                | Default          | Description                                                                                |
-| ----------------------- | ---------------- | ------------------------------------------------------------------------------------------ |
-| `SetDurationFormatFunc` | `nil` (built-in) | Custom format function for both `Duration` and `Elapsed` fields                            |
-| `SetDurationGradientMax`| `0` (disabled)   | Max duration for `Duration` field gradient (see [Styles](styles.md#duration-gradient))     |
-| `SetElapsedFormatFunc`  | `nil` (built-in) | Custom format function for elapsed durations (takes priority over `SetDurationFormatFunc`) |
-| `SetElapsedGradientMax` | `0` (disabled)   | Max duration for gradient coloring (see [Styles](styles.md#elapsed-gradient))              |
-| `SetElapsedMinimum`     | `time.Second`    | Hide elapsed field below this threshold                                                    |
-| `SetElapsedPrecision`   | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                                  |
-| `SetElapsedRound`       | `time.Second`    | Rounding granularity (`0` disables rounding)                                               |
+| Field                 | Default          | Description                                                                            |
+| --------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `DurationFormat`      | `nil` (built-in) | Custom formatter for both `Duration` and `Elapsed` fields                              |
+| `DurationGradientMax` | `0` (disabled)   | Max duration for `Duration` field gradient (see [Styles](styles.md#duration-gradient)) |
+| `ElapsedFormat`       | `nil` (built-in) | Custom formatter for elapsed durations (takes priority over `DurationFormat`)          |
+| `ElapsedGradientMax`  | `0` (disabled)   | Max duration for gradient coloring (see [Styles](styles.md#elapsed-gradient))          |
+| `ElapsedMinimum`      | `time.Second`    | Hide elapsed field below this threshold (`0` shows all values)                         |
+| `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
+| `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
 
 ### Duration Format Function
 
-`SetDurationFormatFunc` configures a single format function that applies to both [`Duration`](structured-fields.md) fields and `Elapsed` fields. This is useful when you have a shared helper (e.g. from a utility package) that you want applied consistently across all duration logging:
+`DurationFormat` configures a single format function that applies to both [`Duration`](structured-fields.md) fields and `Elapsed` fields. This is useful when you have a shared helper (e.g. from a utility package) that you want applied consistently across all duration logging:
 
 ```go
-clog.SetDurationFormatFunc(commonutil.FormatDuration)
+f := clog.DefaultFieldFormats()
+f.DurationFormat = commonutil.FormatDuration
+clog.SetFieldFormats(f)
 
 // Both of these now use commonutil.FormatDuration:
 clog.Info().Duration("took", time.Since(start)).Msg("done")
@@ -111,16 +113,18 @@ e.Msg("done")
 // INF ℹ️ done elapsed=2.3s
 ```
 
-When `SetElapsedFormatFunc` is also set, it takes priority over `SetDurationFormatFunc` for `Elapsed` fields only. `Duration` fields always use `SetDurationFormatFunc`:
+When `ElapsedFormat` is also set, it takes priority over `DurationFormat` for `Elapsed` fields only. `Duration` fields always use `DurationFormat`:
 
 ```go
-clog.SetDurationFormatFunc(func(d time.Duration) string { return "dur:" + d.String() })
-clog.SetElapsedFormatFunc(func(d time.Duration) string { return "ela:" + d.String() })
+f := clog.DefaultFieldFormats()
+f.DurationFormat = func(d time.Duration) string { return "dur:" + d.String() }
+f.ElapsedFormat = func(d time.Duration) string { return "ela:" + d.String() }
+clog.SetFieldFormats(f)
 
 clog.Info().Duration("latency", 3*time.Second).Msg("request")
-// INF ℹ️ request latency=dur:3s  ← uses SetDurationFormatFunc
+// INF ℹ️ request latency=dur:3s  ← uses DurationFormat
 
 e := clog.Info().Elapsed("elapsed")
 e.Msg("done")
-// INF ℹ️ done elapsed=ela:3s    ← SetElapsedFormatFunc takes priority
+// INF ℹ️ done elapsed=ela:3s    ← ElapsedFormat takes priority
 ```

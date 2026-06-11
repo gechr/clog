@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/fx/spinner"
@@ -96,6 +95,9 @@ func testParts() []core.Part {
 	}
 }
 
+// percentScale converts a 0–1 percent fraction to its 0–100 display value.
+const percentScale = 100
+
 // stubFormatFields formats fields as "k=v" pairs with a leading space,
 // mirroring root clog's colorless output for the value types these tests use.
 func stubFormatFields(fields []core.Field) string {
@@ -106,7 +108,7 @@ func stubFormatFields(fields []core.Field) string {
 		b.WriteByte('=')
 		switch v := f.Value.(type) {
 		case core.Percent:
-			fmt.Fprintf(&b, "%.0f%%", v.Value/percent.EffectiveMaximum(v)*100)
+			fmt.Fprintf(&b, "%.0f%%", v.Value*percentScale)
 		case core.ElapsedField:
 			b.WriteString(time.Duration(v).Truncate(time.Second).String())
 		default:

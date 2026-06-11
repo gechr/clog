@@ -75,7 +75,7 @@ type Config struct {
 	// Style for divider title text [nil = plain text]
 	DividerTitle *lipgloss.Style
 	// Gradient stops for Duration fields (default: green -> yellow -> red).
-	// Active only when [duration.GradientMax] > 0; overrides FieldDurationNumber/FieldDurationUnit.
+	// Active only when FieldFormats.DurationGradientMax > 0; overrides FieldDurationNumber/FieldDurationUnit.
 	DurationGradient []ColorStop
 	// How duration gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
 	DurationGradientMode GradientMode
@@ -84,7 +84,7 @@ type Config struct {
 	// Duration unit -> style override (e.g. "s" -> yellow).
 	DurationUnits Map
 	// Gradient stops for Elapsed fields (default: green -> yellow -> red).
-	// Active only when [elapsed.GradientMax] > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
+	// Active only when FieldFormats.ElapsedGradientMax > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
 	ElapsedGradient []ColorStop
 	// How elapsed gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
 	ElapsedGradientMode GradientMode

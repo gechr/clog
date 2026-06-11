@@ -938,8 +938,6 @@ func TestEventColumn(t *testing.T) {
 }
 
 func TestEventColumnColorAlways(t *testing.T) {
-	clearFormats(t)
-
 	l := New(NewOutput(io.Discard, ColorAlways))
 
 	e := l.Info()

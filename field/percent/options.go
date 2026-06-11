@@ -1,23 +1,7 @@
 // Package percent provides options for percent field rendering in clog.
 package percent
 
-import (
-	"sync/atomic"
-
-	"github.com/gechr/clog/internal/core"
-)
-
-// formatFunc holds the global custom format function.
-var formatFunc atomic.Pointer[func(float64) string]
-
-// reverse controls whether the gradient is inverted.
-var reverse atomic.Bool
-
-// precision holds the decimal precision for formatting.
-var precision atomic.Int32
-
-// maximum holds the percent maximum. A nil pointer means the default (1.0).
-var maximum atomic.Pointer[float64]
+import "github.com/gechr/clog/internal/core"
 
 // Percent is the value type for percent fields.
 type Percent = core.Percent
@@ -35,9 +19,9 @@ func WithReverseGradient() Option {
 	}
 }
 
-// WithMaximum returns an [Option] that overrides the global percent maximum
-// for this field. For example, use WithMaximum(100) when passing values
-// in the 0–100 range instead of the default 0–1 range.
+// WithMaximum returns an [Option] that overrides the logger's percent
+// maximum for this field. For example, use WithMaximum(100) when passing
+// values in the 0–100 range instead of the default 0–1 range.
 func WithMaximum(m float64) Option {
 	return func(p *Percent) {
 		p.Maximum = &m
@@ -51,100 +35,14 @@ func Apply(p *Percent, opts []Option) {
 	}
 }
 
-// SetFormatFunc configures a custom format function for percent fields.
-// When set to nil (the default), the built-in format is used.
-func SetFormatFunc(fn func(float64) string) {
-	if fn == nil {
-		formatFunc.Store(nil)
-	} else {
-		formatFunc.Store(&fn)
-	}
-}
-
-// SetReverseGradient reverses the gradient direction for percent fields.
-// By default the gradient runs red (0%) → green (100%) - suitable for
-// metrics where higher is better. Set reverse=true to flip it to
-// green (0%) → red (100%) - suitable for metrics like CPU or disk usage
-// where lower is better.
-func SetReverseGradient(rev bool) {
-	reverse.Store(rev)
-}
-
-// SetPrecision sets the number of decimal places for percent display.
-// For example, 0 = "75%", 1 = "75.0%". Defaults to 0.
-func SetPrecision(n int) {
-	precision.Store(int32(n)) //nolint:gosec // precision is a small positive integer
-}
-
-// SetMaximum sets the percent maximum. The default is 1.0, meaning percent
-// values are passed as fractions (e.g. 0.75 → "75%"). Set to 100 for
-// 0–100 input (e.g. 75 → "75%").
-func SetMaximum(m float64) {
-	maximum.Store(&m)
-}
-
-// Maximum returns the current global percent maximum (default 1.0).
-func Maximum() float64 {
-	if p := maximum.Load(); p != nil {
-		return *p
-	}
-	return 1
-}
-
-// EffectiveMaximum returns the per-field maximum if set, otherwise the global maximum.
-func EffectiveMaximum(p Percent) float64 {
+// EffectiveMaximum returns the per-field maximum if set, otherwise def.
+// A def of 0 (or any non-positive value) means the documented default of 1.0.
+func EffectiveMaximum(p Percent, def float64) float64 {
 	if p.Maximum != nil {
 		return *p.Maximum
 	}
-	return Maximum()
-}
-
-// FormatFunc returns the current custom format function, or nil if using default.
-func FormatFunc() func(float64) string {
-	p := formatFunc.Load()
-	if p == nil {
-		return nil
+	if def > 0 {
+		return def
 	}
-	return *p
-}
-
-// ReverseGradient reports whether the gradient is inverted.
-func ReverseGradient() bool {
-	return reverse.Load()
-}
-
-// Precision returns the current decimal precision.
-func Precision() int {
-	return int(precision.Load())
-}
-
-// Snapshot captures the current state of all percent configuration.
-// Use [Restore] to reset the state in test cleanup.
-type Snapshot struct {
-	formatFunc *func(float64) string
-	reverse    bool
-	precision  int32
-	maximum    *float64
-}
-
-// Save captures the current percent configuration so it can be
-// restored later with [Restore]. Typical usage in tests:
-//
-//	snap := percent.Save()
-//	t.Cleanup(func() { percent.Restore(snap) })
-func Save() Snapshot {
-	return Snapshot{
-		formatFunc: formatFunc.Load(),
-		reverse:    reverse.Load(),
-		precision:  precision.Load(),
-		maximum:    maximum.Load(),
-	}
-}
-
-// Restore resets the percent configuration to a previously saved [Snapshot].
-func Restore(s Snapshot) {
-	formatFunc.Store(s.formatFunc)
-	reverse.Store(s.reverse)
-	precision.Store(s.precision)
-	maximum.Store(s.maximum)
+	return 1
 }

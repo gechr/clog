@@ -12,9 +12,6 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
-	"github.com/gechr/clog/field/elapsed"
-	"github.com/gechr/clog/field/percent"
-	"github.com/gechr/clog/field/quantity"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 	"github.com/stretchr/testify/assert"
@@ -2018,22 +2015,18 @@ func TestLevelMarshalRoundTrip(t *testing.T) {
 	}
 }
 
-func TestSetElapsedFormatFunc(t *testing.T) {
+func TestFieldFormatsElapsedFormat(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	elapsed.SetFormatFunc(func(d time.Duration) string {
+	f := DefaultFieldFormats()
+	f.ElapsedFormat = func(d time.Duration) string {
 		return "custom:" + d.String()
-	})
-	t.Cleanup(func() { elapsed.SetFormatFunc(nil) })
-
+	}
 	// Disable minimum so elapsed is always shown.
-	elapsed.SetMinimum(0)
-	elapsed.SetRound(0)
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	f.ElapsedMinimum = 0
+	f.ElapsedRound = 0
+	l.SetFieldFormats(f)
 
 	// Directly inject an elapsed field via the logger's fields.
 	l.mu.Lock()
@@ -2045,18 +2038,15 @@ func TestSetElapsedFormatFunc(t *testing.T) {
 	assert.Equal(t, "INF ℹ️ test took=custom:3s\n", buf.String())
 }
 
-func TestSetElapsedMinimum(t *testing.T) {
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
-
+func TestFieldFormatsElapsedMinimum(t *testing.T) {
 	t.Run("below_threshold_hidden", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		elapsed.SetMinimum(2 * time.Second)
-		elapsed.SetRound(0)
+		f := DefaultFieldFormats()
+		f.ElapsedMinimum = 2 * time.Second
+		f.ElapsedRound = 0
+		l.SetFieldFormats(f)
 
 		l.mu.Lock()
 		l.fields = []Field{{Key: "took", Value: core.ElapsedField(1 * time.Second)}}
@@ -2071,8 +2061,10 @@ func TestSetElapsedMinimum(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		elapsed.SetMinimum(1 * time.Second)
-		elapsed.SetRound(0)
+		f := DefaultFieldFormats()
+		f.ElapsedMinimum = 1 * time.Second
+		f.ElapsedRound = 0
+		l.SetFieldFormats(f)
 
 		l.mu.Lock()
 		l.fields = []Field{{Key: "took", Value: core.ElapsedField(2 * time.Second)}}
@@ -2087,8 +2079,10 @@ func TestSetElapsedMinimum(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		elapsed.SetMinimum(0)
-		elapsed.SetRound(0)
+		f := DefaultFieldFormats()
+		f.ElapsedMinimum = 0
+		f.ElapsedRound = 0
+		l.SetFieldFormats(f)
 
 		l.mu.Lock()
 		l.fields = []Field{{Key: "took", Value: core.ElapsedField(100 * time.Millisecond)}}
@@ -2100,20 +2094,16 @@ func TestSetElapsedMinimum(t *testing.T) {
 	})
 }
 
-func TestSetElapsedPrecision(t *testing.T) {
-	t.Cleanup(func() {
-		elapsed.SetPrecision(0)
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
-
+func TestFieldFormatsElapsedPrecision(t *testing.T) {
 	t.Run("precision_0", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		elapsed.SetPrecision(0)
-		elapsed.SetMinimum(0)
-		elapsed.SetRound(0)
+		f := DefaultFieldFormats()
+		f.ElapsedPrecision = 0
+		f.ElapsedMinimum = 0
+		f.ElapsedRound = 0
+		l.SetFieldFormats(f)
 
 		l.mu.Lock()
 		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
@@ -2128,9 +2118,11 @@ func TestSetElapsedPrecision(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		elapsed.SetPrecision(1)
-		elapsed.SetMinimum(0)
-		elapsed.SetRound(0)
+		f := DefaultFieldFormats()
+		f.ElapsedPrecision = 1
+		f.ElapsedMinimum = 0
+		f.ElapsedRound = 0
+		l.SetFieldFormats(f)
 
 		l.mu.Lock()
 		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
@@ -2142,18 +2134,15 @@ func TestSetElapsedPrecision(t *testing.T) {
 	})
 }
 
-func TestSetElapsedRound(t *testing.T) {
+func TestFieldFormatsElapsedRound(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	elapsed.SetRound(time.Second)
-	elapsed.SetMinimum(0)
-	elapsed.SetPrecision(0)
-	t.Cleanup(func() {
-		elapsed.SetRound(time.Second)
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetPrecision(0)
-	})
+	f := DefaultFieldFormats()
+	f.ElapsedRound = time.Second
+	f.ElapsedMinimum = 0
+	f.ElapsedPrecision = 0
+	l.SetFieldFormats(f)
 
 	l.mu.Lock()
 	l.fields = []Field{{Key: "took", Value: core.ElapsedField(2600 * time.Millisecond)}}
@@ -2193,29 +2182,30 @@ func TestSetFieldSort(t *testing.T) {
 	})
 }
 
-func TestSetPercentFormatFunc(t *testing.T) {
+func TestFieldFormatsPercentFormat(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	percent.SetFormatFunc(func(f float64) string {
+	f := DefaultFieldFormats()
+	f.PercentFormat = func(v float64) string {
 		return "pct:" + strings.TrimRight(strings.TrimRight(
-			strconv.FormatFloat(f, 'f', 1, 64), "0"), ".") + "%"
-	})
-	t.Cleanup(func() { percent.SetFormatFunc(nil) })
+			strconv.FormatFloat(v, 'f', 1, 64), "0"), ".") + "%"
+	}
+	l.SetFieldFormats(f)
 
 	l.Info().Percent("progress", 0.75).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test progress=pct:75%\n", buf.String())
 }
 
-func TestSetPercentPrecision(t *testing.T) {
-	t.Cleanup(func() { percent.SetPrecision(0) })
-
+func TestFieldFormatsPercentPrecision(t *testing.T) {
 	t.Run("precision_0", func(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		percent.SetPrecision(0)
+		f := DefaultFieldFormats()
+		f.PercentPrecision = 0
+		l.SetFieldFormats(f)
 		l.Info().Percent("progress", 0.75).Msg("test")
 
 		assert.Equal(t, "INF ℹ️ test progress=75%\n", buf.String())
@@ -2225,22 +2215,29 @@ func TestSetPercentPrecision(t *testing.T) {
 		var buf bytes.Buffer
 
 		l := New(TestOutput(&buf))
-		percent.SetPrecision(1)
+		f := DefaultFieldFormats()
+		f.PercentPrecision = 1
+		l.SetFieldFormats(f)
 		l.Info().Percent("progress", 0.75).Msg("test")
 
 		assert.Equal(t, "INF ℹ️ test progress=75.0%\n", buf.String())
 	})
 }
 
-func TestSetQuantityUnitsIgnoreCase(t *testing.T) {
+func TestFieldFormatsQuantityUnitsIgnoreCase(t *testing.T) {
+	l := NewWriter(io.Discard)
+
 	// Default is true.
-	assert.True(t, quantity.UnitsIgnoreCase())
+	assert.True(t, l.FieldFormats().QuantityUnitsIgnoreCase)
 
-	quantity.SetUnitsIgnoreCase(false)
-	assert.False(t, quantity.UnitsIgnoreCase())
+	f := DefaultFieldFormats()
+	f.QuantityUnitsIgnoreCase = false
+	l.SetFieldFormats(f)
+	assert.False(t, l.FieldFormats().QuantityUnitsIgnoreCase)
 
-	quantity.SetUnitsIgnoreCase(true)
-	assert.True(t, quantity.UnitsIgnoreCase())
+	f.QuantityUnitsIgnoreCase = true
+	l.SetFieldFormats(f)
+	assert.True(t, l.FieldFormats().QuantityUnitsIgnoreCase)
 }
 
 func TestSetSeparatorText(t *testing.T) {
@@ -2251,38 +2248,6 @@ func TestSetSeparatorText(t *testing.T) {
 	l.Info().Str("key", "val").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test key: val\n", buf.String())
-}
-
-func TestPackageLevelSetElapsedFormatFunc(t *testing.T) {
-	SetElapsedFormatFunc(func(d time.Duration) string {
-		return d.String()
-	})
-	assert.NotNil(t, elapsed.FormatFunc())
-
-	// Reset to nil.
-	SetElapsedFormatFunc(nil)
-	assert.Nil(t, elapsed.FormatFunc())
-}
-
-func TestPackageLevelSetElapsedMinimum(t *testing.T) {
-	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
-
-	SetElapsedMinimum(5 * time.Second)
-	assert.Equal(t, 5*time.Second, elapsed.Minimum())
-}
-
-func TestPackageLevelSetElapsedPrecision(t *testing.T) {
-	t.Cleanup(func() { elapsed.SetPrecision(0) })
-
-	SetElapsedPrecision(2)
-	assert.Equal(t, 2, elapsed.Precision())
-}
-
-func TestPackageLevelSetElapsedRound(t *testing.T) {
-	t.Cleanup(func() { elapsed.SetRound(time.Second) })
-
-	SetElapsedRound(time.Minute)
-	assert.Equal(t, time.Minute, elapsed.Round())
 }
 
 func TestPackageLevelSetFieldSort(t *testing.T) {
@@ -2297,31 +2262,6 @@ func TestPackageLevelSetFieldSort(t *testing.T) {
 	Default.mu.Unlock()
 
 	assert.Equal(t, SortAscending, got)
-}
-
-func TestPackageLevelSetPercentFormatFunc(t *testing.T) {
-	SetPercentFormatFunc(func(f float64) string {
-		return strconv.FormatFloat(f, 'f', 0, 64) + "%"
-	})
-	assert.NotNil(t, percent.FormatFunc())
-
-	// Reset to nil.
-	SetPercentFormatFunc(nil)
-	assert.Nil(t, percent.FormatFunc())
-}
-
-func TestPackageLevelSetPercentPrecision(t *testing.T) {
-	t.Cleanup(func() { percent.SetPrecision(0) })
-
-	SetPercentPrecision(3)
-	assert.Equal(t, 3, percent.Precision())
-}
-
-func TestPackageLevelSetQuantityUnitsIgnoreCase(t *testing.T) {
-	t.Cleanup(func() { quantity.SetUnitsIgnoreCase(true) })
-
-	SetQuantityUnitsIgnoreCase(false)
-	assert.False(t, quantity.UnitsIgnoreCase())
 }
 
 func TestPackageLevelSetSeparatorText(t *testing.T) {

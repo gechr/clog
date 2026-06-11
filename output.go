@@ -7,10 +7,12 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
+	"github.com/gechr/clog/field/hyperlink"
 	"github.com/gechr/clog/theme"
 	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
@@ -39,6 +41,11 @@ type Output struct {
 	bgOK   bool
 
 	cursorMu sync.Mutex
+
+	// hyperlinks holds the hyperlink rendering configuration pushed down
+	// from the owning logger's FieldFormats. nil means the default
+	// (enabled, plain file:// URLs).
+	hyperlinks atomic.Pointer[hyperlink.Config]
 
 	// Tests may override cursor probing to avoid real terminal I/O.
 	queryCursorPosition func(io.Writer) (cursorPosition, bool)

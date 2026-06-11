@@ -22,7 +22,11 @@ import (
 func main() {
 	demoFlag := flag.Bool("demo", false, "run the demo")
 	quickFlag := flag.Bool("quick", false, "skip animations")
-	spinnersFlag := flag.String("spinners", "", "demo spinners (comma-separated names, empty for all)")
+	spinnersFlag := flag.String(
+		"spinners",
+		"",
+		"demo spinners (comma-separated names, empty for all)",
+	)
 	flag.Parse()
 
 	spinnersSet := false
@@ -196,7 +200,9 @@ func main() {
 			Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 				steps := 100
 				for i := range steps {
-					update.Msg("Applying migrations").Percent("progress", float64(i+1)/float64(steps)).Send()
+					update.Msg("Applying migrations").
+						Percent("progress", float64(i+1)/float64(steps)).
+						Send()
 					time.Sleep(30 * time.Millisecond)
 				}
 				return nil
@@ -337,7 +343,9 @@ func main() {
 
 	// --- Elapsed gradient ---
 	header("Elapsed Gradient")
-	clog.SetElapsedGradientMax(3 * time.Second)
+	formats := clog.DefaultFieldFormats()
+	formats.ElapsedGradientMax = 3 * time.Second
+	clog.SetFieldFormats(formats)
 	e = clog.Info().Elapsed("elapsed")
 	time.Sleep(1 * time.Second)
 	e.Msg("fast operation (green)")
@@ -347,7 +355,7 @@ func main() {
 	e = clog.Info().Elapsed("elapsed")
 	time.Sleep(3 * time.Second)
 	e.Msg("slow operation (red)")
-	clog.SetElapsedGradientMax(0) // reset
+	clog.SetFieldFormats(clog.DefaultFieldFormats()) // reset
 
 	// --- Context propagation ---
 	header("Context Propagation")
@@ -560,7 +568,13 @@ func main() {
 	partStyles.Messages[clog.LevelInfo] = new(italic)
 	partStyles.Messages[clog.LevelWarn] = new(italic)
 	clog.SetStyles(partStyles)
-	clog.SetParts(clog.PartTimestamp, clog.PartLevel, clog.PartSymbol, clog.PartFields, clog.PartMessage)
+	clog.SetParts(
+		clog.PartTimestamp,
+		clog.PartLevel,
+		clog.PartSymbol,
+		clog.PartFields,
+		clog.PartMessage,
+	)
 	clog.Info().Str("user", "alice").Int("status", 200).Msg("Request handled")
 	clog.Warn().Str("query", "SELECT *").Duration("latency", 5*time.Second).Msg("Slow query")
 	clog.SetStyles(clog.DefaultStyles())  // reset
@@ -581,7 +595,9 @@ func main() {
 	header("Minimal (message only)")
 	clog.SetParts(clog.PartMessage)
 	minimalStyles := clog.DefaultStyles()
-	minimalStyles.Messages[clog.LevelError] = new(lipgloss.NewStyle().Strikethrough(true).Foreground(lipgloss.Color("1")))
+	minimalStyles.Messages[clog.LevelError] = new(
+		lipgloss.NewStyle().Strikethrough(true).Foreground(lipgloss.Color("1")),
+	)
 	clog.SetStyles(minimalStyles)
 	clog.Info().Msg("Just the message, nothing else")
 	clog.Error().Msg("Look Ma, an error!")
@@ -595,13 +611,27 @@ func main() {
 	// --- Per-level message styles ---
 	header("Per-Level Message Styles")
 	styles := clog.DefaultStyles()
-	styles.Messages[clog.LevelTrace] = new(lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("6"))) // dim cyan
-	styles.Messages[clog.LevelDebug] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))             // cyan
-	styles.Messages[clog.LevelInfo] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))              // green
-	styles.Messages[clog.LevelDry] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))               // magenta
-	styles.Messages[clog.LevelWarn] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))              // yellow
-	styles.Messages[clog.LevelError] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
-	styles.Messages[clog.LevelFatal] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))             // red
+	styles.Messages[clog.LevelTrace] = new(
+		lipgloss.NewStyle().Faint(true).Foreground(lipgloss.Color("6")),
+	) // dim cyan
+	styles.Messages[clog.LevelDebug] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("6")),
+	) // cyan
+	styles.Messages[clog.LevelInfo] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("2")),
+	) // green
+	styles.Messages[clog.LevelDry] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("5")),
+	) // magenta
+	styles.Messages[clog.LevelWarn] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("3")),
+	) // yellow
+	styles.Messages[clog.LevelError] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("1")),
+	) // red
+	styles.Messages[clog.LevelFatal] = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("1")),
+	) // red
 	clog.SetStyles(styles)
 	clog.Trace().Msg("Trace message is dim cyan")
 	clog.Debug().Msg("Debug message is cyan")
@@ -698,8 +728,12 @@ func main() {
 
 	header("RawJSON (custom styles)")
 	customStyles := style.DefaultJSON()
-	customStyles.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")))              // green keys
-	customStyles.Null = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true)) // red dim null
+	customStyles.Key = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#50fa7b")),
+	) // green keys
+	customStyles.Null = new(
+		lipgloss.NewStyle().Foreground(lipgloss.Color("#ff5555")).Faint(true),
+	) // red dim null
 	customStyleSet := clog.DefaultStyles()
 	customStyleSet.JSON = customStyles
 	clog.SetStyles(customStyleSet)
@@ -752,17 +786,18 @@ func main() {
 
 	// --- Format hooks ---
 	header("Format Hooks")
-	clog.SetElapsedFormatFunc(func(d time.Duration) string {
+	formats = clog.DefaultFieldFormats()
+	formats.ElapsedFormat = func(d time.Duration) string {
 		return d.Truncate(time.Second).String()
-	})
-	clog.SetPercentFormatFunc(func(v float64) string {
+	}
+	formats.PercentFormat = func(v float64) string {
 		return fmt.Sprintf("%.0f/100", v)
-	})
+	}
+	clog.SetFieldFormats(formats)
 	clog.Info().
 		Percent("progress", 0.75).
 		Msg("Custom format hooks")
-	clog.SetElapsedFormatFunc(nil) // reset
-	clog.SetPercentFormatFunc(nil) // reset
+	clog.SetFieldFormats(clog.DefaultFieldFormats()) // reset
 
 	// --- Field sort order ---
 	header("Field Sort Order (Ascending)")
@@ -928,7 +963,9 @@ func demo() {
 		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			steps := 100
 			for i := range steps {
-				update.Msg("Applying migrations").Percent("progress", float64(i+1)/float64(steps)).Send()
+				update.Msg("Applying migrations").
+					Percent("progress", float64(i+1)/float64(steps)).
+					Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil

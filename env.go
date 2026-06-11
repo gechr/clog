@@ -28,7 +28,6 @@ const (
 var envPrefix atomic.Value // stores string; "" means no custom prefix
 
 func init() {
-	hyperlink.SetEnabled(true)
 	loadAllFromEnv()
 }
 
@@ -85,35 +84,54 @@ func loadLogLevelFromEnv() {
 }
 
 func loadHyperlinkFormatsFromEnv() {
+	f := Default.FieldFormats()
+	changed := false
+
 	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
 	if v := getEnv(envHyperlinkFormat); v != "" {
-		if err := hyperlink.SetPreset(v); err != nil {
+		if cfg, err := hyperlink.Preset(v); err != nil {
 			envVar := DefaultEnvPrefix + "_" + envHyperlinkFormat
 			if p, ok := envPrefix.Load().(string); ok && p != "" {
 				envVar = p + "_" + envHyperlinkFormat
 			}
 			fmt.Fprintf(os.Stderr, "clog: unrecognised hyperlink preset %q in %s\n", v, envVar)
+		} else {
+			f.HyperlinkPathFormat = cfg.PathFormat
+			f.HyperlinkFileFormat = cfg.FileFormat
+			f.HyperlinkDirFormat = cfg.DirFormat
+			f.HyperlinkLineFormat = cfg.LineFormat
+			f.HyperlinkColumnFormat = cfg.ColumnFormat
+			changed = true
 		}
 	}
 
 	if v := getEnv(envHyperlinkPathFormat); v != "" {
-		hyperlink.SetPathFormat(v)
+		f.HyperlinkPathFormat = v
+		changed = true
 	}
 
 	if v := getEnv(envHyperlinkFileFormat); v != "" {
-		hyperlink.SetFileFormat(v)
+		f.HyperlinkFileFormat = v
+		changed = true
 	}
 
 	if v := getEnv(envHyperlinkDirFormat); v != "" {
-		hyperlink.SetDirFormat(v)
+		f.HyperlinkDirFormat = v
+		changed = true
 	}
 
 	if v := getEnv(envHyperlinkLineFormat); v != "" {
-		hyperlink.SetLineFormat(v)
+		f.HyperlinkLineFormat = v
+		changed = true
 	}
 
 	if v := getEnv(envHyperlinkColumnFormat); v != "" {
-		hyperlink.SetColumnFormat(v)
+		f.HyperlinkColumnFormat = v
+		changed = true
+	}
+
+	if changed {
+		Default.SetFieldFormats(f)
 	}
 }
 

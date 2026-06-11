@@ -7,8 +7,6 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/duration"
-	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
@@ -17,11 +15,16 @@ import (
 
 // styleDuration renders a duration string (from [time.Duration.String]) with
 // gradient coloring when active ([style.Config.DurationGradient] non-empty and
-// [duration.GradientMax] > 0), otherwise with separate styles for numeric and
+// gradientMax > 0), otherwise with separate styles for numeric and
 // unit segments using [style.Config.FieldDurationNumber] and
 // [style.Config.FieldDurationUnit]. Returns "" when no styles apply.
-func styleDuration(s string, originalValue any, styles *style.Config) string {
-	if styled := styleDurationGradient(s, originalValue, styles); styled != "" {
+func styleDuration(
+	s string,
+	originalValue any,
+	styles *style.Config,
+	gradientMax time.Duration,
+) string {
+	if styled := styleDurationGradient(s, originalValue, styles, gradientMax); styled != "" {
 		return styled
 	}
 
@@ -37,12 +40,17 @@ func styleDuration(s string, originalValue any, styles *style.Config) string {
 
 // styleDurationGradient colors the entire duration string based on value/max.
 // Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
-func styleDurationGradient(s string, originalValue any, styles *style.Config) string {
+func styleDurationGradient(
+	s string,
+	originalValue any,
+	styles *style.Config,
+	gradientMax time.Duration,
+) string {
 	if len(styles.DurationGradient) == 0 {
 		return ""
 	}
 
-	gm := duration.GradientMax()
+	gm := gradientMax
 	if gm <= 0 {
 		return ""
 	}
@@ -69,13 +77,18 @@ func styleDurationGradient(s string, originalValue any, styles *style.Config) st
 }
 
 // styleElapsed renders an elapsed-time string. When the elapsed gradient is
-// active ([style.Config.ElapsedGradient] non-empty and [elapsed.GradientMax] > 0),
+// active ([style.Config.ElapsedGradient] non-empty and gradientMax > 0),
 // the entire string is colored by interpolating the gradient based on
 // elapsed/max. Otherwise it falls back to the number/unit split path using
 // [style.Config.FieldElapsedNumber] and [style.Config.FieldElapsedUnit].
 // Returns "" when no styles apply.
-func styleElapsed(s string, originalValue any, styles *style.Config) string {
-	if styled := styleElapsedGradient(s, originalValue, styles); styled != "" {
+func styleElapsed(
+	s string,
+	originalValue any,
+	styles *style.Config,
+	gradientMax time.Duration,
+) string {
+	if styled := styleElapsedGradient(s, originalValue, styles, gradientMax); styled != "" {
 		return styled
 	}
 
@@ -102,12 +115,17 @@ func styleElapsed(s string, originalValue any, styles *style.Config) string {
 
 // styleElapsedGradient colors the entire elapsed string based on elapsed/max.
 // Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
-func styleElapsedGradient(s string, originalValue any, styles *style.Config) string {
+func styleElapsedGradient(
+	s string,
+	originalValue any,
+	styles *style.Config,
+	gradientMax time.Duration,
+) string {
 	if len(styles.ElapsedGradient) == 0 {
 		return ""
 	}
 
-	gm := elapsed.GradientMax()
+	gm := gradientMax
 	if gm <= 0 {
 		return ""
 	}
@@ -140,7 +158,13 @@ func styleElapsedGradient(s string, originalValue any, styles *style.Config) str
 // When reverse is true the gradient position is flipped (1-t), making 0% green
 // and 100% red - suitable for metrics where a low value is good.
 // Returns "" when both FieldPercent and PercentGradient are nil/empty.
-func stylePercent(valStr string, originalValue any, styles *style.Config, reverse bool) string {
+func stylePercent(
+	valStr string,
+	originalValue any,
+	styles *style.Config,
+	reverse bool,
+	maximum float64,
+) string {
 	p, ok := originalValue.(core.Percent)
 	if !ok {
 		return ""
@@ -163,7 +187,7 @@ func stylePercent(valStr string, originalValue any, styles *style.Config, revers
 
 	// Apply gradient foreground on top of the base style.
 	if hasGradient {
-		t := p.Value / percent.EffectiveMaximum(p)
+		t := p.Value / percent.EffectiveMaximum(p, maximum)
 		if reverse {
 			t = 1 - t
 		}

@@ -10,9 +10,6 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/duration"
-	"github.com/gechr/clog/field/elapsed"
-	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
@@ -214,8 +211,7 @@ func TestFormatValue(t *testing.T) {
 				0,
 				0,
 				"",
-				0,
-				1,
+				&defaultFieldFormats,
 			)
 			assert.Equal(t, tt.wantStr, got)
 			assert.Equal(t, tt.wantKind, kind)
@@ -231,8 +227,7 @@ func TestFormatValueFraction(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "7/10", got)
 	assert.Equal(t, kindFraction, kind)
@@ -246,8 +241,7 @@ func TestFormatValueFractionZero(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "0/5", got)
 	assert.Equal(t, kindFraction, kind)
@@ -261,8 +255,7 @@ func TestFormatValuePercent(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "75%", got)
 	assert.Equal(t, kindPercent, kind)
@@ -276,14 +269,15 @@ func TestFormatValuePercentDecimal(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "33%", got)
 	assert.Equal(t, kindPercent, kind)
 }
 
 func TestFormatValuePercentPrecision(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.PercentPrecision = 1
 	got, kind := formatValue(
 		core.Percent{Value: 0.33333},
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -291,12 +285,12 @@ func TestFormatValuePercentPrecision(t *testing.T) {
 		0,
 		0,
 		"",
-		1,
-		1,
+		&f,
 	)
 	assert.Equal(t, "33.3%", got)
 	assert.Equal(t, kindPercent, kind)
 
+	f.PercentPrecision = 2
 	got, kind = formatValue(
 		core.Percent{Value: 0.33333},
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -304,8 +298,7 @@ func TestFormatValuePercentPrecision(t *testing.T) {
 		0,
 		0,
 		"",
-		2,
-		1,
+		&f,
 	)
 	assert.Equal(t, "33.33%", got)
 	assert.Equal(t, kindPercent, kind)
@@ -354,13 +347,14 @@ func TestFormatValueElapsed(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		0,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "3s", got)
 	assert.Equal(t, kindElapsed, kind)
 
 	// Precision 1 → one decimal place, no trimming.
+	f := DefaultFieldFormats()
+	f.ElapsedPrecision = 1
 	got, kind = formatValue(
 		core.ElapsedField(3200*time.Millisecond),
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -368,8 +362,7 @@ func TestFormatValueElapsed(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&f,
 	)
 	assert.Equal(t, "3.2s", got)
 	assert.Equal(t, kindElapsed, kind)
@@ -383,12 +376,13 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		0,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "3s", got)
 	assert.Equal(t, kindElapsed, kind)
 
+	f := DefaultFieldFormats()
+	f.ElapsedPrecision = 2
 	got, kind = formatValue(
 		core.ElapsedField(3210*time.Millisecond),
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -396,8 +390,7 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		2,
+		&f,
 	)
 	assert.Equal(t, "3.21s", got)
 	assert.Equal(t, kindElapsed, kind)
@@ -413,8 +406,7 @@ func TestFormatValueTimeCustomFormat(t *testing.T) {
 		0,
 		0,
 		time.RFC3339,
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "2025-06-15T10:30:00Z", got)
 	assert.Equal(t, kindTime, kind)
@@ -431,8 +423,7 @@ func TestFormatValueTimeEmptyFormat(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "2025-06-15 10:30:00", got)
 	assert.Equal(t, kindTime, kind)
@@ -783,29 +774,35 @@ func TestStyleValuePriority(t *testing.T) {
 	assert.Equal(
 		t,
 		keyStyle.Render("42"),
-		styleValue("42", 42, "count", kindNumber, styles, true, false),
+		styleValue("42", 42, "count", kindNumber, styles, &defaultFieldFormats),
 	)
 
 	// Without key style, number style should apply.
 	assert.Equal(
 		t,
 		styles.FieldNumber.Render("42"),
-		styleValue("42", 42, "other", kindNumber, styles, true, false),
+		styleValue("42", 42, "other", kindNumber, styles, &defaultFieldFormats),
 	)
 
 	// Value style should apply for matching values (typed bool key).
 	assert.Equal(
 		t,
 		styles.Values[true].Render("true"),
-		styleValue("true", true, "field", kindBool, styles, true, false),
+		styleValue("true", true, "field", kindBool, styles, &defaultFieldFormats),
 	)
 
 	// No style for unrecognised default kind values.
-	assert.Empty(t, styleValue("something", "something", "field", kindDefault, styles, true, false))
+	assert.Empty(
+		t,
+		styleValue("something", "something", "field", kindDefault, styles, &defaultFieldFormats),
+	)
 
 	// No style for slices (styledFieldValue handles slices before calling
 	// styleValue, but if it does reach here the slice itself is not styled).
-	assert.Empty(t, styleValue("[1, 2]", []int{1, 2}, "field", kindSlice, styles, true, false))
+	assert.Empty(
+		t,
+		styleValue("[1, 2]", []int{1, 2}, "field", kindSlice, styles, &defaultFieldFormats),
+	)
 }
 
 func TestFormatFieldsIntSliceStyled(t *testing.T) {
@@ -990,11 +987,10 @@ func TestStyledSliceBool(t *testing.T) {
 		[]bool{true, false},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		styles,
-		true,
 		QuoteAuto,
 		0,
 		0,
-		false,
+		&defaultFieldFormats,
 	)
 
 	trueStyled := styles.Values[true].Render("true")
@@ -1011,11 +1007,10 @@ func TestStyledSliceFloat64(t *testing.T) {
 		[]float64{1.5, 2.5},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		styles,
-		true,
 		QuoteAuto,
 		0,
 		0,
-		false,
+		&defaultFieldFormats,
 	)
 
 	assert.Equal(t, "[1.5, 2.5]", got)
@@ -1079,11 +1074,10 @@ func TestStyledSliceAny(t *testing.T) {
 		[]any{true, 42, "text"},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		styles,
-		true,
 		QuoteAuto,
 		0,
 		0,
-		false,
+		&defaultFieldFormats,
 	)
 
 	trueStyled := styles.Values[true].Render("true")
@@ -1151,11 +1145,10 @@ func TestStyledSliceDefault(t *testing.T) {
 		[]byte{1, 2},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		styles,
-		true,
 		QuoteAuto,
 		0,
 		0,
-		false,
+		&defaultFieldFormats,
 	)
 
 	assert.Equal(t, "[1 2]", got)
@@ -1288,7 +1281,7 @@ func TestMergeFields(t *testing.T) {
 
 func TestStyleValueDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true, false)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, &defaultFieldFormats)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -1299,14 +1292,14 @@ func TestStyleValueDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, true, false)
+	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueTime(t *testing.T) {
 	styles := DefaultStyles()
 	ts := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
-	got := styleValue("2025-06-15 10:30:00", ts, "ts", kindTime, styles, true, false)
+	got := styleValue("2025-06-15 10:30:00", ts, "ts", kindTime, styles, &defaultFieldFormats)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15 10:30:00"), got)
 }
 
@@ -1319,22 +1312,21 @@ func TestStyleValueTimeNil(t *testing.T) {
 		"ts",
 		kindTime,
 		styles,
-		true,
-		false,
+		&defaultFieldFormats,
 	)
 	assert.Empty(t, got)
 }
 
 func TestStyleValueError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true, false)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, &defaultFieldFormats)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleValueErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, true, false)
+	got := styleValue("boom", errors.New("boom"), "err", kindError, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
 }
 
@@ -1343,7 +1335,7 @@ func TestStyleValuePerKeyMatch(t *testing.T) {
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styles.Keys["status"] = new(keyStyle)
 
-	got := styleValue("running", "running", "status", kindString, styles, true, false)
+	got := styleValue("running", "running", "status", kindString, styles, &defaultFieldFormats)
 	assert.Equal(t, keyStyle.Render("running"), got)
 }
 
@@ -1353,26 +1345,26 @@ func TestStyleValuePerValueMatch(t *testing.T) {
 	styles.Values["running"] = new(valStyle)
 
 	// No key style set, so value style should apply.
-	got := styleValue("running", "running", "status", kindString, styles, true, false)
+	got := styleValue("running", "running", "status", kindString, styles, &defaultFieldFormats)
 	assert.Equal(t, valStyle.Render("running"), got)
 }
 
 func TestStyleAnyElementError(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true, false)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, &defaultFieldFormats)
 	assert.Equal(t, styles.FieldError.Render("boom"), got)
 }
 
 func TestStyleAnyElementErrorNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldError = nil
-	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, true, false)
+	got := styleAnyElement("boom", errors.New("boom"), kindError, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementDuration(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true, false)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, &defaultFieldFormats)
 
 	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 	assert.Equal(t, want, got)
@@ -1383,20 +1375,20 @@ func TestStyleAnyElementDurationNil(t *testing.T) {
 	styles.FieldDurationNumber = nil
 	styles.FieldDurationUnit = nil
 
-	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, true, false)
+	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
 }
 
 func TestStyleAnyElementTime(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true, false)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, &defaultFieldFormats)
 	assert.Equal(t, styles.FieldTime.Render("2025-06-15"), got)
 }
 
 func TestStyleAnyElementTimeNil(t *testing.T) {
 	styles := DefaultStyles()
 	styles.FieldTime = nil
-	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, true, false)
+	got := styleAnyElement("2025-06-15", "2025-06-15", kindTime, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
 }
 
@@ -1476,8 +1468,7 @@ func TestFormatValueQuantity(t *testing.T) {
 		0,
 		0,
 		"",
-		0,
-		1,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "5.1km", got)
 	assert.Equal(t, kindQuantity, kind)
@@ -1529,8 +1520,7 @@ func TestStyleValueQuantityFallbackToString(t *testing.T) {
 		"field",
 		kindQuantity,
 		styles,
-		true,
-		false,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
@@ -1546,8 +1536,7 @@ func TestStyleValueQuantityFallbackNilString(t *testing.T) {
 		"field",
 		kindQuantity,
 		styles,
-		true,
-		false,
+		&defaultFieldFormats,
 	)
 	assert.Empty(t, got)
 }
@@ -1555,7 +1544,13 @@ func TestStyleValueQuantityFallbackNilString(t *testing.T) {
 func TestStyleAnyElementQuantityFallbackToString(t *testing.T) {
 	styles := DefaultStyles()
 
-	got := styleAnyElement("hello", core.QuantityField("hello"), kindQuantity, styles, true, false)
+	got := styleAnyElement(
+		"hello",
+		core.QuantityField("hello"),
+		kindQuantity,
+		styles,
+		&defaultFieldFormats,
+	)
 	assert.Equal(t, styles.FieldString.Render("hello"), got)
 }
 
@@ -1623,7 +1618,12 @@ func TestStyleQuantityUnitCaseSensitive(t *testing.T) {
 
 func TestFormatDurationSlicePlain(t *testing.T) {
 	vals := []time.Duration{5 * time.Second, 2*time.Minute + 30*time.Second}
-	got := formatDurationSlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
+	got := formatDurationSlice(
+		vals,
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		nil,
+		&defaultFieldFormats,
+	)
 	assert.Equal(t, "[5s, 2m30s]", got)
 }
 
@@ -1633,7 +1633,12 @@ func TestFormatDurationSliceStyled(t *testing.T) {
 	unit := styles.FieldDurationUnit.Render
 
 	vals := []time.Duration{5 * time.Second, 500 * time.Millisecond}
-	got := formatDurationSlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
+	got := formatDurationSlice(
+		vals,
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		&defaultFieldFormats,
+	)
 
 	want := "[" +
 		num("5") + unit("s") +
@@ -1648,6 +1653,7 @@ func TestFormatDurationSliceEmpty(t *testing.T) {
 		[]time.Duration{},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		nil,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "[]", got)
 }
@@ -1831,11 +1837,11 @@ func TestStyleDurationThreshold(t *testing.T) {
 	}
 
 	// 45s exceeds 30s threshold.
-	got := styleDuration("45s", time.Duration(0), styles)
+	got := styleDuration("45s", time.Duration(0), styles, 0)
 	assert.Equal(t, redNum.Render("45")+redUnit.Render("s"), got)
 
 	// 5s does not exceed threshold - uses default.
-	got = styleDuration("5s", time.Duration(0), styles)
+	got = styleDuration("5s", time.Duration(0), styles, 0)
 	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
 }
 
@@ -1905,7 +1911,7 @@ func TestStyleValueNilViaAny(t *testing.T) {
 
 	// Any("k", nil) -> formatValue returns "<nil>", kindDefault.
 	// styleValue should find the nil value style via lookupValueStyle.
-	got := styleValue("<nil>", nil, "k", kindDefault, styles, true, false)
+	got := styleValue("<nil>", nil, "k", kindDefault, styles, &defaultFieldFormats)
 	assert.NotEmpty(t, got, "nil value should be styled via Values[nil]")
 }
 
@@ -1919,12 +1925,12 @@ func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	styles.FieldString = new(strStyle)
 
 	// Bool field true -> styled via typed Values[true].
-	got := styleValue("true", true, "ok", kindBool, styles, true, false)
+	got := styleValue("true", true, "ok", kindBool, styles, &defaultFieldFormats)
 	assert.Equal(t, boolStyle.Render("true"), got)
 
 	// String field "true" -> NOT styled via Values (no string "true" key).
 	// Should fall through to FieldString styling.
-	got = styleValue("true", "true", "ok", kindString, styles, true, false)
+	got = styleValue("true", "true", "ok", kindString, styles, &defaultFieldFormats)
 	assert.Equal(t, strStyle.Render("true"), got)
 }
 
@@ -2026,7 +2032,7 @@ func TestStyleFractionWrongType(t *testing.T) {
 
 func TestStylePercentOutput(t *testing.T) {
 	styles := DefaultStyles()
-	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
+	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false, 0)
 
 	// Should contain ANSI escape codes (color applied).
 	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
@@ -2035,13 +2041,13 @@ func TestStylePercentOutput(t *testing.T) {
 func TestStylePercentNoGradient(t *testing.T) {
 	styles := DefaultStyles()
 	styles.PercentGradient = nil
-	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false, 0)
 	assert.Empty(t, got, "nil gradient should return empty")
 }
 
 func TestStylePercentWrongType(t *testing.T) {
 	styles := DefaultStyles()
-	got := stylePercent("50%", "not a percent", styles, false)
+	got := stylePercent("50%", "not a percent", styles, false, 0)
 	assert.Empty(t, got, "non-percent originalValue should return empty")
 }
 
@@ -2049,7 +2055,7 @@ func TestStylePercentSingleStop(t *testing.T) {
 	styles := DefaultStyles()
 	blue := colorful.Color{R: 0, G: 0, B: 1}
 	styles.PercentGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
-	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false, 0)
 
 	// Should use the single stop's color for any value.
 	assert.Equal(t, "\x1b[38;2;0;0;255m50%\x1b[m", got)
@@ -2063,8 +2069,7 @@ func TestStyleValuePercent(t *testing.T) {
 		"progress",
 		kindPercent,
 		styles,
-		true,
-		false,
+		&defaultFieldFormats,
 	)
 	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
 }
@@ -2075,8 +2080,8 @@ func TestStylePercentReverse(t *testing.T) {
 	// With reverse the position flips to 1 (green end).
 	// We verify that reverse=true yields a different color than reverse=false.
 	styles := DefaultStyles()
-	normal := stylePercent("0%", core.Percent{Value: 0}, styles, false)
-	reversed := stylePercent("0%", core.Percent{Value: 0}, styles, true)
+	normal := stylePercent("0%", core.Percent{Value: 0}, styles, false, 0)
+	reversed := stylePercent("0%", core.Percent{Value: 0}, styles, true, 0)
 
 	assert.NotEmpty(t, normal)
 	assert.NotEmpty(t, reversed)
@@ -2086,8 +2091,9 @@ func TestStylePercentReverse(t *testing.T) {
 func TestPercentReverseLogger(t *testing.T) {
 	var buf bytes.Buffer
 	l := New(NewOutput(&buf, ColorAlways))
-	percent.SetReverseGradient(true)
-	t.Cleanup(func() { percent.SetReverseGradient(false) })
+	f := DefaultFieldFormats()
+	f.PercentReverseGradient = true
+	l.SetFieldFormats(f)
 	l.Info().Percent("cpu", 0.0).Send()
 
 	got := buf.String()
@@ -2103,14 +2109,15 @@ func TestPercentReverseFieldTogglesLoggerDefault(t *testing.T) {
 
 	// Logger default = normal (reverse=false).
 	// percentValue{reverse:true} should flip to reverse=true → same as stylePercent(..., true).
-	normalAt0 := stylePercent("0%", core.Percent{Value: 0}, styles, false)
+	normalAt0 := stylePercent("0%", core.Percent{Value: 0}, styles, false, 0)
 	fieldFlippedAt0 := stylePercent(
 		"0%",
 		core.Percent{Value: 0, Reverse: true},
 		styles,
 		false,
+		0,
 	)
-	assert.Equal(t, stylePercent("0%", core.Percent{Value: 0}, styles, true), fieldFlippedAt0,
+	assert.Equal(t, stylePercent("0%", core.Percent{Value: 0}, styles, true, 0), fieldFlippedAt0,
 		"WithPercentReverseGradient on a normal logger should match logger reverse=true")
 	assert.NotEqual(t, normalAt0, fieldFlippedAt0,
 		"flipped field should differ from non-flipped")
@@ -2122,6 +2129,7 @@ func TestPercentReverseFieldTogglesLoggerDefault(t *testing.T) {
 		core.Percent{Value: 0, Reverse: true},
 		styles,
 		true,
+		0,
 	)
 	assert.Equal(t, normalAt0, fieldFlippedBack,
 		"WithPercentReverseGradient on a reversed logger should flip back to normal")
@@ -2136,8 +2144,7 @@ func TestStyleValuePercentNilGradient(t *testing.T) {
 		"progress",
 		kindPercent,
 		styles,
-		true,
-		false,
+		&defaultFieldFormats,
 	)
 	assert.Empty(t, got)
 }
@@ -2147,7 +2154,7 @@ func TestStylePercentBaseStyle(t *testing.T) {
 	bold := lipgloss.NewStyle().Bold(true)
 	styles.FieldPercent = new(bold)
 
-	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false)
+	got := stylePercent("75%", core.Percent{Value: 0.75}, styles, false, 0)
 	assert.Equal(t, "\x1b[1;38;2;185;255;0m75%\x1b[m", got)
 }
 
@@ -2157,13 +2164,19 @@ func TestStylePercentBaseStyleOnly(t *testing.T) {
 	styles.FieldPercent = new(bold)
 	styles.PercentGradient = nil // no gradient, base style only
 
-	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false)
+	got := stylePercent("50%", core.Percent{Value: 0.50}, styles, false, 0)
 	assert.Equal(t, bold.Render("50%"), got)
 }
 
 func TestStyleAnyElementPercent(t *testing.T) {
 	styles := DefaultStyles()
-	got := styleAnyElement("75%", core.Percent{Value: 0.75}, kindPercent, styles, true, false)
+	got := styleAnyElement(
+		"75%",
+		core.Percent{Value: 0.75},
+		kindPercent,
+		styles,
+		&defaultFieldFormats,
+	)
 	assert.Equal(t, "\x1b[38;2;185;255;0m75%\x1b[m", got)
 }
 
@@ -2341,14 +2354,12 @@ func TestFormatFieldsSortNone(t *testing.T) {
 }
 
 func TestDurationFormatFunc(t *testing.T) {
-	snap := duration.Save()
-	t.Cleanup(func() { duration.Restore(snap) })
-
-	duration.SetFormatFunc(func(d time.Duration) string {
+	f := DefaultFieldFormats()
+	f.DurationFormat = func(d time.Duration) string {
 		return "~" + d.Truncate(time.Second).String()
-	})
+	}
 
-	opts := formatFieldsOpts{noColor: true}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
 		{Key: "took", Value: 3456 * time.Millisecond},
@@ -2357,14 +2368,12 @@ func TestDurationFormatFunc(t *testing.T) {
 }
 
 func TestDurationFormatFuncAppliesSlice(t *testing.T) {
-	snap := duration.Save()
-	t.Cleanup(func() { duration.Restore(snap) })
-
-	duration.SetFormatFunc(func(d time.Duration) string {
+	f := DefaultFieldFormats()
+	f.DurationFormat = func(d time.Duration) string {
 		return d.Truncate(time.Second).String() + "!"
-	})
+	}
 
-	opts := formatFieldsOpts{noColor: true}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
 		{Key: "times", Value: []time.Duration{time.Second, 2 * time.Second}},
@@ -2373,20 +2382,14 @@ func TestDurationFormatFuncAppliesSlice(t *testing.T) {
 }
 
 func TestDurationFormatFuncFallbackForElapsed(t *testing.T) {
-	snap := duration.Save()
-	t.Cleanup(func() { duration.Restore(snap) })
-
-	duration.SetFormatFunc(func(d time.Duration) string {
+	f := DefaultFieldFormats()
+	f.DurationFormat = func(d time.Duration) string {
 		return "dur:" + d.Truncate(time.Second).String()
-	})
-	elapsed.SetMinimum(0)
-	elapsed.SetRound(0)
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	}
+	f.ElapsedMinimum = 0
+	f.ElapsedRound = 0
 
-	opts := formatFieldsOpts{noColor: true}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
 		{Key: "took", Value: core.ElapsedField(3456 * time.Millisecond)},
@@ -2395,21 +2398,14 @@ func TestDurationFormatFuncFallbackForElapsed(t *testing.T) {
 }
 
 func TestDurationFormatFuncElapsedSpecificOverrides(t *testing.T) {
-	// elapsed.SetFormatFunc takes priority over duration.SetFormatFunc for elapsed fields.
-	dsnap := duration.Save()
-	t.Cleanup(func() { duration.Restore(dsnap) })
+	// ElapsedFormat takes priority over DurationFormat for elapsed fields.
+	f := DefaultFieldFormats()
+	f.DurationFormat = func(d time.Duration) string { return "dur:" + d.String() }
+	f.ElapsedFormat = func(d time.Duration) string { return "ela:" + d.String() }
+	f.ElapsedMinimum = 0
+	f.ElapsedRound = 0
 
-	duration.SetFormatFunc(func(d time.Duration) string { return "dur:" + d.String() })
-	elapsed.SetFormatFunc(func(d time.Duration) string { return "ela:" + d.String() })
-	elapsed.SetMinimum(0)
-	elapsed.SetRound(0)
-	t.Cleanup(func() {
-		elapsed.SetFormatFunc(nil)
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
-
-	opts := formatFieldsOpts{noColor: true}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
 		{Key: "took", Value: core.ElapsedField(3 * time.Second)},
@@ -2418,11 +2414,7 @@ func TestDurationFormatFuncElapsedSpecificOverrides(t *testing.T) {
 }
 
 func TestDurationFormatFuncNilFallsBack(t *testing.T) {
-	// duration.FormatFunc is nil - plain Duration fields should use val.String().
-	snap := duration.Save()
-	t.Cleanup(func() { duration.Restore(snap) })
-	duration.SetFormatFunc(nil)
-
+	// DurationFormat is nil - plain Duration fields should use val.String().
 	opts := formatFieldsOpts{noColor: true}
 
 	got := formatFields([]Field{
@@ -2432,19 +2424,16 @@ func TestDurationFormatFuncNilFallsBack(t *testing.T) {
 }
 
 func TestElapsedFormatFunc(t *testing.T) {
-	elapsed.SetFormatFunc(func(d time.Duration) string {
+	f := DefaultFieldFormats()
+	f.ElapsedFormat = func(d time.Duration) string {
 		return d.Truncate(time.Second).String()
-	})
-	elapsed.SetMinimum(0)
-	elapsed.SetRound(0)
-	t.Cleanup(func() {
-		elapsed.SetFormatFunc(nil)
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	}
+	f.ElapsedMinimum = 0
+	f.ElapsedRound = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
+		formats: &f,
 	}
 
 	got := formatFields([]Field{
@@ -2454,13 +2443,14 @@ func TestElapsedFormatFunc(t *testing.T) {
 }
 
 func TestPercentFormatFunc(t *testing.T) {
-	percent.SetFormatFunc(func(v float64) string {
+	f := DefaultFieldFormats()
+	f.PercentFormat = func(v float64) string {
 		return strconv.FormatFloat(v, 'f', 0, 64) + " pct"
-	})
-	t.Cleanup(func() { percent.SetFormatFunc(nil) })
+	}
 
 	opts := formatFieldsOpts{
 		noColor: true,
+		formats: &f,
 	}
 
 	got := formatFields([]Field{
@@ -2560,16 +2550,14 @@ func TestLookupValueStyle(t *testing.T) {
 }
 
 func TestElapsedMinimum(t *testing.T) {
-	elapsed.SetMinimum(time.Second)
-	elapsed.SetRound(0)
-	elapsed.SetPrecision(0)
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	f := DefaultFieldFormats()
+	f.ElapsedMinimum = time.Second
+	f.ElapsedRound = 0
+	f.ElapsedPrecision = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
+		formats: &f,
 	}
 
 	got := formatFields([]Field{
@@ -2581,15 +2569,13 @@ func TestElapsedMinimum(t *testing.T) {
 }
 
 func TestElapsedMinimumZeroDisabled(t *testing.T) {
-	elapsed.SetMinimum(0)
-	elapsed.SetRound(0)
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	f := DefaultFieldFormats()
+	f.ElapsedMinimum = 0
+	f.ElapsedRound = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
+		formats: &f,
 	}
 
 	got := formatFields([]Field{
@@ -2600,16 +2586,14 @@ func TestElapsedMinimumZeroDisabled(t *testing.T) {
 }
 
 func TestElapsedRound(t *testing.T) {
-	elapsed.SetRound(time.Second)
-	elapsed.SetMinimum(0)
-	elapsed.SetPrecision(0)
-	t.Cleanup(func() {
-		elapsed.SetMinimum(time.Second)
-		elapsed.SetRound(time.Second)
-	})
+	f := DefaultFieldFormats()
+	f.ElapsedRound = time.Second
+	f.ElapsedMinimum = 0
+	f.ElapsedPrecision = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
+		formats: &f,
 	}
 
 	got := formatFields([]Field{
@@ -2688,7 +2672,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = new(elapsedNum)
 		styles.FieldElapsedUnit = new(elapsedUnit)
 
-		got := styleElapsed("5s", nil, styles)
+		got := styleElapsed("5s", nil, styles, 0)
 		want := elapsedNum.Render("5") + elapsedUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2700,7 +2684,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = nil
 		styles.FieldElapsedUnit = nil
 
-		got := styleElapsed("5s", nil, styles)
+		got := styleElapsed("5s", nil, styles, 0)
 		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2711,7 +2695,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = new(elapsedNum)
 		styles.FieldElapsedUnit = nil // falls back to FieldDurationUnit
 
-		got := styleElapsed("5s", nil, styles)
+		got := styleElapsed("5s", nil, styles, 0)
 		want := elapsedNum.Render("5") + styles.FieldDurationUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2722,7 +2706,7 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldElapsedNumber = nil // falls back to FieldDurationNumber
 		styles.FieldElapsedUnit = new(elapsedUnit)
 
-		got := styleElapsed("5s", nil, styles)
+		got := styleElapsed("5s", nil, styles, 0)
 		want := styles.FieldDurationNumber.Render("5") + elapsedUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
@@ -2734,57 +2718,50 @@ func TestStyleElapsed(t *testing.T) {
 		styles.FieldDurationNumber = nil
 		styles.FieldDurationUnit = nil
 
-		got := styleElapsed("5s", nil, styles)
+		got := styleElapsed("5s", nil, styles, 0)
 		assert.Empty(t, got)
 	})
 }
 
 func TestStyleElapsedGradient(t *testing.T) {
-	snap := elapsed.Save()
-	t.Cleanup(func() { elapsed.Restore(snap) })
-
 	t.Run("active_gradient", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 
 		val := core.ElapsedField(15 * time.Second) // t=0.5 → yellow
-		got := styleElapsed("15s", val, styles)
+		got := styleElapsed("15s", val, styles, 30*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;255;255;0m15s\x1b[m", got)
 	})
 
 	t.Run("gradient_at_zero", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 
 		val := core.ElapsedField(0)
-		got := styleElapsed("0s", val, styles)
+		got := styleElapsed("0s", val, styles, 30*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;0;255;0m0s\x1b[m", got)
 	})
 
 	t.Run("gradient_clamped_beyond_max", func(t *testing.T) {
-		elapsed.SetGradientMax(10 * time.Second)
 		styles := DefaultStyles()
 
 		val := core.ElapsedField(60 * time.Second) // way beyond max
-		got := styleElapsed("60s", val, styles)
+		got := styleElapsed("60s", val, styles, 10*time.Second)
 
 		// Should use the t=1.0 end color (red), not crash.
 		assert.Equal(t, "\x1b[38;2;255;0;0m60s\x1b[m", got)
 
 		// Should produce the same result as exactly at max.
 		atMax := core.ElapsedField(10 * time.Second)
-		gotAtMax := styleElapsed("10s", atMax, styles)
+		gotAtMax := styleElapsed("10s", atMax, styles, 10*time.Second)
 		assert.NotEmpty(t, gotAtMax)
 	})
 
 	t.Run("inactive_zero_max", func(t *testing.T) {
-		elapsed.SetGradientMax(0) // disabled
 		styles := DefaultStyles()
 
 		val := core.ElapsedField(5 * time.Second)
-		got := styleElapsed("5s", val, styles)
+		got := styleElapsed("5s", val, styles, 0) // disabled
 
 		// Should fall through to number/unit path (non-empty with default styles).
 		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
@@ -2792,12 +2769,11 @@ func TestStyleElapsedGradient(t *testing.T) {
 	})
 
 	t.Run("inactive_nil_stops", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 		styles.ElapsedGradient = nil
 
 		val := core.ElapsedField(5 * time.Second)
-		got := styleElapsed("5s", val, styles)
+		got := styleElapsed("5s", val, styles, 30*time.Second)
 
 		// Should fall through to number/unit path.
 		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
@@ -2805,11 +2781,10 @@ func TestStyleElapsedGradient(t *testing.T) {
 	})
 
 	t.Run("inactive_wrong_type", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 
 		// Pass a non-ElapsedField value - gradient path should not apply.
-		got := styleElapsed("5s", "not elapsed", styles)
+		got := styleElapsed("5s", "not elapsed", styles, 30*time.Second)
 
 		// Falls through to number/unit path.
 		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
@@ -2817,32 +2792,29 @@ func TestStyleElapsedGradient(t *testing.T) {
 	})
 
 	t.Run("single_stop", func(t *testing.T) {
-		elapsed.SetGradientMax(10 * time.Second)
 		styles := DefaultStyles()
 		blue := colorful.Color{R: 0, G: 0, B: 1}
 		styles.ElapsedGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
 
 		val := core.ElapsedField(5 * time.Second)
-		got := styleElapsed("5s", val, styles)
+		got := styleElapsed("5s", val, styles, 10*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;0;0;255m5s\x1b[m", got)
 	})
 
 	t.Run("different_positions_different_colors", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 
 		earlyVal := core.ElapsedField(1 * time.Second) // t≈0.03 → green
 		lateVal := core.ElapsedField(29 * time.Second) // t≈0.97 → red
 
-		early := styleElapsed("1s", earlyVal, styles)
-		late := styleElapsed("29s", lateVal, styles)
+		early := styleElapsed("1s", earlyVal, styles, 30*time.Second)
+		late := styleElapsed("29s", lateVal, styles, 30*time.Second)
 
 		assert.NotEqual(t, early, late, "different elapsed values should produce different colors")
 	})
 
 	t.Run("step_mode", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
 		styles := DefaultStyles()
 		styles.ElapsedGradientMode = style.GradientStep
 
@@ -2850,8 +2822,8 @@ func TestStyleElapsedGradient(t *testing.T) {
 		val1 := core.ElapsedField(1 * time.Second)  // t≈0.03 → first stop (green)
 		val2 := core.ElapsedField(10 * time.Second) // t≈0.33 → still first stop (green)
 
-		got1 := styleElapsed("1s", val1, styles)
-		got2 := styleElapsed("10s", val2, styles)
+		got1 := styleElapsed("1s", val1, styles, 30*time.Second)
+		got2 := styleElapsed("10s", val2, styles, 30*time.Second)
 
 		// Both should be styled (non-empty).
 		assert.NotEmpty(t, got1)
@@ -2859,7 +2831,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 		// Values crossing a step boundary should differ.
 		val3 := core.ElapsedField(20 * time.Second) // t≈0.67 → second stop (yellow)
-		got3 := styleElapsed("20s", val3, styles)
+		got3 := styleElapsed("20s", val3, styles, 30*time.Second)
 		assert.NotEqual(
 			t,
 			got1,
@@ -2869,8 +2841,6 @@ func TestStyleElapsedGradient(t *testing.T) {
 	})
 
 	t.Run("step_mode_vs_fade_mode", func(t *testing.T) {
-		elapsed.SetGradientMax(30 * time.Second)
-
 		fadeStyles := DefaultStyles()
 		fadeStyles.ElapsedGradientMode = style.GradientFade
 
@@ -2879,8 +2849,8 @@ func TestStyleElapsedGradient(t *testing.T) {
 
 		// At a midpoint, fade and step should produce different colors.
 		val := core.ElapsedField(10 * time.Second) // t≈0.33
-		fade := styleElapsed("10s", val, fadeStyles)
-		step := styleElapsed("10s", val, stepStyles)
+		fade := styleElapsed("10s", val, fadeStyles, 30*time.Second)
+		step := styleElapsed("10s", val, stepStyles, 30*time.Second)
 
 		assert.NotEqual(
 			t,

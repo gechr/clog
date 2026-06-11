@@ -1,4 +1,6 @@
-// Package hyperlink provides terminal hyperlink configuration for clog.
+// Package hyperlink provides terminal hyperlink rendering for clog.
+// All configuration is explicit: callers pass a [Config] (usually derived
+// from the logger's FieldFormats) - the package holds no global state.
 package hyperlink
 
 import (
@@ -7,31 +9,38 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync/atomic"
 )
 
-// columnFormat holds the URL format for file+line+column hyperlinks.
-// Use {path}, {line}, and {column} (or {col}) as placeholders. Nil means fall back to line format.
-var columnFormat atomic.Pointer[string]
+// Config holds resolved hyperlink rendering configuration.
+// The format strings use {path}, {line}, and {column} (or {col}) as
+// placeholders; an empty string means the documented fallback.
+type Config struct {
+	// Enabled controls whether hyperlinks are rendered at all. When false,
+	// hyperlink helpers return plain text without OSC 8 sequences.
+	Enabled bool
 
-// dirFormat holds the URL format for directory hyperlinks.
-// Falls back to pathFormat if nil.
-var dirFormat atomic.Pointer[string]
+	// ColumnFormat is the URL format for file+line+column hyperlinks.
+	// Falls back to LineFormat when empty.
+	ColumnFormat string
+	// DirFormat is the URL format for directory hyperlinks.
+	// Falls back to PathFormat when empty.
+	DirFormat string
+	// FileFormat is the URL format for file-only hyperlinks (no line
+	// number). Falls back to PathFormat when empty.
+	FileFormat string
+	// LineFormat is the URL format for file+line hyperlinks.
+	// Falls back to "file://{path}" when empty.
+	LineFormat string
+	// PathFormat is the generic fallback URL format for any path.
+	// Falls back to "file://{path}" when empty.
+	PathFormat string
+}
 
-// fileFormat holds the URL format for file-only hyperlinks (no line number).
-// Falls back to pathFormat if nil.
-var fileFormat atomic.Pointer[string]
-
-// lineFormat holds the URL format for file+line hyperlinks.
-// Use {path} and {line} as placeholders. Nil means use default (file://{path}).
-var lineFormat atomic.Pointer[string]
-
-// pathFormat is the generic fallback URL format for any path.
-// Use {path} as placeholder. Nil means use default (file://{path}).
-var pathFormat atomic.Pointer[string]
-
-// enabled controls whether hyperlinks are rendered at all.
-var enabled atomic.Bool
+// DefaultConfig returns the default hyperlink configuration: enabled, with
+// all format slots empty (plain file:// URLs).
+func DefaultConfig() Config {
+	return Config{Enabled: true}
+}
 
 // preset holds the per-slot URL format templates for a named editor preset.
 type preset struct {
@@ -93,113 +102,40 @@ var presets = map[string]preset{
 	},
 }
 
-// SetColumnFormat configures the URL format for file+line+column hyperlinks.
-//
-// Accepts a full format string or a preset name (e.g. "vscode"). Known presets:
-// cursor, kitty, macvim, textmate, vscode, vscode-insiders, vscodium.
-//
-// Use {path}, {line}, and {column} (or {col}) as placeholders.
-func SetColumnFormat(format string) {
-	columnFormat.Store(new(expandPreset(format, "column")))
-}
-
-// SetDirFormat configures the URL format for directory hyperlinks.
-//
-// Accepts a full format string or a preset name. Falls back to [SetPathFormat] if not set.
-func SetDirFormat(format string) {
-	dirFormat.Store(new(expandPreset(format, "path")))
-}
-
-// SetFileFormat configures the URL format for file-only hyperlinks
-// (used by Path and PathLink with line 0, when the path is not a directory).
-//
-// Accepts a full format string or a preset name. Falls back to [SetPathFormat] if not set.
-func SetFileFormat(format string) {
-	fileFormat.Store(new(expandPreset(format, "path")))
-}
-
-// SetLineFormat configures the URL format for file+line hyperlinks.
-//
-// Accepts a full format string or a preset name (e.g. "vscode").
-func SetLineFormat(format string) {
-	lineFormat.Store(new(expandPreset(format, "line")))
-}
-
-// SetPathFormat configures the generic fallback URL format for any path.
-//
-// Accepts a full format string or a preset name.
-func SetPathFormat(format string) {
-	pathFormat.Store(new(expandPreset(format, "path")))
-}
-
-// SetPreset configures all hyperlink format slots using a named preset.
-// This is a convenience wrapper around the individual Set*Format functions.
-//
-// Known presets: cursor, kitty, macvim, textmate, vscode, vscode-insiders, vscodium.
-func SetPreset(name string) error {
+// Preset returns the [Config] for a named editor preset.
+// Known presets: cursor, kitty, macvim, subl, textmate, vscode,
+// vscode-insiders, vscodium.
+func Preset(name string) (Config, error) {
 	p, ok := presets[strings.ToLower(strings.TrimSpace(name))]
 	if !ok {
-		return fmt.Errorf("clog: unknown hyperlink preset %q", name)
+		return Config{}, fmt.Errorf("clog: unknown hyperlink preset %q", name)
 	}
-	pathFormat.Store(new(p.path))
-	fileFormat.Store(new(p.path))
-	dirFormat.Store(new(p.path))
-	lineFormat.Store(new(p.line))
-	columnFormat.Store(new(p.column))
-	return nil
+	return Config{
+		Enabled:      true,
+		PathFormat:   p.path,
+		FileFormat:   p.path,
+		DirFormat:    p.path,
+		LineFormat:   p.line,
+		ColumnFormat: p.column,
+	}, nil
 }
 
-// SetEnabled enables or disables all hyperlink rendering.
-// When disabled, hyperlink functions return plain text without OSC 8 sequences.
-func SetEnabled(e bool) {
-	enabled.Store(e)
-}
-
-// Enabled reports whether hyperlinks are enabled.
-func Enabled() bool {
-	return enabled.Load()
-}
-
-// Snapshot captures the current state of all format pointers and the
-// enabled flag. Use [Restore] to reset the state in test cleanup.
-type Snapshot struct {
-	path, file, dir, line, column *string
-	enabled                       bool
-}
-
-// Save captures the current hyperlink configuration so it can be
-// restored later with [Restore]. Typical usage in tests:
-//
-//	snap := hyperlink.Save()
-//	t.Cleanup(func() { hyperlink.Restore(snap) })
-func Save() Snapshot {
-	return Snapshot{
-		path:    pathFormat.Load(),
-		file:    fileFormat.Load(),
-		dir:     dirFormat.Load(),
-		line:    lineFormat.Load(),
-		column:  columnFormat.Load(),
-		enabled: enabled.Load(),
+// Expand resolves a preset name to its format string for the given slot
+// ("path", "line", or "column"). Returns value unchanged if it is not a
+// known preset name, so full format strings pass through unmodified.
+func Expand(value, slot string) string {
+	p, ok := presets[strings.ToLower(strings.TrimSpace(value))]
+	if !ok {
+		return value
 	}
-}
-
-// Restore resets the hyperlink configuration to a previously saved [Snapshot].
-func Restore(s Snapshot) {
-	pathFormat.Store(s.path)
-	fileFormat.Store(s.file)
-	dirFormat.Store(s.dir)
-	lineFormat.Store(s.line)
-	columnFormat.Store(s.column)
-	enabled.Store(s.enabled)
-}
-
-// ClearFormats resets all format pointers to nil (unset).
-func ClearFormats() {
-	pathFormat.Store(nil)
-	fileFormat.Store(nil)
-	dirFormat.Store(nil)
-	lineFormat.Store(nil)
-	columnFormat.Store(nil)
+	switch slot {
+	case "line":
+		return p.line
+	case "column":
+		return p.column
+	default:
+		return p.path
+	}
 }
 
 // OSC8 wraps text in raw OSC 8 escape sequences unconditionally.
@@ -219,10 +155,11 @@ func PathDisplayText(path string, line, column int) string {
 	return path
 }
 
-// ResolvePathURL builds the full hyperlink URL for a file path.
-func ResolvePathURL(path string, line, column int) string {
+// ResolvePathURL builds the full hyperlink URL for a file path using the
+// given configuration.
+func (c Config) ResolvePathURL(path string, line, column int) string {
 	abs := absPath(path)
-	return buildPathURL(abs, line, column, isDirectory(abs))
+	return c.buildPathURL(abs, line, column, isDirectory(abs))
 }
 
 // absPath resolves a path to its absolute form.
@@ -239,25 +176,25 @@ func absPath(path string) string {
 }
 
 // buildPathURL constructs the hyperlink URL using the configured formats.
-func buildPathURL(absPath string, line, column int, isDir bool) string {
-	var fmtPtr *string
+func (c Config) buildPathURL(absPath string, line, column int, isDir bool) string {
+	var format string
 
 	switch {
 	case isDir:
-		fmtPtr = loadFormat(&dirFormat, &pathFormat)
+		format = firstFormat(c.DirFormat, c.PathFormat)
 	case column > 0:
-		fmtPtr = loadFormat(&columnFormat, &lineFormat)
+		format = firstFormat(c.ColumnFormat, c.LineFormat)
 	case line > 0:
-		fmtPtr = loadFormat(&lineFormat)
+		format = firstFormat(c.LineFormat)
 	default:
-		fmtPtr = loadFormat(&fileFormat, &pathFormat)
+		format = firstFormat(c.FileFormat, c.PathFormat)
 	}
 
-	if fmtPtr == nil {
+	if format == "" {
 		return "file://" + absPath
 	}
 
-	u := *fmtPtr
+	u := format
 	u = strings.ReplaceAll(u, "{path}", absPath)
 	u = strings.ReplaceAll(u, "{line}", strconv.Itoa(line))
 	u = strings.ReplaceAll(u, "{column}", strconv.Itoa(column))
@@ -271,30 +208,12 @@ func isDirectory(path string) bool {
 	return err == nil && info.IsDir()
 }
 
-// expandPreset resolves a preset name to its format string for the given slot
-// ("path", "line", or "column"). Returns value unchanged if it is not a known
-// preset name, so full format strings pass through unmodified.
-func expandPreset(value, slot string) string {
-	p, ok := presets[strings.ToLower(strings.TrimSpace(value))]
-	if !ok {
-		return value
-	}
-	switch slot {
-	case "line":
-		return p.line
-	case "column":
-		return p.column
-	default:
-		return p.path
-	}
-}
-
-// loadFormat returns the first non-nil, non-empty format from the given pointers.
-func loadFormat(ptrs ...*atomic.Pointer[string]) *string {
-	for _, p := range ptrs {
-		if f := p.Load(); f != nil && *f != "" {
+// firstFormat returns the first non-empty format string.
+func firstFormat(formats ...string) string {
+	for _, f := range formats {
+		if f != "" {
 			return f
 		}
 	}
-	return nil
+	return ""
 }

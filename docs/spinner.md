@@ -194,7 +194,7 @@ err := clog.Spinner("Processing batch").
 
 The elapsed field respects its position relative to other field methods - it appears between `batch` and `workers` in the output above because `.Elapsed("elapsed")` was called between `.Str()` and `.Int()`.
 
-The display format uses `SetElapsedPrecision` (default 0 decimal places), rounds to `SetElapsedRound` (default 1s), hides values below `SetElapsedMinimum` (default 1s), and can be fully overridden with `SetElapsedFormatFunc`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
+The display format uses the logger's [`FieldFormats`](configuration.md#field-formats): `ElapsedPrecision` (default 0 decimal places), rounding to `ElapsedRound` (default 1s), hiding values below `ElapsedMinimum` (default 1s), and can be fully overridden with `ElapsedFormat`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
 
 ## Per-Event Parts Override
 

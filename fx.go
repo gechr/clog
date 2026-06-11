@@ -99,6 +99,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	fieldOpts := formatFieldsOpts{
 		fieldSort:       l.fieldSort,
 		fieldStyleLevel: l.fieldStyleLevel,
+		formats:         l.loadFieldFormats(),
 		level:           b.Level,
 		noColor:         noColor,
 		quoteOpen:       l.quoteOpen,

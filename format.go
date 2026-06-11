@@ -10,10 +10,7 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/duration"
-	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/percent"
-	"github.com/gechr/clog/field/quantity"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/printer/json"
 	"github.com/gechr/clog/style"
@@ -23,6 +20,7 @@ import (
 type formatFieldsOpts struct {
 	fieldSort       Sort
 	fieldStyleLevel Level
+	formats         *FieldFormats // nil means DefaultFieldFormats
 	level           Level
 	noColor         bool
 	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
@@ -34,6 +32,15 @@ type formatFieldsOpts struct {
 	sliceSep        string
 	styles          *style.Config
 	timeFormat      string
+}
+
+// fieldFormats returns the field-format configuration to use, falling back
+// to the package default when opts carries none (zero-value opts in tests).
+func (opts formatFieldsOpts) fieldFormats() *FieldFormats {
+	if opts.formats != nil {
+		return opts.formats
+	}
+	return &defaultFieldFormats
 }
 
 // valueKind classifies a formatted value for type-based styling.
@@ -75,6 +82,8 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		})
 	}
 
+	fmts := opts.fieldFormats()
+
 	var buf strings.Builder
 
 	for i := range fields {
@@ -83,10 +92,10 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// Elapsed pre-processing: round, apply minimum threshold, update value.
 		if val, ok := f.Value.(core.ElapsedField); ok {
 			d := time.Duration(val)
-			if r := elapsed.Round(); r > 0 {
+			if r := fmts.ElapsedRound; r > 0 {
 				d = d.Round(r)
 			}
-			if d < elapsed.Minimum() {
+			if d < fmts.ElapsedMinimum {
 				continue
 			}
 			f.Value = core.ElapsedField(d)
@@ -111,17 +120,14 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			buf.WriteString(sep)
 		}
 
-		percentPrecision := percent.Precision()
-		elapsedPrecision := elapsed.Precision()
-
 		var valStr string
 		var kind valueKind
 		var customFormatted bool
 		switch val := f.Value.(type) {
 		case core.ElapsedField:
-			fn := elapsed.FormatFunc()
+			fn := fmts.ElapsedFormat
 			if fn == nil {
-				fn = duration.FormatFunc()
+				fn = fmts.DurationFormat
 			}
 			if fn != nil {
 				valStr = fn(time.Duration(val))
@@ -129,14 +135,19 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				customFormatted = true
 			}
 		case time.Duration:
-			if fn := duration.FormatFunc(); fn != nil {
+			if fn := fmts.DurationFormat; fn != nil {
 				valStr = fn(val)
 				kind = kindDuration
 				customFormatted = true
 			}
 		case core.Percent:
-			if fn := percent.FormatFunc(); fn != nil {
-				valStr = fn(val.Value / percent.EffectiveMaximum(val) * percentDisplayMax)
+			if fn := fmts.PercentFormat; fn != nil {
+				valStr = fn(
+					val.Value / percent.EffectiveMaximum(
+						val,
+						fmts.PercentMaximum,
+					) * percentDisplayMax,
+				)
 				kind = kindPercent
 				customFormatted = true
 			}
@@ -149,8 +160,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				opts.quoteOpen,
 				opts.quoteClose,
 				opts.timeFormat,
-				percentPrecision,
-				elapsedPrecision,
+				fmts,
 			)
 		}
 		if opts.quoteMode != QuoteNever &&
@@ -189,12 +199,11 @@ func formatValue(
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
 	timeFormat string,
-	percentPrecision int,
-	elapsedPrecision int,
+	fmts *FieldFormats,
 ) (string, valueKind) {
 	switch val := v.(type) {
 	case core.ElapsedField:
-		return formatElapsed(time.Duration(val), elapsedPrecision), kindElapsed
+		return formatElapsed(time.Duration(val), fmts.ElapsedPrecision), kindElapsed
 	case core.Fraction:
 		return strconv.Itoa(val.Current) + "/" + strconv.Itoa(val.Total), kindFraction
 	case error:
@@ -216,8 +225,11 @@ func formatValue(
 	case bool:
 		return strconv.FormatBool(val), kindBool
 	case core.Percent:
-		display := val.Value / percent.EffectiveMaximum(val) * percentDisplayMax
-		return strconv.FormatFloat(display, 'f', percentPrecision, 64) + "%", kindPercent
+		display := val.Value / percent.EffectiveMaximum(
+			val,
+			fmts.PercentMaximum,
+		) * percentDisplayMax
+		return strconv.FormatFloat(display, 'f', fmts.PercentPrecision, 64) + "%", kindPercent
 	case core.QuantityField:
 		return string(val), kindQuantity
 	case time.Duration:
@@ -228,9 +240,9 @@ func formatValue(
 		}
 		return val.Format(timeFormat), kindTime
 	case []time.Duration:
-		return formatDurationSlice(val, sf, nil), kindSlice
+		return formatDurationSlice(val, sf, nil, fmts), kindSlice
 	case []core.QuantityField:
-		return formatQuantitySlice(val, sf, nil, false), kindSlice
+		return formatQuantitySlice(val, sf, nil, fmts.QuantityUnitsIgnoreCase), kindSlice
 	case []string:
 		return formatStringSlice(val, sf, nil, quoteMode, quoteOpen, quoteClose), kindSlice
 	case []int:
@@ -250,11 +262,10 @@ func formatValue(
 			val,
 			sf,
 			nil,
-			false,
 			quoteMode,
 			quoteOpen,
 			quoteClose,
-			false,
+			fmts,
 		), kindSlice
 	default:
 		return fmt.Sprintf("%v", v), kindDefault
@@ -359,6 +370,8 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		return valStr
 	}
 
+	fmts := opts.fieldFormats()
+
 	// KeyStyles takes priority over per-element styling for slices.
 	if kind == kindSlice {
 		if style := opts.styles.Keys[f.Key]; style != nil {
@@ -368,23 +381,14 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 			f.Value,
 			opts.sliceFmt(),
 			opts.styles,
-			quantity.UnitsIgnoreCase(),
 			opts.quoteMode,
 			opts.quoteOpen,
 			opts.quoteClose,
-			percent.ReverseGradient(),
+			fmts,
 		)
 	}
 
-	if styled := styleValue(
-		valStr,
-		f.Value,
-		f.Key,
-		kind,
-		opts.styles,
-		quantity.UnitsIgnoreCase(),
-		percent.ReverseGradient(),
-	); styled != "" {
+	if styled := styleValue(valStr, f.Value, f.Key, kind, opts.styles, fmts); styled != "" {
 		return styled
 	}
 	return valStr
@@ -395,18 +399,17 @@ func styledSlice(
 	v any,
 	sf sliceFormat,
 	styles *style.Config,
-	ignoreCase bool,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
-	percentReverse bool,
+	fmts *FieldFormats,
 ) string {
 	switch vals := v.(type) {
 	case []bool:
 		return formatBoolSlice(vals, sf, styles)
 	case []time.Duration:
-		return formatDurationSlice(vals, sf, styles)
+		return formatDurationSlice(vals, sf, styles, fmts)
 	case []core.QuantityField:
-		return formatQuantitySlice(vals, sf, styles, ignoreCase)
+		return formatQuantitySlice(vals, sf, styles, fmts.QuantityUnitsIgnoreCase)
 	case []int:
 		return formatIntSlice(vals, sf, styles)
 	case []int64:
@@ -424,14 +427,13 @@ func styledSlice(
 			vals,
 			sf,
 			styles,
-			ignoreCase,
 			quoteMode,
 			quoteOpen,
 			quoteClose,
-			percentReverse,
+			fmts,
 		)
 	default:
-		s, _ := formatValue(v, sf, quoteMode, quoteOpen, quoteClose, "", 0, 1)
+		s, _ := formatValue(v, sf, quoteMode, quoteOpen, quoteClose, "", fmts)
 		return s
 	}
 }
@@ -445,8 +447,7 @@ func styleValue(
 	key string,
 	kind valueKind,
 	styles *style.Config,
-	ignoreCase bool,
-	percentReverse bool,
+	fmts *FieldFormats,
 ) string {
 	// Per-key styling takes priority.
 	if style := styles.Keys[key]; style != nil {
@@ -473,23 +474,45 @@ func styleValue(
 			return styles.FieldError.Render(valStr)
 		}
 	case kindDuration:
-		if styled := styleDuration(valStr, originalValue, styles); styled != "" {
+		if styled := styleDuration(
+			valStr,
+			originalValue,
+			styles,
+			fmts.DurationGradientMax,
+		); styled != "" {
 			return styled
 		}
 	case kindElapsed:
-		if styled := styleElapsed(valStr, originalValue, styles); styled != "" {
+		if styled := styleElapsed(
+			valStr,
+			originalValue,
+			styles,
+			fmts.ElapsedGradientMax,
+		); styled != "" {
 			return styled
 		}
 	case kindFraction:
-		if styled := styleFraction(valStr, originalValue, styles, percentReverse); styled != "" {
+		if styled := styleFraction(
+			valStr,
+			originalValue,
+			styles,
+			fmts.PercentReverseGradient,
+		); styled != "" {
 			return styled
 		}
 	case kindPercent:
-		if styled := stylePercent(valStr, originalValue, styles, percentReverse); styled != "" {
+		styled := stylePercent(
+			valStr,
+			originalValue,
+			styles,
+			fmts.PercentReverseGradient,
+			fmts.PercentMaximum,
+		)
+		if styled != "" {
 			return styled
 		}
 	case kindQuantity:
-		if styled := styleQuantity(valStr, styles, ignoreCase); styled != "" {
+		if styled := styleQuantity(valStr, styles, fmts.QuantityUnitsIgnoreCase); styled != "" {
 			return styled
 		}
 

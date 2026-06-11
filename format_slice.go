@@ -6,7 +6,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 )
@@ -80,9 +79,14 @@ func formatBoolSlice(vals []bool, sf sliceFormat, styles *style.Config) string {
 
 // formatDurationSlice formats a [time.Duration] slice.
 // When styles is non-nil, individual elements are styled via [styleDuration].
-func formatDurationSlice(vals []time.Duration, sf sliceFormat, styles *style.Config) string {
+func formatDurationSlice(
+	vals []time.Duration,
+	sf sliceFormat,
+	styles *style.Config,
+	fmts *FieldFormats,
+) string {
 	stringify := time.Duration.String
-	if fn := duration.FormatFunc(); fn != nil {
+	if fn := fmts.DurationFormat; fn != nil {
 		stringify = fn
 	}
 	return formatSlice(
@@ -94,7 +98,7 @@ func formatDurationSlice(vals []time.Duration, sf sliceFormat, styles *style.Con
 			if st == nil {
 				return ""
 			}
-			return styleDuration(s, v, st)
+			return styleDuration(s, v, st, fmts.DurationGradientMax)
 		},
 	)
 }
@@ -223,10 +227,9 @@ func formatAnySlice(
 	vals []any,
 	sf sliceFormat,
 	styles *style.Config,
-	ignoreCase bool,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
-	percentReverse bool,
+	fmts *FieldFormats,
 ) string {
 	var buf strings.Builder
 
@@ -247,7 +250,7 @@ func formatAnySlice(
 		}
 
 		if styles != nil {
-			styled := styleAnyElement(s, v, kind, styles, ignoreCase, percentReverse)
+			styled := styleAnyElement(s, v, kind, styles, fmts)
 			if styled != "" {
 				buf.WriteString(styled)
 
@@ -269,8 +272,7 @@ func styleAnyElement(
 	originalValue any,
 	kind valueKind,
 	styles *style.Config,
-	ignoreCase bool,
-	percentReverse bool,
+	fmts *FieldFormats,
 ) string {
 	// Per-value styling (typed key lookup - bool true ≠ string "true").
 	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
@@ -291,19 +293,31 @@ func styleAnyElement(
 			return styles.FieldError.Render(s)
 		}
 	case kindDuration:
-		if styled := styleDuration(s, originalValue, styles); styled != "" {
+		if styled := styleDuration(
+			s,
+			originalValue,
+			styles,
+			fmts.DurationGradientMax,
+		); styled != "" {
 			return styled
 		}
 	case kindElapsed:
-		if styled := styleElapsed(s, originalValue, styles); styled != "" {
+		if styled := styleElapsed(s, originalValue, styles, fmts.ElapsedGradientMax); styled != "" {
 			return styled
 		}
 	case kindPercent:
-		if styled := stylePercent(s, originalValue, styles, percentReverse); styled != "" {
+		styled := stylePercent(
+			s,
+			originalValue,
+			styles,
+			fmts.PercentReverseGradient,
+			fmts.PercentMaximum,
+		)
+		if styled != "" {
 			return styled
 		}
 	case kindQuantity:
-		if styled := styleQuantity(s, styles, ignoreCase); styled != "" {
+		if styled := styleQuantity(s, styles, fmts.QuantityUnitsIgnoreCase); styled != "" {
 			return styled
 		}
 

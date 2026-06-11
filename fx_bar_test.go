@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
@@ -230,8 +229,9 @@ func TestBarSmoothingModeOption(t *testing.T) {
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
-	elapsed.SetMinimum(0)
-	t.Cleanup(func() { elapsed.SetMinimum(time.Second) })
+	formats := DefaultFieldFormats()
+	formats.ElapsedMinimum = 0
+	logger.SetFieldFormats(formats)
 
 	_ = logger.Bar("downloading", 100).
 		Str("file", "release.tar.gz").

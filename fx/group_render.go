@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/pulse"
 	"github.com/gechr/clog/fx/shimmer"
@@ -628,7 +627,7 @@ func resolveDynamicFields(
 	}
 	current = max(current, 0)
 
-	pctMax := percent.Maximum()
+	pctMax := b.percentMaximum()
 	pct := float64(current) / float64(total) * pctMax
 	if pct > pctMax {
 		pct = pctMax
