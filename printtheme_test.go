@@ -29,7 +29,7 @@ func TestResolvePrintThemeUsesFallbackBackground(t *testing.T) {
 	// ColorAlways on a non-terminal writer: detection fails, so the pair's
 	// fallback background decides the theme.
 	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	l.setPrintPair(theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)))
+	l.SetTheme(theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)))
 
 	l.mu.Lock()
 	l.resolvePrintThemeLocked()
@@ -50,19 +50,19 @@ func TestResolvePrintThemeDeferredWhenColorsDisabled(t *testing.T) {
 	require.True(t, l.printThemeDirty)
 }
 
-func TestSetPrintThemeDisablesAutoDetection(t *testing.T) {
+func TestSetThemeSingleAppliesRegardlessOfBackground(t *testing.T) {
 	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	l.SetPrintTheme(theme.Monokai())
+	l.SetTheme(theme.Single(theme.Monokai()))
+	resolved(t, l)
 
 	require.False(t, l.printThemeDirty)
-	require.Nil(t, l.printThemePair)
 	require.Equal(t, style.NewJSON(theme.Monokai()), l.styles.JSON)
 }
 
-func TestSetPrintThemeNilRestoresAutoDetection(t *testing.T) {
+func TestSetThemeNilRestoresDefaultPair(t *testing.T) {
 	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	l.SetPrintTheme(theme.Monokai())
-	l.SetPrintTheme(nil)
+	l.SetTheme(theme.Single(theme.Monokai()))
+	l.SetTheme(nil)
 
 	require.True(t, l.printThemeDirty)
 	require.Nil(t, l.printThemePair)
@@ -70,7 +70,7 @@ func TestSetPrintThemeNilRestoresAutoDetection(t *testing.T) {
 
 func TestSetStylesNilReenablesAutoDetection(t *testing.T) {
 	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	l.SetPrintTheme(theme.Monokai())
+	l.SetTheme(theme.Single(theme.Monokai()))
 	l.SetStyles(nil)
 
 	require.True(t, l.printThemeDirty)
@@ -82,7 +82,7 @@ func TestSetStylesNilReenablesAutoDetection(t *testing.T) {
 func lightLogger(t *testing.T) *Logger {
 	t.Helper()
 	l := New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	l.setPrintPair(theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)))
+	l.SetTheme(theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)))
 	return l
 }
 
@@ -145,9 +145,12 @@ func TestLoadThemeFromEnvExplicit(t *testing.T) {
 	t.Setenv("CLOG_THEME_DARK", "dark")
 
 	loadThemeFromEnv()
+	resolved(t, Default)
 
+	// The explicit theme is wrapped via theme.Single, so both backgrounds
+	// render Monokai.
 	require.False(t, Default.printThemeDirty)
-	require.Nil(t, Default.printThemePair)
+	require.NotNil(t, Default.printThemePair)
 	require.Equal(t, style.NewJSON(theme.Monokai()), Default.styles.JSON)
 }
 
@@ -176,7 +179,8 @@ func TestLoadThemeFromEnvUnsetLeavesDefault(t *testing.T) {
 	resetThemePrefix(t)
 
 	Default = New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	Default.SetPrintTheme(theme.Monokai())
+	Default.SetTheme(theme.Single(theme.Monokai()))
+	resolved(t, Default)
 
 	loadThemeFromEnv()
 

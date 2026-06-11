@@ -85,16 +85,22 @@ See [HCL](hcl.md) for styling options.
 
 ## Themes
 
-Printer styles default to terminal-aware light/dark selection: on the first colored write the logger detects the background of its own output and picks a matching theme (dark mode preserves the original Dracula-based colors). The terminal is queried at most once, and never for non-terminal or color-disabled outputs, which use the dark theme. Switch all four format styles at once with `SetPrintTheme`:
+Printer styles default to terminal-aware light/dark selection: on the first colored write the logger detects the background of its own output and picks a matching theme (dark mode preserves the original Dracula-based colors). The terminal is queried at most once, and never for non-terminal or color-disabled outputs, which use the dark theme. Switch all four format styles at once with `SetTheme`, which takes a light/dark pair:
 
 ```go
-clog.SetPrintTheme(theme.Light())
+clog.SetTheme(theme.MustPair(theme.CatppuccinLatte(), theme.Dracula()))
+```
+
+For a fixed theme regardless of the terminal background, wrap it with `theme.Single`:
+
+```go
+clog.SetTheme(theme.Single(theme.Monokai()))
 ```
 
 Per-token overrides still work after setting a theme:
 
 ```go
-clog.SetPrintTheme(theme.Monokai())
+clog.SetTheme(theme.Single(theme.Monokai()))
 s := clog.DefaultStyles()
 s.JSON.Key = new(lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000")))
 clog.SetStyles(s)
@@ -106,18 +112,11 @@ To build styles from a theme directly:
 custom := style.NewJSON(theme.Monokai())
 ```
 
-To require an explicit light/dark pair:
-
-```go
-themes := theme.MustPair(theme.CatppuccinLatte(), theme.Dracula())
-clog.SetPrintTheme(themes.Auto())
-```
-
 ### Environment variables
 
 The default logger reads its theme from the environment (highest precedence first):
 
-1. `CLOG_THEME` - an explicit theme, applied directly with no background detection:
+1. `CLOG_THEME` - an explicit theme, applied on both backgrounds (via `theme.Single`):
 
    ```sh
    CLOG_THEME=monokai
@@ -139,7 +138,7 @@ themes, err := theme.PairFromEnv()
 if err != nil {
     return err
 }
-clog.SetPrintTheme(themes.Auto())
+clog.SetTheme(themes)
 ```
 
 Available themes:

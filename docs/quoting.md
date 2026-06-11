@@ -28,10 +28,10 @@ clog.Info().Str("msg", "hello world").Msg("test")
 
 ## Custom Quote Character
 
-Use a different character for both sides:
+Use a different character for both sides by passing the same rune twice:
 
 ```go
-clog.SetQuoteChar('\'')
+clog.SetQuoteChars('\'', '\'')
 clog.Info().Str("msg", "hello world").Msg("test")
 // INF ℹ️ test msg='hello world'
 ```

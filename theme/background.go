@@ -107,6 +107,13 @@ func MustPair(light, dark *Theme, opts ...PairOption) *Pair {
 	return p
 }
 
+// Single returns a Pair that renders t on both light and dark backgrounds,
+// bypassing the light/dark validation that [NewPair] performs. Background
+// detection still runs but has no visible effect.
+func Single(t *Theme) *Pair {
+	return &Pair{Light: t, Dark: t, Fallback: BackgroundDark}
+}
+
 // Auto selects from the pair using the terminal background.
 // Defaults to os.Stdout if no files are provided.
 // All provided files must report the same background, otherwise the pair fallback is used.

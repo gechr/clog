@@ -1321,7 +1321,7 @@ func TestQuoteChar(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteChar('\'')
+	l.SetQuoteChars('\'', '\'')
 	l.Info().Str("msg", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test msg='hello world'\n", buf.String())
@@ -1331,7 +1331,7 @@ func TestQuoteCharInStringSlice(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteChar('\'')
+	l.SetQuoteChars('\'', '\'')
 	l.Info().Strs("args", []string{"hello world", "ok"}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test args=['hello world', ok]\n", buf.String())
@@ -1341,7 +1341,7 @@ func TestQuoteCharInAnySlice(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetQuoteChar('\'')
+	l.SetQuoteChars('\'', '\'')
 	l.Info().Anys("vals", []any{"hello world", 1}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test vals=['hello world', 1]\n", buf.String())
@@ -1355,17 +1355,6 @@ func TestQuoteCharDefaultUsesStrconvQuote(t *testing.T) {
 	l.Info().Str("msg", "hello world").Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test msg=\"hello world\"\n", buf.String())
-}
-
-func TestPackageLevelSetQuoteChar(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = NewWriter(io.Discard)
-	SetQuoteChar('\'')
-
-	assert.Equal(t, '\'', Default.quoteOpen)
-	assert.Equal(t, '\'', Default.quoteClose)
 }
 
 func TestQuoteChars(t *testing.T) {
@@ -1403,7 +1392,7 @@ func TestSliceBracket(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	l.SetSliceBracket('|')
+	l.SetSliceBrackets('|', '|')
 	l.Info().Ints("vals", []int{1, 2, 3}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test vals=|1, 2, 3|\n", buf.String())
@@ -1427,17 +1416,6 @@ func TestSliceSeparator(t *testing.T) {
 	l.Info().Ints("vals", []int{1, 2, 3}).Msg("test")
 
 	assert.Equal(t, "INF ℹ️ test vals=[1 2 3]\n", buf.String())
-}
-
-func TestPackageLevelSetSliceBracket(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-
-	Default = NewWriter(io.Discard)
-	SetSliceBracket('|')
-
-	assert.Equal(t, '|', Default.sliceOpen)
-	assert.Equal(t, '|', Default.sliceClose)
 }
 
 func TestPackageLevelSetSliceBrackets(t *testing.T) {

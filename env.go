@@ -137,23 +137,20 @@ func loadHyperlinkFormatsFromEnv() {
 
 // loadThemeFromEnv applies printer-theme configuration to the [Default] logger.
 //
-//	<PREFIX>_THEME              an explicit theme (e.g. "monokai"); takes
-//	                            precedence and disables background detection.
+//	<PREFIX>_THEME              an explicit theme (e.g. "monokai") applied
+//	                            on both backgrounds via [theme.Single].
 //	<PREFIX>_THEME_LIGHT/_DARK  a light/dark pair selected by the terminal
 //	                            background on first write.
 //
 // When no theme variables are set the existing theme is left untouched.
 func loadThemeFromEnv() {
-	explicit, pair, err := theme.FromEnv()
+	pair, err := theme.FromEnv()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "clog: %v\n", err)
 		return
 	}
-	switch {
-	case explicit != nil:
-		Default.SetPrintTheme(explicit)
-	case pair != nil:
-		Default.setPrintPair(pair)
+	if pair != nil {
+		Default.SetTheme(pair)
 	}
 }
 

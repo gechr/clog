@@ -53,33 +53,28 @@ func PairFromEnv(opts ...PairOption) (*Pair, error) {
 // FromEnv resolves theme configuration from the environment.
 //
 // Precedence:
-//  1. <PREFIX>_THEME selects an explicit theme, applied without background
-//     detection.
+//  1. <PREFIX>_THEME selects an explicit theme, wrapped via [Single] so the
+//     same theme applies regardless of the terminal background.
 //  2. <PREFIX>_THEME_LIGHT and <PREFIX>_THEME_DARK select a light/dark pair.
 //
-// It returns (theme, nil, nil) for case 1, (nil, pair, nil) for case 2, and
-// (nil, nil, nil) when no theme variables are set. A set-but-invalid value
-// returns an error.
-func FromEnv(opts ...PairOption) (*Theme, *Pair, error) {
+// It returns (nil, nil) when no theme variables are set. A set-but-invalid
+// value returns an error.
+func FromEnv(opts ...PairOption) (*Pair, error) {
 	if name, env := lookupEnv(envTheme); strings.TrimSpace(name) != "" {
 		var t Theme
 		if err := t.UnmarshalText([]byte(strings.TrimSpace(name))); err != nil {
-			return nil, nil, fmt.Errorf("%s: %w", env, err)
+			return nil, fmt.Errorf("%s: %w", env, err)
 		}
-		return &t, nil, nil
+		return Single(&t), nil
 	}
 
 	lightName, _ := lookupEnv(envThemeLight)
 	darkName, _ := lookupEnv(envThemeDark)
 	if strings.TrimSpace(lightName) == "" && strings.TrimSpace(darkName) == "" {
-		return nil, nil, nil
+		return nil, nil //nolint:nilnil // no theme configured is a valid absence, not an error
 	}
 
-	pair, err := PairFromEnv(opts...)
-	if err != nil {
-		return nil, nil, err
-	}
-	return nil, pair, nil
+	return PairFromEnv(opts...)
 }
 
 func lookupEnv(suffix string) (string, string) {

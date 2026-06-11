@@ -688,12 +688,12 @@ func main() {
 
 	// --- Custom Quote Character ---
 	header("Custom Quote Character")
-	clog.SetQuoteChar('\'')
+	clog.SetQuoteChars('\'', '\'')
 	clog.Info().
 		Str("msg", "hello world").
 		Strs("tags", []string{"has space", "ok"}).
 		Msg("Single quotes instead of double")
-	clog.SetQuoteChar(0) // reset to default
+	clog.SetQuoteChars(0, 0) // reset to default
 
 	// --- Asymmetric Quote Characters ---
 	header("Asymmetric Quote Characters")

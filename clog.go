@@ -638,21 +638,10 @@ func (l *Logger) SetSymbols(symbols LabelMap) {
 	l.symbols = merged
 }
 
-// SetQuoteChar sets the character used to quote field values that contain
-// spaces or special characters. The default (zero value) uses Go-style
-// double-quoted strings via [strconv.Quote]. Setting a non-zero rune wraps
-// values with that character on both sides (e.g. '\").
-//
-// For asymmetric quotes (e.g. '[' and ']'), use [Logger.SetQuoteChars].
-func (l *Logger) SetQuoteChar(char rune) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.quoteOpen = char
-	l.quoteClose = char
-}
-
-// SetQuoteChars sets separate opening and closing characters for quoting
-// field values (e.g. '[' and ']', or '«' and '»').
+// SetQuoteChars sets the opening and closing characters used to quote field
+// values that contain spaces or special characters (e.g. '[' and ']', or
+// '«' and '»'). Pass the same rune twice for symmetric quoting. The default
+// (zero values) uses Go-style double-quoted strings via [strconv.Quote].
 func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -684,16 +673,8 @@ func (l *Logger) SetSeparatorText(sep string) {
 	l.separatorText = sep
 }
 
-// SetSliceBracket sets the same opening and closing character for slice field values.
-// Defaults to '[' and ']'.
-func (l *Logger) SetSliceBracket(char rune) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.sliceOpen = char
-	l.sliceClose = char
-}
-
-// SetSliceBrackets sets separate opening and closing characters for slice field values.
+// SetSliceBrackets sets the opening and closing characters for slice field
+// values. Pass the same rune twice for symmetric brackets.
 // Defaults to '[' and ']'.
 func (l *Logger) SetSliceBrackets(openChar, closeChar rune) {
 	l.mu.Lock()
@@ -728,28 +709,15 @@ func (l *Logger) SetSpinnerStyle(s spinner.Style) {
 	l.spinnerStyle = new(s)
 }
 
-// SetPrintTheme rebuilds all printer styles (JSON, YAML, TOML, HCL) from the
-// given theme, disabling automatic light/dark detection. Passing nil restores
-// the default behavior of selecting a theme from the terminal background.
-// Per-token overrides via [SetStyles] still apply after this call.
-func (l *Logger) SetPrintTheme(t *theme.Theme) {
+// SetTheme sets the light/dark theme pair used for printer styles
+// (JSON, YAML, TOML, HCL). The side matching the detected terminal
+// background is applied lazily on the next write. Pass nil to restore the
+// built-in default pair. For a fixed theme regardless of background, use
+// [theme.Single]. Per-token overrides via [SetStyles] still apply.
+func (l *Logger) SetTheme(p *theme.Pair) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.printThemePair = nil
-	if t == nil {
-		l.printThemeDirty = true
-		return
-	}
-	l.printThemeDirty = false
-	l.applyPrintThemeLocked(t)
-}
-
-// setPrintPair selects the light/dark pair used for automatic detection and
-// defers rebuilding the printer styles until the next write.
-func (l *Logger) setPrintPair(pair *theme.Pair) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.printThemePair = pair
+	l.printThemePair = p
 	l.printThemeDirty = true
 }
 

@@ -78,7 +78,7 @@ Slice fields render as `[a, b, c]` by default. The brackets and separator are co
 clog.SetSliceSeparator(" ")        // [a b c]
 clog.SetSliceBrackets('(', ')')    // (a, b, c)
 clog.SetSliceBrackets('«', '»')    // «a, b, c»
-clog.SetSliceBracket('|')          // |a, b, c| - same char for open and close
+clog.SetSliceBrackets('|', '|')    // |a, b, c| - same char for open and close
 ```
 
 ## Duration Formatting

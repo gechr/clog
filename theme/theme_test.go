@@ -117,11 +117,12 @@ func TestFromEnvExplicitTakesPrecedence(t *testing.T) {
 	t.Setenv("CLOG_THEME_LIGHT", "light")
 	t.Setenv("CLOG_THEME_DARK", "dark")
 
-	explicit, pair, err := theme.FromEnv()
+	pair, err := theme.FromEnv()
 	require.NoError(t, err)
-	require.Nil(t, pair)
-	require.NotNil(t, explicit)
-	require.Equal(t, theme.Monokai().Name(), explicit.Name())
+	require.NotNil(t, pair)
+	// The explicit theme wins and is applied on both backgrounds.
+	require.Equal(t, theme.Monokai().Name(), pair.Light.Name())
+	require.Equal(t, theme.Monokai().Name(), pair.Dark.Name())
 }
 
 func TestFromEnvPair(t *testing.T) {
@@ -129,9 +130,8 @@ func TestFromEnvPair(t *testing.T) {
 	t.Setenv("CLOG_THEME_LIGHT", "catppuccin-latte")
 	t.Setenv("CLOG_THEME_DARK", "dracula")
 
-	explicit, pair, err := theme.FromEnv()
+	pair, err := theme.FromEnv()
 	require.NoError(t, err)
-	require.Nil(t, explicit)
 	require.NotNil(t, pair)
 	require.Equal(t, theme.CatppuccinLatte().Name(), pair.Light.Name())
 	require.Equal(t, theme.Dracula().Name(), pair.Dark.Name())
@@ -140,9 +140,8 @@ func TestFromEnvPair(t *testing.T) {
 func TestFromEnvUnset(t *testing.T) {
 	resetThemeEnvPrefix(t)
 
-	explicit, pair, err := theme.FromEnv()
+	pair, err := theme.FromEnv()
 	require.NoError(t, err)
-	require.Nil(t, explicit)
 	require.Nil(t, pair)
 }
 
@@ -150,7 +149,7 @@ func TestFromEnvExplicitInvalid(t *testing.T) {
 	resetThemeEnvPrefix(t)
 	t.Setenv("CLOG_THEME", "bogus")
 
-	_, _, err := theme.FromEnv()
+	_, err := theme.FromEnv()
 	require.EqualError(t, err, "CLOG_THEME: "+unknownThemeError("bogus"))
 }
 
@@ -160,10 +159,10 @@ func TestFromEnvCustomPrefix(t *testing.T) {
 	t.Setenv("MYAPP_THEME", "monokai")
 	t.Setenv("CLOG_THEME", "light")
 
-	explicit, _, err := theme.FromEnv()
+	pair, err := theme.FromEnv()
 	require.NoError(t, err)
-	require.NotNil(t, explicit)
-	require.Equal(t, theme.Monokai().Name(), explicit.Name())
+	require.NotNil(t, pair)
+	require.Equal(t, theme.Monokai().Name(), pair.Light.Name())
 }
 
 func TestThemeUnmarshalText(t *testing.T) {

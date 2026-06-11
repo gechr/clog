@@ -148,8 +148,8 @@ func SetOutputWriter(w io.Writer) { Default.SetOutputWriter(w) }
 // SetParts sets the log-line part order on the [Default] logger.
 func SetParts(order ...Part) { Default.SetParts(order...) }
 
-// SetPrintTheme rebuilds all printer styles from the given theme on the [Default] logger.
-func SetPrintTheme(t *theme.Theme) { Default.SetPrintTheme(t) }
+// SetTheme sets the printer theme pair on the [Default] logger.
+func SetTheme(p *theme.Pair) { Default.SetTheme(p) }
 
 // SetPrintIndent sets the printer indentation string on the [Default] logger.
 func SetPrintIndent(indent string) { Default.SetPrintIndent(indent) }
@@ -169,9 +169,6 @@ func SetYAMLIndentSequence(indent bool) { Default.SetYAMLIndentSequence(indent) 
 // SetSymbols sets the level symbols on the [Default] logger.
 func SetSymbols(symbols LabelMap) { Default.SetSymbols(symbols) }
 
-// SetQuoteChar sets the quote character on the [Default] logger.
-func SetQuoteChar(char rune) { Default.SetQuoteChar(char) }
-
 // SetQuoteChars sets the opening and closing quote characters on the [Default] logger.
 func SetQuoteChars(openChar, closeChar rune) { Default.SetQuoteChars(openChar, closeChar) }
 
@@ -183,9 +180,6 @@ func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
 
 // SetSeparatorText sets the key/value separator on the [Default] logger.
 func SetSeparatorText(sep string) { Default.SetSeparatorText(sep) }
-
-// SetSliceBracket sets the same slice open/close bracket character on the [Default] logger.
-func SetSliceBracket(char rune) { Default.SetSliceBracket(char) }
 
 // SetSliceBrackets sets separate slice open/close bracket characters on the [Default] logger.
 func SetSliceBrackets(openChar, closeChar rune) { Default.SetSliceBrackets(openChar, closeChar) }
