@@ -252,17 +252,17 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	g := ge.group
 
 	update := &Update{
-		MsgText:           b.Message,
-		MsgPtr:            t.msgPtr,
-		FieldsPtr:         t.fieldsPtr,
-		Base:              b.Fields,
-		LevelPtr:          t.levelPtr,
-		SymbolOverridePtr: &t.symbolOverride,
-		SymbolPtr:         t.symbolPtr,
+		msgText:           b.Message,
+		msgPtr:            t.msgPtr,
+		fieldsPtr:         t.fieldsPtr,
+		base:              b.Fields,
+		levelPtr:          t.levelPtr,
+		symbolOverridePtr: &t.symbolOverride,
+		symbolPtr:         t.symbolPtr,
 	}
 	if b.Mode == AnimationBar {
-		update.ProgressPtr = b.BarProgressPtr
-		update.TotalPtr = b.BarTotalPtr
+		update.progressPtr = b.BarProgressPtr
+		update.totalPtr = b.BarTotalPtr
 	}
 	update.InitSelf(update)
 

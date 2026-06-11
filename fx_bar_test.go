@@ -5,7 +5,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -50,132 +49,22 @@ func TestBarBuilderTotalClamp(t *testing.T) {
 	assert.Equal(t, int64(1), b2.BarTotalPtr.Load())
 }
 
-func TestUpdateSetProgress(t *testing.T) {
-	var pAtom atomic.Int64
-	var tAtom atomic.Int64
-	tAtom.Store(100)
-
-	u := &fx.Update{
-		ProgressPtr: &pAtom,
-		TotalPtr:    &tAtom,
-	}
-	u.InitSelf(u)
-
-	result := u.SetProgress(42)
-	assert.Equal(t, u, result) // fluent return
-	assert.Equal(t, int64(42), pAtom.Load())
-
-	result = u.SetTotal(200)
-	assert.Equal(t, u, result)
-	assert.Equal(t, int64(200), tAtom.Load())
-}
-
-func TestUpdateSetProgressClamp(t *testing.T) {
-	var pAtom atomic.Int64
-	var tAtom atomic.Int64
-	tAtom.Store(100)
-
-	u := &fx.Update{ProgressPtr: &pAtom, TotalPtr: &tAtom}
-	u.InitSelf(u)
-
-	// Clamp above total
-	u.SetProgress(150)
-	assert.Equal(t, int64(100), pAtom.Load())
-
-	// Clamp below zero
-	u.SetProgress(-10)
-	assert.Equal(t, int64(0), pAtom.Load())
-
-	// Normal value passes through
-	u.SetProgress(50)
-	assert.Equal(t, int64(50), pAtom.Load())
-}
-
-func TestUpdateSetProgressNilNoOp(t *testing.T) {
-	// Non-bar Update has nil pointers - should be a no-op.
-	u := &fx.Update{}
-	u.InitSelf(u)
-
-	assert.NotPanics(t, func() {
-		u.SetProgress(50)
-		u.SetTotal(100)
-	})
-}
-
-func TestUpdateSetTotalClamp(t *testing.T) {
-	var pAtom atomic.Int64
-	var tAtom atomic.Int64
-	tAtom.Store(100)
-
-	u := &fx.Update{ProgressPtr: &pAtom, TotalPtr: &tAtom}
-	u.InitSelf(u)
-
-	u.SetTotal(0)
-	assert.Equal(t, int64(1), tAtom.Load())
-
-	u.SetTotal(-10)
-	assert.Equal(t, int64(1), tAtom.Load())
-}
-
-func TestUpdateSetSymbol(t *testing.T) {
-	var sym atomic.Pointer[string]
-	initial := "⏳"
-	sym.Store(&initial)
-
-	u := &fx.Update{SymbolPtr: &sym}
-	u.InitSelf(u)
-
-	result := u.SetSymbol("📦")
-	assert.Equal(t, u, result) // fluent return
-	assert.Equal(t, "📦", *sym.Load())
-}
-
-func TestUpdateSetLevel(t *testing.T) {
-	var lvl atomic.Int64
-	lvl.Store(int64(LevelInfo))
-
-	u := &fx.Update{LevelPtr: &lvl}
-	u.InitSelf(u)
-
-	result := u.SetLevel(LevelError)
-	assert.Equal(t, u, result) // fluent return
-	assert.Equal(t, int64(LevelError), lvl.Load())
-}
-
-func TestUpdateSetLevelNilNoOp(t *testing.T) {
-	u := &fx.Update{}
-	u.InitSelf(u)
-
-	assert.NotPanics(t, func() {
-		u.SetLevel(LevelError)
-	})
-}
-
-func TestUpdateSetSymbolNilNoOp(t *testing.T) {
-	u := &fx.Update{}
-	u.InitSelf(u)
-
-	assert.NotPanics(t, func() {
-		u.SetSymbol("📦")
-	})
-}
-
 func TestBarProgressSharedWithUpdate(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()
 	Default = NewWriter(io.Discard)
 
-	var capturedProgress int64
+	var capturedProgress int
 	_ = Bar("Downloading", 100).
 		After(10*time.Millisecond). // suppress animation display
 		Progress(context.Background(), func(_ context.Context, p *fx.Update) error {
 			p.SetProgress(75)
-			capturedProgress = p.ProgressPtr.Load()
+			capturedProgress = p.Progress()
 			return nil
 		}).
 		Silent()
 
-	assert.Equal(t, int64(75), capturedProgress)
+	assert.Equal(t, 75, capturedProgress)
 }
 
 func TestBarWait(t *testing.T) {
@@ -301,27 +190,6 @@ func TestBarConfigWidgetLeft(_ *testing.T) {
 			return nil
 		}).
 		Silent()
-}
-
-func TestAddTotal(t *testing.T) {
-	var tAtom atomic.Int64
-	tAtom.Store(100)
-
-	u := &fx.Update{TotalPtr: &tAtom}
-	u.InitSelf(u)
-
-	// Add positive delta
-	result := u.AddTotal(50)
-	assert.Equal(t, u, result) // fluent return
-	assert.Equal(t, int64(150), tAtom.Load())
-
-	// Add negative delta
-	u.AddTotal(-30)
-	assert.Equal(t, int64(120), tAtom.Load())
-
-	// Clamp to minimum 1
-	u.AddTotal(-200)
-	assert.Equal(t, int64(1), tAtom.Load())
 }
 
 func TestAddTotalNilNoOp(t *testing.T) {

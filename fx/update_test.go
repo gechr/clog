@@ -1,0 +1,167 @@
+package fx
+
+import (
+	"sync/atomic"
+	"testing"
+
+	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/level"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestUpdateSetProgress(t *testing.T) {
+	var pAtom atomic.Int64
+	var tAtom atomic.Int64
+	tAtom.Store(100)
+
+	u := &Update{
+		progressPtr: &pAtom,
+		totalPtr:    &tAtom,
+	}
+	u.InitSelf(u)
+
+	result := u.SetProgress(42)
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, int64(42), pAtom.Load())
+	assert.Equal(t, 42, u.Progress())
+
+	result = u.SetTotal(200)
+	assert.Equal(t, u, result)
+	assert.Equal(t, int64(200), tAtom.Load())
+}
+
+func TestUpdateSetProgressClamp(t *testing.T) {
+	var pAtom atomic.Int64
+	var tAtom atomic.Int64
+	tAtom.Store(100)
+
+	u := &Update{progressPtr: &pAtom, totalPtr: &tAtom}
+	u.InitSelf(u)
+
+	// Clamp above total
+	u.SetProgress(150)
+	assert.Equal(t, int64(100), pAtom.Load())
+
+	// Clamp below zero
+	u.SetProgress(-10)
+	assert.Equal(t, int64(0), pAtom.Load())
+
+	// Normal value passes through
+	u.SetProgress(50)
+	assert.Equal(t, int64(50), pAtom.Load())
+}
+
+func TestUpdateSetProgressNilNoOp(t *testing.T) {
+	// Non-bar Update has nil pointers - should be a no-op.
+	u := &Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.SetProgress(50)
+		u.SetTotal(100)
+	})
+	assert.Equal(t, 0, u.Progress())
+}
+
+func TestUpdateSetTotalClamp(t *testing.T) {
+	var pAtom atomic.Int64
+	var tAtom atomic.Int64
+	tAtom.Store(100)
+
+	u := &Update{progressPtr: &pAtom, totalPtr: &tAtom}
+	u.InitSelf(u)
+
+	u.SetTotal(0)
+	assert.Equal(t, int64(1), tAtom.Load())
+
+	u.SetTotal(-10)
+	assert.Equal(t, int64(1), tAtom.Load())
+}
+
+func TestUpdateSetSymbol(t *testing.T) {
+	var sym atomic.Pointer[string]
+	initial := "⏳"
+	sym.Store(&initial)
+
+	u := &Update{symbolPtr: &sym}
+	u.InitSelf(u)
+
+	result := u.SetSymbol("📦")
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, "📦", *sym.Load())
+}
+
+func TestUpdateSetLevel(t *testing.T) {
+	var lvl atomic.Int64
+	lvl.Store(int64(level.Info))
+
+	u := &Update{levelPtr: &lvl}
+	u.InitSelf(u)
+
+	result := u.SetLevel(level.Error)
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, int64(level.Error), lvl.Load())
+}
+
+func TestUpdateSetLevelNilNoOp(t *testing.T) {
+	u := &Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.SetLevel(level.Error)
+	})
+}
+
+func TestUpdateSetSymbolNilNoOp(t *testing.T) {
+	u := &Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.SetSymbol("📦")
+	})
+}
+
+func TestAddTotal(t *testing.T) {
+	var tAtom atomic.Int64
+	tAtom.Store(100)
+
+	u := &Update{totalPtr: &tAtom}
+	u.InitSelf(u)
+
+	// Add positive delta
+	result := u.AddTotal(50)
+	assert.Equal(t, u, result) // fluent return
+	assert.Equal(t, int64(150), tAtom.Load())
+
+	// Add negative delta
+	u.AddTotal(-30)
+	assert.Equal(t, int64(120), tAtom.Load())
+
+	// Clamp to minimum 1
+	u.AddTotal(-200)
+	assert.Equal(t, int64(1), tAtom.Load())
+}
+
+func TestAddTotalNilNoOp(t *testing.T) {
+	u := &Update{}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.AddTotal(50)
+	})
+}
+
+func TestUpdateMessage(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{msgPtr: &msgAtom, fieldsPtr: &fieldsAtom}
+	u.InitSelf(u)
+
+	assert.Equal(t, "starting", u.Message())
+
+	u.Msg("step 1").Send()
+	assert.Equal(t, "step 1", u.Message())
+}

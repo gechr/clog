@@ -21,30 +21,48 @@ type UpdateFunc func(context.Context, *Update) error
 type Update struct {
 	core.FieldBuilder[Update]
 
-	Base              []core.Field
-	FieldsPtr         *atomic.Pointer[[]core.Field]
-	MsgPtr            *atomic.Pointer[string]
-	MsgText           string
-	ProgressPtr       *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
-	LevelPtr          *atomic.Int64           // overridden level; nil when not updatable
-	SymbolOverridePtr *atomic.Bool            // when set to true, disables animated spinner in favour of static symbol
-	SymbolPtr         *atomic.Pointer[string] // symbol icon; nil when not updatable
-	TotalPtr          *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
+	base              []core.Field
+	fieldsPtr         *atomic.Pointer[[]core.Field]
+	msgPtr            *atomic.Pointer[string]
+	msgText           string
+	progressPtr       *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
+	levelPtr          *atomic.Int64           // overridden level; nil when not updatable
+	symbolOverridePtr *atomic.Bool            // when set to true, disables animated spinner in favour of static symbol
+	symbolPtr         *atomic.Pointer[string] // symbol icon; nil when not updatable
+	totalPtr          *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
+}
+
+// Progress returns the current progress value for a bar animation,
+// or 0 if this is not a bar animation.
+func (p *Update) Progress() int {
+	if p.progressPtr == nil {
+		return 0
+	}
+	return int(p.progressPtr.Load())
+}
+
+// Message returns the animation's currently displayed message (the last
+// value applied with [Update.Send], or the initial message).
+func (p *Update) Message() string {
+	if m := p.msgPtr.Load(); m != nil {
+		return *m
+	}
+	return ""
 }
 
 // SetProgress sets the current progress value for a bar animation.
 // Values are clamped to [0, total]. No-op if this is not a bar animation.
 func (p *Update) SetProgress(current int) *Update {
-	if p.ProgressPtr != nil {
+	if p.progressPtr != nil {
 		if current < 0 {
 			current = 0
 		}
-		if p.TotalPtr != nil {
-			if total := int(p.TotalPtr.Load()); current > total {
+		if p.totalPtr != nil {
+			if total := int(p.totalPtr.Load()); current > total {
 				current = total
 			}
 		}
-		p.ProgressPtr.Store(int64(current))
+		p.progressPtr.Store(int64(current))
 	}
 	return p
 }
@@ -52,11 +70,11 @@ func (p *Update) SetProgress(current int) *Update {
 // SetTotal updates the total progress value for a bar animation.
 // No-op if this is not a bar animation.
 func (p *Update) SetTotal(total int) *Update {
-	if p.TotalPtr != nil {
+	if p.totalPtr != nil {
 		if total <= 0 {
 			total = 1
 		}
-		p.TotalPtr.Store(int64(total))
+		p.totalPtr.Store(int64(total))
 	}
 	return p
 }
@@ -65,10 +83,10 @@ func (p *Update) SetTotal(total int) *Update {
 // The result is clamped to a minimum of 1.
 // No-op if this is not a bar animation.
 func (p *Update) AddTotal(delta int) *Update {
-	if p.TotalPtr != nil {
-		newVal := p.TotalPtr.Add(int64(delta))
+	if p.totalPtr != nil {
+		newVal := p.totalPtr.Add(int64(delta))
 		if newVal < 1 {
-			p.TotalPtr.CompareAndSwap(newVal, 1)
+			p.totalPtr.CompareAndSwap(newVal, 1)
 		}
 	}
 	return p
@@ -77,8 +95,8 @@ func (p *Update) AddTotal(delta int) *Update {
 // SetLevel overrides the log level used when rendering the final done line.
 // No-op if the animation does not support level updates.
 func (p *Update) SetLevel(level core.Level) *Update {
-	if p.LevelPtr != nil {
-		p.LevelPtr.Store(int64(level))
+	if p.levelPtr != nil {
+		p.levelPtr.Store(int64(level))
 	}
 	return p
 }
@@ -87,18 +105,18 @@ func (p *Update) SetLevel(level core.Level) *Update {
 // The change takes effect on the next render tick.
 // No-op if the animation does not support symbol updates.
 func (p *Update) SetSymbol(symbol string) *Update {
-	if p.SymbolPtr != nil {
-		p.SymbolPtr.Store(&symbol)
+	if p.symbolPtr != nil {
+		p.symbolPtr.Store(&symbol)
 	}
-	if p.SymbolOverridePtr != nil {
-		p.SymbolOverridePtr.Store(true)
+	if p.symbolOverridePtr != nil {
+		p.symbolOverridePtr.Store(true)
 	}
 	return p
 }
 
 // Msg sets the animation's displayed message.
 func (p *Update) Msg(msg string) *Update {
-	p.MsgText = msg
+	p.msgText = msg
 	return p
 }
 
@@ -109,9 +127,9 @@ func (p *Update) Msgf(format string, args ...any) *Update {
 
 // Send applies the accumulated message and field changes to the animation atomically.
 func (p *Update) Send() {
-	msg := p.MsgText
-	p.MsgPtr.Store(&msg)
-	merged := core.MergeFields(p.Base, p.Fields)
-	p.FieldsPtr.Store(&merged)
+	msg := p.msgText
+	p.msgPtr.Store(&msg)
+	merged := core.MergeFields(p.base, p.Fields)
+	p.fieldsPtr.Store(&merged)
 	p.Fields = nil // reset for reuse
 }

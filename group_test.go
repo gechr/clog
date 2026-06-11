@@ -47,16 +47,16 @@ func TestGroupProgress(t *testing.T) {
 	logger := New(TestOutput(&buf))
 
 	g := logger.Group(context.Background())
-	var capturedProgress int64
+	var capturedProgress int
 	r := g.Add(logger.Bar("downloading", 100)).
 		Progress(func(_ context.Context, p *fx.Update) error {
 			p.SetProgress(75)
-			capturedProgress = p.ProgressPtr.Load()
+			capturedProgress = p.Progress()
 			return nil
 		})
 	g.Wait()
 
-	assert.Equal(t, int64(75), capturedProgress)
+	assert.Equal(t, 75, capturedProgress)
 	require.NoError(t, r.Symbol("✅").Msg("download complete"))
 
 	out := buf.String()
@@ -369,7 +369,7 @@ func TestGroupUpdate(t *testing.T) {
 	r := g.Add(logger.Spinner("updating")).
 		Progress(func(_ context.Context, p *fx.Update) error {
 			p.Msg("step 1").Send()
-			lastMsg.Store(*p.MsgPtr.Load())
+			lastMsg.Store(p.Message())
 			p.Msg("step 2").Str("key", "val").Send()
 			return nil
 		})

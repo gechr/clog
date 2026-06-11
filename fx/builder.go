@@ -309,16 +309,16 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	symbolPtr.Store(&sym)
 
 	update := &Update{
-		MsgText:   b.Message,
-		MsgPtr:    &msgPtr,
-		FieldsPtr: &fieldsPtr,
-		Base:      b.Fields,
-		LevelPtr:  &levelPtr,
-		SymbolPtr: &symbolPtr,
+		msgText:   b.Message,
+		msgPtr:    &msgPtr,
+		fieldsPtr: &fieldsPtr,
+		base:      b.Fields,
+		levelPtr:  &levelPtr,
+		symbolPtr: &symbolPtr,
 	}
 	if b.Mode == AnimationBar {
-		update.ProgressPtr = b.BarProgressPtr
-		update.TotalPtr = b.BarTotalPtr
+		update.progressPtr = b.BarProgressPtr
+		update.totalPtr = b.BarTotalPtr
 	}
 	update.InitSelf(update)
 

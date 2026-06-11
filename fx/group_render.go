@@ -1341,11 +1341,11 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		captureTaskConfig(gt)
 
 		u := &Update{
-			MsgText:   b.Message,
-			MsgPtr:    msgPtr,
-			FieldsPtr: fieldsPtr,
-			Base:      b.Fields,
-			SymbolPtr: symbolPtr,
+			msgText:   b.Message,
+			msgPtr:    msgPtr,
+			fieldsPtr: fieldsPtr,
+			base:      b.Fields,
+			symbolPtr: symbolPtr,
 		}
 		u.InitSelf(u)
 		return gt, u
