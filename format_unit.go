@@ -7,7 +7,6 @@ import (
 	"unicode"
 
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 	"github.com/lucasb-eyer/go-colorful"
@@ -187,7 +186,7 @@ func stylePercent(
 
 	// Apply gradient foreground on top of the base style.
 	if hasGradient {
-		t := p.Value / percent.EffectiveMaximum(p, maximum)
+		t := percentFraction(p, maximum)
 		if reverse {
 			t = 1 - t
 		}

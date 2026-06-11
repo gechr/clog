@@ -142,12 +142,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			}
 		case core.Percent:
 			if fn := fmts.PercentFormat; fn != nil {
-				valStr = fn(
-					val.Value / percent.EffectiveMaximum(
-						val,
-						fmts.PercentMaximum,
-					) * percentDisplayMax,
-				)
+				valStr = fn(percentFraction(val, fmts.PercentMaximum) * percentDisplayMax)
 				kind = kindPercent
 				customFormatted = true
 			}
@@ -225,10 +220,7 @@ func formatValue(
 	case bool:
 		return strconv.FormatBool(val), kindBool
 	case core.Percent:
-		display := val.Value / percent.EffectiveMaximum(
-			val,
-			fmts.PercentMaximum,
-		) * percentDisplayMax
+		display := percentFraction(val, fmts.PercentMaximum) * percentDisplayMax
 		return strconv.FormatFloat(display, 'f', fmts.PercentPrecision, 64) + "%", kindPercent
 	case core.QuantityField:
 		return string(val), kindQuantity
@@ -285,24 +277,8 @@ func formatETA(d time.Duration) string {
 	// Round to whole seconds.
 	d = d.Round(time.Second)
 
-	if d >= time.Hour {
-		h := int(d / time.Hour)
-		remainder := d - time.Duration(h)*time.Hour
-		m := int(remainder / time.Minute)
-		if m == 0 {
-			return strconv.Itoa(h) + "h"
-		}
-		return strconv.Itoa(h) + "h" + strconv.Itoa(m) + "m"
-	}
-
-	if d >= time.Minute {
-		m := int(d / time.Minute)
-		remainder := d - time.Duration(m)*time.Minute
-		s := int(remainder / time.Second)
-		if s == 0 {
-			return strconv.Itoa(m) + "m"
-		}
-		return strconv.Itoa(m) + "m" + strconv.Itoa(s) + "s"
+	if s, ok := formatCompositeDuration(d); ok {
+		return s
 	}
 
 	s := max(int(d/time.Second), 1)
@@ -319,26 +295,8 @@ func formatElapsed(d time.Duration, precision int) string {
 		d = -d
 	}
 
-	// Composite format for >= 1h: "XhYm"
-	if d >= time.Hour {
-		h := int(d / time.Hour)
-		remainder := d - time.Duration(h)*time.Hour
-		m := int(remainder / time.Minute)
-		if m == 0 {
-			return strconv.Itoa(h) + "h"
-		}
-		return strconv.Itoa(h) + "h" + strconv.Itoa(m) + "m"
-	}
-
-	// Composite format for >= 1m: "XmYs"
-	if d >= time.Minute {
-		m := int(d / time.Minute)
-		remainder := d - time.Duration(m)*time.Minute
-		s := int(remainder / time.Second)
-		if s == 0 {
-			return strconv.Itoa(m) + "m"
-		}
-		return strconv.Itoa(m) + "m" + strconv.Itoa(s) + "s"
+	if s, ok := formatCompositeDuration(d); ok {
+		return s
 	}
 
 	// Single unit with precision, no trailing zero trimming.
@@ -361,6 +319,34 @@ func formatElapsed(d time.Duration, precision int) string {
 		}
 	}
 	return "0s"
+}
+
+func formatCompositeDuration(d time.Duration) (string, bool) {
+	if d >= time.Hour {
+		h := int(d / time.Hour)
+		remainder := d - time.Duration(h)*time.Hour
+		m := int(remainder / time.Minute)
+		if m == 0 {
+			return strconv.Itoa(h) + "h", true
+		}
+		return strconv.Itoa(h) + "h" + strconv.Itoa(m) + "m", true
+	}
+
+	if d >= time.Minute {
+		m := int(d / time.Minute)
+		remainder := d - time.Duration(m)*time.Minute
+		s := int(remainder / time.Second)
+		if s == 0 {
+			return strconv.Itoa(m) + "m", true
+		}
+		return strconv.Itoa(m) + "m" + strconv.Itoa(s) + "s", true
+	}
+
+	return "", false
+}
+
+func percentFraction(p core.Percent, maximum float64) float64 {
+	return p.Value / percent.EffectiveMaximum(p, maximum)
 }
 
 // styledFieldValue applies styling to a formatted field value.
@@ -449,9 +435,11 @@ func styleValue(
 	styles *style.Config,
 	fmts *FieldFormats,
 ) string {
-	// Per-key styling takes priority.
-	if style := styles.Keys[key]; style != nil {
-		return style.Render(valStr)
+	// Per-key styling takes priority. Slice elements pass no key.
+	if key != "" {
+		if style := styles.Keys[key]; style != nil {
+			return style.Render(valStr)
+		}
 	}
 
 	// Per-value styling (typed key lookup - bool true ≠ string "true").
