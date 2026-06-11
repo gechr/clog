@@ -2,12 +2,12 @@ package shimmer
 
 import "github.com/gechr/clog/internal/gradient"
 
-// Option configures a [Style].
-type Option func(*Style)
+// Option configures a [Config].
+type Option func(*Config)
 
-// ApplyOptions applies options over [DefaultStyle] and returns the resolved config.
-func ApplyOptions(opts []Option) Style {
-	s := DefaultStyle()
+// ApplyOptions applies options over [DefaultConfig] and returns the resolved config.
+func ApplyOptions(opts []Option) Config {
+	s := DefaultConfig()
 	for _, o := range opts {
 		o(&s)
 	}
@@ -16,18 +16,18 @@ func ApplyOptions(opts []Option) Style {
 
 // WithDirection sets the direction the shimmer wave travels.
 func WithDirection(d Direction) Option {
-	return func(s *Style) { s.Direction = d }
+	return func(s *Config) { s.Direction = d }
 }
 
 // WithGradient sets custom gradient color stops.
 func WithGradient(stops ...gradient.ColorStop) Option {
-	return func(s *Style) { s.Gradient = stops }
+	return func(s *Config) { s.Gradient = stops }
 }
 
 // WithSpeed sets the number of full gradient cycles per second.
 // Values <= 0 are a no-op (keep default).
 func WithSpeed(speed float64) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		if speed > 0 {
 			s.Speed = speed
 		}

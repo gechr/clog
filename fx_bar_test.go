@@ -34,11 +34,11 @@ func TestBarSpinner(t *testing.T) {
 }
 
 func TestBarSpinnerWithOptions(t *testing.T) {
-	b := Bar("test", 100).Spinner(spinner.WithStyle(spinner.Dots))
+	b := Bar("test", 100).Spinner(spinner.WithConfig(spinner.Dots))
 
 	assert.Equal(t, fx.AnimationBar, b.Mode)
 	assert.True(t, b.AnimatedSymbol)
-	assert.Equal(t, spinner.Dots.Interval, b.SpinnerStyle.Interval)
+	assert.Equal(t, spinner.Dots.Interval, b.SpinnerConfig.Interval)
 }
 
 func TestBarBuilderTotalClamp(t *testing.T) {
@@ -192,8 +192,8 @@ func TestBarWait(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestBarStyleOption(t *testing.T) {
-	custom := bar.Style{
+func TestBarConfigOption(t *testing.T) {
+	custom := bar.Config{
 		CapLeft:     "|",
 		CapRight:    "|",
 		CharEmpty:   '-',
@@ -201,29 +201,29 @@ func TestBarStyleOption(t *testing.T) {
 		PendingMode: bar.PendingHide,
 		Width:       20,
 	}
-	b := Bar("test", 100, bar.WithStyle(custom))
-	assert.Equal(t, custom, b.BarStyle)
+	b := Bar("test", 100, bar.WithConfig(custom))
+	assert.Equal(t, custom, b.BarConfig)
 }
 
 func TestBarPendingModeOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithPendingMode(bar.PendingHide))
-	assert.Equal(t, bar.PendingHide, b.BarStyle.PendingMode)
+	assert.Equal(t, bar.PendingHide, b.BarConfig.PendingMode)
 }
 
 func TestBarUpdateIntervalOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithUpdateInterval(time.Second))
-	assert.Equal(t, time.Second, b.BarStyle.UpdateInterval)
+	assert.Equal(t, time.Second, b.BarConfig.UpdateInterval)
 
 	b = Bar("test", 100, bar.WithUpdateInterval(-time.Second))
-	assert.Zero(t, b.BarStyle.UpdateInterval)
+	assert.Zero(t, b.BarConfig.UpdateInterval)
 }
 
 func TestBarSmoothingModeOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithSmoothingMode(bar.SmoothNone))
-	assert.Equal(t, bar.SmoothNone, b.BarStyle.Smoothing)
+	assert.Equal(t, bar.SmoothNone, b.BarConfig.Smoothing)
 
 	b = Bar("test", 100)
-	assert.Equal(t, bar.SmoothEase, b.BarStyle.Smoothing)
+	assert.Equal(t, bar.SmoothEase, b.BarConfig.Smoothing)
 }
 
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
@@ -247,7 +247,7 @@ func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 	assert.Equal(t, "INF ⏳ downloading file=release.tar.gz\n", out)
 }
 
-func TestBarStyleWidgetRight(_ *testing.T) {
+func TestBarConfigWidgetRight(_ *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
@@ -255,7 +255,7 @@ func TestBarStyleWidgetRight(_ *testing.T) {
 		return fmt.Sprintf("%d/%d", s.Current, s.Total)
 	}
 
-	_ = logger.Bar("testing", 100, bar.WithStyle(bar.Style{
+	_ = logger.Bar("testing", 100, bar.WithConfig(bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',
@@ -276,7 +276,7 @@ func TestBarStyleWidgetRight(_ *testing.T) {
 	// The widget is rendered in TTY mode only.
 }
 
-func TestBarStyleWidgetLeft(_ *testing.T) {
+func TestBarConfigWidgetLeft(_ *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))
 
@@ -284,7 +284,7 @@ func TestBarStyleWidgetLeft(_ *testing.T) {
 		return fmt.Sprintf("%d%%", s.Current*100/max(s.Total, 1))
 	}
 
-	_ = logger.Bar("testing", 100, bar.WithStyle(bar.Style{
+	_ = logger.Bar("testing", 100, bar.WithConfig(bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',

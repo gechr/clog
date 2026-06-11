@@ -14,7 +14,11 @@ import (
 
 func main() {
 	stylesFlag := flag.Bool("styles", false, "show all spinner presets")
-	stylesPage := flag.Int("styles-page", 0, "show a specific page of spinner presets (1-indexed, 10 per page)")
+	stylesPage := flag.Int(
+		"styles-page",
+		0,
+		"show a specific page of spinner presets (1-indexed, 10 per page)",
+	)
 	flag.Parse()
 
 	clog.SetLevel(clog.LevelTrace)
@@ -70,7 +74,7 @@ func main() {
 func showStyles(page int) {
 	type entry struct {
 		name string
-		s    spinner.Style
+		s    spinner.Config
 	}
 
 	all := []entry{
@@ -192,7 +196,7 @@ func showStyles(page int) {
 	results := make([]*clog.TaskResult, len(all))
 	for i, e := range all {
 		name := fmt.Sprintf("%-*s", maxName, e.name)
-		results[i] = g.Add(clog.Spinner(name, spinner.WithStyle(e.s))).
+		results[i] = g.Add(clog.Spinner(name, spinner.WithConfig(e.s))).
 			Run(func(_ context.Context) error {
 				time.Sleep(10 * time.Second)
 				return nil

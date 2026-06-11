@@ -22,11 +22,11 @@ const DefaultSymbol = "⏳"
 type Builder struct {
 	core.FieldBuilder[Builder]
 
-	AnimatedSymbol bool          // when true, cycles SpinnerStyle.Frames as the symbol instead of a static icon
+	AnimatedSymbol bool          // when true, cycles SpinnerConfig.Frames as the symbol instead of a static icon
 	ClearOnCancel  bool          // when true, erase the animation line on context cancellation
 	BarPercentKey  string        // when set, a formatted percent field is injected each tick
 	BarProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
-	BarStyle       bar.Style     // bar mode: visual style
+	BarConfig      bar.Config    // bar mode: visual style
 	BarTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
 	DelayDur       time.Duration // when set, suppresses animation until this duration elapses
 	ElapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
@@ -41,7 +41,7 @@ type Builder struct {
 	ShimmerDir     shimmer.Direction
 	ShimmerStops   []gradient.ColorStop
 	Speed          float64
-	SpinnerStyle   spinner.Style
+	SpinnerConfig  spinner.Config
 	SuppressNonTTY bool           // when true, no output is produced on non-TTY writers
 	SymbolIcon     string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
 	TreePos        []core.TreePos // additional tree levels applied to the animation
@@ -51,7 +51,7 @@ type Builder struct {
 type BuilderConfig struct {
 	AnimatedSymbol bool
 	BarProgress    *atomic.Int64
-	BarStyle       bar.Style
+	BarConfig      bar.Config
 	BarTotal       *atomic.Int64
 	Level          core.Level
 	Logger         Logger
@@ -62,7 +62,7 @@ type BuilderConfig struct {
 	ShimmerDir     shimmer.Direction
 	ShimmerStops   []gradient.ColorStop
 	Speed          float64
-	SpinnerStyle   spinner.Style
+	SpinnerConfig  spinner.Config
 	SymbolIcon     string
 }
 
@@ -71,7 +71,7 @@ func NewBuilder(cfg BuilderConfig) *Builder {
 	b := &Builder{
 		AnimatedSymbol: cfg.AnimatedSymbol,
 		BarProgressPtr: cfg.BarProgress,
-		BarStyle:       cfg.BarStyle,
+		BarConfig:      cfg.BarConfig,
 		BarTotalPtr:    cfg.BarTotal,
 		Level:          cfg.Level,
 		Log:            cfg.Logger,
@@ -83,7 +83,7 @@ func NewBuilder(cfg BuilderConfig) *Builder {
 		ShimmerDir:     cfg.ShimmerDir,
 		ShimmerStops:   cfg.ShimmerStops,
 		Speed:          cfg.Speed,
-		SpinnerStyle:   cfg.SpinnerStyle,
+		SpinnerConfig:  cfg.SpinnerConfig,
 	}
 	b.InitSelf(b)
 	return b
@@ -163,13 +163,13 @@ func (b *Builder) Symbol(symbol string) *Builder {
 }
 
 // Spinner enables an animated spinning symbol. The symbol slot cycles
-// through [SpinnerStyle] frames independently of the main animation mode.
-// Options override the builder's existing [SpinnerStyle]. With no options
+// through [SpinnerConfig] frames independently of the main animation mode.
+// Options override the builder's existing [SpinnerConfig]. With no options
 // the current style (set by the constructor or logger default) is used.
 func (b *Builder) Spinner(opts ...spinner.Option) *Builder {
 	b.AnimatedSymbol = true
 	for _, o := range opts {
-		o(&b.SpinnerStyle)
+		o(&b.SpinnerConfig)
 	}
 	return b
 }

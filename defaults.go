@@ -187,8 +187,8 @@ func SetSliceBrackets(openChar, closeChar rune) { Default.SetSliceBrackets(openC
 // SetSliceSeparator sets the slice element separator on the [Default] logger.
 func SetSliceSeparator(sep string) { Default.SetSliceSeparator(sep) }
 
-// SetSpinnerStyle sets the default spinner style on the [Default] logger.
-func SetSpinnerStyle(s spinner.Style) { Default.SetSpinnerStyle(s) }
+// SetSpinnerDefaults sets the default spinner configuration on the [Default] logger.
+func SetSpinnerDefaults(opts ...spinner.Option) { Default.SetSpinnerDefaults(opts...) }
 
 // SetStyles sets the display styles on the [Default] logger.
 func SetStyles(styles *style.Config) { Default.SetStyles(styles) }

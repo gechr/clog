@@ -60,7 +60,7 @@ clog.Bar("Cloning", 100, opts...).
 
 // With a custom spinner style
 clog.Bar("Downloading", total).
-  Spinner(spinner.WithStyle(spinner.Dots)).
+  Spinner(spinner.WithConfig(spinner.Dots)).
   Progress(ctx, task).
   Msg("Downloaded")
 ```
@@ -96,7 +96,7 @@ This rate-limits timing-derived text such as ETA, rate, and elapsed while leavin
 
 ## Styles
 
-Seven pre-built styles are available in [`fx/bar/presets.go`](https://github.com/gechr/clog/blob/main/fx/bar/presets.go). Pass any of them via `bar.WithStyle()`:
+Seven pre-built styles are available in [`fx/bar/presets.go`](https://github.com/gechr/clog/blob/main/fx/bar/presets.go). Pass any of them via `bar.WithConfig()`:
 
 | Preset         | Characters      | Description                                          |
 | -------------- | --------------- | ---------------------------------------------------- |
@@ -111,7 +111,7 @@ Seven pre-built styles are available in [`fx/bar/presets.go`](https://github.com
 ![Bar styles](assets/bar-styles.gif)
 
 ```go
-clog.Bar("Uploading", total, bar.WithStyle(bar.Smooth)).
+clog.Bar("Uploading", total, bar.WithConfig(bar.Smooth)).
   Progress(ctx, task).
   Msg("Done")
 ```
@@ -120,12 +120,12 @@ clog.Bar("Uploading", total, bar.WithStyle(bar.Smooth)).
 
 ## Custom Style
 
-Build a fully custom style by passing a `bar.WithStyle()` option:
+Build a fully custom configuration by passing a `bar.WithConfig()` option:
 
 ```go
 import "github.com/gechr/clog/fx/bar/widget"
 
-clog.Bar("Uploading", total, bar.WithStyle(bar.Style{
+clog.Bar("Uploading", total, bar.WithConfig(bar.Config{
     Placement:   bar.PlaceInline, // inline with message (default: bar.PlaceRightPad)
 
     CapStyle:    new(lipgloss.NewStyle().Bold(true)), // style for [ ] caps (default: bold white)
@@ -160,7 +160,7 @@ When `Width` is 0, the bar auto-sizes to one quarter of the terminal width, clam
 Any field can be overridden via option functions without building a full custom style:
 
 ```go
-clog.Bar("Downloading", 100, bar.WithStyle(bar.Braille), bar.WithWidth(30))
+clog.Bar("Downloading", 100, bar.WithConfig(bar.Braille), bar.WithWidth(30))
 ```
 
 ### Structure
@@ -221,7 +221,7 @@ Color the bar fill based on progress using `ProgressGradient`. The filled portio
 style := bar.Block
 style.ProgressGradient = bar.DefaultGradient() // red → yellow → green
 
-clog.Bar("Building", 100, bar.WithStyle(style)).
+clog.Bar("Building", 100, bar.WithConfig(style)).
   Progress(ctx, task).
   Msg("Built")
 ```
@@ -240,7 +240,7 @@ When set, `ProgressGradient` overrides the `StyleFill` foreground color. Use `ba
 
 ## Alignment
 
-The `Placement` field on `bar.Style` controls where the bar appears on the line:
+The `Placement` field on `bar.Config` controls where the bar appears on the line:
 
 | Constant            | Layout                                                                     |
 | ------------------- | -------------------------------------------------------------------------- |
@@ -257,7 +257,7 @@ The padded variants (`bar.PlaceRightPad`, `bar.PlaceLeftPad`) fill the gap betwe
 
 ## Widgets
 
-`WidgetLeft` and `WidgetRight` on `bar.Style` control text annotations beside the bar. Each is a `bar.Widget` - a callback that receives progress state and returns a string:
+`WidgetLeft` and `WidgetRight` on `bar.Config` control text annotations beside the bar. Each is a `bar.Widget` - a callback that receives progress state and returns a string:
 
 ```go
 type bar.State struct {
@@ -354,7 +354,7 @@ fileSize := 150 * 1000 * 1000 // 150 MB
 style := bar.Smooth
 style.WidgetRight = widget.Bytes()
 
-clog.Bar("Downloading", fileSize, bar.WithStyle(style)).
+clog.Bar("Downloading", fileSize, bar.WithConfig(style)).
   Str("file", "model.bin").
   Progress(ctx, func(ctx context.Context, p *clog.Update) error {
     // p.SetProgress(bytesReceived).Send()
@@ -372,7 +372,7 @@ style := bar.Block
 style.WidgetLeft = widget.ETA()
 style.WidgetRight = widget.Rate(widget.WithUnit("items"))
 
-clog.Bar("Processing", 500, bar.WithStyle(style)).
+clog.Bar("Processing", 500, bar.WithConfig(style)).
   Progress(ctx, task).
   Msg("Done")
 // INF ⏳ Processing ETA 2m30s │█████░░░░░│ 150 items/s
@@ -386,7 +386,7 @@ clog.Bar("Processing", 500, bar.WithStyle(style)).
 style := bar.Gradient
 style.WidgetRight = widget.BytesRate()
 
-clog.Bar("Uploading", totalBytes, bar.WithStyle(style)).
+clog.Bar("Uploading", totalBytes, bar.WithConfig(style)).
   Progress(ctx, task).
   Msg("Done")
 // INF ⏳ Uploading │██████▍   │ 82.9 MB/s

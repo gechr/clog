@@ -8,22 +8,22 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDefaultStyle(t *testing.T) {
-	s := spinner.DefaultStyle()
-	assert.NotEmpty(t, s.Frames, "DefaultStyle should have non-empty Frames")
-	assert.Greater(t, s.Interval, time.Duration(0), "DefaultStyle should have Interval > 0")
+func TestDefaultConfig(t *testing.T) {
+	s := spinner.DefaultConfig()
+	assert.NotEmpty(t, s.Frames, "DefaultConfig should have non-empty Frames")
+	assert.Greater(t, s.Interval, time.Duration(0), "DefaultConfig should have Interval > 0")
 }
 
 func TestDefaultStyleUsesMoon(t *testing.T) {
-	s := spinner.DefaultStyle()
-	// DefaultStyle uses Moon frames in reverse.
+	s := spinner.DefaultConfig()
+	// DefaultConfig uses Moon frames in reverse.
 	assert.Equal(t, spinner.Moon.Frames, s.Frames)
 	assert.Equal(t, spinner.Moon.Interval, s.Interval)
-	assert.True(t, s.Reverse, "DefaultStyle should have Reverse=true")
+	assert.True(t, s.Reverse, "DefaultConfig should have Reverse=true")
 }
 
 func TestApplyOptionsEmpty(t *testing.T) {
-	def := spinner.DefaultStyle()
+	def := spinner.DefaultConfig()
 	got := spinner.ApplyOptions([]spinner.Option{})
 	assert.Equal(t, def.Frames, got.Frames)
 	assert.Equal(t, def.Interval, got.Interval)
@@ -32,11 +32,11 @@ func TestApplyOptionsEmpty(t *testing.T) {
 }
 
 func TestWithStyle(t *testing.T) {
-	custom := spinner.Style{
+	custom := spinner.Config{
 		Frames:   []string{"a", "b", "c"},
 		Interval: 200 * time.Millisecond,
 	}
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithStyle(custom)})
+	got := spinner.ApplyOptions([]spinner.Option{spinner.WithConfig(custom)})
 	assert.Equal(t, custom.Frames, got.Frames)
 	assert.Equal(t, custom.Interval, got.Interval)
 	assert.Equal(t, custom.Reverse, got.Reverse)
@@ -49,26 +49,26 @@ func TestWithInterval(t *testing.T) {
 }
 
 func TestWithIntervalZeroIsNoOp(t *testing.T) {
-	// Values <= 0 are a no-op, so Interval stays at DefaultStyle's Interval.
-	def := spinner.DefaultStyle()
+	// Values <= 0 are a no-op, so Interval stays at DefaultConfig's Interval.
+	def := spinner.DefaultConfig()
 	got := spinner.ApplyOptions([]spinner.Option{spinner.WithInterval(0)})
 	assert.Equal(t, def.Interval, got.Interval, "WithInterval(0) should be a no-op")
 }
 
 func TestWithIntervalNegativeIsNoOp(t *testing.T) {
-	def := spinner.DefaultStyle()
+	def := spinner.DefaultConfig()
 	got := spinner.ApplyOptions([]spinner.Option{spinner.WithInterval(-time.Second)})
 	assert.Equal(t, def.Interval, got.Interval, "WithInterval(<0) should be a no-op")
 }
 
 func TestWithReverse(t *testing.T) {
-	// DefaultStyle already has Reverse=true; use a plain WithStyle first to reset it.
-	custom := spinner.Style{
+	// DefaultConfig already has Reverse=true; use a plain WithConfig first to reset it.
+	custom := spinner.Config{
 		Frames:   []string{"x", "y"},
 		Interval: 100 * time.Millisecond,
 	}
 	got := spinner.ApplyOptions([]spinner.Option{
-		spinner.WithStyle(custom),
+		spinner.WithConfig(custom),
 		spinner.WithReverse(),
 	})
 	assert.True(t, got.Reverse, "expected Reverse=true after WithReverse")
@@ -80,13 +80,13 @@ func TestWithBoomerang(t *testing.T) {
 }
 
 func TestWithStyleThenWithInterval(t *testing.T) {
-	// Applying WithStyle then WithInterval: Interval should be overridden.
-	custom := spinner.Style{
+	// Applying WithConfig then WithInterval: Interval should be overridden.
+	custom := spinner.Config{
 		Frames:   []string{"1", "2"},
 		Interval: 50 * time.Millisecond,
 	}
 	got := spinner.ApplyOptions([]spinner.Option{
-		spinner.WithStyle(custom),
+		spinner.WithConfig(custom),
 		spinner.WithInterval(250 * time.Millisecond),
 	})
 	assert.Equal(t, custom.Frames, got.Frames)
@@ -103,7 +103,7 @@ func TestStarsPreset(t *testing.T) {
 }
 
 func TestPresetsValid(t *testing.T) {
-	presets := map[string]spinner.Style{
+	presets := map[string]spinner.Config{
 		"Aesthetic":           spinner.Aesthetic,
 		"Arc":                 spinner.Arc,
 		"Arrow2":              spinner.Arrow2,

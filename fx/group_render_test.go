@@ -124,7 +124,7 @@ func newStubLogger() *stubLogger {
 
 // testSpinner mirrors root clog's Logger.Spinner builder construction.
 func testSpinner(log Logger, msg string, opts ...spinner.Option) *Builder {
-	style := spinner.DefaultStyle()
+	style := spinner.DefaultConfig()
 	for _, o := range opts {
 		o(&style)
 	}
@@ -134,7 +134,7 @@ func testSpinner(log Logger, msg string, opts ...spinner.Option) *Builder {
 		Level:          level.Info,
 		Message:        msg,
 		Mode:           AnimationNone,
-		SpinnerStyle:   style,
+		SpinnerConfig:  style,
 	})
 }
 
@@ -147,14 +147,14 @@ func testBar(log Logger, msg string, total int, opts ...bar.Option) *Builder {
 	totalPtr := new(atomic.Int64)
 	totalPtr.Store(int64(total))
 	return NewBuilder(BuilderConfig{
-		Logger:       log,
-		Mode:         AnimationBar,
-		Level:        level.Info,
-		Message:      msg,
-		BarStyle:     bar.ApplyOptions(opts),
-		BarProgress:  progressPtr,
-		BarTotal:     totalPtr,
-		SpinnerStyle: spinner.DefaultStyle(),
+		Logger:        log,
+		Mode:          AnimationBar,
+		Level:         level.Info,
+		Message:       msg,
+		BarConfig:     bar.ApplyOptions(opts),
+		BarProgress:   progressPtr,
+		BarTotal:      totalPtr,
+		SpinnerConfig: spinner.DefaultConfig(),
 	})
 }
 
@@ -285,7 +285,7 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 	t.Run("spinner clamped to 200ms", func(t *testing.T) {
 		log := &stubLogger{out: &stubOutput{}, animationInterval: 200 * time.Millisecond}
 
-		b := testSpinner(log, "loading", spinner.WithStyle(spinner.Style{
+		b := testSpinner(log, "loading", spinner.WithConfig(spinner.Config{
 			Frames:   []string{".", "..", "..."},
 			Interval: 17 * time.Millisecond,
 		}))
@@ -722,7 +722,7 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 
 func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	log := newStubLogger()
-	style := bar.Style{
+	style := bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',
@@ -737,7 +737,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 		log,
 		"repo",
 		100,
-		bar.WithStyle(style),
+		bar.WithConfig(style),
 		bar.WithUpdateInterval(time.Second),
 	)
 
@@ -790,7 +790,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 
 func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T) {
 	log := newStubLogger()
-	style := bar.Style{
+	style := bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',
@@ -804,7 +804,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 		log,
 		"repo",
 		100,
-		bar.WithStyle(style),
+		bar.WithConfig(style),
 		bar.WithUpdateInterval(time.Second),
 	).
 		BarPercent("progress").
@@ -855,7 +855,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 
 func TestRenderTaskLineMonotonic(t *testing.T) {
 	log := newStubLogger()
-	style := bar.Style{
+	style := bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',
@@ -865,7 +865,7 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 		WidgetRight: widget.None(),
 		Width:       10,
 	}
-	b := testBar(log, "repo", 100, bar.WithStyle(style))
+	b := testBar(log, "repo", 100, bar.WithConfig(style))
 
 	msgPtr := &atomic.Pointer[string]{}
 	fieldsPtr := &atomic.Pointer[[]core.Field]{}
@@ -905,7 +905,7 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 
 func TestRenderTaskLineSmoothEase(t *testing.T) {
 	log := newStubLogger()
-	style := bar.Style{
+	style := bar.Config{
 		CapLeft:     "[",
 		CapRight:    "]",
 		CharEmpty:   '-',
@@ -915,7 +915,7 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 		WidgetRight: widget.None(),
 		Width:       10,
 	}
-	b := testBar(log, "task", 100, bar.WithStyle(style))
+	b := testBar(log, "task", 100, bar.WithConfig(style))
 
 	msgPtr := &atomic.Pointer[string]{}
 	fieldsPtr := &atomic.Pointer[[]core.Field]{}

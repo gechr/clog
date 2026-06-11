@@ -19,8 +19,8 @@ const (
 	TickRate = 33 * time.Millisecond
 )
 
-// Style holds resolved pulse configuration.
-type Style struct {
+// Config holds resolved pulse configuration.
+type Config struct {
 	Gradient []gradient.ColorStop
 	Speed    float64
 }
@@ -33,9 +33,9 @@ type Cache struct {
 	Style lipgloss.Style
 }
 
-// DefaultStyle returns the default pulse configuration.
-func DefaultStyle() Style {
-	return Style{
+// DefaultConfig returns the default pulse configuration.
+func DefaultConfig() Config {
+	return Config{
 		Gradient: DefaultGradient(),
 		Speed:    Speed,
 	}

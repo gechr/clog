@@ -718,7 +718,7 @@ func TestGroupFrameSynchronizationAndSkip(t *testing.T) {
 	g := logger.Group(context.Background())
 	// A single-frame spinner renders the same line every tick, so every
 	// frame after the first must be skipped.
-	g.Add(logger.Spinner("processing", spinner.WithStyle(spinner.Style{
+	g.Add(logger.Spinner("processing", spinner.WithConfig(spinner.Config{
 		Frames:   []string{"·"},
 		Interval: time.Millisecond,
 	}))).Progress(func(ctx context.Context, _ *Update) error {
@@ -771,7 +771,7 @@ func TestAnimationFrameSynchronizationAndSkip(t *testing.T) {
 	release := make(chan struct{})
 	result := make(chan error, 1)
 	go func() {
-		result <- logger.Spinner("processing", spinner.WithStyle(spinner.Style{
+		result <- logger.Spinner("processing", spinner.WithConfig(spinner.Config{
 			Frames:   []string{"·"},
 			Interval: time.Millisecond,
 		})).Wait(context.Background(), func(ctx context.Context) error {

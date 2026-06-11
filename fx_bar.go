@@ -26,14 +26,14 @@ func (l *Logger) Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
 	totalPtr.Store(int64(total))
 
 	return fx.NewBuilder(fx.BuilderConfig{
-		Logger:       fxLogger{l},
-		Mode:         fx.AnimationBar,
-		Level:        LevelInfo,
-		PercentMax:   l.loadFieldFormats().PercentMaximum,
-		Message:      msg,
-		BarStyle:     bar.ApplyOptions(opts),
-		BarProgress:  progressPtr,
-		BarTotal:     totalPtr,
-		SpinnerStyle: l.resolveSpinnerStyle(),
+		Logger:        fxLogger{l},
+		Mode:          fx.AnimationBar,
+		Level:         LevelInfo,
+		PercentMax:    l.loadFieldFormats().PercentMaximum,
+		Message:       msg,
+		BarConfig:     bar.ApplyOptions(opts),
+		BarProgress:   progressPtr,
+		BarTotal:      totalPtr,
+		SpinnerConfig: l.resolveSpinnerConfig(),
 	})
 }

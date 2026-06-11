@@ -40,13 +40,13 @@ func main() {
 	bytesBar.WidgetRight = widget.Bytes(widget.WithDigits(0))
 
 	g := clog.Group(context.Background())
-	g.Add(clog.Bar("Downloading", 1000, bar.WithStyle(downloadBar)).
+	g.Add(clog.Bar("Downloading", 1000, bar.WithConfig(downloadBar)).
 		Str("file", "release.tar.gz").Elapsed("elapsed")).
 		Progress(barFill)
-	g.Add(clog.Bar("Building", 1000, bar.WithStyle(gradientBar)).
+	g.Add(clog.Bar("Building", 1000, bar.WithConfig(gradientBar)).
 		Str("target", "release").Elapsed("elapsed")).
 		Progress(barFill)
-	g.Add(clog.Bar("Fetching", fileSize, bar.WithStyle(bytesBar)).
+	g.Add(clog.Bar("Fetching", fileSize, bar.WithConfig(bytesBar)).
 		Str("file", "model.bin").Elapsed("elapsed")).
 		Progress(func(_ context.Context, p *clog.Update) error {
 			steps := 1000

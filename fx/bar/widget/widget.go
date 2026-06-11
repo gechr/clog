@@ -1,8 +1,8 @@
 // Package widget provides composable text widgets for progress bars.
 //
 // Widgets render dynamic text labels (percentage, ETA, throughput, etc.)
-// from the current [bar.State]. They are assigned to [bar.Style.WidgetLeft]
-// or [bar.Style.WidgetRight] to appear alongside the bar.
+// from the current [bar.State]. They are assigned to [bar.Config.WidgetLeft]
+// or [bar.Config.WidgetRight] to appear alongside the bar.
 //
 //	style.WidgetRight = widget.Percent()
 //	style.WidgetLeft  = widget.ETA()

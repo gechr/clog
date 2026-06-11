@@ -33,7 +33,7 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(3 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Environment initialized")
 
 	_ = clog.Spinner("Validating config").
@@ -54,7 +54,7 @@ func main() {
 			update.Msg("Starting containers").Send()
 			time.Sleep(1 * time.Second)
 			return nil
-		}). Symbol("🚀").
+		}).Symbol("🚀").
 		Msg("Deployed")
 
 	_ = clog.Spinner("Running migrations").
@@ -63,19 +63,21 @@ func main() {
 			hundred := 100
 			for i := range hundred {
 				progress := min(i+1, hundred)
-				update.Msg("Applying migrations").Percent("progress", float64(progress), percent.WithMaximum(100)).Send()
+				update.Msg("Applying migrations").
+					Percent("progress", float64(progress), percent.WithMaximum(100)).
+					Send()
 				time.Sleep(30 * time.Millisecond)
 			}
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Migrations applied")
 
-	_ = clog.Spinner("Downloading artifacts", spinner.WithStyle(spinner.Dot)).
+	_ = clog.Spinner("Downloading artifacts", spinner.WithConfig(spinner.Dot)).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)
 			return nil
-		}). Symbol("📦").
+		}).Symbol("📦").
 		Msg("Artifacts downloaded")
 
 	_ = clog.Spinner("Connecting to database").

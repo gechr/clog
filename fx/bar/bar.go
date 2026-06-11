@@ -71,8 +71,8 @@ const (
 // The bar reaches ~95% of its target in 3τ (≈ 360 ms at 120 ms τ).
 const DefaultSmoothingTau = 120 * time.Millisecond
 
-// Style configures the visual appearance of a determinate progress bar.
-type Style struct {
+// Config configures the visual appearance of a determinate progress bar.
+type Config struct {
 	CapLeft          string               // left bracket; default "["
 	CapRight         string               // right bracket; default "]"
 	CapStyle         *lipgloss.Style      // lipgloss style for left/right caps; nil = plain text
@@ -98,12 +98,12 @@ type Style struct {
 	WidthMin         int                  // minimum auto-sized width; default 10
 }
 
-// DefaultStyle returns the default bar [Style].
+// DefaultConfig returns the default bar [Config].
 // It uses box-drawing characters with half-cell resolution for smooth progress.
-func DefaultStyle() Style { return Thin }
+func DefaultConfig() Config { return Thin }
 
 // DefaultGradient returns the default red → yellow → green gradient
-// used for [Style.ProgressGradient].
+// used for [Config.ProgressGradient].
 func DefaultGradient() []gradient.ColorStop { return style.DefaultPercentGradient() }
 
 // State holds progress information passed to [Widget] functions.
@@ -119,13 +119,13 @@ type State struct {
 type Widget func(State) string
 
 // ShowPending reports whether the bar block should be shown at the current progress.
-func ShowPending(s Style, current int) bool {
+func ShowPending(s Config, current int) bool {
 	return s.PendingMode != PendingHide || current > 0
 }
 
 // Render renders the visual bar string for the given progress values.
 // termWidth is the terminal column count (0 = fall back to auto-sizing from style).
-func Render(current, total int, s Style, termWidth int) string {
+func Render(current, total int, s Config, termWidth int) string {
 	if total <= 0 {
 		total = 1
 	}
@@ -250,7 +250,7 @@ func FormatPercent(current, total, digits int, pad bool) string {
 // resolveWidth computes the inner cell count for the bar from the style
 // and the terminal width. A fixed Width takes priority; otherwise the width
 // is derived from termWidth and clamped to [WidthMin, WidthMax].
-func resolveWidth(s Style, termWidth int) int {
+func resolveWidth(s Config, termWidth int) int {
 	if s.Width > 0 {
 		return s.Width
 	}

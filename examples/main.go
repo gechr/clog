@@ -133,16 +133,16 @@ func main() {
 		downloadBar.WidgetRight = widget.None()
 
 		g := clog.Group(context.Background())
-		g.Add(clog.Bar("Downloading", 1000, bar.WithStyle(downloadBar)).
+		g.Add(clog.Bar("Downloading", 1000, bar.WithConfig(downloadBar)).
 			Str("file", "release.tar.gz").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Installing", 1000, bar.WithStyle(thinColored)).
+		g.Add(clog.Bar("Installing", 1000, bar.WithConfig(thinColored)).
 			Str("pkg", "clog").BarPercent("progress").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Building", 1000, bar.WithStyle(gradientBar)).
+		g.Add(clog.Bar("Building", 1000, bar.WithConfig(gradientBar)).
 			Str("target", "release").Elapsed("elapsed")).
 			Progress(barFill)
-		g.Add(clog.Bar("Syncing", 1000, bar.WithStyle(bar.Style{
+		g.Add(clog.Bar("Syncing", 1000, bar.WithConfig(bar.Config{
 			Placement:    bar.PlaceInline,
 			CapLeft:      "│",
 			CapRight:     "│",
@@ -161,7 +161,7 @@ func main() {
 		bytesBar.StyleFill = new(lipgloss.NewStyle().Foreground(lipgloss.Color("6")))
 		bytesBar.StyleEmpty = new(lipgloss.NewStyle().Foreground(lipgloss.Color("8")))
 		bytesBar.WidgetRight = widget.Bytes()
-		g.Add(clog.Bar("Fetching", fileSize, bar.WithStyle(bytesBar)).
+		g.Add(clog.Bar("Fetching", fileSize, bar.WithConfig(bytesBar)).
 			Str("file", "model.bin").Elapsed("elapsed")).
 			Progress(func(_ context.Context, p *clog.Update) error {
 				steps := 1000
@@ -830,7 +830,7 @@ func main() {
 func spinners(filter string) {
 	type entry struct {
 		name string
-		s    spinner.Style
+		s    spinner.Config
 	}
 
 	all := []entry{
@@ -898,7 +898,7 @@ func spinners(filter string) {
 	results := make([]*clog.TaskResult, len(all))
 	for i, e := range all {
 		name := fmt.Sprintf("%-*s", maxName, e.name)
-		results[i] = g.Add(clog.Spinner(name, spinner.WithStyle(e.s))).
+		results[i] = g.Add(clog.Spinner(name, spinner.WithConfig(e.s))).
 			Run(func(_ context.Context) error {
 				time.Sleep(10 * time.Second)
 				return nil
@@ -972,7 +972,7 @@ func demo() {
 		}).Symbol("✅").
 		Msg("Migrations applied")
 
-	_ = clog.Spinner("Downloading artifacts", spinner.WithStyle(spinner.Dot)).
+	_ = clog.Spinner("Downloading artifacts", spinner.WithConfig(spinner.Dot)).
 		Str("repo", "gechr/clog").
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(2 * time.Second)

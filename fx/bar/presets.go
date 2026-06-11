@@ -13,12 +13,12 @@ var defaultCapStyle = new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Col
 var thinEmptyStyle = new(lipgloss.NewStyle().Foreground(lipgloss.Color("237")))
 
 // Predefined bar styles for common visual appearances.
-// Pass any of these to [WithStyle] to change the bar's look.
+// Pass any of these to [WithConfig] to change the bar's look.
 var (
 	// Basic uses only ASCII characters for maximum terminal compatibility.
 	//
 	//	[=====>    ] 50%
-	Basic = Style{
+	Basic = Config{
 		CapLeft:   "[",
 		CapRight:  "]",
 		CapStyle:  defaultCapStyle,
@@ -33,7 +33,7 @@ var (
 	// Block uses solid block characters without sub-cell resolution.
 	//
 	//	│█████░░░░░│ 50%
-	Block = Style{
+	Block = Config{
 		CapLeft:   "│",
 		CapRight:  "│",
 		CapStyle:  defaultCapStyle,
@@ -47,7 +47,7 @@ var (
 	// Dash uses a simple dash for filled cells and spaces for empty.
 	//
 	//	[-----     ] 50%
-	Dash = Style{
+	Dash = Config{
 		CapLeft:   "[",
 		CapRight:  "]",
 		CapStyle:  defaultCapStyle,
@@ -62,7 +62,7 @@ var (
 	// for the smoothest possible progression.
 	//
 	//	│██████▍   │ 64%
-	Gradient = Style{
+	Gradient = Config{
 		CapLeft:      "│",
 		CapRight:     "│",
 		CapStyle:     defaultCapStyle,
@@ -81,7 +81,7 @@ var (
 	// This is the default style.
 	//
 	//	━━━━━━━━━╸╺━━━━━━━━━━━━━ 45%
-	Thin = Style{
+	Thin = Config{
 		CharEmpty:        '━',
 		CharFill:         '━',
 		ProgressGradient: style.DefaultPercentGradient(),
@@ -95,7 +95,7 @@ var (
 	// inspired by Docker Compose's progress display.
 	//
 	//	[⣿⣿⣿⣿⣿⣦⠀⠀⠀⠀] 50%
-	Braille = Style{
+	Braille = Config{
 		CapLeft:      "[",
 		CapRight:     "]",
 		CapStyle:     defaultCapStyle,
@@ -111,7 +111,7 @@ var (
 	// dim grey blocks for a continuous appearance.
 	//
 	//	██████████████████████ 45%
-	Smooth = Style{
+	Smooth = Config{
 		CharEmpty:  '█',
 		CharFill:   '█',
 		StyleEmpty: thinEmptyStyle,

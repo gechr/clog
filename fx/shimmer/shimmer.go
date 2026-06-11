@@ -52,16 +52,16 @@ type LUT [lutSize]string
 // style allocations entirely.
 type StyleLUT [lutSize]lipgloss.Style
 
-// Style holds resolved shimmer configuration.
-type Style struct {
+// Config holds resolved shimmer configuration.
+type Config struct {
 	Direction Direction
 	Gradient  []gradient.ColorStop
 	Speed     float64
 }
 
-// DefaultStyle returns the default shimmer configuration.
-func DefaultStyle() Style {
-	return Style{
+// DefaultConfig returns the default shimmer configuration.
+func DefaultConfig() Config {
+	return Config{
 		Direction: Right,
 		Gradient:  DefaultGradient(),
 		Speed:     Speed,

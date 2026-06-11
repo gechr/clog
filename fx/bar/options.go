@@ -7,13 +7,13 @@ import (
 	"github.com/gechr/clog/internal/gradient"
 )
 
-// Option applies a configuration change to a [Style].
-type Option func(*Style)
+// Option applies a configuration change to a [Config].
+type Option func(*Config)
 
-// ApplyOptions returns a copy of [DefaultStyle] with all opts applied in order.
-// Use [WithStyle] as the first option to start from a different base style.
-func ApplyOptions(opts []Option) Style {
-	base := DefaultStyle()
+// ApplyOptions returns a copy of [DefaultConfig] with all opts applied in order.
+// Use [WithConfig] as the first option to start from a different base style.
+func ApplyOptions(opts []Option) Config {
+	base := DefaultConfig()
 	for _, o := range opts {
 		o(&base)
 	}
@@ -22,61 +22,61 @@ func ApplyOptions(opts []Option) Style {
 
 // WithCapLeft sets the left cap string (e.g. "[", "│").
 func WithCapLeft(s string) Option {
-	return func(st *Style) {
+	return func(st *Config) {
 		st.CapLeft = s
 	}
 }
 
 // WithCapRight sets the right cap string (e.g. "]", "│").
 func WithCapRight(s string) Option {
-	return func(st *Style) {
+	return func(st *Config) {
 		st.CapRight = s
 	}
 }
 
 // WithCapStyle sets the lipgloss style applied to the left and right caps.
 func WithCapStyle(ls *lipgloss.Style) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.CapStyle = ls
 	}
 }
 
 // WithCharEmpty sets the rune used for fully empty cells.
 func WithCharEmpty(r rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.CharEmpty = r
 	}
 }
 
 // WithCharFill sets the rune used for fully filled cells.
 func WithCharFill(r rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.CharFill = r
 	}
 }
 
 // WithCharHead sets the decorative rune at the leading edge of the filled
 // section (1x resolution only). Set to 0 to disable. Ignored when
-// [Style.HalfFilled] or [Style.GradientFill] is set.
+// [Config.HalfFilled] or [Config.GradientFill] is set.
 func WithCharHead(r rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.CharHead = r
 	}
 }
 
 // WithGradientFill sets the sub-cell fill runes ordered from least to most
 // filled. Enables Nx sub-cell resolution where N = len(runes)+1. Overrides
-// [Style.HalfFilled] and [Style.CharHead].
+// [Config.HalfFilled] and [Config.CharHead].
 func WithGradientFill(runes []rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.GradientFill = runes
 	}
 }
 
 // WithHalfEmpty sets the rune shown at the start of the empty section when
-// [Style.HalfFilled] is not displayed (2x resolution). Set to 0 to disable.
+// [Config.HalfFilled] is not displayed (2x resolution). Set to 0 to disable.
 func WithHalfEmpty(r rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.HalfEmpty = r
 	}
 }
@@ -84,21 +84,21 @@ func WithHalfEmpty(r rune) Option {
 // WithHalfFilled sets the rune shown at the leading edge of the filled section,
 // enabling 2x sub-cell resolution. Set to 0 to disable.
 func WithHalfFilled(r rune) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.HalfFilled = r
 	}
 }
 
 // WithSeparator sets the string placed between the message, bar, and widget text.
 func WithSeparator(sep string) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.Separator = sep
 	}
 }
 
 // WithSmoothingMode sets the bar fill smoothing mode.
 func WithSmoothingMode(m SmoothingMode) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.Smoothing = m
 	}
 }
@@ -107,7 +107,7 @@ func WithSmoothingMode(m SmoothingMode) Option {
 // Smaller values converge faster (snappier); larger values are smoother.
 // Non-positive values reset to [DefaultSmoothingTau].
 func WithSmoothingTau(d time.Duration) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		if d <= 0 {
 			s.SmoothingTau = 0
 			return
@@ -118,14 +118,14 @@ func WithSmoothingTau(d time.Duration) Option {
 
 // WithPlacement sets the horizontal bar placement mode.
 func WithPlacement(p Placement) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.Placement = p
 	}
 }
 
 // WithPendingMode sets how the bar behaves before any progress is reported.
 func WithPendingMode(m PendingMode) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.PendingMode = m
 	}
 }
@@ -135,7 +135,7 @@ func WithPendingMode(m PendingMode) Option {
 // the bar fill itself still render from live current/total updates.
 // Non-positive values disable coalescing.
 func WithUpdateInterval(d time.Duration) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		if d <= 0 {
 			s.UpdateInterval = 0
 			return
@@ -146,28 +146,28 @@ func WithUpdateInterval(d time.Duration) Option {
 
 // WithProgressGradient sets the filled-cell color gradient.
 func WithProgressGradient(stops ...gradient.ColorStop) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.ProgressGradient = stops
 	}
 }
 
-// WithStyle replaces the entire bar style.
-func WithStyle(s Style) Option {
-	return func(st *Style) {
+// WithConfig replaces the entire bar style.
+func WithConfig(s Config) Option {
+	return func(st *Config) {
 		*st = s
 	}
 }
 
 // WithStyleEmpty sets the lipgloss style for empty cells.
 func WithStyleEmpty(ls *lipgloss.Style) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.StyleEmpty = ls
 	}
 }
 
 // WithStyleFill sets the lipgloss style for filled cells.
 func WithStyleFill(ls *lipgloss.Style) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.StyleFill = ls
 	}
 }
@@ -175,35 +175,35 @@ func WithStyleFill(ls *lipgloss.Style) Option {
 // WithWidth sets a fixed inner width for the bar.
 // When w is 0, the bar auto-sizes from the terminal width.
 func WithWidth(w int) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.Width = w
 	}
 }
 
 // WithMaxWidth sets the maximum auto-sized inner width.
 func WithMaxWidth(w int) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.WidthMax = w
 	}
 }
 
 // WithMinWidth sets the minimum auto-sized inner width.
 func WithMinWidth(w int) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.WidthMin = w
 	}
 }
 
 // WithWidgetLeft sets the widget displayed to the left of the bar.
 func WithWidgetLeft(w Widget) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.WidgetLeft = w
 	}
 }
 
 // WithWidgetRight sets the widget displayed to the right of the bar.
 func WithWidgetRight(w Widget) Option {
-	return func(s *Style) {
+	return func(s *Config) {
 		s.WidgetRight = w
 	}
 }

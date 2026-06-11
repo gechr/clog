@@ -23,13 +23,13 @@ func Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
 func (l *Logger) Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
 	cfg := shimmer.ApplyOptions(opts)
 	return fx.NewBuilder(fx.BuilderConfig{
-		Logger:       fxLogger{l},
-		Mode:         fx.AnimationShimmer,
-		Level:        LevelInfo,
-		Message:      msg,
-		ShimmerDir:   cfg.Direction,
-		ShimmerStops: cfg.Gradient,
-		Speed:        cfg.Speed,
-		SpinnerStyle: l.resolveSpinnerStyle(),
+		Logger:        fxLogger{l},
+		Mode:          fx.AnimationShimmer,
+		Level:         LevelInfo,
+		Message:       msg,
+		ShimmerDir:    cfg.Direction,
+		ShimmerStops:  cfg.Gradient,
+		Speed:         cfg.Speed,
+		SpinnerConfig: l.resolveSpinnerConfig(),
 	})
 }

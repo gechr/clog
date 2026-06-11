@@ -3,9 +3,9 @@ package spinner
 import "time"
 
 // Predefined spinner frame sets adapted from https://github.com/sindresorhus/cli-spinners
-// Pass any of these to [WithStyle] or the animation builder's Style method to change the animation.
+// Pass any of these to [WithConfig] or the animation builder's Config method to change the animation.
 var (
-	Aesthetic = Style{
+	Aesthetic = Config{
 		Frames: []string{
 			"▰▱▱▱▱▱▱",
 			"▰▰▱▱▱▱▱",
@@ -18,27 +18,27 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Arc = Style{
+	Arc = Config{
 		Frames:   []string{"◜", "◠", "◝", "◞", "◡", "◟"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Arrow2 = Style{
+	Arrow2 = Config{
 		Frames:   []string{"⬆️ ", "↗️ ", "➡️ ", "↘️ ", "⬇️ ", "↙️ ", "⬅️ ", "↖️ "},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Arrow3 = Style{
+	Arrow3 = Config{
 		Frames:   []string{"▹▹▹▹▹", "▸▹▹▹▹", "▹▸▹▹▹", "▹▹▸▹▹", "▹▹▹▸▹", "▹▹▹▹▸"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Balloon = Style{
+	Balloon = Config{
 		Frames:   []string{" ", ".", "o", "O", "@", "*", " "},
 		Interval: 140 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Balloon2 = Style{
+	Balloon2 = Config{
 		Frames:   []string{".", "o", "O", "°", "O", "o", "."},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	BetaWave = Style{
+	BetaWave = Config{
 		Frames: []string{
 			"ρββββββ",
 			"βρβββββ",
@@ -50,7 +50,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Binary = Style{
+	Binary = Config{
 		Frames: []string{
 			"010010",
 			"001100",
@@ -65,11 +65,11 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	BluePulse = Style{
+	BluePulse = Config{
 		Frames:   []string{"🔹 ", "🔷 ", "🔵 ", "🔵 ", "🔷 "},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	BouncingBall = Style{
+	BouncingBall = Config{
 		Frames: []string{
 			"( ●    )",
 			"(  ●   )",
@@ -84,47 +84,47 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	BoxBounce = Style{
+	BoxBounce = Config{
 		Frames:   []string{"▖", "▘", "▝", "▗"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	BoxBounce2 = Style{
+	BoxBounce2 = Config{
 		Frames:   []string{"▌", "▀", "▐", "▄"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Christmas = Style{
+	Christmas = Config{
 		Frames:   []string{"🌲", "🎄"},
 		Interval: 400 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Circle = Style{
+	Circle = Config{
 		Frames:   []string{"◡", "⊙", "◠"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	CircleHalves = Style{
+	CircleHalves = Config{
 		Frames:   []string{"◐", "◓", "◑", "◒"},
 		Interval: 50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	CircleQuarters = Style{
+	CircleQuarters = Config{
 		Frames:   []string{"◴", "◷", "◶", "◵"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dot = Style{
+	Dot = Config{
 		Frames:   []string{"⣾ ", "⣽ ", "⣻ ", "⢿ ", "⡿ ", "⣟ ", "⣯ ", "⣷ "},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots = Style{
+	Dots = Config{
 		Frames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	DotsBounce = Style{
+	DotsBounce = Config{
 		Frames:   []string{"⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots11 = Style{
+	Dots11 = Config{
 		Frames:   []string{"⠁", "⠂", "⠄", "⡀", "⢀", "⠠", "⠐", "⠈"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots12 = Style{
+	Dots12 = Config{
 		Frames: []string{
 			"⢀⠀",
 			"⡀⠀",
@@ -185,11 +185,11 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots13 = Style{
+	Dots13 = Config{
 		Frames:   []string{"⣼", "⣹", "⢻", "⠿", "⡟", "⣏", "⣧", "⣶"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots14 = Style{
+	Dots14 = Config{
 		Frames: []string{
 			"⠉⠉",
 			"⠈⠙",
@@ -206,11 +206,11 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots3 = Style{
+	Dots3 = Config{
 		Frames:   []string{"⠋", "⠙", "⠚", "⠞", "⠖", "⠦", "⠴", "⠲", "⠳", "⠓"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots4 = Style{
+	Dots4 = Config{
 		Frames: []string{
 			"⠄",
 			"⠆",
@@ -229,7 +229,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots5 = Style{
+	Dots5 = Config{
 		Frames: []string{
 			"⠋",
 			"⠙",
@@ -251,7 +251,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots6 = Style{
+	Dots6 = Config{
 		Frames: []string{
 			"⠁",
 			"⠉",
@@ -280,7 +280,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots7 = Style{
+	Dots7 = Config{
 		Frames: []string{
 			"⠈",
 			"⠉",
@@ -309,7 +309,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots8 = Style{
+	Dots8 = Config{
 		Frames: []string{
 			"⠁",
 			"⠁",
@@ -343,7 +343,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots8Bit = Style{
+	Dots8Bit = Config{
 		Frames: []string{
 			"⠀",
 			"⠁",
@@ -604,19 +604,19 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dots9 = Style{
+	Dots9 = Config{
 		Frames:   []string{"⢹", "⢺", "⢼", "⣸", "⣇", "⡧", "⡗", "⡏"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	DotsCircle = Style{
+	DotsCircle = Config{
 		Frames:   []string{"⢎ ", "⠎⠁", "⠊⠑", "⠈⠱", " ⡱", "⢀⡰", "⢄⡠", "⢆⡀"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Dqpb = Style{
+	Dqpb = Config{
 		Frames:   []string{"d", "q", "p", "b"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	DwarfFortress = Style{
+	DwarfFortress = Config{
 		Frames: []string{
 			" ██████£££  ",
 			"☺██████£££  ",
@@ -754,15 +754,15 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Ellipsis = Style{
+	Ellipsis = Config{
 		Frames:   []string{"", ".", "..", "..."},
 		Interval: 333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	FingerDance = Style{
+	FingerDance = Config{
 		Frames:   []string{"🤘 ", "🤟 ", "🖖 ", "✋ ", "🤚 ", "👆 "},
 		Interval: 160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Fish = Style{
+	Fish = Config{
 		Frames: []string{
 			"~~~~~~~~~~~~~~~~~~~~",
 			"> ~~~~~~~~~~~~~~~~~~",
@@ -794,7 +794,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	FistBump = Style{
+	FistBump = Config{
 		Frames: []string{
 			"🤜\u3000\u3000\u3000\u3000🤛 ",
 			"🤜\u3000\u3000\u3000\u3000🤛 ",
@@ -806,7 +806,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Flip = Style{
+	Flip = Config{
 		Frames: []string{
 			"_",
 			"_",
@@ -823,11 +823,11 @@ var (
 		},
 		Interval: 70 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Globe = Style{
+	Globe = Config{
 		Frames:   []string{"🌍", "🌎", "🌏"},
 		Interval: 250 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Grenade = Style{
+	Grenade = Config{
 		Frames: []string{
 			"،  ",
 			"′  ",
@@ -846,7 +846,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	GrowHorizontal = Style{
+	GrowHorizontal = Config{
 		Frames: []string{
 			"▏",
 			"▎",
@@ -863,31 +863,31 @@ var (
 		},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	GrowVertical = Style{
+	GrowVertical = Config{
 		Frames:   []string{"▁", "▃", "▄", "▅", "▆", "▇", "▆", "▅", "▄", "▃"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Hamburger = Style{
+	Hamburger = Config{
 		Frames:   []string{"☱", "☲", "☴", "☲"},
 		Interval: 333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Jump = Style{
+	Jump = Config{
 		Frames:   []string{"⢄", "⢂", "⢁", "⡁", "⡈", "⡐", "⡠"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Layer = Style{
+	Layer = Config{
 		Frames:   []string{"-", "=", "≡"},
 		Interval: 150 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Line = Style{
+	Line = Config{
 		Frames:   []string{"|", "/", "-", "\\"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Line2 = Style{
+	Line2 = Config{
 		Frames:   []string{"⠂", "-", "–", "-", "–", "-"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Material = Style{
+	Material = Config{
 		Frames: []string{
 			"█▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
 			"██▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁▁",
@@ -984,11 +984,11 @@ var (
 		},
 		Interval: 17 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Meter = Style{
+	Meter = Config{
 		Frames:   []string{"▱▱▱", "▰▱▱", "▰▰▱", "▰▰▰", "▰▰▱", "▰▱▱", "▱▱▱"},
 		Interval: 143 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Mindblown = Style{
+	Mindblown = Config{
 		Frames: []string{
 			"😐 ",
 			"😐 ",
@@ -1007,43 +1007,43 @@ var (
 		},
 		Interval: 160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	MiniDot = Style{
+	MiniDot = Config{
 		Frames:   []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"},
 		Interval: 83 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Monkey = Style{
+	Monkey = Config{
 		Frames:   []string{"🙈", "🙉", "🙊"},
 		Interval: 333 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Moon = Style{
+	Moon = Config{
 		Frames:   []string{"🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"},
 		Interval: 125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Noise = Style{
+	Noise = Config{
 		Frames:   []string{"▓", "▒", "░"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	OrangeBluePulse = Style{
+	OrangeBluePulse = Config{
 		Frames:   []string{"🔸 ", "🔶 ", "🟠 ", "🟠 ", "🔶 ", "🔹 ", "🔷 ", "🔵 ", "🔵 ", "🔷 "},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	OrangePulse = Style{
+	OrangePulse = Config{
 		Frames:   []string{"🔸 ", "🔶 ", "🟠 ", "🟠 ", "🔶 "},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Pipe = Style{
+	Pipe = Config{
 		Frames:   []string{"┤", "┘", "┴", "└", "├", "┌", "┬", "┐"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Point = Style{
+	Point = Config{
 		Frames:   []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●", "∙∙∙"},
 		Interval: 125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Points = Style{
+	Points = Config{
 		Frames:   []string{"∙∙∙", "●∙∙", "∙●∙", "∙∙●"},
 		Interval: 143 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Pong = Style{
+	Pong = Config{
 		Frames: []string{
 			"▐⠂       ▌",
 			"▐⠈       ▌",
@@ -1078,19 +1078,19 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Pulse = Style{
+	Pulse = Config{
 		Frames:   []string{"█", "▓", "▒", "░"},
 		Interval: 125 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	RollingLine = Style{
+	RollingLine = Config{
 		Frames:   []string{"/  ", " - ", " \\ ", "  |", "  |", " \\ ", " - ", "/  "},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Runner = Style{
+	Runner = Config{
 		Frames:   []string{"🚶 ", "🏃 "},
 		Interval: 140 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Sand = Style{
+	Sand = Config{
 		Frames: []string{
 			"⠁",
 			"⠂",
@@ -1130,7 +1130,7 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Shark = Style{
+	Shark = Config{
 		Frames: []string{
 			"▐|\\____________▌",
 			"▐_|\\___________▌",
@@ -1161,19 +1161,19 @@ var (
 		},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SimpleDots = Style{
+	SimpleDots = Config{
 		Frames:   []string{".  ", ".. ", "...", "   "},
 		Interval: 400 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SimpleDotsScrolling = Style{
+	SimpleDotsScrolling = Config{
 		Frames:   []string{".  ", ".. ", "...", " ..", "  .", "   "},
 		Interval: 200 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Smiley = Style{
+	Smiley = Config{
 		Frames:   []string{"😄 ", "😝 "},
 		Interval: 200 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SoccerHeader = Style{
+	SoccerHeader = Config{
 		Frames: []string{
 			" 🧑⚽️       🧑 ",
 			"🧑  ⚽️      🧑 ",
@@ -1190,19 +1190,19 @@ var (
 		},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Speaker = Style{
+	Speaker = Config{
 		Frames:   []string{"🔈 ", "🔉 ", "🔊 ", "🔉 "},
 		Interval: 160 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	SquareCorners = Style{
+	SquareCorners = Config{
 		Frames:   []string{"◰", "◳", "◲", "◱"},
 		Interval: 180 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Squish = Style{
+	Squish = Config{
 		Frames:   []string{"╫", "╪"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Stars = Style{
+	Stars = Config{
 		Frames: []string{
 			"·",
 			"✢",
@@ -1219,7 +1219,7 @@ var (
 		},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	TimeTravel = Style{
+	TimeTravel = Config{
 		Frames: []string{
 			"🕛 ",
 			"🕚 ",
@@ -1236,63 +1236,63 @@ var (
 		},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle = Style{
+	Toggle = Config{
 		Frames:   []string{"⊶", "⊷"},
 		Interval: 250 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle10 = Style{
+	Toggle10 = Config{
 		Frames:   []string{"㊂", "㊀", "㊁"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle11 = Style{
+	Toggle11 = Config{
 		Frames:   []string{"⧇", "⧆"},
 		Interval: 50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle12 = Style{
+	Toggle12 = Config{
 		Frames:   []string{"☗", "☖"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle13 = Style{
+	Toggle13 = Config{
 		Frames:   []string{"=", "*", "-"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle2 = Style{
+	Toggle2 = Config{
 		Frames:   []string{"▫", "▪"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle3 = Style{
+	Toggle3 = Config{
 		Frames:   []string{"□", "■"},
 		Interval: 120 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle4 = Style{
+	Toggle4 = Config{
 		Frames:   []string{"■", "□", "▪", "▫"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle5 = Style{
+	Toggle5 = Config{
 		Frames:   []string{"▮", "▯"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle6 = Style{
+	Toggle6 = Config{
 		Frames:   []string{"ဝ", "၀"},
 		Interval: 300 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle7 = Style{
+	Toggle7 = Config{
 		Frames:   []string{"⦾", "⦿"},
 		Interval: 80 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle8 = Style{
+	Toggle8 = Config{
 		Frames:   []string{"◍", "◌"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Toggle9 = Style{
+	Toggle9 = Config{
 		Frames:   []string{"◉", "◎"},
 		Interval: 100 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Triangle = Style{
+	Triangle = Config{
 		Frames:   []string{"◢", "◣", "◤", "◥"},
 		Interval: 50 * time.Millisecond, //nolint:mnd // frame rate
 	}
-	Weather = Style{
+	Weather = Config{
 		Frames: []string{
 			"☀️ ",
 			"☀️ ",

@@ -29,4 +29,4 @@ clog.Pulse("Processing",
   Msg("Done")
 ```
 
-Use `pulse.DefaultStyle()` to inspect the default configuration, or `pulse.DefaultGradient()` to get just the default gradient stops.
+Use `pulse.DefaultConfig()` to inspect the default configuration, or `pulse.DefaultGradient()` to get just the default gradient stops.

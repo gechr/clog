@@ -125,7 +125,7 @@ type Logger struct {
 	sliceClose         rune // 0 means default (']')
 	sliceOpen          rune // 0 means default ('[')
 	sliceSep           string
-	spinnerStyle       *spinner.Style // nil = use spinner.DefaultStyle()
+	spinnerConfig      *spinner.Config // nil = use spinner.DefaultConfig()
 	styles             *style.Config
 	printThemePair     *theme.Pair   // light/dark source for auto-detection; nil = built-in default pair
 	printThemeDirty    bool          // printer styles need (re)building from the detected background
@@ -691,22 +691,25 @@ func (l *Logger) SetSliceSeparator(sep string) {
 	l.sliceSep = sep
 }
 
-// resolveSpinnerStyle returns the logger's spinner style, falling back to
-// [spinner.DefaultStyle] if none has been set. The caller must not hold l.mu.
-func (l *Logger) resolveSpinnerStyle() spinner.Style {
+// resolveSpinnerConfig returns the logger's spinner configuration, falling
+// back to [spinner.DefaultConfig] if none has been set. The caller must not
+// hold l.mu.
+func (l *Logger) resolveSpinnerConfig() spinner.Config {
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if l.spinnerStyle != nil {
-		return *l.spinnerStyle
+	if l.spinnerConfig != nil {
+		return *l.spinnerConfig
 	}
-	return spinner.DefaultStyle()
+	return spinner.DefaultConfig()
 }
 
-// SetSpinnerStyle sets the default spinner style used by [Logger.Spinner].
-func (l *Logger) SetSpinnerStyle(s spinner.Style) {
+// SetSpinnerDefaults sets the default spinner configuration used by
+// [Logger.Spinner], built by applying opts over [spinner.DefaultConfig].
+func (l *Logger) SetSpinnerDefaults(opts ...spinner.Option) {
+	cfg := spinner.ApplyOptions(opts)
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	l.spinnerStyle = new(s)
+	l.spinnerConfig = &cfg
 }
 
 // SetTheme sets the light/dark theme pair used for printer styles

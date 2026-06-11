@@ -11,7 +11,7 @@ err := clog.Spinner("Downloading").
   Msg("Downloaded")
 ```
 
-The spinner animates with moon phase emojis (🌘🌗🌖🌕🌔🌓🌒🌑) while the action runs, then logs the result. This is the default style ([`spinner.DefaultStyle`](https://pkg.go.dev/github.com/gechr/clog/fx/spinner#DefaultStyle)), which is used when no `spinner.WithStyle` option is passed.
+The spinner animates with moon phase emojis (🌘🌗🌖🌕🌔🌓🌒🌑) while the action runs, then logs the result. This is the default configuration ([`spinner.DefaultConfig`](https://pkg.go.dev/github.com/gechr/clog/fx/spinner#DefaultConfig)), which is used when no `spinner.WithConfig` option is passed.
 
 ![Spinner demo](assets/spinner.gif)
 
@@ -93,7 +93,7 @@ clog.Pulse("Syncing").
 
 // Custom spinner style on a bar
 clog.Bar("Downloading", total).
-  Spinner(spinner.WithStyle(spinner.Dots)).
+  Spinner(spinner.WithConfig(spinner.Dots)).
   Progress(ctx, task).
   Msg("Downloaded")
 ```
@@ -102,7 +102,7 @@ clog.Bar("Downloading", total).
 
 | Option                    | Description                                                  |
 | ------------------------- | ------------------------------------------------------------ |
-| `spinner.WithStyle(s)`    | Replace the entire spinner style                             |
+| `spinner.WithConfig(s)`   | Replace the entire spinner style                             |
 | `spinner.WithFrames(fs)`  | Animation frames (e.g. `[]string{"⠋","⠙","⠹","⠸"}`)          |
 | `spinner.WithInterval(d)` | Duration per frame (values ≤ 0 keep existing)                |
 | `spinner.WithBoomerang()` | Ping-pong playback - reverses at each end instead of jumping |
@@ -117,15 +117,15 @@ When both `.Symbol()` and `.Spinner()` are called, `.Spinner()` takes precedence
 Set the default spinner style for all spinners on a logger:
 
 ```go
-clog.SetSpinnerStyle(spinner.Dots)
+clog.SetSpinnerDefaults(spinner.WithConfig(spinner.Dots))
 ```
 
-Individual spinners can still override the default with `spinner.WithStyle`.
+Individual spinners can still override the default with `spinner.WithConfig`.
 
 ## Custom Spinner Style
 
 ```go
-clog.Spinner("Loading", spinner.WithStyle(spinner.Dot)).
+clog.Spinner("Loading", spinner.WithConfig(spinner.Dot)).
   Wait(ctx, action).
   Msg("Done")
 ```

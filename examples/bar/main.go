@@ -31,7 +31,7 @@ func main() {
 	downloadBar.WidgetLeft = widget.Percent()
 	downloadBar.WidgetRight = widget.None()
 
-	_ = clog.Bar("Downloading", 1000, bar.WithStyle(downloadBar)).
+	_ = clog.Bar("Downloading", 1000, bar.WithConfig(downloadBar)).
 		Spinner().
 		Str("file", "release.tar.gz").
 		Elapsed("elapsed").
@@ -49,7 +49,7 @@ func main() {
 	bytesBar.ProgressGradient = bar.DefaultGradient()
 	bytesBar.WidgetRight = widget.Bytes()
 
-	_ = clog.Bar("Fetching", fileSize, bar.WithStyle(bytesBar)).
+	_ = clog.Bar("Fetching", fileSize, bar.WithConfig(bytesBar)).
 		Str("file", "model.bin").
 		Elapsed("elapsed").
 		Progress(context.Background(), func(_ context.Context, p *clog.Update) error {
@@ -72,7 +72,7 @@ func showETA() {
 		widget.Rate(widget.WithUnit("items")),
 	)
 
-	_ = clog.Bar("Processing", 500, bar.WithStyle(etaStyle)).
+	_ = clog.Bar("Processing", 500, bar.WithConfig(etaStyle)).
 		Elapsed("elapsed").
 		Progress(context.Background(), func(_ context.Context, p *clog.Update) error {
 			for i := range 501 {
@@ -90,7 +90,7 @@ func showETA() {
 	downloadStyle.WidgetRight = widget.BytesRate()
 
 	totalBytes := 200 * 1000 * 1000
-	_ = clog.Bar("Downloading", totalBytes, bar.WithStyle(downloadStyle)).
+	_ = clog.Bar("Downloading", totalBytes, bar.WithConfig(downloadStyle)).
 		Str("file", "dataset.tar.gz").
 		Elapsed("elapsed").
 		Progress(context.Background(), func(_ context.Context, p *clog.Update) error {
@@ -108,7 +108,7 @@ func showETA() {
 	scanStyle.WidgetLeft = widget.ETA()
 	scanStyle.WidgetRight = widget.Percent()
 
-	_ = clog.Bar("Scanning", 100, bar.WithStyle(scanStyle)).
+	_ = clog.Bar("Scanning", 100, bar.WithConfig(scanStyle)).
 		Elapsed("elapsed").
 		Progress(context.Background(), func(_ context.Context, p *clog.Update) error {
 			for i := range 101 {
@@ -132,7 +132,7 @@ func showETA() {
 func showStyles() {
 	type barEntry struct {
 		name  string
-		style bar.Style
+		style bar.Config
 	}
 
 	all := []barEntry{
@@ -155,7 +155,7 @@ func showStyles() {
 
 	g := clog.Group(context.Background())
 	for _, e := range all {
-		g.Add(clog.Bar(e.name, 1000, bar.WithStyle(e.style))).Progress(fill)
+		g.Add(clog.Bar(e.name, 1000, bar.WithConfig(e.style))).Progress(fill)
 	}
 	if err := g.Wait().Symbol("✅").Msg("All bar styles complete"); err != nil {
 		clog.Fatal().Err(err).Msg("bar styles failed")

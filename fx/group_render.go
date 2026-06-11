@@ -243,7 +243,7 @@ func prioritiseActive(visible []int, gts []*renderTask, done []bool, maxLines in
 	return out
 }
 
-func renderBarProgress(progress float64, s bar.Style, termWidth int) string {
+func renderBarProgress(progress float64, s bar.Config, termWidth int) string {
 	progress = max(0, min(1, progress))
 	current := int(math.Round(progress * monotonicBarScale))
 	return bar.Render(current, monotonicBarScale, s, termWidth)
@@ -456,7 +456,7 @@ func loadBarWidgetState(gt *renderTask, now time.Time) barWidgetState {
 		renderAt: now,
 	}
 
-	updateInterval := gt.builder.BarStyle.UpdateInterval
+	updateInterval := gt.builder.BarConfig.UpdateInterval
 	if updateInterval <= 0 {
 		gt.barWidgetState = state
 		gt.barWidgetValid = true
@@ -486,7 +486,7 @@ func captureTaskConfig(gt *renderTask) {
 	switch b.Mode {
 	case AnimationNone:
 		if b.AnimatedSymbol {
-			gt.tickRate = b.SpinnerStyle.Interval
+			gt.tickRate = b.SpinnerConfig.Interval
 		}
 	case AnimationPulse:
 		gt.tickRate = pulse.TickRate
@@ -499,19 +499,19 @@ func captureTaskConfig(gt *renderTask) {
 	}
 	// When animated symbol is enabled on a non-spinner mode, ensure the
 	// tick rate is fast enough for smooth spinner frame changes.
-	if b.AnimatedSymbol && b.SpinnerStyle.Interval > 0 && gt.tickRate > 0 {
-		gt.tickRate = min(gt.tickRate, b.SpinnerStyle.Interval)
+	if b.AnimatedSymbol && b.SpinnerConfig.Interval > 0 && gt.tickRate > 0 {
+		gt.tickRate = min(gt.tickRate, b.SpinnerConfig.Interval)
 	}
 
 	// Guard against missing spinner frames when animated symbol is enabled.
-	if b.AnimatedSymbol && len(b.SpinnerStyle.Frames) == 0 {
-		b.SpinnerStyle.Frames = spinner.DefaultStyle().Frames
+	if b.AnimatedSymbol && len(b.SpinnerConfig.Frames) == 0 {
+		b.SpinnerConfig.Frames = spinner.DefaultConfig().Frames
 	}
-	if b.AnimatedSymbol && b.SpinnerStyle.Boomerang {
-		b.SpinnerStyle.Frames = spinner.BoomerangFrames(b.SpinnerStyle.Frames)
+	if b.AnimatedSymbol && b.SpinnerConfig.Boomerang {
+		b.SpinnerConfig.Frames = spinner.BoomerangFrames(b.SpinnerConfig.Frames)
 	}
 	if gt.tickRate <= 0 {
-		gt.tickRate = spinner.DefaultStyle().Interval
+		gt.tickRate = spinner.DefaultConfig().Interval
 	}
 	if interval := gt.cfg.AnimationInterval; interval > 0 && gt.tickRate < interval {
 		gt.tickRate = interval
@@ -812,7 +812,7 @@ func (gt *renderTask) animDuration(now time.Time) time.Duration {
 }
 
 // resolveSymbol returns the styled symbol for the current animation frame.
-// When [Builder.AnimatedSymbol] is true, it cycles through [SpinnerStyle]
+// When [Builder.AnimatedSymbol] is true, it cycles through [SpinnerConfig]
 // frames based on wall-clock time. When the symbol has been explicitly
 // overridden via [Update.SetSymbol], the static symbol is returned instead
 // so the caller can replace the spinner with a checkmark or other icon.
@@ -821,14 +821,14 @@ func (gt *renderTask) animDuration(now time.Time) time.Duration {
 func resolveSymbol(gt *renderTask, now time.Time) string {
 	b := gt.builder
 	if b.AnimatedSymbol && !gt.symbolOverride.Load() &&
-		gt.started() && len(b.SpinnerStyle.Frames) > 0 &&
-		b.SpinnerStyle.Interval > 0 {
-		n := len(b.SpinnerStyle.Frames)
-		i := int(gt.animDuration(now)/b.SpinnerStyle.Interval) % n
-		if b.SpinnerStyle.Reverse {
+		gt.started() && len(b.SpinnerConfig.Frames) > 0 &&
+		b.SpinnerConfig.Interval > 0 {
+		n := len(b.SpinnerConfig.Frames)
+		i := int(gt.animDuration(now)/b.SpinnerConfig.Interval) % n
+		if b.SpinnerConfig.Reverse {
 			i = n - 1 - i
 		}
-		return gt.cfg.StyleSymbol(b.SpinnerStyle.Frames[i], b.Level)
+		return gt.cfg.StyleSymbol(b.SpinnerConfig.Frames[i], b.Level)
 	}
 	return gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.effectiveLevel())
 }
@@ -865,7 +865,7 @@ func renderTaskBarLine(
 		layout,
 		now,
 	)
-	if !showBar || gt.builder.BarStyle.Placement == bar.PlaceInline {
+	if !showBar || gt.builder.BarConfig.Placement == bar.PlaceInline {
 		return parts
 	}
 	if layout != nil {
@@ -875,12 +875,18 @@ func renderTaskBarLine(
 			barStr,
 			rightText,
 			sep,
-			gt.builder.BarStyle.Placement,
+			gt.builder.BarConfig.Placement,
 			gt.cfg.Output.Width(),
 		)
 	}
 	barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
-	return bar.FormatLine(parts, barFull, sep, gt.builder.BarStyle.Placement, gt.cfg.Output.Width())
+	return bar.FormatLine(
+		parts,
+		barFull,
+		sep,
+		gt.builder.BarConfig.Placement,
+		gt.cfg.Output.Width(),
+	)
 }
 
 func buildTaskBarParts(
@@ -920,14 +926,14 @@ func buildTaskBarParts(
 		current = int(math.Round(renderProgress * float64(max(total, 1))))
 		total = max(total, 1)
 	}
-	if b.BarStyle.Smoothing == bar.SmoothEase {
+	if b.BarConfig.Smoothing == bar.SmoothEase {
 		now := state.renderAt
 		if !gt.smoothedInit {
 			gt.smoothedProgress = renderProgress
 			gt.smoothedTime = now
 			gt.smoothedInit = true
 		} else {
-			tau := b.BarStyle.SmoothingTau
+			tau := b.BarConfig.SmoothingTau
 			if tau <= 0 {
 				tau = bar.DefaultSmoothingTau
 			}
@@ -941,7 +947,7 @@ func buildTaskBarParts(
 		// smoothed position, not the raw target.
 		current = int(math.Round(renderProgress * float64(max(total, 1))))
 	}
-	sep := b.BarStyle.Separator
+	sep := b.BarConfig.Separator
 	if sep == "" {
 		sep = " "
 	}
@@ -955,12 +961,12 @@ func buildTaskBarParts(
 		msg,
 		fieldsStr,
 	)
-	if !bar.ShowPending(b.BarStyle, current) {
+	if !bar.ShowPending(b.BarConfig, current) {
 		return parts, "", "", "", sep, false
 	}
 
 	// Cache the gradient style to avoid lipgloss.NewStyle() per frame.
-	barStyle := b.BarStyle
+	barStyle := b.BarConfig
 	if len(barStyle.ProgressGradient) > 0 {
 		if !gt.gradientValid || gt.gradientProgress != renderProgress {
 			c := style.InterpolateGradient(renderProgress, barStyle.ProgressGradient)
@@ -973,7 +979,7 @@ func buildTaskBarParts(
 		barStyle.ProgressGradient = nil // prevent renderBar from recomputing
 	}
 	var barStr string
-	if gt.monotonic || b.BarStyle.Smoothing == bar.SmoothEase {
+	if gt.monotonic || b.BarConfig.Smoothing == bar.SmoothEase {
 		barStr = renderBarProgress(renderProgress, barStyle, gt.cfg.Output.Width())
 	} else {
 		barStr = bar.Render(current, total, barStyle, gt.cfg.Output.Width())
@@ -987,19 +993,19 @@ func buildTaskBarParts(
 	}
 
 	var leftText, rightText string
-	if b.BarStyle.WidgetLeft != nil {
-		leftText = b.BarStyle.WidgetLeft(widgetState)
+	if b.BarConfig.WidgetLeft != nil {
+		leftText = b.BarConfig.WidgetLeft(widgetState)
 	}
-	if b.BarStyle.WidgetRight != nil && b.BarPercentKey == "" {
-		rightText = b.BarStyle.WidgetRight(widgetState)
-	} else if b.BarStyle.WidgetLeft == nil && b.BarStyle.WidgetRight == nil && b.BarPercentKey == "" {
+	if b.BarConfig.WidgetRight != nil && b.BarPercentKey == "" {
+		rightText = b.BarConfig.WidgetRight(widgetState)
+	} else if b.BarConfig.WidgetLeft == nil && b.BarConfig.WidgetRight == nil && b.BarPercentKey == "" {
 		// Default: padded percent on the right when no widgets are configured
 		// and no BarPercent field is set.
 		rightText = bar.FormatPercent(current, total, 0, true)
 	}
 
 	// writeFrame equivalent: build the complete line string.
-	if b.BarStyle.Placement == bar.PlaceInline {
+	if b.BarConfig.Placement == bar.PlaceInline {
 		barFull := assembleBarColumns(groupBarColumns{
 			hasLeft:  leftText != "",
 			hasRight: rightText != "",
@@ -1081,7 +1087,7 @@ func measureGroupRenderLayoutForIndexes(
 		if !showBar {
 			continue
 		}
-		layout.bar.observe(parts, leftText, barStr, rightText, gt.builder.BarStyle.Placement)
+		layout.bar.observe(parts, leftText, barStr, rightText, gt.builder.BarConfig.Placement)
 	}
 
 	// For PlaceAligned, also measure done tasks so completed messages
@@ -1092,7 +1098,7 @@ func measureGroupRenderLayoutForIndexes(
 		if hideDone || !shouldRenderTask(gt, done[i], now) || !done[i] {
 			continue
 		}
-		if gt.builder.Mode != AnimationBar || gt.builder.BarStyle.Placement != bar.PlaceAligned {
+		if gt.builder.Mode != AnimationBar || gt.builder.BarConfig.Placement != bar.PlaceAligned {
 			continue
 		}
 		tsStr := renderTaskTimestamp(gt, now)

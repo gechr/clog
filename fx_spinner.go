@@ -13,7 +13,7 @@ func Spinner(msg string, opts ...spinner.Option) *fx.Builder {
 
 // Spinner creates a new [fx.Builder] with a rotating spinner animation.
 func (l *Logger) Spinner(msg string, opts ...spinner.Option) *fx.Builder {
-	base := l.resolveSpinnerStyle()
+	base := l.resolveSpinnerConfig()
 	for _, o := range opts {
 		o(&base)
 	}
@@ -24,6 +24,6 @@ func (l *Logger) Spinner(msg string, opts ...spinner.Option) *fx.Builder {
 		Mode:           fx.AnimationNone,
 		Level:          LevelInfo,
 		Message:        msg,
-		SpinnerStyle:   base,
+		SpinnerConfig:  base,
 	})
 }

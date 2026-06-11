@@ -14,7 +14,7 @@ import (
 )
 
 func TestRenderBarThinDefault(t *testing.T) {
-	s := bar.DefaultStyle()
+	s := bar.DefaultConfig()
 	s.Width = 10
 	s.StyleFill = nil
 	s.StyleEmpty = nil
@@ -83,7 +83,7 @@ func TestRenderBarGradient(t *testing.T) {
 
 func TestRenderBarGradientCustom(t *testing.T) {
 	// 4x resolution gradient (3 chars + full = 4 sub-units per cell).
-	s := bar.Style{
+	s := bar.Config{
 		CapLeft:      "[",
 		CapRight:     "]",
 		CharEmpty:    ' ',
@@ -110,7 +110,7 @@ func TestRenderBarGradientCustom(t *testing.T) {
 
 func TestRenderBarGradientOverridesHalfFilled(t *testing.T) {
 	// When both GradientFill and HalfFilled are set, GradientFill wins.
-	s := bar.Style{
+	s := bar.Config{
 		CapLeft:      "[",
 		CapRight:     "]",
 		CharEmpty:    ' ',
@@ -125,7 +125,7 @@ func TestRenderBarGradientOverridesHalfFilled(t *testing.T) {
 }
 
 func TestRenderBarEdgeCases(t *testing.T) {
-	s := bar.DefaultStyle()
+	s := bar.DefaultConfig()
 	s.Width = 10
 	s.StyleFill = nil
 	s.StyleEmpty = nil
@@ -142,7 +142,7 @@ func TestRenderBarEdgeCases(t *testing.T) {
 }
 
 func TestRenderBarCustomChars(t *testing.T) {
-	s := bar.Style{
+	s := bar.Config{
 		CapLeft:   "(",
 		CapRight:  ")",
 		CharEmpty: '-',
@@ -171,7 +171,7 @@ func TestRenderBarCharHead(t *testing.T) {
 }
 
 func TestRenderBarAutoWidth(t *testing.T) {
-	s := bar.DefaultStyle()
+	s := bar.DefaultConfig()
 	s.StyleFill = nil
 	s.StyleEmpty = nil
 	s.ProgressGradient = nil
@@ -184,7 +184,7 @@ func TestRenderBarAutoWidth(t *testing.T) {
 }
 
 func TestRenderBarAutoWidthClampMin(t *testing.T) {
-	s := bar.DefaultStyle()
+	s := bar.DefaultConfig()
 	s.StyleFill = nil
 	s.StyleEmpty = nil
 	s.ProgressGradient = nil
@@ -196,7 +196,7 @@ func TestRenderBarAutoWidthClampMin(t *testing.T) {
 }
 
 func TestRenderBarWithCaps(t *testing.T) {
-	s := bar.DefaultStyle()
+	s := bar.DefaultConfig()
 	s.Width = 10
 	s.StyleFill = nil
 	s.StyleEmpty = nil
@@ -245,8 +245,8 @@ func TestBarPercentDigitsPadded(t *testing.T) {
 	assert.Equal(t, " 66.7%", bar.FormatPercent(2, 3, 1, true)) // full width
 }
 
-func TestBarDefaultStyle(t *testing.T) {
-	s := bar.DefaultStyle()
+func TestBarDefaultConfig(t *testing.T) {
+	s := bar.DefaultConfig()
 	// Function fields can't be compared with DeepEqual, so verify key structural fields.
 	assert.Equal(t, bar.Thin.CharFill, s.CharFill)
 	assert.Equal(t, bar.Thin.CharEmpty, s.CharEmpty)
@@ -262,13 +262,13 @@ func TestBarDefaultStyle(t *testing.T) {
 	assert.Nil(
 		t,
 		s.WidgetRight,
-		"bar.DefaultStyle should leave WidgetRight nil (fallback to percent)",
+		"bar.DefaultConfig should leave WidgetRight nil (fallback to percent)",
 	)
 }
 
 func TestBarPresets(t *testing.T) {
 	// Verify all presets have sensible defaults.
-	for name, s := range map[string]bar.Style{
+	for name, s := range map[string]bar.Config{
 		"bar.Thin":     bar.Thin,
 		"bar.Basic":    bar.Basic,
 		"bar.Block":    bar.Block,
@@ -286,28 +286,28 @@ func TestBarPresets(t *testing.T) {
 func TestBarPlacementZeroValue(t *testing.T) {
 	// bar.PlaceRightPad must be the zero value so presets default to right-padded.
 	assert.Equal(t, bar.PlaceRightPad, bar.Placement(0))
-	assert.Equal(t, bar.PlaceRightPad, bar.Style{}.Placement)
-	assert.Equal(t, bar.PlaceRightPad, bar.DefaultStyle().Placement)
+	assert.Equal(t, bar.PlaceRightPad, bar.Config{}.Placement)
+	assert.Equal(t, bar.PlaceRightPad, bar.DefaultConfig().Placement)
 }
 
 func TestPendingModeZeroValue(t *testing.T) {
 	assert.Equal(t, bar.PendingShow, bar.PendingMode(0))
-	assert.Equal(t, bar.PendingShow, bar.Style{}.PendingMode)
+	assert.Equal(t, bar.PendingShow, bar.Config{}.PendingMode)
 }
 
 func TestUpdateIntervalZeroValue(t *testing.T) {
-	assert.Zero(t, bar.Style{}.UpdateInterval)
+	assert.Zero(t, bar.Config{}.UpdateInterval)
 }
 
 func TestSmoothingModeZeroValue(t *testing.T) {
 	assert.Equal(t, bar.SmoothEase, bar.SmoothingMode(0))
-	assert.Equal(t, bar.SmoothEase, bar.Style{}.Smoothing)
+	assert.Equal(t, bar.SmoothEase, bar.Config{}.Smoothing)
 }
 
 func TestShowPending(t *testing.T) {
-	assert.True(t, bar.ShowPending(bar.Style{}, 0))
-	assert.True(t, bar.ShowPending(bar.Style{PendingMode: bar.PendingHide}, 1))
-	assert.False(t, bar.ShowPending(bar.Style{PendingMode: bar.PendingHide}, 0))
+	assert.True(t, bar.ShowPending(bar.Config{}, 0))
+	assert.True(t, bar.ShowPending(bar.Config{PendingMode: bar.PendingHide}, 1))
+	assert.False(t, bar.ShowPending(bar.Config{PendingMode: bar.PendingHide}, 0))
 }
 
 func TestFormatLineInline(t *testing.T) {
@@ -413,7 +413,7 @@ func TestFormatLineExactFit(t *testing.T) {
 
 func TestRenderBarProgressGradient(t *testing.T) {
 	gradient := bar.DefaultGradient()
-	s := bar.Style{
+	s := bar.Config{
 		CapLeft:          "[",
 		CapRight:         "]",
 		CharEmpty:        ' ',
@@ -448,7 +448,7 @@ func TestRenderBarProgressGradient(t *testing.T) {
 
 func TestRenderBarWithoutProgressGradient(t *testing.T) {
 	// Verify that bars without ProgressGradient remain unchanged (no ANSI).
-	s := bar.Style{
+	s := bar.Config{
 		CapLeft:   "[",
 		CapRight:  "]",
 		CharEmpty: ' ',
@@ -561,7 +561,7 @@ func TestWidgetNone(t *testing.T) {
 func TestBarPresetsLeaveWidgetRightNil(t *testing.T) {
 	// Presets leave WidgetRight nil; the bar renderer falls back to padded
 	// percent when both widgets are nil and no BarPercent field is set.
-	for name, s := range map[string]bar.Style{
+	for name, s := range map[string]bar.Config{
 		"bar.Thin":     bar.Thin,
 		"bar.Basic":    bar.Basic,
 		"bar.Block":    bar.Block,
@@ -708,7 +708,7 @@ func TestWidgetSeparatorWithStyle(t *testing.T) {
 	assert.Equal(t, st.Render("│"), w(bar.State{Current: 50, Total: 100}))
 }
 
-// TestWithStylePaddingIsPlain verifies that WithStyle styles the content string
+// TestWithStylePaddingIsPlain verifies that WithConfig styles the content string
 // only - leading alignment spaces must be plain so background colors don't bleed.
 func TestWithStylePaddingIsPlain(t *testing.T) {
 	st := new(lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("1")))

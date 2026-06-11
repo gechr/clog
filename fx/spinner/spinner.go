@@ -3,23 +3,23 @@ package spinner
 
 import "time"
 
-// Style is a set of frames used in animating the spinner.
+// Config is a set of frames used in animating the spinner.
 // Set Reverse to true to play the frames in reverse order.
 // Set Boomerang to true to play the frames in a ping-pong loop so the
 // animation smoothly reverses at each end instead of jumping from the last
 // frame back to the first. For example, frames [a, b, c] play as
 // [a, b, c, b, a, b, c, ...]. Boomerang and Reverse can be combined.
-type Style struct {
+type Config struct {
 	Boomerang bool
 	Interval  time.Duration
 	Frames    []string
 	Reverse   bool
 }
 
-// DefaultStyle returns the default spinner [Style].
+// DefaultConfig returns the default spinner [Config].
 // It uses [Moon] in reverse.
-func DefaultStyle() Style {
-	return Style{
+func DefaultConfig() Config {
+	return Config{
 		Frames:   Moon.Frames,
 		Interval: Moon.Interval,
 		Reverse:  true,
