@@ -2,9 +2,9 @@ package theme
 
 import (
 	"fmt"
-	"os"
 	"strings"
-	"sync/atomic"
+
+	"github.com/gechr/clog/internal/env"
 )
 
 // DefaultEnvPrefix is the default environment variable prefix.
@@ -16,14 +16,13 @@ const (
 	envThemeLight = "THEME_LIGHT"
 )
 
-var envPrefix atomic.Value // stores string; "" means no custom prefix
-
-// SetEnvPrefix sets a custom environment variable prefix.
+// SetEnvPrefix sets a custom environment variable prefix. The prefix is
+// process-wide and shared with root clog.
 //
 //	theme.SetEnvPrefix("MYAPP")
 //	// Now checks MYAPP_THEME_LIGHT/MYAPP_THEME_DARK first, then CLOG_THEME_LIGHT/CLOG_THEME_DARK
 func SetEnvPrefix(prefix string) {
-	envPrefix.Store(strings.TrimRight(prefix, "_"))
+	env.SetPrefix(prefix)
 }
 
 // PairFromEnv builds a theme pair from <PREFIX>_THEME_LIGHT and <PREFIX>_THEME_DARK.
@@ -60,10 +59,10 @@ func PairFromEnv(opts ...PairOption) (*Pair, error) {
 // It returns (nil, nil) when no theme variables are set. A set-but-invalid
 // value returns an error.
 func FromEnv(opts ...PairOption) (*Pair, error) {
-	if name, env := lookupEnv(envTheme); strings.TrimSpace(name) != "" {
+	if value, envVar := lookupEnv(envTheme); strings.TrimSpace(value) != "" {
 		var t Theme
-		if err := t.UnmarshalText([]byte(strings.TrimSpace(name))); err != nil {
-			return nil, fmt.Errorf("%s: %w", env, err)
+		if err := t.UnmarshalText([]byte(strings.TrimSpace(value))); err != nil {
+			return nil, fmt.Errorf("%s: %w", envVar, err)
 		}
 		return Single(&t), nil
 	}
@@ -78,12 +77,5 @@ func FromEnv(opts ...PairOption) (*Pair, error) {
 }
 
 func lookupEnv(suffix string) (string, string) {
-	if p, ok := envPrefix.Load().(string); ok && p != "" {
-		name := p + "_" + suffix
-		if v := os.Getenv(name); v != "" {
-			return v, name
-		}
-	}
-	name := DefaultEnvPrefix + "_" + suffix
-	return os.Getenv(name), name
+	return env.Lookup(suffix)
 }

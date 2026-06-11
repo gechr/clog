@@ -5,28 +5,23 @@ import (
 	"testing"
 
 	"github.com/gechr/clog/field/hyperlink"
+	"github.com/gechr/clog/internal/env"
 	"github.com/stretchr/testify/assert"
 )
 
 func saveEnvPrefix(t *testing.T) {
 	t.Helper()
 
-	orig, _ := envPrefix.Load().(string)
+	orig := env.Prefix()
 
-	t.Cleanup(func() {
-		if orig == "" {
-			envPrefix.Store("")
-		} else {
-			envPrefix.Store(orig)
-		}
-	})
+	t.Cleanup(func() { env.SetPrefix(orig) })
 }
 
 func TestGetEnvDefaultPrefix(t *testing.T) {
 	saveEnvPrefix(t)
 
 	t.Setenv("CLOG_LOG_LEVEL", "debug")
-	envPrefix.Store("")
+	env.SetPrefix("")
 
 	assert.Equal(t, "debug", getEnv(envLogLevel))
 }
@@ -36,7 +31,7 @@ func TestGetEnvCustomPrefix(t *testing.T) {
 
 	t.Setenv("MYAPP_LOG_LEVEL", "trace")
 	t.Setenv("CLOG_LOG_LEVEL", "info")
-	envPrefix.Store("MYAPP")
+	env.SetPrefix("MYAPP")
 
 	// Custom prefix takes precedence.
 	assert.Equal(t, "trace", getEnv(envLogLevel))
@@ -47,7 +42,7 @@ func TestGetEnvCustomPrefixFallback(t *testing.T) {
 
 	t.Setenv("MYAPP_LOG_LEVEL", "")
 	t.Setenv("CLOG_LOG_LEVEL", "warn")
-	envPrefix.Store("MYAPP")
+	env.SetPrefix("MYAPP")
 
 	// Empty custom prefix value falls back to CLOG.
 	assert.Equal(t, "warn", getEnv(envLogLevel))
@@ -57,7 +52,7 @@ func TestGetEnvNoPrefix(t *testing.T) {
 	saveEnvPrefix(t)
 
 	t.Setenv("CLOG_LOG_LEVEL", "")
-	envPrefix.Store("")
+	env.SetPrefix("")
 
 	assert.Empty(t, getEnv(envLogLevel))
 }
@@ -98,8 +93,7 @@ func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
 
 	SetEnvPrefix("MYAPP___")
 
-	got, _ := envPrefix.Load().(string)
-	assert.Equal(t, "MYAPP", got)
+	assert.Equal(t, "MYAPP", env.Prefix())
 }
 
 func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
@@ -122,7 +116,7 @@ func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			Default = NewWriter(io.Discard)
 			t.Setenv("CLOG_LOG_LEVEL", tt.value)
-			envPrefix.Store("")
+			env.SetPrefix("")
 
 			loadLogLevelFromEnv()
 
@@ -161,7 +155,7 @@ func TestEnvHyperlinkPresetApplied(t *testing.T) {
 	t.Setenv("CLOG_HYPERLINK_FORMAT", "vscode")
 	// Individual format vars override the preset.
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "custom://{path}")
-	envPrefix.Store("")
+	env.SetPrefix("")
 
 	loadHyperlinkFormatsFromEnv()
 

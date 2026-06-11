@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync/atomic"
 
 	"github.com/gechr/clog/field/hyperlink"
+	"github.com/gechr/clog/internal/env"
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/theme"
 )
@@ -24,8 +24,6 @@ const (
 	envHyperlinkLineFormat   = "HYPERLINK_LINE_FORMAT"
 	envHyperlinkColumnFormat = "HYPERLINK_COLUMN_FORMAT"
 )
-
-var envPrefix atomic.Value // stores string; "" means no custom prefix
 
 func init() {
 	loadAllFromEnv()
@@ -46,33 +44,25 @@ func loadAllFromEnv() {
 //	// Now checks MYAPP_HYPERLINK_PATH_FORMAT, then CLOG_HYPERLINK_PATH_FORMAT
 //	// etc.
 func SetEnvPrefix(prefix string) {
-	envPrefix.Store(strings.TrimRight(prefix, "_"))
-	theme.SetEnvPrefix(prefix)
+	env.SetPrefix(prefix) // shared with the theme package
 	loadAllFromEnv()
 }
 
 // getEnv reads an env var by suffix, checking custom prefix first, then CLOG.
 func getEnv(suffix string) string {
-	if p, ok := envPrefix.Load().(string); ok && p != "" {
-		if v := os.Getenv(p + "_" + suffix); v != "" {
-			return v
-		}
-	}
-	return os.Getenv(DefaultEnvPrefix + "_" + suffix)
+	v, _ := env.Lookup(suffix)
+	return v
 }
 
 func loadLogLevelFromEnv() {
-	lvl := strings.TrimSpace(getEnv(envLogLevel))
+	raw, envVar := env.Lookup(envLogLevel)
+	lvl := strings.TrimSpace(raw)
 	if lvl == "" {
 		return
 	}
 
 	parsed, err := level.Parse(lvl)
 	if err != nil {
-		envVar := DefaultEnvPrefix + "_" + envLogLevel
-		if p, ok := envPrefix.Load().(string); ok && p != "" {
-			envVar = p + "_" + envLogLevel
-		}
 		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", lvl, envVar)
 		return
 	}
@@ -88,12 +78,8 @@ func loadHyperlinkFormatsFromEnv() {
 	changed := false
 
 	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
-	if v := getEnv(envHyperlinkFormat); v != "" {
+	if v, envVar := env.Lookup(envHyperlinkFormat); v != "" {
 		if cfg, err := hyperlink.Preset(v); err != nil {
-			envVar := DefaultEnvPrefix + "_" + envHyperlinkFormat
-			if p, ok := envPrefix.Load().(string); ok && p != "" {
-				envVar = p + "_" + envHyperlinkFormat
-			}
 			fmt.Fprintf(os.Stderr, "clog: unrecognised hyperlink preset %q in %s\n", v, envVar)
 		} else {
 			f.HyperlinkPathFormat = cfg.PathFormat
