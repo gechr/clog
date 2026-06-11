@@ -140,19 +140,10 @@ type groupBarColumns struct {
 	maxRight int
 }
 
-// groupBarAligned tracks the maximum message-parts width for PlaceAligned bars
-// so that all bars in a group start at the same column.
-type groupBarAligned struct {
-	hasLeft  bool
-	hasRight bool
-	maxBar   int
-	maxLeft  int
-	maxParts int
-	maxRight int
-}
-
 type groupBarLayout struct {
-	aligned  groupBarAligned
+	// aligned tracks the maximum message-parts width for PlaceAligned bars
+	// so that all bars in a group start at the same column.
+	aligned  groupBarColumns
 	leftPad  groupBarColumns
 	rightPad groupBarColumns
 }
@@ -360,14 +351,7 @@ func (l *groupBarLayout) formatAligned(
 	termWidth int,
 ) string {
 	a := l.aligned
-	barCols := groupBarColumns{
-		hasLeft:  a.hasLeft,
-		hasRight: a.hasRight,
-		maxBar:   a.maxBar,
-		maxLeft:  a.maxLeft,
-		maxRight: a.maxRight,
-	}
-	barFull := assembleBarColumns(barCols, leftText, barStr, rightText, sep)
+	barFull := assembleBarColumns(a, leftText, barStr, rightText, sep)
 	effectiveMax := a.maxParts
 	if termWidth > 0 && termWidth <= rightEdgeSlack {
 		return ""
