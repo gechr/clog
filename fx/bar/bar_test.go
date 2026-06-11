@@ -702,7 +702,7 @@ func TestWidgetSeparator(t *testing.T) {
 }
 
 func TestWidgetSeparatorWithStyle(t *testing.T) {
-	st := new(lipgloss.NewStyle().Faint(true))
+	st := lipgloss.NewStyle().Faint(true)
 	w := widget.Separator("│", widget.WithStyle(st))
 	assert.Equal(t, st.Render("│"), w(bar.State{}))
 	assert.Equal(t, st.Render("│"), w(bar.State{Current: 50, Total: 100}))
@@ -711,7 +711,7 @@ func TestWidgetSeparatorWithStyle(t *testing.T) {
 // TestWithStylePaddingIsPlain verifies that WithConfig styles the content string
 // only - leading alignment spaces must be plain so background colors don't bleed.
 func TestWithStylePaddingIsPlain(t *testing.T) {
-	st := new(lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("1")))
+	st := lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("1"))
 
 	t.Run("WidgetPercent", func(t *testing.T) {
 		w := widget.Percent(widget.WithStyle(st))

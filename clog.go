@@ -706,7 +706,7 @@ func (l *Logger) resolveSpinnerConfig() spinner.Config {
 // SetSpinnerDefaults sets the default spinner configuration used by
 // [Logger.Spinner], built by applying opts over [spinner.DefaultConfig].
 func (l *Logger) SetSpinnerDefaults(opts ...spinner.Option) {
-	cfg := spinner.ApplyOptions(opts)
+	cfg := spinner.Apply(opts...)
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.spinnerConfig = &cfg

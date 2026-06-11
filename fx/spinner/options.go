@@ -5,8 +5,8 @@ import "time"
 // Option configures a spinner constructor.
 type Option func(*Config)
 
-// ApplyOptions applies the given options to the default style and returns the result.
-func ApplyOptions(opts []Option) Config {
+// Apply returns a copy of [DefaultConfig] with all opts applied in order.
+func Apply(opts ...Option) Config {
 	s := DefaultConfig()
 	for _, o := range opts {
 		o(&s)
@@ -23,8 +23,8 @@ func WithBoomerang() Option {
 	}
 }
 
-// WithFrames sets the animation frames. Values <= 0 are a no-op (keep existing Frames).
-func WithFrames(frames []string) Option {
+// WithFrames sets the animation frames. No frames is a no-op (keep existing Frames).
+func WithFrames(frames ...string) Option {
 	return func(s *Config) {
 		if len(frames) > 0 {
 			s.Frames = frames

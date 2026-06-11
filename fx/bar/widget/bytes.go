@@ -33,7 +33,7 @@ func bytesWidget(
 	opts []Option,
 ) bar.Widget {
 	c := config{digits: 3} //nolint:mnd // default significant digits
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	// Cache the formatted total to avoid re-computing every tick.
 	var cachedTotal int

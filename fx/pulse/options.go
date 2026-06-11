@@ -5,8 +5,8 @@ import "github.com/gechr/clog/internal/gradient"
 // Option configures a [Config].
 type Option func(*Config)
 
-// ApplyOptions applies options over [DefaultConfig] and returns the resolved config.
-func ApplyOptions(opts []Option) Config {
+// Apply returns a copy of [DefaultConfig] with all opts applied in order.
+func Apply(opts ...Option) Config {
 	s := DefaultConfig()
 	for _, o := range opts {
 		o(&s)

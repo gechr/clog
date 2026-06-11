@@ -22,9 +22,9 @@ func TestDefaultStyleUsesMoon(t *testing.T) {
 	assert.True(t, s.Reverse, "DefaultConfig should have Reverse=true")
 }
 
-func TestApplyOptionsEmpty(t *testing.T) {
+func TestApplyEmpty(t *testing.T) {
 	def := spinner.DefaultConfig()
-	got := spinner.ApplyOptions([]spinner.Option{})
+	got := spinner.Apply()
 	assert.Equal(t, def.Frames, got.Frames)
 	assert.Equal(t, def.Interval, got.Interval)
 	assert.Equal(t, def.Reverse, got.Reverse)
@@ -36,7 +36,7 @@ func TestWithStyle(t *testing.T) {
 		Frames:   []string{"a", "b", "c"},
 		Interval: 200 * time.Millisecond,
 	}
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithConfig(custom)})
+	got := spinner.Apply(spinner.WithConfig(custom))
 	assert.Equal(t, custom.Frames, got.Frames)
 	assert.Equal(t, custom.Interval, got.Interval)
 	assert.Equal(t, custom.Reverse, got.Reverse)
@@ -44,20 +44,20 @@ func TestWithStyle(t *testing.T) {
 }
 
 func TestWithInterval(t *testing.T) {
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithInterval(42 * time.Millisecond)})
+	got := spinner.Apply(spinner.WithInterval(42 * time.Millisecond))
 	assert.Equal(t, 42*time.Millisecond, got.Interval)
 }
 
 func TestWithIntervalZeroIsNoOp(t *testing.T) {
 	// Values <= 0 are a no-op, so Interval stays at DefaultConfig's Interval.
 	def := spinner.DefaultConfig()
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithInterval(0)})
+	got := spinner.Apply(spinner.WithInterval(0))
 	assert.Equal(t, def.Interval, got.Interval, "WithInterval(0) should be a no-op")
 }
 
 func TestWithIntervalNegativeIsNoOp(t *testing.T) {
 	def := spinner.DefaultConfig()
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithInterval(-time.Second)})
+	got := spinner.Apply(spinner.WithInterval(-time.Second))
 	assert.Equal(t, def.Interval, got.Interval, "WithInterval(<0) should be a no-op")
 }
 
@@ -67,15 +67,15 @@ func TestWithReverse(t *testing.T) {
 		Frames:   []string{"x", "y"},
 		Interval: 100 * time.Millisecond,
 	}
-	got := spinner.ApplyOptions([]spinner.Option{
+	got := spinner.Apply(
 		spinner.WithConfig(custom),
 		spinner.WithReverse(),
-	})
+	)
 	assert.True(t, got.Reverse, "expected Reverse=true after WithReverse")
 }
 
 func TestWithBoomerang(t *testing.T) {
-	got := spinner.ApplyOptions([]spinner.Option{spinner.WithBoomerang()})
+	got := spinner.Apply(spinner.WithBoomerang())
 	assert.True(t, got.Boomerang, "expected Boomerang=true after WithBoomerang")
 }
 
@@ -85,10 +85,10 @@ func TestWithStyleThenWithInterval(t *testing.T) {
 		Frames:   []string{"1", "2"},
 		Interval: 50 * time.Millisecond,
 	}
-	got := spinner.ApplyOptions([]spinner.Option{
+	got := spinner.Apply(
 		spinner.WithConfig(custom),
-		spinner.WithInterval(250 * time.Millisecond),
-	})
+		spinner.WithInterval(250*time.Millisecond),
+	)
 	assert.Equal(t, custom.Frames, got.Frames)
 	assert.Equal(t, 250*time.Millisecond, got.Interval)
 }

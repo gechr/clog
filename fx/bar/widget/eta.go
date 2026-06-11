@@ -19,7 +19,7 @@ import (
 //	widget.ETA(widget.WithPrefix("~"))  // "~2m30s"
 func ETA(opts ...Option) bar.Widget {
 	c := config{}
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	prefix := "ETA "
 	if c.prefix != nil {

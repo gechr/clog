@@ -10,6 +10,6 @@ import "github.com/gechr/clog/fx/bar"
 // Pass [WithStyle] to apply a lipgloss style to the separator.
 func Separator(s string, opts ...Option) bar.Widget {
 	c := config{}
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 	return func(bar.State) string { return c.render(s) }
 }

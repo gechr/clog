@@ -531,9 +531,7 @@ func (e *Event) Fraction(key string, current, total int, opts ...fraction.Option
 	}
 	current = max(0, min(current, total))
 	f := core.Fraction{Current: current, Total: total}
-	for _, o := range opts {
-		o(&f)
-	}
+	fraction.Apply(&f, opts...)
 	e.fields = append(e.fields, Field{Key: key, Value: f})
 	return e
 }
@@ -566,7 +564,7 @@ func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event 
 	}
 
 	p := core.Percent{Value: val}
-	percent.Apply(&p, opts)
+	percent.Apply(&p, opts...)
 	p.Value = core.ClampPercent(
 		p.Value,
 		percent.EffectiveMaximum(p, e.fieldFormats().PercentMaximum),

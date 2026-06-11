@@ -100,13 +100,13 @@ clog.Bar("Downloading", total).
 
 `.Spinner()` with no arguments uses the default spinner style (moon phases). Pass `spinner.Option` values to customise:
 
-| Option                    | Description                                                  |
-| ------------------------- | ------------------------------------------------------------ |
-| `spinner.WithConfig(s)`   | Replace the entire spinner style                             |
-| `spinner.WithFrames(fs)`  | Animation frames (e.g. `[]string{"⠋","⠙","⠹","⠸"}`)          |
-| `spinner.WithInterval(d)` | Duration per frame (values ≤ 0 keep existing)                |
-| `spinner.WithBoomerang()` | Ping-pong playback - reverses at each end instead of jumping |
-| `spinner.WithReverse()`   | Play frames in reverse order                                 |
+| Option                     | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
+| `spinner.WithConfig(s)`    | Replace the entire spinner style                             |
+| `spinner.WithFrames(f...)` | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                 |
+| `spinner.WithInterval(d)`  | Duration per frame (values ≤ 0 keep existing)                |
+| `spinner.WithBoomerang()`  | Ping-pong playback - reverses at each end instead of jumping |
+| `spinner.WithReverse()`    | Play frames in reverse order                                 |
 
 The spinner animation is driven by wall-clock time, so it continues to animate even when the bar progress is stalled or the pulse/shimmer effect is slow.
 
@@ -134,17 +134,17 @@ See [`fx/spinner/presets.go`](https://github.com/gechr/clog/blob/main/fx/spinner
 
 Individual style properties can be overridden without replacing the entire style:
 
-| Option                    | Description                                                  |
-| ------------------------- | ------------------------------------------------------------ |
-| `spinner.WithFrames(fs)`  | Animation frames (e.g. `[]string{"⠋","⠙","⠹","⠸"}`)          |
-| `spinner.WithInterval(d)` | Duration per frame (values ≤ 0 keep existing)                |
-| `spinner.WithBoomerang()` | Ping-pong playback - reverses at each end instead of jumping |
-| `spinner.WithReverse()`   | Play frames in reverse order                                 |
+| Option                     | Description                                                  |
+| -------------------------- | ------------------------------------------------------------ |
+| `spinner.WithFrames(f...)` | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                 |
+| `spinner.WithInterval(d)`  | Duration per frame (values ≤ 0 keep existing)                |
+| `spinner.WithBoomerang()`  | Ping-pong playback - reverses at each end instead of jumping |
+| `spinner.WithReverse()`    | Play frames in reverse order                                 |
 
 ```go
 // Custom frames with a slower tick
 clog.Spinner("Loading",
-  spinner.WithFrames([]string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}),
+  spinner.WithFrames("⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"),
   spinner.WithInterval(120*time.Millisecond),
 ).
   Wait(ctx, action).

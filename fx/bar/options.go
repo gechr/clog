@@ -10,9 +10,9 @@ import (
 // Option applies a configuration change to a [Config].
 type Option func(*Config)
 
-// ApplyOptions returns a copy of [DefaultConfig] with all opts applied in order.
-// Use [WithConfig] as the first option to start from a different base style.
-func ApplyOptions(opts []Option) Config {
+// Apply returns a copy of [DefaultConfig] with all opts applied in order.
+// Use [WithConfig] as the first option to start from a different base config.
+func Apply(opts ...Option) Config {
 	base := DefaultConfig()
 	for _, o := range opts {
 		o(&base)
@@ -35,9 +35,9 @@ func WithCapRight(s string) Option {
 }
 
 // WithCapStyle sets the lipgloss style applied to the left and right caps.
-func WithCapStyle(ls *lipgloss.Style) Option {
+func WithCapStyle(ls lipgloss.Style) Option {
 	return func(s *Config) {
-		s.CapStyle = ls
+		s.CapStyle = &ls
 	}
 }
 
@@ -67,7 +67,7 @@ func WithCharHead(r rune) Option {
 // WithGradientFill sets the sub-cell fill runes ordered from least to most
 // filled. Enables Nx sub-cell resolution where N = len(runes)+1. Overrides
 // [Config.HalfFilled] and [Config.CharHead].
-func WithGradientFill(runes []rune) Option {
+func WithGradientFill(runes ...rune) Option {
 	return func(s *Config) {
 		s.GradientFill = runes
 	}
@@ -159,16 +159,16 @@ func WithConfig(s Config) Option {
 }
 
 // WithStyleEmpty sets the lipgloss style for empty cells.
-func WithStyleEmpty(ls *lipgloss.Style) Option {
+func WithStyleEmpty(ls lipgloss.Style) Option {
 	return func(s *Config) {
-		s.StyleEmpty = ls
+		s.StyleEmpty = &ls
 	}
 }
 
 // WithStyleFill sets the lipgloss style for filled cells.
-func WithStyleFill(ls *lipgloss.Style) Option {
+func WithStyleFill(ls lipgloss.Style) Option {
 	return func(s *Config) {
-		s.StyleFill = ls
+		s.StyleFill = &ls
 	}
 }
 

@@ -15,7 +15,7 @@ import (
 // Trailing zeros are always stripped ("100.0%" -> "100%").
 func Percent(opts ...Option) bar.Widget {
 	c := config{digits: 0}
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	// Unstripped width of "100%" at the given digits for stable padding.
 	padWidth := len(fmt.Sprintf("%.*f%%", c.digits, bar.PercentDisplayMax))

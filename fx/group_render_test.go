@@ -151,7 +151,7 @@ func testBar(log Logger, msg string, total int, opts ...bar.Option) *Builder {
 		Mode:          AnimationBar,
 		Level:         level.Info,
 		Message:       msg,
-		BarConfig:     bar.ApplyOptions(opts),
+		BarConfig:     bar.Apply(opts...),
 		BarProgress:   progressPtr,
 		BarTotal:      totalPtr,
 		SpinnerConfig: spinner.DefaultConfig(),

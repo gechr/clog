@@ -31,7 +31,7 @@ func (l *Logger) Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
 		Level:         LevelInfo,
 		PercentMax:    l.loadFieldFormats().PercentMaximum,
 		Message:       msg,
-		BarConfig:     bar.ApplyOptions(opts),
+		BarConfig:     bar.Apply(opts...),
 		BarProgress:   progressPtr,
 		BarTotal:      totalPtr,
 		SpinnerConfig: l.resolveSpinnerConfig(),

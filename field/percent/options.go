@@ -29,7 +29,7 @@ func WithMaximum(m float64) Option {
 }
 
 // Apply applies the given options to p.
-func Apply(p *Percent, opts []Option) {
+func Apply(p *Percent, opts ...Option) {
 	for _, o := range opts {
 		o(p)
 	}

@@ -13,7 +13,7 @@ import (
 // "150 ops/s".
 func Rate(opts ...Option) bar.Widget {
 	c := config{}
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	p := pad()
 
@@ -28,7 +28,7 @@ func Rate(opts ...Option) bar.Widget {
 // to the widest value seen so far to prevent the bar from jumping.
 func BytesRate(opts ...Option) bar.Widget {
 	c := config{digits: 3} //nolint:mnd // default significant digits
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	p := pad()
 
@@ -48,7 +48,7 @@ func BytesRate(opts ...Option) bar.Widget {
 // to the widest value seen so far to prevent the bar from jumping.
 func IBytesRate(opts ...Option) bar.Widget {
 	c := config{digits: 3} //nolint:mnd // default significant digits
-	applyOptions(&c, opts)
+	apply(&c, opts...)
 
 	p := pad()
 

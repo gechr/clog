@@ -9,6 +9,13 @@ type Fraction = core.Fraction
 // Option configures how a fraction field is rendered.
 type Option func(*Fraction)
 
+// Apply applies the given options to f.
+func Apply(f *Fraction, opts ...Option) {
+	for _, o := range opts {
+		o(f)
+	}
+}
+
 // WithReverseGradient returns an [Option] that flips the gradient
 // direction for this field relative to the logger default.
 func WithReverseGradient() Option {

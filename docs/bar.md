@@ -165,23 +165,23 @@ clog.Bar("Downloading", 100, bar.WithConfig(bar.Braille), bar.WithWidth(30))
 
 ### Structure
 
-| Option                 | Description                                |
-| ---------------------- | ------------------------------------------ |
-| `bar.WithCapLeft(s)`   | Left cap string (e.g. `"["`, `"│"`)        |
-| `bar.WithCapRight(s)`  | Right cap string (e.g. `"]"`, `"│"`)       |
-| `bar.WithCapStyle(ls)` | Lipgloss style for caps (`nil` = unstyled) |
-| `bar.WithSeparator(s)` | String between message, bar, and widgets   |
+| Option                 | Description                              |
+| ---------------------- | ---------------------------------------- |
+| `bar.WithCapLeft(s)`   | Left cap string (e.g. `"["`, `"│"`)      |
+| `bar.WithCapRight(s)`  | Right cap string (e.g. `"]"`, `"│"`)     |
+| `bar.WithCapStyle(ls)` | Lipgloss style for caps                  |
+| `bar.WithSeparator(s)` | String between message, bar, and widgets |
 
 ### Characters
 
-| Option                     | Description                                          |
-| -------------------------- | ---------------------------------------------------- |
-| `bar.WithCharEmpty(r)`     | Rune for fully empty cells                           |
-| `bar.WithCharFill(r)`      | Rune for fully filled cells                          |
-| `bar.WithCharHead(r)`      | Decorative rune at leading edge (1x only; `0` = off) |
-| `bar.WithHalfFilled(r)`    | Leading-edge rune for 2x resolution (`0` = off)      |
-| `bar.WithHalfEmpty(r)`     | Trailing-edge rune for 2x resolution (`0` = off)     |
-| `bar.WithGradientFill(rs)` | Sub-cell runes (least→most filled) for Nx resolution |
+| Option                       | Description                                          |
+| ---------------------------- | ---------------------------------------------------- |
+| `bar.WithCharEmpty(r)`       | Rune for fully empty cells                           |
+| `bar.WithCharFill(r)`        | Rune for fully filled cells                          |
+| `bar.WithCharHead(r)`        | Decorative rune at leading edge (1x only; `0` = off) |
+| `bar.WithHalfFilled(r)`      | Leading-edge rune for 2x resolution (`0` = off)      |
+| `bar.WithHalfEmpty(r)`       | Trailing-edge rune for 2x resolution (`0` = off)     |
+| `bar.WithGradientFill(r...)` | Sub-cell runes (least→most filled) for Nx resolution |
 
 ### Width
 
@@ -211,7 +211,7 @@ clog.Bar("Downloading", 100, bar.WithConfig(bar.Braille), bar.WithWidth(30))
 | `bar.WithSmoothingTau(d)`   | Exponential decay time constant (default 120ms; smaller = snappier)       |
 | `bar.WithUpdateInterval(d)` | Coalesce ETA/rate/elapsed-style text updates to at most once per duration |
 
-All presets use bold white `CapStyle`. Pass `bar.WithCapStyle(nil)` for unstyled caps.
+All presets use bold white `CapStyle`. Pass `bar.WithCapStyle(lipgloss.NewStyle())` for unstyled caps.
 
 ## Progress Gradient
 
@@ -320,7 +320,7 @@ style.WidgetRight = widget.Widgets(
 Pass `widget.WithStyle` to any widget to apply a [Lipgloss](https://charm.land/lipgloss/v2) style to its output:
 
 ```go
-faint := new(lipgloss.NewStyle().Faint(true))
+faint := lipgloss.NewStyle().Faint(true)
 style.WidgetRight = widget.Widgets(
   widget.ETA(widget.WithStyle(faint)),
   widget.Separator("│", widget.WithStyle(faint)),

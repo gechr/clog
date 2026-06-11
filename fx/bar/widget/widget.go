@@ -29,7 +29,7 @@ type config struct {
 	unit             string               // unit label for rate widgets (e.g. "ops", "files")
 }
 
-func applyOptions(c *config, opts []Option) {
+func apply(c *config, opts ...Option) {
 	for _, o := range opts {
 		o(c)
 	}
@@ -90,8 +90,8 @@ func WithMinimumPercent(pct float64) Option {
 // WithStyle sets a lipgloss style applied to the widget's output string.
 // Accepted by all built-in widgets. Empty outputs (e.g. [ETA] when
 // complete) are never styled.
-func WithStyle(style *lipgloss.Style) Option {
-	return func(c *config) { c.style = style }
+func WithStyle(style lipgloss.Style) Option {
+	return func(c *config) { c.style = &style }
 }
 
 // WithProgressGradient colors the widget's output text based on the current
