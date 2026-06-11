@@ -31,7 +31,7 @@ func TestGroupHeaderOption(t *testing.T) {
 	g := NewGroup(context.Background(), nil, WithHeader(b, cb))
 
 	assert.NotNil(t, g.header)
-	assert.Equal(t, "header", g.header.builder.Message)
+	assert.Equal(t, "header", g.header.builder.message)
 }
 
 func TestGroupFooterOption(t *testing.T) {
@@ -40,7 +40,7 @@ func TestGroupFooterOption(t *testing.T) {
 	g := NewGroup(context.Background(), nil, WithFooter(b, cb))
 
 	assert.NotNil(t, g.footer)
-	assert.Equal(t, "footer", g.footer.builder.Message)
+	assert.Equal(t, "footer", g.footer.builder.message)
 }
 
 func TestGroupTransientStatusOptions(t *testing.T) {

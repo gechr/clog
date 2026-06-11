@@ -20,10 +20,10 @@ import (
 func TestSpinnerConstructor(t *testing.T) {
 	b := Spinner("loading")
 
-	assert.Equal(t, "loading", b.Message)
-	assert.Equal(t, fx.AnimationNone, b.Mode)
-	assert.True(t, b.AnimatedSymbol)
-	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerConfig.Interval)
+	assert.Equal(t, "loading", b.InitialMessage())
+	assert.Equal(t, fx.AnimationNone, b.AnimationMode())
+	assert.True(t, b.UsesAnimatedSymbol())
+	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerStyle().Interval)
 	assert.Empty(t, b.Fields)
 }
 
@@ -61,46 +61,46 @@ func TestBoomerangFramesDoesNotMutateInput(t *testing.T) {
 func TestSpinnerBuilderType(t *testing.T) {
 	b := Spinner("test", spinner.WithConfig(spinner.Dot))
 
-	assert.Equal(t, spinner.Dot.Interval, b.SpinnerConfig.Interval)
+	assert.Equal(t, spinner.Dot.Interval, b.SpinnerStyle().Interval)
 }
 
 func TestSpinnerWithBoomerang(t *testing.T) {
 	b := Spinner("test", spinner.WithBoomerang())
 
-	assert.True(t, b.SpinnerConfig.Boomerang)
+	assert.True(t, b.SpinnerStyle().Boomerang)
 }
 
 func TestSpinnerWithBoomerangAndStyle(t *testing.T) {
 	b := Spinner("test", spinner.WithConfig(spinner.Dot), spinner.WithBoomerang())
 
-	assert.Equal(t, spinner.Dot.Interval, b.SpinnerConfig.Interval)
-	assert.True(t, b.SpinnerConfig.Boomerang)
+	assert.Equal(t, spinner.Dot.Interval, b.SpinnerStyle().Interval)
+	assert.True(t, b.SpinnerStyle().Boomerang)
 }
 
 func TestSpinnerWithReverse(t *testing.T) {
 	// Default is already reversed (Moon reverse), so start from a non-reversed style.
 	b := Spinner("test", spinner.WithConfig(spinner.Dot), spinner.WithReverse())
 
-	assert.True(t, b.SpinnerConfig.Reverse)
+	assert.True(t, b.SpinnerStyle().Reverse)
 }
 
 func TestSpinnerWithInterval(t *testing.T) {
 	custom := 50 * time.Millisecond
 	b := Spinner("test", spinner.WithInterval(custom))
 
-	assert.Equal(t, custom, b.SpinnerConfig.Interval)
+	assert.Equal(t, custom, b.SpinnerStyle().Interval)
 }
 
 func TestSpinnerWithIntervalZeroNoOp(t *testing.T) {
 	b := Spinner("test", spinner.WithInterval(0))
 
-	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerConfig.Interval)
+	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerStyle().Interval)
 }
 
 func TestSpinnerWithIntervalNegativeNoOp(t *testing.T) {
 	b := Spinner("test", spinner.WithInterval(-1))
 
-	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerConfig.Interval)
+	assert.Equal(t, spinner.DefaultConfig().Interval, b.SpinnerStyle().Interval)
 }
 
 func TestSpinnerBuilderStr(t *testing.T) {
@@ -258,8 +258,9 @@ func TestSpinnerBuilderChaining(t *testing.T) {
 func TestSpinnerBuilderParts(t *testing.T) {
 	b := Spinner("test").Parts(PartSymbol, PartMessage)
 
-	require.NotNil(t, b.PartOverrides)
-	assert.Equal(t, []Part{PartSymbol, PartMessage}, *b.PartOverrides)
+	parts, ok := b.PartOrder()
+	require.True(t, ok)
+	assert.Equal(t, []Part{PartSymbol, PartMessage}, parts)
 }
 
 func TestSpinnerPartsThreadsToWaitResult(t *testing.T) {
@@ -1098,10 +1099,10 @@ func TestSetSpinnerDefaults(t *testing.T) {
 	)
 
 	b := logger.Spinner("test")
-	assert.Equal(t, spinner.Dots.Frames, b.SpinnerConfig.Frames)
-	assert.Equal(t, time.Millisecond, b.SpinnerConfig.Interval)
+	assert.Equal(t, spinner.Dots.Frames, b.SpinnerStyle().Frames)
+	assert.Equal(t, time.Millisecond, b.SpinnerStyle().Interval)
 
 	// Per-spinner options still override the logger default.
 	b = logger.Spinner("test", spinner.WithConfig(spinner.Dot))
-	assert.Equal(t, spinner.Dot.Frames, b.SpinnerConfig.Frames)
+	assert.Equal(t, spinner.Dot.Frames, b.SpinnerStyle().Frames)
 }

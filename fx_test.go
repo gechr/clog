@@ -15,7 +15,7 @@ import (
 
 func TestAfterSetsDelay(t *testing.T) {
 	b := Spinner("test").After(500 * time.Millisecond)
-	assert.Equal(t, 500*time.Millisecond, b.DelayDur)
+	assert.Equal(t, 500*time.Millisecond, b.Delay())
 }
 
 func TestAfterTaskFinishesBeforeDelay(t *testing.T) {
@@ -94,10 +94,10 @@ func TestAfterContextCancelledDuringDelay(t *testing.T) {
 
 func TestNonTTYSilentSetsField(t *testing.T) {
 	b := Spinner("test").NonTTYSilent(true)
-	assert.True(t, b.SuppressNonTTY)
+	assert.True(t, b.SuppressesNonTTY())
 
 	b2 := Spinner("test").NonTTYSilent(false)
-	assert.False(t, b2.SuppressNonTTY)
+	assert.False(t, b2.SuppressesNonTTY())
 }
 
 func TestNonTTYSilentSuppressesOutput(t *testing.T) {
@@ -230,7 +230,7 @@ func TestElapsedFieldOrdering(t *testing.T) {
 			}
 			// The elapsed placeholder must have the elapsed type.
 			for _, f := range b.Fields {
-				if f.Key == b.ElapsedKey {
+				if f.Key == b.ElapsedFieldKey() {
 					_, ok := f.Value.(core.ElapsedField)
 					assert.True(t, ok, "elapsed field should have elapsed type, got %T", f.Value)
 				}

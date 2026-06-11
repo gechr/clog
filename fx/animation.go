@@ -2,7 +2,7 @@ package fx
 
 // Animation is the animation rendering mode for a [Builder].
 // It controls how the message text is animated. Symbol animation is
-// controlled independently by [Builder.AnimatedSymbol].
+// controlled independently by [Builder.UsesAnimatedSymbol].
 type Animation int
 
 const (

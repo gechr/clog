@@ -134,16 +134,16 @@ func (t *groupTask) startTime() time.Time {
 // Add registers an animation builder with the group and returns a
 // [GroupEntry] for starting the task.
 func (g *Group) Add(b *Builder) *GroupEntry {
-	if b.Log == nil {
-		b.Log = g.log
+	if b.log == nil {
+		b.log = g.log
 	}
 
 	msgPtr := &atomic.Pointer[string]{}
 	fieldsPtr := &atomic.Pointer[[]core.Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
-	msgPtr.Store(&b.Message)
+	msgPtr.Store(&b.message)
 	fieldsPtr.Store(&b.Fields)
-	sym := b.SymbolIcon
+	sym := b.symbolIcon
 	if sym == "" {
 		sym = DefaultSymbol
 	}
@@ -252,7 +252,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	g := ge.group
 
 	update := &Update{
-		msgText:           b.Message,
+		msgText:           b.message,
 		msgPtr:            t.msgPtr,
 		fieldsPtr:         t.fieldsPtr,
 		base:              b.Fields,
@@ -260,9 +260,9 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		symbolOverridePtr: &t.symbolOverride,
 		symbolPtr:         t.symbolPtr,
 	}
-	if b.Mode == AnimationBar {
-		update.progressPtr = b.BarProgressPtr
-		update.totalPtr = b.BarTotalPtr
+	if b.mode == AnimationBar {
+		update.progressPtr = b.barProgressPtr
+		update.totalPtr = b.barTotalPtr
 	}
 	update.InitSelf(update)
 
@@ -283,7 +283,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		t.doneErr <- err
 	}()
 
-	l := b.Log
+	l := b.log
 	if l == nil {
 		l = g.log
 	}
@@ -291,8 +291,8 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	r := &TaskResult{
 		resultBase: resultBase[TaskResult]{
 			Log:          b.IndentedLogger(l),
-			PartOverride: b.PartOverrides,
-			SuccessLevel: b.Level,
+			PartOverride: b.partOverrides,
+			SuccessLevel: b.lvl,
 			LevelError:   level.Error,
 		},
 		task: t,

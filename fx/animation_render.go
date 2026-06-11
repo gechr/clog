@@ -53,8 +53,8 @@ func runAnimation(
 
 	// If a delay is configured, wait for it to elapse before showing
 	// any animation. If the task completes first, return immediately.
-	if b.DelayDur > 0 {
-		timer := time.NewTimer(b.DelayDur)
+	if b.delayDur > 0 {
+		timer := time.NewTimer(b.delayDur)
 		select {
 		case err := <-done:
 			timer.Stop()
@@ -137,7 +137,7 @@ func runAnimation(
 		case err := <-done:
 			// For bar animations, render one final frame so 100% is visible
 			// before the line is cleared and replaced with the completion message.
-			if b.Mode == AnimationBar && err == nil {
+			if b.mode == AnimationBar && err == nil {
 				resetBarWidgetState(gt)
 				line := renderTaskLine(gt, false, time.Now(), nil)
 				frameBuf.Reset()
@@ -171,11 +171,11 @@ func runAnimation(
 			lastWidth = width
 		case <-ctx.Done():
 			switch {
-			case b.ClearOnCancel && rendered:
+			case b.clearOnCancel && rendered:
 				writeString(gt.cfg.Out, syncFrame(
 					xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow,
 				))
-			case !b.ClearOnCancel:
+			case !b.clearOnCancel:
 				writeString(gt.cfg.Out, nl)
 			default:
 				writeString(gt.cfg.Out, xansi.ClearLine)

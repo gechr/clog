@@ -2,6 +2,7 @@ package fx
 
 import (
 	"context"
+	"slices"
 	"sync/atomic"
 	"time"
 
@@ -22,29 +23,29 @@ const DefaultSymbol = "⏳"
 type Builder struct {
 	core.FieldBuilder[Builder]
 
-	AnimatedSymbol bool          // when true, cycles SpinnerConfig.Frames as the symbol instead of a static icon
-	ClearOnCancel  bool          // when true, erase the animation line on context cancellation
-	BarPercentKey  string        // when set, a formatted percent field is injected each tick
-	BarProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
-	BarConfig      bar.Config    // bar mode: visual style
-	BarTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
-	DelayDur       time.Duration // when set, suppresses animation until this duration elapses
-	ElapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
-	IndentDepth    int           // additional indent depth applied to the animation
-	Log            Logger        // the logger interface; nil uses Default
-	Level          core.Level    // log level used during animation rendering (default: LevelInfo)
-	Message        string
-	Mode           Animation
-	PartOverrides  *[]core.Part // nil = use logger's parts
-	PercentMax     float64      // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
-	PulseStops     []gradient.ColorStop
-	ShimmerDir     shimmer.Direction
-	ShimmerStops   []gradient.ColorStop
-	Speed          float64
-	SpinnerConfig  spinner.Config
-	SuppressNonTTY bool           // when true, no output is produced on non-TTY writers
-	SymbolIcon     string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
-	TreePos        []core.TreePos // additional tree levels applied to the animation
+	animatedSymbol bool          // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
+	clearOnCancel  bool          // when true, erase the animation line on context cancellation
+	barPercentKey  string        // when set, a formatted percent field is injected each tick
+	barProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
+	barConfig      bar.Config    // bar mode: visual style
+	barTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
+	delayDur       time.Duration // when set, suppresses animation until this duration elapses
+	elapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
+	indentDepth    int           // additional indent depth applied to the animation
+	log            Logger        // the logger interface; nil uses Default
+	lvl            core.Level    // log level used during animation rendering (default: LevelInfo)
+	message        string
+	mode           Animation
+	partOverrides  *[]core.Part // nil = use logger's parts
+	percentMax     float64      // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
+	pulseStops     []gradient.ColorStop
+	shimmerDir     shimmer.Direction
+	shimmerStops   []gradient.ColorStop
+	speed          float64
+	spinnerConfig  spinner.Config
+	suppressNonTTY bool           // when true, no output is produced on non-TTY writers
+	symbolIcon     string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
+	treePos        []core.TreePos // additional tree levels applied to the animation
 }
 
 // BuilderConfig provides the initial configuration for a [Builder].
@@ -69,30 +70,103 @@ type BuilderConfig struct {
 // NewBuilder creates a new Builder from the given configuration.
 func NewBuilder(cfg BuilderConfig) *Builder {
 	b := &Builder{
-		AnimatedSymbol: cfg.AnimatedSymbol,
-		BarProgressPtr: cfg.BarProgress,
-		BarConfig:      cfg.BarConfig,
-		BarTotalPtr:    cfg.BarTotal,
-		Level:          cfg.Level,
-		Log:            cfg.Logger,
-		Mode:           cfg.Mode,
-		Message:        cfg.Message,
-		PercentMax:     cfg.PercentMax,
-		SymbolIcon:     cfg.SymbolIcon,
-		PulseStops:     cfg.PulseStops,
-		ShimmerDir:     cfg.ShimmerDir,
-		ShimmerStops:   cfg.ShimmerStops,
-		Speed:          cfg.Speed,
-		SpinnerConfig:  cfg.SpinnerConfig,
+		animatedSymbol: cfg.AnimatedSymbol,
+		barProgressPtr: cfg.BarProgress,
+		barConfig:      cfg.BarConfig,
+		barTotalPtr:    cfg.BarTotal,
+		log:            cfg.Logger,
+		lvl:            cfg.Level,
+		message:        cfg.Message,
+		mode:           cfg.Mode,
+		percentMax:     cfg.PercentMax,
+		pulseStops:     cfg.PulseStops,
+		shimmerDir:     cfg.ShimmerDir,
+		shimmerStops:   cfg.ShimmerStops,
+		speed:          cfg.Speed,
+		spinnerConfig:  cfg.SpinnerConfig,
+		symbolIcon:     cfg.SymbolIcon,
 	}
 	b.InitSelf(b)
 	return b
 }
 
+// UsesAnimatedSymbol reports whether the symbol slot uses spinner frames.
+func (b *Builder) UsesAnimatedSymbol() bool { return b.animatedSymbol }
+
+// BarStyle returns the bar style configuration snapshot.
+func (b *Builder) BarStyle() bar.Config {
+	cfg := b.barConfig
+	cfg.GradientFill = slices.Clone(cfg.GradientFill)
+	cfg.ProgressGradient = slices.Clone(cfg.ProgressGradient)
+	return cfg
+}
+
+// BarProgress returns the current and total bar values.
+func (b *Builder) BarProgress() (int64, int64, bool) {
+	if b.barProgressPtr == nil || b.barTotalPtr == nil {
+		return 0, 0, false
+	}
+	return b.barProgressPtr.Load(), b.barTotalPtr.Load(), true
+}
+
+// Delay returns the delay before the animation becomes visible.
+func (b *Builder) Delay() time.Duration { return b.delayDur }
+
+// ElapsedFieldKey returns the dynamic elapsed-time field key, if enabled.
+func (b *Builder) ElapsedFieldKey() string { return b.elapsedKey }
+
+// IndentLevel returns the additional indent depth applied to the animation.
+func (b *Builder) IndentLevel() int { return b.indentDepth }
+
+// LogLevel returns the log level used during animation rendering.
+func (b *Builder) LogLevel() core.Level { return b.lvl }
+
+// InitialMessage returns the initial animation message.
+func (b *Builder) InitialMessage() string { return b.message }
+
+// AnimationMode returns the animation mode.
+func (b *Builder) AnimationMode() Animation { return b.mode }
+
+// PartOrder returns the animation-specific part order override.
+func (b *Builder) PartOrder() ([]core.Part, bool) {
+	if b.partOverrides == nil {
+		return nil, false
+	}
+	return slices.Clone(*b.partOverrides), true
+}
+
+// PulseGradient returns the pulse gradient stops.
+func (b *Builder) PulseGradient() []gradient.ColorStop { return slices.Clone(b.pulseStops) }
+
+// ShimmerDirection returns the shimmer animation direction.
+func (b *Builder) ShimmerDirection() shimmer.Direction { return b.shimmerDir }
+
+// ShimmerGradient returns the shimmer gradient stops.
+func (b *Builder) ShimmerGradient() []gradient.ColorStop { return slices.Clone(b.shimmerStops) }
+
+// AnimationSpeed returns the animation speed multiplier.
+func (b *Builder) AnimationSpeed() float64 { return b.speed }
+
+// SpinnerStyle returns the spinner configuration snapshot.
+func (b *Builder) SpinnerStyle() spinner.Config {
+	cfg := b.spinnerConfig
+	cfg.Frames = slices.Clone(cfg.Frames)
+	return cfg
+}
+
+// SuppressesNonTTY reports whether animation output is suppressed on non-TTY writers.
+func (b *Builder) SuppressesNonTTY() bool { return b.suppressNonTTY }
+
+// SymbolOverride returns the static animation icon override, if set.
+func (b *Builder) SymbolOverride() string { return b.symbolIcon }
+
+// TreePositions returns the additional tree levels applied to the animation.
+func (b *Builder) TreePositions() []core.TreePos { return slices.Clone(b.treePos) }
+
 // ResolveLogger returns the builder's logger, falling back to the given default.
 func (b *Builder) ResolveLogger(def Logger) Logger {
-	if b.Log != nil {
-		return b.Log
+	if b.log != nil {
+		return b.log
 	}
 	return def
 }
@@ -102,8 +176,8 @@ func (b *Builder) ResolveLogger(def Logger) Logger {
 // result message has the same indentation as the animation.
 func (b *Builder) IndentedLogger(def Logger) Logger {
 	l := b.ResolveLogger(def)
-	if b.IndentDepth > 0 || len(b.TreePos) > 0 {
-		l = l.WithIndent(b.IndentDepth, b.TreePos)
+	if b.indentDepth > 0 || len(b.treePos) > 0 {
+		l = l.WithIndent(b.indentDepth, b.treePos)
 	}
 	return l
 }
@@ -111,27 +185,27 @@ func (b *Builder) IndentedLogger(def Logger) Logger {
 // Dedent removes one indent level from the animation output, down to a
 // minimum of zero.
 func (b *Builder) Dedent() *Builder {
-	if b.IndentDepth > 0 {
-		b.IndentDepth--
+	if b.indentDepth > 0 {
+		b.indentDepth--
 	}
 	return b
 }
 
 // Depth adds multiple indent levels to the animation output.
 func (b *Builder) Depth(n int) *Builder {
-	b.IndentDepth += n
+	b.indentDepth += n
 	return b
 }
 
 // Indent adds one indent level to the animation output.
 func (b *Builder) Indent() *Builder {
-	b.IndentDepth++
+	b.indentDepth++
 	return b
 }
 
 // Tree adds one tree-nesting level with the given position.
 func (b *Builder) Tree(pos core.TreePos) *Builder {
-	b.TreePos = append(b.TreePos, pos)
+	b.treePos = append(b.treePos, pos)
 	return b
 }
 
@@ -139,59 +213,59 @@ func (b *Builder) Tree(pos core.TreePos) *Builder {
 // non-TTY writers (CI, piped output). When silent is true, no output is
 // produced. When false (default), a static line is printed.
 func (b *Builder) NonTTYSilent(silent bool) *Builder {
-	b.SuppressNonTTY = silent
+	b.suppressNonTTY = silent
 	return b
 }
 
 // After sets a delay before the animation becomes visible.
 func (b *Builder) After(d time.Duration) *Builder {
-	b.DelayDur = d
+	b.delayDur = d
 	return b
 }
 
 // Parts overrides the log-line part order for this animation and its
 // completion message.
 func (b *Builder) Parts(parts ...core.Part) *Builder {
-	b.PartOverrides = new(parts)
+	b.partOverrides = new(parts)
 	return b
 }
 
 // Symbol sets the icon displayed beside the message during animation.
 func (b *Builder) Symbol(symbol string) *Builder {
-	b.SymbolIcon = symbol
+	b.symbolIcon = symbol
 	return b
 }
 
 // Spinner enables an animated spinning symbol. The symbol slot cycles
-// through [SpinnerConfig] frames independently of the main animation mode.
-// Options override the builder's existing [SpinnerConfig]. With no options
+// through spinner frames independently of the main animation mode.
+// Options override the builder's existing spinner configuration. With no options
 // the current style (set by the constructor or logger default) is used.
 func (b *Builder) Spinner(opts ...spinner.Option) *Builder {
-	b.AnimatedSymbol = true
+	b.animatedSymbol = true
 	for _, o := range opts {
-		o(&b.SpinnerConfig)
+		o(&b.spinnerConfig)
 	}
 	return b
 }
 
 // Elapsed enables an auto-updating elapsed-time field.
 func (b *Builder) Elapsed(key string) *Builder {
-	b.ElapsedKey = key
+	b.elapsedKey = key
 	b.Fields = append(b.Fields, core.Field{Key: key, Value: core.ElapsedField(0)})
 	return b
 }
 
 // BarPercent enables an auto-updating percentage field for [AnimationBar].
 func (b *Builder) BarPercent(key string) *Builder {
-	b.BarPercentKey = key
+	b.barPercentKey = key
 	b.Fields = append(b.Fields, core.Field{Key: key, Value: core.Percent{}})
 	return b
 }
 
 // BarPercentValue returns the current progress as a [core.Percent].
 func (b *Builder) BarPercentValue() core.Percent {
-	cur := int(b.BarProgressPtr.Load())
-	tot := int(b.BarTotalPtr.Load())
+	cur := int(b.barProgressPtr.Load())
+	tot := int(b.barTotalPtr.Load())
 	m := b.percentMaximum()
 	pct := float64(cur) / float64(max(tot, 1)) * m
 	return core.Percent{Value: min(pct, m)}
@@ -200,20 +274,20 @@ func (b *Builder) BarPercentValue() core.Percent {
 // percentMaximum returns the stamped percent input-range maximum,
 // defaulting to 1.0 when unset.
 func (b *Builder) percentMaximum() float64 {
-	if b.PercentMax > 0 {
-		return b.PercentMax
+	if b.percentMax > 0 {
+		return b.percentMax
 	}
 	return 1
 }
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.
 func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
-	if b.ElapsedKey == "" && b.BarPercentKey == "" {
+	if b.elapsedKey == "" && b.barPercentKey == "" {
 		return fields
 	}
 	out := make([]core.Field, 0, len(fields))
 	for _, f := range fields {
-		if f.Key == b.ElapsedKey || f.Key == b.BarPercentKey {
+		if f.Key == b.elapsedKey || f.Key == b.barPercentKey {
 			continue
 		}
 		out = append(out, f)
@@ -223,7 +297,7 @@ func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
 
 // ResolveDynamicFields clones fields and injects elapsed/percent values.
 func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
-	if b.ElapsedKey == "" && b.BarPercentKey == "" {
+	if b.elapsedKey == "" && b.barPercentKey == "" {
 		return fields
 	}
 
@@ -231,9 +305,9 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 	copy(out, fields)
 	for i := range out {
 		switch out[i].Key {
-		case b.ElapsedKey:
+		case b.elapsedKey:
 			out[i].Value = core.ElapsedField(dur)
-		case b.BarPercentKey:
+		case b.barPercentKey:
 			out[i].Value = b.BarPercentValue()
 		}
 	}
@@ -299,9 +373,9 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	var msgPtr atomic.Pointer[string]
 	var symbolPtr atomic.Pointer[string]
 
-	msgPtr.Store(&b.Message)
+	msgPtr.Store(&b.message)
 	fieldsPtr.Store(&b.Fields)
-	sym := b.SymbolIcon
+	sym := b.symbolIcon
 	if sym == "" {
 		sym = DefaultSymbol
 	}
@@ -309,16 +383,16 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	symbolPtr.Store(&sym)
 
 	update := &Update{
-		msgText:   b.Message,
+		msgText:   b.message,
 		msgPtr:    &msgPtr,
 		fieldsPtr: &fieldsPtr,
 		base:      b.Fields,
 		levelPtr:  &levelPtr,
 		symbolPtr: &symbolPtr,
 	}
-	if b.Mode == AnimationBar {
-		update.progressPtr = b.BarProgressPtr
-		update.totalPtr = b.BarTotalPtr
+	if b.mode == AnimationBar {
+		update.progressPtr = b.barProgressPtr
+		update.totalPtr = b.barTotalPtr
 	}
 	update.InitSelf(update)
 
@@ -327,11 +401,11 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	}
 
 	startTime := time.Now()
-	l := b.Log
+	l := b.log
 	err := runAnimation(ctx, b, wrapped, &msgPtr, &fieldsPtr, &levelPtr, &symbolPtr, startTime)
 
 	msg := *msgPtr.Load()
-	w := NewWaitResult(err, b.IndentedLogger(l), b.PartOverrides, b.Level, msg)
+	w := NewWaitResult(err, b.IndentedLogger(l), b.partOverrides, b.lvl, msg)
 	w.Fields = b.ResolveDynamicFields(*fieldsPtr.Load(), time.Since(startTime))
 	return w
 }

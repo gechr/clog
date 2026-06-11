@@ -15,7 +15,7 @@ import (
 func TestShimmerDefault(t *testing.T) {
 	b := Shimmer("test")
 
-	assert.Equal(t, shimmer.DefaultGradient(), b.ShimmerStops)
+	assert.Equal(t, shimmer.DefaultGradient(), b.ShimmerGradient())
 }
 
 func TestShimmerCustom(t *testing.T) {
@@ -25,55 +25,55 @@ func TestShimmerCustom(t *testing.T) {
 	}
 	b := Shimmer("test", shimmer.WithGradient(custom...))
 
-	assert.Equal(t, custom, b.ShimmerStops)
+	assert.Equal(t, custom, b.ShimmerGradient())
 }
 
 func TestShimmerDirection(t *testing.T) {
 	b := Shimmer("test", shimmer.WithDirection(shimmer.Left))
 
-	assert.Equal(t, shimmer.Left, b.ShimmerDir)
+	assert.Equal(t, shimmer.Left, b.ShimmerDirection())
 }
 
 func TestShimmerDirectionDefault(t *testing.T) {
 	b := Shimmer("test")
 
-	assert.Equal(t, shimmer.Right, b.ShimmerDir)
+	assert.Equal(t, shimmer.Right, b.ShimmerDirection())
 }
 
 func TestShimmerSpeedDefault(t *testing.T) {
 	b := Shimmer("test")
 
-	assert.InDelta(t, shimmer.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, shimmer.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestShimmerSpeedCustom(t *testing.T) {
 	b := Shimmer("test", shimmer.WithSpeed(2.0))
 
-	assert.InDelta(t, 2.0, b.Speed, 1e-9)
+	assert.InDelta(t, 2.0, b.AnimationSpeed(), 1e-9)
 }
 
 func TestShimmerSpeedZeroFallsBackToDefault(t *testing.T) {
 	b := Shimmer("test", shimmer.WithSpeed(0))
 
-	assert.InDelta(t, shimmer.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, shimmer.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestShimmerSpeedNegativeFallsBackToDefault(t *testing.T) {
 	b := Shimmer("test", shimmer.WithSpeed(-1.0))
 
-	assert.InDelta(t, shimmer.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, shimmer.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestShimmerBuilderSymbol(t *testing.T) {
 	b := Shimmer("test").Symbol("🔄")
 
-	assert.Equal(t, "🔄", b.SymbolIcon)
+	assert.Equal(t, "🔄", b.SymbolOverride())
 }
 
 func TestShimmerBuilderSymbolDefault(t *testing.T) {
 	b := Shimmer("test")
 
-	assert.Empty(t, b.SymbolIcon)
+	assert.Empty(t, b.SymbolOverride())
 }
 
 func TestShimmerDefaultSymbolInOutput(t *testing.T) {

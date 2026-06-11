@@ -499,8 +499,8 @@ func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
 	log := newStubLogger()
 	successBuilder := testBar(log, "success", 10)
 	failedBuilder := testBar(log, "failed", 10)
-	successBuilder.BarProgressPtr.Store(9)
-	failedBuilder.BarProgressPtr.Store(9)
+	successBuilder.barProgressPtr.Store(9)
+	failedBuilder.barProgressPtr.Store(9)
 
 	successTask := &groupTask{
 		builder: successBuilder,
@@ -526,8 +526,8 @@ func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
 	assert.Equal(t, 0, remaining)
 	assert.Equal(t, []bool{true, true}, done)
 	assert.Equal(t, []bool{true, false}, justCompleted)
-	assert.Equal(t, int64(10), successBuilder.BarProgressPtr.Load())
-	assert.Equal(t, int64(9), failedBuilder.BarProgressPtr.Load())
+	assert.Equal(t, int64(10), successBuilder.barProgressPtr.Load())
+	assert.Equal(t, int64(9), failedBuilder.barProgressPtr.Load())
 }
 
 func TestRunGroupLoopTTYCancelPreservesReadyTaskError(t *testing.T) {
@@ -642,8 +642,8 @@ func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {
 	visibleBuilder := testBar(log, "short", 1, styleOpts...)
 	hiddenBuilder := testBar(log, strings.Repeat("long ", 40), 1, styleOpts...)
 
-	visibleMsg := visibleBuilder.Message
-	hiddenMsg := hiddenBuilder.Message
+	visibleMsg := visibleBuilder.message
+	hiddenMsg := hiddenBuilder.message
 	emptyFields := []core.Field{}
 	symbol := "·"
 	visibleMsgPtr := &atomic.Pointer[string]{}
@@ -750,7 +750,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
-	b.BarProgressPtr.Store(10)
+	b.barProgressPtr.Store(10)
 
 	gt := &renderTask{
 		groupTask: &groupTask{
@@ -774,7 +774,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	msgPtr.Store(&updatedMsg)
 	fieldsPtr.Store(&updatedFields)
 	symbolPtr.Store(&updatedSymbol)
-	b.BarProgressPtr.Store(90)
+	b.barProgressPtr.Store(90)
 
 	secondAt := time.Unix(2, int64(500*time.Millisecond))
 	secondLayout := measureGroupRenderLayout(g, []*renderTask{gt}, []bool{false}, secondAt)
@@ -823,7 +823,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
-	b.BarProgressPtr.Store(10)
+	b.barProgressPtr.Store(10)
 
 	gt := &renderTask{
 		groupTask: &groupTask{
@@ -840,7 +840,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
-	b.BarProgressPtr.Store(90)
+	b.barProgressPtr.Store(90)
 	secondAt := time.Unix(2, int64(500*time.Millisecond))
 	secondLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, secondAt)
 	second := renderTaskLine(gt, false, secondAt, secondLayout)
@@ -889,12 +889,12 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 	}
 	captureTaskConfig(gt)
 
-	b.BarProgressPtr.Store(90)
+	b.barProgressPtr.Store(90)
 	firstAt := time.Unix(2, 0)
 	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
-	b.BarProgressPtr.Store(80)
+	b.barProgressPtr.Store(80)
 	secondAt := time.Unix(3, 0)
 	secondLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, secondAt)
 	second := renderTaskLine(gt, false, secondAt, secondLayout)
@@ -939,14 +939,14 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	captureTaskConfig(gt)
 
 	// First render at 10% - smoothing initializes to 10%.
-	b.BarProgressPtr.Store(10)
+	b.barProgressPtr.Store(10)
 	firstAt := time.Unix(2, 0)
 	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 	assert.Equal(t, "INF ⏳ task [=---------]", first)
 
 	// Jump to 90% - shortly after, smoothing should lag behind the target.
-	b.BarProgressPtr.Store(90)
+	b.barProgressPtr.Store(90)
 	shortAt := firstAt.Add(50 * time.Millisecond)
 	shortLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, shortAt)
 	smoothed := renderTaskLine(gt, false, shortAt, shortLayout)

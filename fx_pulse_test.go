@@ -15,7 +15,7 @@ import (
 func TestPulseDefault(t *testing.T) {
 	b := Pulse("test")
 
-	assert.Equal(t, pulse.DefaultGradient(), b.PulseStops)
+	assert.Equal(t, pulse.DefaultGradient(), b.PulseGradient())
 }
 
 func TestPulseCustom(t *testing.T) {
@@ -25,43 +25,43 @@ func TestPulseCustom(t *testing.T) {
 	}
 	b := Pulse("test", pulse.WithGradient(custom...))
 
-	assert.Equal(t, custom, b.PulseStops)
+	assert.Equal(t, custom, b.PulseGradient())
 }
 
 func TestPulseBuilderSymbol(t *testing.T) {
 	b := Pulse("test").Symbol("🔄")
 
-	assert.Equal(t, "🔄", b.SymbolIcon)
+	assert.Equal(t, "🔄", b.SymbolOverride())
 }
 
 func TestPulseBuilderSymbolDefault(t *testing.T) {
 	b := Pulse("test")
 
-	assert.Empty(t, b.SymbolIcon)
+	assert.Empty(t, b.SymbolOverride())
 }
 
 func TestPulseSpeedDefault(t *testing.T) {
 	b := Pulse("test")
 
-	assert.InDelta(t, pulse.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, pulse.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestPulseSpeedCustom(t *testing.T) {
 	b := Pulse("test", pulse.WithSpeed(2.0))
 
-	assert.InDelta(t, 2.0, b.Speed, 1e-9)
+	assert.InDelta(t, 2.0, b.AnimationSpeed(), 1e-9)
 }
 
 func TestPulseSpeedZeroFallsBackToDefault(t *testing.T) {
 	b := Pulse("test", pulse.WithSpeed(0))
 
-	assert.InDelta(t, pulse.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, pulse.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestPulseSpeedNegativeFallsBackToDefault(t *testing.T) {
 	b := Pulse("test", pulse.WithSpeed(-1.0))
 
-	assert.InDelta(t, pulse.Speed, b.Speed, 1e-9)
+	assert.InDelta(t, pulse.Speed, b.AnimationSpeed(), 1e-9)
 }
 
 func TestPulseDefaultSymbolInOutput(t *testing.T) {

@@ -65,30 +65,31 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	l := f.l
 	l.mu.Lock()
 	l.resolvePrintThemeLocked()
+	level := b.LogLevel()
 	order := l.parts
-	if b.PartOverrides != nil {
-		order = *b.PartOverrides
+	if partOrder, ok := b.PartOrder(); ok {
+		order = partOrder
 	}
 	combinedTree := l.tree
-	if len(b.TreePos) > 0 {
-		combinedTree = append(append([]TreePos{}, l.tree...), b.TreePos...)
+	if treePos := b.TreePositions(); len(treePos) > 0 {
+		combinedTree = append(append([]TreePos{}, l.tree...), treePos...)
 	}
 	noColor := l.output.ColorsDisabled()
 	styles := l.styles
-	label := l.formatLabel(b.Level)
+	label := l.formatLabel(level)
 	labels := l.allPaddedLabels()
 	cfg := fx.TaskConfig{
 		AnimationInterval: l.animationInterval,
 		Indentation: computeIndent(
-			l.indent+b.IndentDepth,
+			l.indent+b.IndentLevel(),
 			l.indentWidth,
 			l.indentPrefixes,
 			l.indentPrefixSep,
 		) + computeTreeIndent(combinedTree, l.treeChars),
 		IsTTY: l.output.IsTTY(),
 		Label: label,
-		NonTTYSilent: b.SuppressNonTTY ||
-			(l.nonTTYLevel != UnsetLevel && b.Level < l.nonTTYLevel),
+		NonTTYSilent: b.SuppressesNonTTY() ||
+			(l.nonTTYLevel != UnsetLevel && level < l.nonTTYLevel),
 		Order:           order,
 		Out:             l.output.Writer(),
 		Output:          l.output,
@@ -100,7 +101,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		fieldSort:       l.fieldSort,
 		fieldStyleLevel: l.fieldStyleLevel,
 		formats:         l.loadFieldFormats(),
-		level:           b.Level,
+		level:           level,
 		noColor:         noColor,
 		quoteOpen:       l.quoteOpen,
 		quoteClose:      l.quoteClose,
@@ -115,7 +116,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	l.mu.Unlock()
 
 	// Styled level symbol for the builder's own level.
-	if s := styles.Levels[b.Level]; s != nil && !noColor {
+	if s := styles.Levels[level]; s != nil && !noColor {
 		cfg.LevelSymbol = s.Render(label)
 	} else {
 		cfg.LevelSymbol = label

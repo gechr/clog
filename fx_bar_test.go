@@ -18,35 +18,39 @@ import (
 
 func TestBarBuilderMode(t *testing.T) {
 	b := Bar("test", 100)
-	assert.Equal(t, fx.AnimationBar, b.Mode)
-	require.NotNil(t, b.BarProgressPtr)
-	require.NotNil(t, b.BarTotalPtr)
-	assert.Equal(t, int64(100), b.BarTotalPtr.Load())
-	assert.Equal(t, int64(0), b.BarProgressPtr.Load())
+	assert.Equal(t, fx.AnimationBar, b.AnimationMode())
+	current, total, ok := b.BarProgress()
+	require.True(t, ok)
+	assert.Equal(t, int64(100), total)
+	assert.Equal(t, int64(0), current)
 }
 
 func TestBarSpinner(t *testing.T) {
 	b := Bar("test", 100).Spinner()
 
-	assert.Equal(t, fx.AnimationBar, b.Mode)
-	assert.True(t, b.AnimatedSymbol)
+	assert.Equal(t, fx.AnimationBar, b.AnimationMode())
+	assert.True(t, b.UsesAnimatedSymbol())
 }
 
 func TestBarSpinnerWithOptions(t *testing.T) {
 	b := Bar("test", 100).Spinner(spinner.WithConfig(spinner.Dots))
 
-	assert.Equal(t, fx.AnimationBar, b.Mode)
-	assert.True(t, b.AnimatedSymbol)
-	assert.Equal(t, spinner.Dots.Interval, b.SpinnerConfig.Interval)
+	assert.Equal(t, fx.AnimationBar, b.AnimationMode())
+	assert.True(t, b.UsesAnimatedSymbol())
+	assert.Equal(t, spinner.Dots.Interval, b.SpinnerStyle().Interval)
 }
 
 func TestBarBuilderTotalClamp(t *testing.T) {
 	// total <= 0 clamped to 1
 	b := Bar("test", 0)
-	assert.Equal(t, int64(1), b.BarTotalPtr.Load())
+	_, total, ok := b.BarProgress()
+	require.True(t, ok)
+	assert.Equal(t, int64(1), total)
 
 	b2 := Bar("test", -5)
-	assert.Equal(t, int64(1), b2.BarTotalPtr.Load())
+	_, total, ok = b2.BarProgress()
+	require.True(t, ok)
+	assert.Equal(t, int64(1), total)
 }
 
 func TestBarProgressSharedWithUpdate(t *testing.T) {
@@ -91,28 +95,28 @@ func TestBarConfigOption(t *testing.T) {
 		Width:       20,
 	}
 	b := Bar("test", 100, bar.WithConfig(custom))
-	assert.Equal(t, custom, b.BarConfig)
+	assert.Equal(t, custom, b.BarStyle())
 }
 
 func TestBarPendingModeOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithPendingMode(bar.PendingHide))
-	assert.Equal(t, bar.PendingHide, b.BarConfig.PendingMode)
+	assert.Equal(t, bar.PendingHide, b.BarStyle().PendingMode)
 }
 
 func TestBarUpdateIntervalOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithUpdateInterval(time.Second))
-	assert.Equal(t, time.Second, b.BarConfig.UpdateInterval)
+	assert.Equal(t, time.Second, b.BarStyle().UpdateInterval)
 
 	b = Bar("test", 100, bar.WithUpdateInterval(-time.Second))
-	assert.Zero(t, b.BarConfig.UpdateInterval)
+	assert.Zero(t, b.BarStyle().UpdateInterval)
 }
 
 func TestBarSmoothingModeOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithSmoothingMode(bar.SmoothNone))
-	assert.Equal(t, bar.SmoothNone, b.BarConfig.Smoothing)
+	assert.Equal(t, bar.SmoothNone, b.BarStyle().Smoothing)
 
 	b = Bar("test", 100)
-	assert.Equal(t, bar.SmoothEase, b.BarConfig.Smoothing)
+	assert.Equal(t, bar.SmoothEase, b.BarStyle().Smoothing)
 }
 
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
