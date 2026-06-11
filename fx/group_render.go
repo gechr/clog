@@ -21,11 +21,11 @@ import (
 	xansi "github.com/gechr/x/ansi"
 )
 
-// groupTask holds per-animation mutable state for both the single-animation
-// (runAnimation) and multi-animation (Group) paths. It embeds *GroupTask
+// renderTask holds per-animation mutable state for both the single-animation
+// (runAnimation) and multi-animation (Group) paths. It embeds *groupTask
 // for shared state and adds rendering-specific fields.
-type groupTask struct {
-	*GroupTask
+type renderTask struct {
+	*groupTask
 
 	cfg            TaskConfig
 	maxBarProgress float64
@@ -71,7 +71,7 @@ type groupTask struct {
 // barProgress returns the per-frame snapshot of (current, total). Falls back
 // to a direct atomic load when no snapshot is in effect (e.g. utility paths
 // outside the render loop).
-func (gt *groupTask) barProgress() (int, int) {
+func (gt *renderTask) barProgress() (int, int) {
 	if gt.frameSnapshotValid {
 		return int(gt.frameBarCurrent), int(gt.frameBarTotal)
 	}
@@ -80,7 +80,7 @@ func (gt *groupTask) barProgress() (int, int) {
 
 // fieldsSnapshot returns the per-frame snapshot of the fields pointer. Falls
 // back to a direct atomic load when no snapshot is in effect.
-func (gt *groupTask) fieldsSnapshot() *[]core.Field {
+func (gt *renderTask) fieldsSnapshot() *[]core.Field {
 	if gt.frameSnapshotValid {
 		return gt.frameFieldsPtr
 	}
@@ -91,7 +91,7 @@ func (gt *groupTask) fieldsSnapshot() *[]core.Field {
 // every task in the group at the start of a render tick. Call once per tick
 // before measureGroupRenderLayout so that all width calculations and
 // per-task rendering observe identical atomic values.
-func snapshotFrameValues(gts []*groupTask) {
+func snapshotFrameValues(gts []*renderTask) {
 	for _, gt := range gts {
 		if gt.builder.BarProgressPtr != nil {
 			gt.frameBarCurrent = gt.builder.BarProgressPtr.Load()
@@ -106,7 +106,7 @@ func snapshotFrameValues(gts []*groupTask) {
 
 // effectiveLevel returns the level set via [Update.SetLevel] if present,
 // otherwise the builder's original level.
-func (gt *groupTask) effectiveLevel() core.Level {
+func (gt *renderTask) effectiveLevel() core.Level {
 	if gt.levelPtr != nil {
 		if override := core.Level(gt.levelPtr.Load()); override != level.Unset {
 			return override
@@ -118,7 +118,7 @@ func (gt *groupTask) effectiveLevel() core.Level {
 // resolveLevel returns the effective level and styled level symbol for a
 // completed task. If SetLevel was called on the Update, the overridden
 // level is used; otherwise the builder's original level applies.
-func (gt *groupTask) resolveLevel() (core.Level, string) {
+func (gt *renderTask) resolveLevel() (core.Level, string) {
 	lvl := gt.effectiveLevel()
 	if lvl == gt.builder.Level {
 		return lvl, gt.cfg.LevelSymbol
@@ -173,7 +173,7 @@ const (
 	monotonicBarScale = 1000
 )
 
-func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
+func shouldRenderTask(gt *renderTask, isDone bool, now time.Time) bool {
 	if gt.visible {
 		return true
 	}
@@ -183,19 +183,19 @@ func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
 		gt.visible = true
 		return true
 	}
-	if !gt.Started() {
+	if !gt.started() {
 		return false
 	}
 	if isDone {
-		if finishedAt := gt.FinishTime(); !finishedAt.IsZero() {
-			if gt.Duration(finishedAt) < delay {
+		if finishedAt := gt.finishTime(); !finishedAt.IsZero() {
+			if gt.duration(finishedAt) < delay {
 				return false
 			}
 			gt.visible = true
 			return true
 		}
 	}
-	if gt.Duration(now) < delay {
+	if gt.duration(now) < delay {
 		return false
 	}
 
@@ -203,7 +203,7 @@ func shouldRenderTask(gt *groupTask, isDone bool, now time.Time) bool {
 	return true
 }
 
-func visibleTaskIndexes(gts []*groupTask, done []bool, hideDone bool, now time.Time) []int {
+func visibleTaskIndexes(gts []*renderTask, done []bool, hideDone bool, now time.Time) []int {
 	indexes := make([]int, 0, len(gts))
 	for i, gt := range gts {
 		if hideDone && done[i] {
@@ -219,7 +219,7 @@ func visibleTaskIndexes(gts []*groupTask, done []bool, hideDone bool, now time.T
 // prioritiseActive selects up to maxLines indexes, preferring active
 // (started and not done) tasks over completed or pending ones.
 // Within each group the original registration order is preserved.
-func prioritiseActive(visible []int, gts []*groupTask, done []bool, maxLines int) []int {
+func prioritiseActive(visible []int, gts []*renderTask, done []bool, maxLines int) []int {
 	if maxLines <= 0 {
 		return nil
 	}
@@ -227,7 +227,7 @@ func prioritiseActive(visible []int, gts []*groupTask, done []bool, maxLines int
 	active := make([]int, 0, len(visible))
 	other := make([]int, 0, len(visible))
 	for _, idx := range visible {
-		if gts[idx].Started() && !done[idx] {
+		if gts[idx].started() && !done[idx] {
 			active = append(active, idx)
 		} else {
 			other = append(other, idx)
@@ -443,9 +443,9 @@ func padBarColumnRight(text string, width int) string {
 	return text + strings.Repeat(" ", padding)
 }
 
-func loadBarWidgetState(gt *groupTask, now time.Time) barWidgetState {
+func loadBarWidgetState(gt *renderTask, now time.Time) barWidgetState {
 	current := int(gt.builder.BarProgressPtr.Load())
-	elapsed := gt.Duration(now)
+	elapsed := gt.duration(now)
 	rate := 0.0
 	if secs := elapsed.Seconds(); secs > 0 && current > 0 {
 		rate = float64(current) / secs
@@ -472,14 +472,14 @@ func loadBarWidgetState(gt *groupTask, now time.Time) barWidgetState {
 	return gt.barWidgetState
 }
 
-func resetBarWidgetState(gt *groupTask) {
+func resetBarWidgetState(gt *renderTask) {
 	gt.barWidgetValid = false
 }
 
 // captureTaskConfig snapshots the builder's logger settings via
 // [Logger.TaskConfig] and pre-computes gt.tickRate and mode-specific
 // resources (shimmer LUTs, spinner frame guards).
-func captureTaskConfig(gt *groupTask) {
+func captureTaskConfig(gt *renderTask) {
 	b := gt.builder
 	gt.cfg = b.Log.TaskConfig(b)
 
@@ -598,7 +598,7 @@ func alignMessageForFields(
 // renderTaskFields formats the fields for a task, caching the result when
 // the atomic pointer has not changed.
 func renderTaskFields(
-	gt *groupTask,
+	gt *renderTask,
 	fieldsPtr *[]core.Field,
 	dur time.Duration,
 	current, total int,
@@ -647,7 +647,7 @@ func resolveDynamicFields(
 }
 
 // renderTaskTimestamp returns the styled timestamp string for a task.
-func renderTaskTimestamp(gt *groupTask, now time.Time) string {
+func renderTaskTimestamp(gt *renderTask, now time.Time) string {
 	if !gt.cfg.ReportTimestamp {
 		return ""
 	}
@@ -655,7 +655,7 @@ func renderTaskTimestamp(gt *groupTask, now time.Time) string {
 }
 
 func measureTaskFieldStart(
-	gt *groupTask,
+	gt *renderTask,
 	isDone bool,
 	now time.Time,
 	alignment FieldAlignment,
@@ -697,14 +697,14 @@ func measureTaskFieldStart(
 // For done tasks, it renders the frozen final state with the level's default symbol.
 // For active tasks, it renders the current animation frame.
 // It does not perform any I/O.
-func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRenderLayout) string {
+func renderTaskLine(gt *renderTask, isDone bool, now time.Time, layout *groupRenderLayout) string {
 	b := gt.builder
 	fieldsPtr := gt.fieldsSnapshot()
 	current, total := 0, 0
 	if b.Mode == AnimationBar {
 		current, total = gt.barProgress()
 	}
-	dur := gt.Duration(now)
+	dur := gt.duration(now)
 	fieldsStr := renderTaskFields(gt, fieldsPtr, dur, current, total)
 	tsStr := renderTaskTimestamp(gt, now)
 
@@ -778,7 +778,7 @@ func renderTaskLine(gt *groupTask, isDone bool, now time.Time, layout *groupRend
 	)
 }
 
-func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
+func renderAnimatedTaskMessage(gt *renderTask, now time.Time) (string, string) {
 	b := gt.builder
 	msg := *gt.msgPtr.Load()
 	dur := gt.animDuration(now)
@@ -805,11 +805,11 @@ func renderAnimatedTaskMessage(gt *groupTask, now time.Time) (string, string) {
 // When a sync epoch is set (the group default; see [WithoutSyncAnimations]),
 // all tasks in the group share the same epoch so their animations stay in
 // lockstep. Otherwise it falls back to the per-task elapsed duration.
-func (gt *groupTask) animDuration(now time.Time) time.Duration {
+func (gt *renderTask) animDuration(now time.Time) time.Duration {
 	if !gt.syncEpoch.IsZero() {
 		return now.Sub(gt.syncEpoch)
 	}
-	return gt.Duration(now)
+	return gt.duration(now)
 }
 
 // resolveSymbol returns the styled symbol for the current animation frame.
@@ -819,10 +819,10 @@ func (gt *groupTask) animDuration(now time.Time) time.Duration {
 // so the caller can replace the spinner with a checkmark or other icon.
 // If [Update.SetLevel] was also called, the overridden level is used for
 // styling so the symbol color matches the intended level.
-func resolveSymbol(gt *groupTask, now time.Time) string {
+func resolveSymbol(gt *renderTask, now time.Time) string {
 	b := gt.builder
 	if b.AnimatedSymbol && !gt.symbolOverride.Load() &&
-		gt.Started() && len(b.SpinnerStyle.Frames) > 0 &&
+		gt.started() && len(b.SpinnerStyle.Frames) > 0 &&
 		b.SpinnerStyle.Interval > 0 {
 		n := len(b.SpinnerStyle.Frames)
 		i := int(gt.animDuration(now)/b.SpinnerStyle.Interval) % n
@@ -834,8 +834,8 @@ func resolveSymbol(gt *groupTask, now time.Time) string {
 	return gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.effectiveLevel())
 }
 
-func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
-	if !gt.Started() {
+func renderTaskMessageSymbol(gt *renderTask, now time.Time) (string, string) {
+	if !gt.started() {
 		return gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.Level),
 			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.builder.Level)
 	}
@@ -852,7 +852,7 @@ func renderTaskMessageSymbol(gt *groupTask, now time.Time) (string, string) {
 // renderTaskBarLine renders a bar-animation frame for a task. Factored out to
 // keep renderTaskLine focused.
 func renderTaskBarLine(
-	gt *groupTask,
+	gt *renderTask,
 	fieldsStr, tsStr string,
 	state barWidgetState,
 	layout *groupRenderLayout,
@@ -885,7 +885,7 @@ func renderTaskBarLine(
 }
 
 func buildTaskBarParts(
-	gt *groupTask,
+	gt *renderTask,
 	fieldsStr, tsStr string,
 	state barWidgetState,
 	layout *groupRenderLayout,
@@ -1023,16 +1023,16 @@ func buildTaskBarParts(
 
 func measureGroupRenderLayout(
 	g *Group,
-	gts []*groupTask,
+	gts []*renderTask,
 	done []bool,
 	now time.Time,
 ) *groupRenderLayout {
-	return measureGroupRenderLayoutForIndexes(g, gts, done, allGroupTaskIndexes(len(gts)), now)
+	return measureGroupRenderLayoutForIndexes(g, gts, done, allTaskIndexes(len(gts)), now)
 }
 
 func measureGroupRenderLayoutForIndexes(
 	g *Group,
-	gts []*groupTask,
+	gts []*renderTask,
 	done []bool,
 	indexes []int,
 	now time.Time,
@@ -1098,7 +1098,7 @@ func measureGroupRenderLayoutForIndexes(
 		}
 		tsStr := renderTaskTimestamp(gt, now)
 		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.Level)
-		fieldsStr := renderTaskFields(gt, gt.fieldsSnapshot(), gt.Duration(now), 0, 0)
+		fieldsStr := renderTaskFields(gt, gt.fieldsSnapshot(), gt.duration(now), 0, 0)
 		parts := buildLine(
 			gt.cfg.Order,
 			gt.cfg.ReportTimestamp,
@@ -1114,7 +1114,7 @@ func measureGroupRenderLayoutForIndexes(
 	return layout
 }
 
-func allGroupTaskIndexes(n int) []int {
+func allTaskIndexes(n int) []int {
 	indexes := make([]int, n)
 	for i := range indexes {
 		indexes[i] = i
@@ -1123,8 +1123,8 @@ func allGroupTaskIndexes(n int) []int {
 }
 
 func buildGroupFrameLines(
-	headerGT, footerGT *groupTask,
-	gts []*groupTask,
+	headerGT, footerGT *renderTask,
+	gts []*renderTask,
 	visible []int,
 	effectiveDone []bool,
 	now time.Time,
@@ -1226,8 +1226,8 @@ func groupFrameFitsViewport(output RenderOutput, renderedRows, frameRows int) bo
 }
 
 func drainGroupCompletions(
-	fxTasks []*GroupTask,
-	gts []*groupTask,
+	fxTasks []*groupTask,
+	gts []*renderTask,
 	done []bool,
 	justCompleted []bool,
 	remaining int,
@@ -1287,15 +1287,15 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		return nil
 	}
 
-	// Wrap each GroupTask with rendering state.
+	// Wrap each groupTask with rendering state.
 	var syncEpoch time.Time
 	if g.syncAnimations {
 		syncEpoch = time.Now()
 	}
-	gts := make([]*groupTask, len(fxTasks))
+	gts := make([]*renderTask, len(fxTasks))
 	for i, ft := range fxTasks {
-		gt := &groupTask{
-			GroupTask: ft,
+		gt := &renderTask{
+			groupTask: ft,
 			monotonic: g.monotonic,
 			syncEpoch: syncEpoch,
 		}
@@ -1304,7 +1304,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	}
 
 	// Build groupTasks for header/footer status lines.
-	initStatus := func(s *groupStatus) (*groupTask, *Update) {
+	initStatus := func(s *groupStatus) (*renderTask, *Update) {
 		if s == nil {
 			return nil, nil
 		}
@@ -1323,8 +1323,8 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		}
 		symbolPtr.Store(&sym)
 
-		gt := &groupTask{
-			GroupTask: &GroupTask{
+		gt := &renderTask{
+			groupTask: &groupTask{
 				builder:   b,
 				fieldsPtr: fieldsPtr,
 				msgPtr:    msgPtr,

@@ -162,9 +162,9 @@ func TestGroupFieldAlignmentMessageAlignsFields(t *testing.T) {
 	g.Add(testSpinner(log, "short").Str("stage", "queued"))
 	g.Add(testSpinner(log, "much longer repo").Str("stage", "queued"))
 
-	gts := make([]*groupTask, len(g.tasks))
+	gts := make([]*renderTask, len(g.tasks))
 	for i, task := range g.tasks {
-		gt := &groupTask{GroupTask: task}
+		gt := &renderTask{groupTask: task}
 		captureTaskConfig(gt)
 		gts[i] = gt
 	}
@@ -191,8 +191,8 @@ func TestShouldRenderTaskAfterDelay(t *testing.T) {
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -221,8 +221,8 @@ func TestShouldRenderTaskAfterDelaySkipsTaskDoneBeforeDelay(t *testing.T) {
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -230,7 +230,7 @@ func TestShouldRenderTaskAfterDelaySkipsTaskDoneBeforeDelay(t *testing.T) {
 			symbolPtr: symbolPtr,
 		},
 	}
-	gt.MarkFinished(time.Unix(0, int64(500*time.Millisecond)))
+	gt.markFinished(time.Unix(0, int64(500*time.Millisecond)))
 	captureTaskConfig(gt)
 
 	assert.False(t, shouldRenderTask(gt, true, time.Unix(2, 0)))
@@ -272,8 +272,8 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []core.Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
-		s := &groupTask{
-			GroupTask: &GroupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
+		s := &renderTask{
+			groupTask: &groupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
 		}
 		captureTaskConfig(s)
 
@@ -293,8 +293,8 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []core.Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
-		s := &groupTask{
-			GroupTask: &GroupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
+		s := &renderTask{
+			groupTask: &groupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
 		}
 		captureTaskConfig(s)
 
@@ -311,8 +311,8 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		fields := []core.Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
-		s := &groupTask{
-			GroupTask: &GroupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
+		s := &renderTask{
+			groupTask: &groupTask{builder: b, fieldsPtr: fieldsPtr, msgPtr: msgPtr},
 		}
 		captureTaskConfig(s)
 
@@ -342,9 +342,9 @@ func TestPrioritiseActiveZeroLimit(t *testing.T) {
 	log := newStubLogger()
 	visible := []int{0, 1}
 	done := []bool{false, false}
-	gts := []*groupTask{
-		{GroupTask: &GroupTask{builder: testSpinner(log, "one")}},
-		{GroupTask: &GroupTask{builder: testSpinner(log, "two")}},
+	gts := []*renderTask{
+		{groupTask: &groupTask{builder: testSpinner(log, "one")}},
+		{groupTask: &groupTask{builder: testSpinner(log, "two")}},
 	}
 
 	got := prioritiseActive(visible, gts, done, 0)
@@ -391,11 +391,11 @@ func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
 	successBuilder.BarProgressPtr.Store(9)
 	failedBuilder.BarProgressPtr.Store(9)
 
-	successTask := &GroupTask{
+	successTask := &groupTask{
 		builder: successBuilder,
 		doneErr: make(chan error, 1),
 	}
-	failedTask := &GroupTask{
+	failedTask := &groupTask{
 		builder: failedBuilder,
 		doneErr: make(chan error, 1),
 	}
@@ -405,8 +405,8 @@ func TestDrainGroupCompletionsOnlyFinalFlashesSuccessfulBars(t *testing.T) {
 	done := []bool{false, false}
 	justCompleted := []bool{false, false}
 	remaining := drainGroupCompletions(
-		[]*GroupTask{successTask, failedTask},
-		[]*groupTask{{GroupTask: successTask}, {GroupTask: failedTask}},
+		[]*groupTask{successTask, failedTask},
+		[]*renderTask{{groupTask: successTask}, {groupTask: failedTask}},
 		done,
 		justCompleted,
 		2,
@@ -548,16 +548,16 @@ func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {
 	visibleSymbolPtr.Store(&symbol)
 	hiddenSymbolPtr.Store(&symbol)
 
-	visibleGT := &groupTask{
-		GroupTask: &GroupTask{
+	visibleGT := &renderTask{
+		groupTask: &groupTask{
 			builder:   visibleBuilder,
 			fieldsPtr: visibleFieldsPtr,
 			msgPtr:    visibleMsgPtr,
 			symbolPtr: visibleSymbolPtr,
 		},
 	}
-	hiddenGT := &groupTask{
-		GroupTask: &GroupTask{
+	hiddenGT := &renderTask{
+		groupTask: &groupTask{
 			builder:   hiddenBuilder,
 			fieldsPtr: hiddenFieldsPtr,
 			msgPtr:    hiddenMsgPtr,
@@ -567,7 +567,7 @@ func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {
 	captureTaskConfig(visibleGT)
 	captureTaskConfig(hiddenGT)
 
-	gts := []*groupTask{visibleGT, hiddenGT}
+	gts := []*renderTask{visibleGT, hiddenGT}
 	done := []bool{false, false}
 	now := time.Unix(1, 0)
 	allLayout := measureGroupRenderLayoutForIndexes(&Group{}, gts, done, []int{0, 1}, now)
@@ -594,8 +594,8 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -641,8 +641,8 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	symbolPtr.Store(&symbol)
 	b.BarProgressPtr.Store(10)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -654,7 +654,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 
 	g := &Group{}
 	firstAt := time.Unix(2, 0)
-	firstLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, firstAt)
+	firstLayout := measureGroupRenderLayout(g, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
 	updatedMsg := "repo (updated)"
@@ -666,10 +666,10 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	b.BarProgressPtr.Store(90)
 
 	secondAt := time.Unix(2, int64(500*time.Millisecond))
-	secondLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, secondAt)
+	secondLayout := measureGroupRenderLayout(g, []*renderTask{gt}, []bool{false}, secondAt)
 	second := renderTaskLine(gt, false, secondAt, secondLayout)
 	thirdAt := time.Unix(3, int64(100*time.Millisecond))
-	thirdLayout := measureGroupRenderLayout(g, []*groupTask{gt}, []bool{false}, thirdAt)
+	thirdLayout := measureGroupRenderLayout(g, []*renderTask{gt}, []bool{false}, thirdAt)
 	third := renderTaskLine(gt, false, thirdAt, thirdLayout)
 
 	assert.Equal(t, "INF 📡 repo stage=receiving ETA 18s [=---------]  10%", first)
@@ -714,8 +714,8 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	symbolPtr.Store(&symbol)
 	b.BarProgressPtr.Store(10)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -726,15 +726,15 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	captureTaskConfig(gt)
 
 	firstAt := time.Unix(2, 0)
-	firstLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
 	b.BarProgressPtr.Store(90)
 	secondAt := time.Unix(2, int64(500*time.Millisecond))
-	secondLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, secondAt)
+	secondLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, secondAt)
 	second := renderTaskLine(gt, false, secondAt, secondLayout)
 	thirdAt := time.Unix(3, int64(100*time.Millisecond))
-	thirdLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, thirdAt)
+	thirdLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, thirdAt)
 	third := renderTaskLine(gt, false, thirdAt, thirdLayout)
 
 	assert.Equal(t, "INF 📡 repo stage=receiving progress=10% elapsed=2s [=---------]", first)
@@ -766,8 +766,8 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -780,12 +780,12 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 
 	b.BarProgressPtr.Store(90)
 	firstAt := time.Unix(2, 0)
-	firstLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
 	b.BarProgressPtr.Store(80)
 	secondAt := time.Unix(3, 0)
-	secondLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, secondAt)
+	secondLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, secondAt)
 	second := renderTaskLine(gt, false, secondAt, secondLayout)
 
 	assert.Equal(t, "INF 📡 repo stage=receiving [=========-]", first)
@@ -816,8 +816,8 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	fieldsPtr.Store(&fields)
 	symbolPtr.Store(&symbol)
 
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
 			msgPtr:    msgPtr,
@@ -830,14 +830,14 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	// First render at 10% - smoothing initializes to 10%.
 	b.BarProgressPtr.Store(10)
 	firstAt := time.Unix(2, 0)
-	firstLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, firstAt)
+	firstLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, firstAt)
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 	assert.Equal(t, "INF ⏳ task [=---------]", first)
 
 	// Jump to 90% - shortly after, smoothing should lag behind the target.
 	b.BarProgressPtr.Store(90)
 	shortAt := firstAt.Add(50 * time.Millisecond)
-	shortLayout := measureGroupRenderLayout(&Group{}, []*groupTask{gt}, []bool{false}, shortAt)
+	shortLayout := measureGroupRenderLayout(&Group{}, []*renderTask{gt}, []bool{false}, shortAt)
 	smoothed := renderTaskLine(gt, false, shortAt, shortLayout)
 	// Without smoothing this would be [=========-]; with smoothing it should be less.
 	assert.NotEqual(t, "INF ⏳ task [=========-]", smoothed)
@@ -846,7 +846,7 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	convergedAt := firstAt.Add(2 * time.Second)
 	convergedLayout := measureGroupRenderLayout(
 		&Group{},
-		[]*groupTask{gt},
+		[]*renderTask{gt},
 		[]bool{false},
 		convergedAt,
 	)

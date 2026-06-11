@@ -67,8 +67,8 @@ func runAnimation(
 	}
 
 	// Build the gt and snapshot the logger's settings.
-	gt := &groupTask{
-		GroupTask: &GroupTask{
+	gt := &renderTask{
+		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fields,
 			levelPtr:  levelPtr,

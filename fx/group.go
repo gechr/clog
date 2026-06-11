@@ -41,7 +41,7 @@ type Group struct {
 	parallelism      int
 	renderDelay      time.Duration
 	syncAnimations   bool
-	tasks            []*GroupTask
+	tasks            []*groupTask
 	transientFooter  bool
 	transientHeader  bool
 
@@ -71,8 +71,8 @@ type groupStatus struct {
 	callback GroupStatusFunc
 }
 
-// GroupTask holds per-animation state for the group render loop.
-type GroupTask struct {
+// groupTask holds per-animation state for the group render loop.
+type groupTask struct {
 	builder        *Builder
 	doneErr        chan error // buffered(1); goroutine sends result here
 	err            error      // populated by Wait() after doneErr is drained
@@ -86,13 +86,13 @@ type GroupTask struct {
 	symbolPtr      *atomic.Pointer[string]
 }
 
-// Started reports whether the task has begun executing.
-func (t *GroupTask) Started() bool {
+// started reports whether the task has begun executing.
+func (t *groupTask) started() bool {
 	return !t.startTime().IsZero()
 }
 
-// Duration returns the elapsed execution time, or zero while the task is queued.
-func (t *GroupTask) Duration(now time.Time) time.Duration {
+// duration returns the elapsed execution time, or zero while the task is queued.
+func (t *groupTask) duration(now time.Time) time.Duration {
 	start := t.startTime()
 	if start.IsZero() {
 		return 0
@@ -100,31 +100,31 @@ func (t *GroupTask) Duration(now time.Time) time.Duration {
 	return now.Sub(start)
 }
 
-// MarkStarted records the actual task start time.
-func (t *GroupTask) MarkStarted(now time.Time) {
+// markStarted records the actual task start time.
+func (t *groupTask) markStarted(now time.Time) {
 	if now.IsZero() {
 		return
 	}
 	t.startedAt.Store(now.UnixNano())
 }
 
-// FinishTime returns the actual finish time, or the zero value if unfinished.
-func (t *GroupTask) FinishTime() time.Time {
+// finishTime returns the actual finish time, or the zero value if unfinished.
+func (t *groupTask) finishTime() time.Time {
 	if finishedAt := t.finishedAt.Load(); finishedAt > 0 {
 		return time.Unix(0, finishedAt)
 	}
 	return time.Time{}
 }
 
-// MarkFinished records the actual task finish time.
-func (t *GroupTask) MarkFinished(now time.Time) {
+// markFinished records the actual task finish time.
+func (t *groupTask) markFinished(now time.Time) {
 	if now.IsZero() {
 		return
 	}
 	t.finishedAt.Store(now.UnixNano())
 }
 
-func (t *GroupTask) startTime() time.Time {
+func (t *groupTask) startTime() time.Time {
 	if startedAt := t.startedAt.Load(); startedAt > 0 {
 		return time.Unix(0, startedAt)
 	}
@@ -152,7 +152,7 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 	levelPtr := &atomic.Int64{}
 	levelPtr.Store(int64(level.Unset))
 
-	gt := &GroupTask{
+	gt := &groupTask{
 		builder:   b,
 		doneErr:   make(chan error, 1),
 		fieldsPtr: fieldsPtr,
@@ -234,7 +234,7 @@ func (g *Group) semaphore() chan struct{} {
 // GroupEntry is returned by [Group.Add] and provides [Run] and [Progress]
 // methods to start a task within the group.
 type GroupEntry struct {
-	task  *GroupTask
+	task  *groupTask
 	group *Group
 }
 
@@ -277,9 +277,9 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 			return
 		}
 		defer g.releaseSlot()
-		t.MarkStarted(time.Now())
+		t.markStarted(time.Now())
 		err := task(g.ctx, update)
-		t.MarkFinished(time.Now())
+		t.markFinished(time.Now())
 		t.doneErr <- err
 	}()
 
@@ -305,7 +305,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 type TaskResult struct {
 	resultBase[TaskResult]
 
-	task *GroupTask
+	task *groupTask
 }
 
 // Err returns the error, logging success or failure using the original message.
@@ -330,7 +330,7 @@ func (r *TaskResult) Send() error {
 		msg = *t.msgPtr.Load()
 	}
 
-	finalFields := t.builder.ResolveDynamicFields(*t.fieldsPtr.Load(), t.Duration(time.Now()))
+	finalFields := t.builder.ResolveDynamicFields(*t.fieldsPtr.Load(), t.duration(time.Now()))
 	if len(r.Fields) > 0 {
 		finalFields = core.MergeFields(finalFields, r.Fields)
 	}
