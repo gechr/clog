@@ -92,7 +92,7 @@ func (b *DividerBuilder) render(title string) {
 		line = renderDividerLine(char, width, noColor, l.styles)
 	}
 
-	writeString(l.output.Writer(), line+nl)
+	l.output.WriteLine(line + nl)
 }
 
 func renderDividerLine(char rune, width int, noColor bool, styles *style.Config) string {

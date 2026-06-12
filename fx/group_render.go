@@ -1180,11 +1180,7 @@ func groupHeightCap(termHeight, blockTopRow, fallback int) int {
 }
 
 func groupFrameRows(lines []string, termWidth int) int {
-	rows := 0
-	for _, line := range lines {
-		rows += frameRows(line, termWidth)
-	}
-	return rows
+	return core.BlockRows(lines, termWidth)
 }
 
 func groupFrameFitsViewport(output RenderOutput, renderedRows, frameRows int) bool {
@@ -1610,65 +1606,20 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 
 // syncFrame brackets s with DEC 2026 synchronized-output markers so
 // supporting terminals apply the whole sequence atomically (no tearing);
-// terminals without support ignore the markers.
+// terminals without support ignore the markers. Delegates to [core.SyncFrame]
+// so the live-region renderer shares the exact same framing.
 func syncFrame(s string) string {
-	return xansi.EnableSyncOutput + s + xansi.DisableSyncOutput
+	return core.SyncFrame(s)
 }
 
 // appendRepaint appends an overwrite-in-place repaint of lines over the
 // previously rendered block of prevRows physical rows, bracketed by DEC 2026
-// synchronized-output markers. The block is not erased up front - that would
-// flash blank on terminals without synchronized output - instead each line
-// clears only the rows it touches, and rows the new frame no longer covers
-// are erased at the end. Returns the physical row count of the new frame.
+// synchronized-output markers. Delegates to [core.AppendRepaint] so the
+// live-region renderer shares the exact same repaint sequence; see there for
+// the line-by-line erase rationale. Returns the physical row count of the
+// new frame.
 func appendRepaint(buf *strings.Builder, lines []string, prevRows, width int) int {
-	rows := groupFrameRows(lines, width)
-	buf.WriteString(xansi.EnableSyncOutput)
-	if prevRows > 0 {
-		buf.WriteString(xansi.CursorUp(prevRows))
-		buf.WriteString(xansi.CursorHorizontalAbsolute(1))
-		if width <= 0 {
-			// Wrap math is unreliable without a known width; fall back to
-			// erasing the whole block before repainting.
-			buf.WriteString(xansi.EraseScreenBelow)
-		}
-	}
-	for i, line := range lines {
-		if i > 0 {
-			// Literal newline so the terminal advances (and scrolls when
-			// the block reaches the viewport bottom). CursorNextLine would
-			// clamp at the bottom row and silently fail to advance, leaving
-			// the row arithmetic out of sync with reality. xansi.ClearLine
-			// ends with "\r" so the column is reset before the next line is
-			// written.
-			buf.WriteString(nl)
-		}
-		buf.WriteString(xansi.ClearLine)
-		buf.WriteString(line)
-		// ClearLine only cleared the first physical row of a wrapped line;
-		// intermediate rows are fully overwritten by the content itself,
-		// but a partial final row keeps its stale tail. Trim it unless the
-		// row is exactly full: the cursor then sits in the deferred-wrap
-		// state, where EL0 would erase the last glyph instead.
-		if w := xansi.StringWidth(line); width > 0 && w > width && w%width != 0 {
-			buf.WriteString(xansi.EraseLineRight)
-		}
-	}
-	// Park the cursor one line below the block only while a block is still
-	// rendered, so zero-line frames don't leave a blank gap. Literal newline
-	// for the same scroll-at-bottom reason as above.
-	if len(lines) > 0 {
-		buf.WriteString(nl)
-	}
-	// Rows the new frame no longer covers (a shrinking block, or a zero-line
-	// frame replacing a previous block) are erased below the park position.
-	// Steady-state frames skip the erase entirely.
-	if width > 0 && rows != prevRows {
-		buf.WriteString(xansi.CursorHorizontalAbsolute(1))
-		buf.WriteString(xansi.EraseScreenBelow)
-	}
-	buf.WriteString(xansi.DisableSyncOutput)
-	return rows
+	return core.AppendRepaint(buf, lines, prevRows, width)
 }
 
 // eraseBlockSync erases a rendered block of n physical rows as a single

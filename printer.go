@@ -119,7 +119,7 @@ func (p *Printer) RawJSON(data []byte) {
 
 	highlighted := json.Highlight(string(data), styles)
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), highlighted+nl)
+	l.output.WriteLine(highlighted + nl)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -161,7 +161,7 @@ func (p *Printer) RawYAML(data []byte) {
 		highlighted += nl
 	}
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), highlighted)
+	l.output.WriteLine(highlighted)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -193,7 +193,7 @@ func (p *Printer) RawTOML(data []byte) {
 		highlighted += nl
 	}
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), highlighted)
+	l.output.WriteLine(highlighted)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -214,7 +214,7 @@ func (p *Printer) RawHCL(data []byte) {
 		highlighted += nl
 	}
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), highlighted)
+	l.output.WriteLine(highlighted)
 	l.runHooks(HookAfterWrite)
 }
 
@@ -237,6 +237,6 @@ func (p *Printer) write(s string) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), s+nl)
+	l.output.WriteLine(s + nl)
 	l.runHooks(HookAfterWrite)
 }

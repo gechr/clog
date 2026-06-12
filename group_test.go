@@ -795,10 +795,12 @@ func TestAnimationFrameSynchronizationAndSkip(t *testing.T) {
 	assert.LessOrEqual(t, syncCount, 5,
 		"identical frames must be skipped, not rewritten every tick")
 
-	// The completion erase is its own synchronized frame.
+	// The completion erase is its own synchronized frame: the live region
+	// paints a zero-line frame over the previous one-row block.
 	assert.Contains(
 		t,
 		got,
-		xansi.EnableSyncOutput+xansi.CursorUp(1)+xansi.EraseScreenBelow+xansi.DisableSyncOutput,
+		xansi.EnableSyncOutput+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+
+			xansi.CursorHorizontalAbsolute(1)+xansi.EraseScreenBelow+xansi.DisableSyncOutput,
 	)
 }

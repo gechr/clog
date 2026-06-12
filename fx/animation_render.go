@@ -18,19 +18,12 @@ func writeString(w io.Writer, s string) {
 	_, _ = io.WriteString(w, s)
 }
 
-// frameRows returns the number of physical terminal rows the rendered line
-// occupies once wrapping at termWidth is accounted for. ANSI escape codes
-// are stripped before measuring. Falls back to 1 when the width is unknown
-// (e.g. Output.Width() == 0).
-func frameRows(line string, termWidth int) int {
-	if termWidth <= 0 {
-		return 1
-	}
-	w := xansi.StringWidth(line)
-	if w <= 0 {
-		return 1
-	}
-	return (w + termWidth - 1) / termWidth
+// liveRegionProvider is the optional capability probed for on the task's
+// [RenderOutput]. The root clog Output implements it; external Output
+// implementations (and test stubs) that don't are served by the legacy
+// in-place render loop below, so the interface contracts stay unchanged.
+type liveRegionProvider interface {
+	LiveRegion() *core.LiveRegion
 }
 
 // runAnimation runs the render loop for a single animation, blocking until
@@ -110,6 +103,18 @@ func runAnimation(
 		}
 	}
 
+	// Live-region path: when the output exposes a shared LiveRegion, register
+	// this animation as one slot of the region's stacked block. The region
+	// owns the render cadence and cursor visibility, coordinates concurrent
+	// standalone animations, and lets log lines displace the block instead of
+	// being overpainted by the next frame.
+	if p, ok := gt.cfg.Output.(liveRegionProvider); ok {
+		if region := p.LiveRegion(); region != nil {
+			return runAnimationRegion(ctx, b, gt, done, region)
+		}
+	}
+
+	// Legacy path: this animation owns the terminal and repaints in place.
 	// Hide cursor during animation.
 	writeString(gt.cfg.Out, xansi.HideCursor)
 	defer writeString(gt.cfg.Out, xansi.ShowCursor)
@@ -182,5 +187,49 @@ func runAnimation(
 			}
 			return ctx.Err()
 		}
+	}
+}
+
+// runAnimationRegion runs a single animation as one slot of the output's
+// shared [core.LiveRegion], blocking until the task completes or the context
+// is cancelled. The region's render loop calls the slot's render closure
+// under the region lock, so this goroutine must not call renderTaskLine while
+// the slot is registered (the closure mutates per-tick caches on gt).
+// Done and cancel semantics mirror the legacy loop: a successful bar shows a
+// final 100% frame before the line is erased, and the completion message is
+// printed by the caller through the logger, landing cleanly via displacement.
+func runAnimationRegion(
+	ctx context.Context,
+	b *Builder,
+	gt *renderTask,
+	done <-chan error,
+	region *core.LiveRegion,
+) error {
+	id := region.Register(func(now time.Time) string {
+		return renderTaskLine(gt, false, now, nil)
+	}, gt.tickRate)
+
+	select {
+	case err := <-done:
+		// For bar animations, render one final frame so 100% is visible
+		// before the line is cleared and replaced with the completion message.
+		if b.mode == AnimationBar && err == nil {
+			resetBarWidgetState(gt)
+			region.RenderFrame(time.Now())
+		}
+		region.Unregister(id)
+		return err
+	case <-ctx.Done():
+		// Unregister first so the region stops calling the render closure;
+		// after that this goroutine owns gt again.
+		region.Unregister(id)
+		if !b.clearOnCancel {
+			// Preserve the in-progress line as scrollback, mirroring the
+			// legacy loop which leaves the last frame on screen. The frozen
+			// frame is written as a regular displaced line so it lands above
+			// any animations still live in the region.
+			region.WriteLines(renderTaskLine(gt, false, time.Now(), nil) + nl)
+		}
+		return ctx.Err()
 	}
 }

@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
+	xansi "github.com/gechr/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -237,4 +240,113 @@ func TestElapsedFieldOrdering(t *testing.T) {
 			}
 		})
 	}
+}
+
+// regionBuffer is a goroutine-safe buffer for live-region tests whose render
+// loop and animation goroutines write concurrently with test polling.
+type regionBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *regionBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *regionBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
+
+// newRegionTestLogger returns a logger on a simulated 80-column TTY writing
+// to buf, with parts reduced to the message so rendered animation lines are
+// byte-predictable.
+func newRegionTestLogger(buf *regionBuffer) (*Logger, *Output) {
+	out := TestOutput(buf)
+	out.isTTY = true
+	out.widthDone = true
+	out.width = 80
+	l := New(out)
+	l.SetParts(PartMessage)
+	return l, out
+}
+
+func TestStandaloneAnimationDisplacesLogLines(t *testing.T) {
+	var buf regionBuffer
+	l, out := newRegionTestLogger(&buf)
+
+	result := l.Spinner("loading").
+		Wait(context.Background(), func(_ context.Context) error {
+			// Wait until the animation has registered its live-region slot so
+			// the log line below exercises the displacement path.
+			for !out.LiveRegion().Active() {
+				time.Sleep(time.Millisecond)
+			}
+			l.Info().Msg("inside")
+			return nil
+		})
+	require.NoError(t, result.TaskErr)
+	require.NoError(t, result.Msg("spin done"))
+
+	got := buf.String()
+	// The displaced log line is one synchronized frame: erase the block,
+	// write the log line where the block's top row was, repaint the block
+	// below it.
+	displaced := xansi.EnableSyncOutput +
+		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+		"inside\n" +
+		xansi.EnableSyncOutput + xansi.ClearLine + "loading"
+	assert.Contains(t, got, displaced)
+	// On completion the block is erased, the cursor restored, and the
+	// completion message printed as a plain line.
+	assert.Contains(t, got, xansi.ShowCursor+"spin done\n")
+}
+
+func TestConcurrentStandaloneAnimationsStackInOneBlock(t *testing.T) {
+	var buf regionBuffer
+	l, out := newRegionTestLogger(&buf)
+
+	release := make(chan struct{})
+	second := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		l.Spinner("first").Wait(context.Background(), func(_ context.Context) error {
+			<-release
+			return nil
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		<-second
+		l.Spinner("stacked").Wait(context.Background(), func(_ context.Context) error {
+			<-release
+			return nil
+		})
+	}()
+
+	// Start the second spinner only once the first is live so the block's
+	// registration order is deterministic.
+	for !out.LiveRegion().Active() {
+		time.Sleep(time.Millisecond)
+	}
+	close(second)
+
+	// Registering the second slot repaints both animations as one stacked
+	// two-line block in registration order.
+	stacked := xansi.ClearLine + "first\n" + xansi.ClearLine + "stacked"
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), stacked)
+	}, 2*time.Second, time.Millisecond)
+
+	close(release)
+	wg.Wait()
+
+	// Both slots unregistered: the block is gone and the cursor restored.
+	assert.False(t, out.LiveRegion().Active())
+	assert.Contains(t, buf.String(), xansi.ShowCursor)
 }

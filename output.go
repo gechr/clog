@@ -13,6 +13,7 @@ import (
 
 	"github.com/charmbracelet/colorprofile"
 	"github.com/gechr/clog/field/hyperlink"
+	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/theme"
 	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
@@ -46,6 +47,11 @@ type Output struct {
 	// from the owning logger's FieldFormats. nil means the default
 	// (enabled, plain file:// URLs).
 	hyperlinks atomic.Pointer[hyperlink.Config]
+
+	// region coordinates live animation repaints with regular log writes.
+	// Lazily created on first use so outputs that never animate pay nothing;
+	// nil means no animation has ever run on this output.
+	region atomic.Pointer[core.LiveRegion]
 
 	// Tests may override cursor probing to avoid real terminal I/O.
 	queryCursorPosition func(io.Writer) (cursorPosition, bool)
@@ -98,6 +104,37 @@ func TestOutput(w io.Writer) *Output {
 
 // Writer returns the underlying [io.Writer].
 func (o *Output) Writer() io.Writer { return o.w }
+
+// LiveRegion returns the live-animation region for this output, creating it
+// on first use. There is exactly one region per Output so every animation and
+// log line on the same writer coordinates through it. The fx render loops
+// discover the region via an optional-capability type assertion, which keeps
+// the fx.Output interface (and external implementations) unchanged.
+func (o *Output) LiveRegion() *core.LiveRegion {
+	if r := o.region.Load(); r != nil {
+		return r
+	}
+	r := core.NewLiveRegion(o.w, o.Width)
+	if o.region.CompareAndSwap(nil, r) {
+		return r
+	}
+	return o.region.Load()
+}
+
+// WriteLine writes a fully formatted log line (or multi-line payload ending
+// in a newline) to the underlying writer. While animations are live on this
+// output, the write is routed through the [core.LiveRegion] so the animation
+// block is displaced: erased, the line written above, and the block repainted
+// below in one synchronized frame. Without an active region this is a plain
+// write.
+func (o *Output) WriteLine(s string) {
+	if r := o.region.Load(); r != nil {
+		// WriteLines falls back to a plain write when no slots are live.
+		r.WriteLines(s)
+		return
+	}
+	writeString(o.w, s)
+}
 
 // IsTTY returns true if the writer is connected to a terminal.
 func (o *Output) IsTTY() bool { return o.isTTY }

@@ -1200,7 +1200,7 @@ func (l *Logger) log(e *Event, msg string) {
 	}
 
 	l.runHooks(HookBeforeWrite)
-	writeString(l.output.Writer(), line+nl)
+	l.output.WriteLine(line + nl)
 	l.runHooks(HookAfterWrite)
 }
 
