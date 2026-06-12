@@ -15,7 +15,9 @@ import (
 // animation builders always resolve a concrete per-mode tick rate first.
 const defaultSlotTick = 100 * time.Millisecond
 
-// liveSlot is one registered animation line within a [LiveRegion].
+// liveSlot is one registered animation within a [LiveRegion]. A slot usually
+// renders a single line, but may render a multi-row block (newline-separated
+// lines) or nothing at all for a given tick.
 type liveSlot struct {
 	id     uint64
 	render func(now time.Time) string
@@ -23,10 +25,11 @@ type liveSlot struct {
 }
 
 // LiveRegion coordinates a single repaintable block of animation lines with
-// regular log writes on the same terminal. All concurrent standalone
-// animations on one output register as slots and are painted as one stacked
-// block (in registration order) by a single shared render loop, so they
-// never clobber each other. Log lines written through [LiveRegion.WriteLines]
+// regular log writes on the same terminal. All concurrent animations on one
+// output - standalone spinners and bars as single-line slots, whole groups as
+// multi-line slots - register here and are painted as one stacked block (in
+// registration order) by a single shared render loop, so they never clobber
+// each other. Log lines written through [LiveRegion.WriteLines]
 // while the block is on screen displace it: the block is erased, the log
 // line lands above, and the block is repainted below - all inside one
 // synchronized-output frame so nothing tears or gets lost.
@@ -70,7 +73,9 @@ func NewLiveRegion(out io.Writer, width func() int) *LiveRegion {
 // hides the cursor and starts the shared render loop; the new slot is
 // painted immediately rather than waiting for the next tick. render is only
 // ever invoked under the region lock, so it needs no synchronization of its
-// own beyond not calling back into the region.
+// own beyond not calling back into the region. render may return a
+// newline-separated multi-row block (e.g. a group of animations) or an empty
+// string to contribute no rows this tick.
 func (r *LiveRegion) Register(render func(now time.Time) string, tick time.Duration) uint64 {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -191,11 +196,27 @@ func (r *LiveRegion) paintLocked(now time.Time) {
 		return
 	}
 
-	lines := make([]string, len(r.slots))
-	for i, s := range r.slots {
-		lines[i] = s.render(now)
+	// Flatten every slot's output into one list of physical lines. A slot
+	// may render a multi-row block (newline-separated) or nothing at all for
+	// this tick; either way the block stacks in registration order.
+	lines := make([]string, 0, len(r.slots))
+	for _, s := range r.slots {
+		block := s.render(now)
+		if block == "" {
+			continue
+		}
+		lines = append(lines, strings.Split(block, nl)...)
 	}
 	width := r.width()
+
+	// Nothing on screen and nothing to draw: record the frame so later
+	// dedup checks compare against it, but write no bytes (not even sync
+	// markers).
+	if len(lines) == 0 && r.rows == 0 {
+		r.lastLines = lines
+		r.lastWidth = width
+		return
+	}
 
 	// Skip identical frames: nothing on screen would change, so a write
 	// would be wasted bandwidth.

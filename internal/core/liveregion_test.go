@@ -223,6 +223,89 @@ func TestLiveRegionMinTickSelection(t *testing.T) {
 	r.Unregister(slow)
 }
 
+func TestLiveRegionMultiLineSlot(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	// A slot may render a newline-separated block; each line occupies its
+	// own physical row of the painted block.
+	id := r.Register(staticSlot("top\nbottom"), neverTick)
+	assert.Equal(t, xansi.HideCursor+repaint(0, "top", "bottom"), buf.String())
+
+	// Displacement accounts for the block's full physical height: the erase
+	// moves up over both rows and the whole block repaints below the line.
+	buf.Reset()
+	r.WriteLines("log line\n")
+	want := xansi.EnableSyncOutput +
+		xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+		"log line\n" +
+		repaint(0, "top", "bottom") +
+		xansi.DisableSyncOutput
+	assert.Equal(t, want, buf.String())
+
+	buf.Reset()
+	r.Unregister(id)
+	assert.Equal(t, repaint(2)+xansi.ShowCursor, buf.String())
+}
+
+func TestLiveRegionMixedSingleAndMultiLineSlots(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	single := r.Register(staticSlot("spinner"), neverTick)
+	buf.Reset()
+
+	// Registering the multi-line slot repaints the block with its rows
+	// stacked below the existing slot, in registration order.
+	multi := r.Register(staticSlot("group-1\ngroup-2"), neverTick)
+	assert.Equal(t, repaint(1, "spinner", "group-1", "group-2"), buf.String())
+
+	buf.Reset()
+	r.Unregister(single)
+	assert.Equal(t, repaint(3, "group-1", "group-2"), buf.String())
+
+	r.Unregister(multi)
+	assert.False(t, r.Active())
+}
+
+func TestLiveRegionEmptySlotFrames(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	frame := ""
+	id := r.Register(func(time.Time) string { return frame }, neverTick)
+
+	// An empty first frame hides the cursor (the slot owns the region) but
+	// paints nothing - not even sync markers.
+	assert.Equal(t, xansi.HideCursor, buf.String())
+
+	// While the block occupies zero rows, log writes pass through untouched.
+	buf.Reset()
+	r.WriteLines("plain\n")
+	assert.Equal(t, "plain\n", buf.String())
+
+	// A later non-empty frame paints the block as usual.
+	buf.Reset()
+	frame = "visible\nrows"
+	r.RenderFrame(time.Now())
+	assert.Equal(t, repaint(0, "visible", "rows"), buf.String())
+
+	// Rendering empty again erases the block but keeps the slot registered.
+	buf.Reset()
+	frame = ""
+	r.RenderFrame(time.Now())
+	assert.Equal(t, repaint(2), buf.String())
+	assert.True(t, r.Active())
+
+	// Repeated empty frames write no bytes at all.
+	buf.Reset()
+	r.RenderFrame(time.Now())
+	assert.Empty(t, buf.String())
+
+	r.Unregister(id)
+	assert.Equal(t, xansi.ShowCursor, buf.String())
+}
+
 // syncWriter is a goroutine-safe buffer for the one test whose render loop
 // runs concurrently with assertions.
 type syncWriter struct {

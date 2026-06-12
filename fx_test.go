@@ -350,3 +350,43 @@ func TestConcurrentStandaloneAnimationsStackInOneBlock(t *testing.T) {
 	assert.False(t, out.LiveRegion().Active())
 	assert.Contains(t, buf.String(), xansi.ShowCursor)
 }
+
+func TestGroupAnimationDisplacesLogLines(t *testing.T) {
+	var buf regionBuffer
+	l, out := newRegionTestLogger(&buf)
+
+	release := make(chan struct{})
+	g := l.Group(context.Background())
+	g.Add(l.Spinner("grouped")).Run(func(_ context.Context) error {
+		<-release
+		return nil
+	})
+
+	waitDone := make(chan struct{})
+	go func() {
+		defer close(waitDone)
+		g.Wait()
+	}()
+
+	// Wait until the group's block holds the live region, then log through
+	// the logger so the line takes the displacement path.
+	for !out.LiveRegion().Active() {
+		time.Sleep(time.Millisecond)
+	}
+	l.Info().Msg("inside")
+	close(release)
+	<-waitDone
+
+	got := buf.String()
+	// The displaced log line is one synchronized frame: erase the group's
+	// block, write the log line where the block's top row was, repaint the
+	// block below it.
+	displaced := xansi.EnableSyncOutput +
+		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+		"inside\n" +
+		xansi.EnableSyncOutput + xansi.ClearLine + "grouped"
+	assert.Contains(t, got, displaced)
+	// Group finished: the block is gone and the cursor restored.
+	assert.False(t, out.LiveRegion().Active())
+	assert.Contains(t, got, xansi.ShowCursor)
+}

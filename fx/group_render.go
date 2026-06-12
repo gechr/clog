@@ -1389,17 +1389,42 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		blockTopRow = row
 	}
 
+	st := &groupLoopState{
+		g:             g,
+		gts:           gts,
+		fxTasks:       fxTasks,
+		headerGT:      headerGT,
+		footerGT:      footerGT,
+		headerUpdate:  headerUpdate,
+		footerUpdate:  footerUpdate,
+		output:        output,
+		blockTopRow:   blockTopRow,
+		renderStart:   time.Now(),
+		done:          make([]bool, len(gts)),
+		justCompleted: make([]bool, len(gts)),
+		remaining:     len(gts),
+	}
+
+	// Live-region path: when the output exposes a shared LiveRegion, the
+	// group's block becomes one multi-line slot of the region's stacked
+	// block. The region owns cursor visibility and the writer discipline, so
+	// the group coordinates with standalone animations, other groups, and
+	// log lines on the same output instead of repainting over them. Outputs
+	// without the capability (external Output implementations and test
+	// stubs) keep the legacy direct renderer below.
+	if p, ok := output.(liveRegionProvider); ok {
+		if region := p.LiveRegion(); region != nil {
+			return runGroupLoopRegion(ctx, st, region, tickRate)
+		}
+	}
+
 	ticker := time.NewTicker(tickRate)
 	defer ticker.Stop()
 
-	renderStart := time.Now()
 	renderedRows := 0
 	hasRendered := false
 	var lastLines []string
 	lastWidth := 0
-	done := make([]bool, len(gts))
-	justCompleted := make([]bool, len(gts))
-	remaining := len(gts)
 	var frameBuf strings.Builder
 	cursorHidden := false
 	defer func() {
@@ -1415,7 +1440,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		cursorHidden = true
 	}
 
-	for remaining > 0 {
+	for st.remaining > 0 {
 		select {
 		case <-ctx.Done():
 			if g.clearOnCancel {
@@ -1423,163 +1448,12 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			} else {
 				preserveBlock(out, renderedRows)
 			}
-			for i, ft := range fxTasks {
-				if !done[i] {
-					select {
-					case ft.err = <-ft.doneErr:
-					default:
-						ft.err = ctx.Err()
-					}
-				}
-			}
+			st.failPending(ctx)
 			return ctx.Err()
 		case <-ticker.C:
-			now := time.Now()
-			// Refresh terminal dimensions every tick so the layout is
-			// computed against current reality, not a stale SIGWINCH-cached
-			// value. SIGWINCH delivery can be coalesced or one-frame-lagged
-			// under script(1), tmux pane resize, etc.; an extra ioctl per
-			// tick is cheaper than emitting a line wider than the viewport.
-			output.RefreshWidth()
-			output.RefreshHeight()
-			remaining = drainGroupCompletions(fxTasks, gts, done, justCompleted, remaining)
-			effectiveDone := effectiveGroupDone(done, justCompleted)
-			// Snapshot per-task atomics once per tick so measure and render
-			// observe the same values. Must run after drainGroupCompletions,
-			// which forces just-completed bars to 100%, and before
-			// measureGroupRenderLayout consumes them.
-			snapshotFrameValues(gts)
-			if g.renderDelay > 0 && now.Sub(renderStart) < g.renderDelay {
+			lines, width, ok := st.composeFrame(time.Now())
+			if !ok {
 				continue
-			}
-			doneCount := len(gts) - remaining
-			totalCount := len(gts)
-			headerCandidate := false
-			footerCandidate := false
-			if headerGT != nil {
-				g.header.callback(doneCount, totalCount, headerUpdate)
-				if msg := *headerGT.msgPtr.Load(); msg != "" {
-					headerCandidate = true
-				}
-			}
-			if footerGT != nil {
-				g.footer.callback(doneCount, totalCount, footerUpdate)
-				if msg := *footerGT.msgPtr.Load(); msg != "" {
-					footerCandidate = true
-				}
-			}
-
-			candidateStatusLines := 0
-			if headerCandidate {
-				candidateStatusLines++
-			}
-			if footerCandidate {
-				candidateStatusLines++
-			}
-			maxLines := groupHeightCap(output.Height(), blockTopRow, len(gts)+candidateStatusLines)
-			if g.maxHeightPercent > 0 {
-				if pctLines := int(
-					float64(output.Height()) * g.maxHeightPercent,
-				); pctLines > 0 &&
-					pctLines < maxLines {
-					maxLines = pctLines
-				}
-			}
-			if g.maxLines > 0 && g.maxLines < maxLines {
-				maxLines = g.maxLines
-			}
-			// Cap visible tasks to terminal height so cursor-up
-			// escapes never need to reach scrolled-off lines.
-			// Prioritise active (in-progress) tasks over done or
-			// pending ones when space is limited.
-			visible := visibleTaskIndexes(gts, effectiveDone, g.hideDone, now)
-			persistentStatusLines := 0
-			if headerCandidate && !g.transientHeader {
-				persistentStatusLines++
-			}
-			if footerCandidate && !g.transientFooter {
-				persistentStatusLines++
-			}
-			maxTasks := max(0, maxLines-persistentStatusLines)
-			if len(visible) > maxTasks {
-				visible = prioritiseActive(visible, gts, done, maxTasks)
-			}
-			showHeader := headerCandidate && (!g.transientHeader || len(visible) > 0)
-			showFooter := footerCandidate && (!g.transientFooter || len(visible) > 0)
-			statusLines := 0
-			if showHeader {
-				statusLines++
-			}
-			if showFooter {
-				statusLines++
-			}
-			if len(visible) > 0 && maxLines-statusLines <= 0 {
-				if showFooter && g.transientFooter {
-					showFooter = false
-					statusLines--
-				}
-				if showHeader && g.transientHeader && maxLines-statusLines <= 0 {
-					showHeader = false
-					statusLines--
-				}
-			}
-			maxTasks = max(0, maxLines-statusLines)
-			if len(visible) > maxTasks {
-				visible = prioritiseActive(visible, gts, done, maxTasks)
-			}
-			if len(visible) == 0 {
-				if g.transientHeader {
-					showHeader = false
-				}
-				if g.transientFooter {
-					showFooter = false
-				}
-			}
-			frameBuf.Reset()
-			layout := measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
-			lines, headerLineCount, taskLineCount, footerLineCount := buildGroupFrameLines(
-				headerGT,
-				footerGT,
-				gts,
-				visible,
-				effectiveDone,
-				now,
-				layout,
-				showHeader,
-				showFooter,
-			)
-			width := output.Width()
-			// Physical-row cap: maxLines is a physical-row budget (terminal
-			// rows after wrap). Drop the lowest-priority task lines from the
-			// tail until the rendered block fits. Header and footer are
-			// preserved when possible because they were already accounted for
-			// when computing maxTasks above.
-			physRows := groupFrameRows(lines, width)
-			for physRows > maxLines && taskLineCount > 0 {
-				visible = visible[:taskLineCount-1]
-				layout = measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
-				lines, headerLineCount, taskLineCount, footerLineCount = buildGroupFrameLines(
-					headerGT,
-					footerGT,
-					gts,
-					visible,
-					effectiveDone,
-					now,
-					layout,
-					showHeader,
-					showFooter,
-				)
-				physRows = groupFrameRows(lines, width)
-			}
-			// If we couldn't fit any tasks, transient header/footer should
-			// drop too so we don't render a status-only block.
-			if taskLineCount == 0 {
-				if footerLineCount == 1 && g.transientFooter {
-					lines = lines[:len(lines)-1]
-				}
-				if headerLineCount == 1 && g.transientHeader {
-					lines = lines[1:]
-				}
 			}
 			frameRows := groupFrameRows(lines, width)
 			if !groupFrameFitsViewport(output, renderedRows, frameRows) {
@@ -1591,6 +1465,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			if hasRendered && width == lastWidth && slices.Equal(lines, lastLines) {
 				continue
 			}
+			frameBuf.Reset()
 			renderedRows = appendRepaint(&frameBuf, lines, renderedRows, width)
 			hideCursor()
 			writeString(out, frameBuf.String())
@@ -1601,6 +1476,292 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	}
 
 	eraseBlockSync(out, renderedRows)
+	return nil
+}
+
+// groupLoopState bundles the per-tick state shared by the legacy and
+// live-region group render paths so both drive the exact same frame
+// composition.
+type groupLoopState struct {
+	g             *Group
+	gts           []*renderTask
+	fxTasks       []*groupTask
+	headerGT      *renderTask
+	footerGT      *renderTask
+	headerUpdate  *Update
+	footerUpdate  *Update
+	output        RenderOutput
+	blockTopRow   int
+	renderStart   time.Time
+	done          []bool
+	justCompleted []bool
+	remaining     int
+}
+
+// failPending records ctx's error on every task that has not already
+// completed, draining any result that raced the cancellation.
+func (st *groupLoopState) failPending(ctx context.Context) {
+	for i, ft := range st.fxTasks {
+		if !st.done[i] {
+			select {
+			case ft.err = <-ft.doneErr:
+			default:
+				ft.err = ctx.Err()
+			}
+		}
+	}
+}
+
+// composeFrame advances the group by one render tick - draining completions,
+// invoking the header/footer callbacks, selecting visible tasks, and capping
+// the block to its physical-row budget - and returns the frame's rendered
+// lines together with the terminal width they were laid out against. The
+// boolean is false while the configured render delay is still pending,
+// meaning the caller should keep whatever frame is currently on screen.
+func (st *groupLoopState) composeFrame(now time.Time) ([]string, int, bool) {
+	g := st.g
+	gts := st.gts
+	output := st.output
+
+	// Refresh terminal dimensions every tick so the layout is
+	// computed against current reality, not a stale SIGWINCH-cached
+	// value. SIGWINCH delivery can be coalesced or one-frame-lagged
+	// under script(1), tmux pane resize, etc.; an extra ioctl per
+	// tick is cheaper than emitting a line wider than the viewport.
+	output.RefreshWidth()
+	output.RefreshHeight()
+	st.remaining = drainGroupCompletions(st.fxTasks, gts, st.done, st.justCompleted, st.remaining)
+	effectiveDone := effectiveGroupDone(st.done, st.justCompleted)
+	// Snapshot per-task atomics once per tick so measure and render
+	// observe the same values. Must run after drainGroupCompletions,
+	// which forces just-completed bars to 100%, and before
+	// measureGroupRenderLayout consumes them.
+	snapshotFrameValues(gts)
+	if g.renderDelay > 0 && now.Sub(st.renderStart) < g.renderDelay {
+		return nil, 0, false
+	}
+	doneCount := len(gts) - st.remaining
+	totalCount := len(gts)
+	headerCandidate := false
+	footerCandidate := false
+	if st.headerGT != nil {
+		g.header.callback(doneCount, totalCount, st.headerUpdate)
+		if msg := *st.headerGT.msgPtr.Load(); msg != "" {
+			headerCandidate = true
+		}
+	}
+	if st.footerGT != nil {
+		g.footer.callback(doneCount, totalCount, st.footerUpdate)
+		if msg := *st.footerGT.msgPtr.Load(); msg != "" {
+			footerCandidate = true
+		}
+	}
+
+	candidateStatusLines := 0
+	if headerCandidate {
+		candidateStatusLines++
+	}
+	if footerCandidate {
+		candidateStatusLines++
+	}
+	maxLines := groupHeightCap(output.Height(), st.blockTopRow, len(gts)+candidateStatusLines)
+	if g.maxHeightPercent > 0 {
+		if pctLines := int(
+			float64(output.Height()) * g.maxHeightPercent,
+		); pctLines > 0 &&
+			pctLines < maxLines {
+			maxLines = pctLines
+		}
+	}
+	if g.maxLines > 0 && g.maxLines < maxLines {
+		maxLines = g.maxLines
+	}
+	// Cap visible tasks to terminal height so cursor-up
+	// escapes never need to reach scrolled-off lines.
+	// Prioritise active (in-progress) tasks over done or
+	// pending ones when space is limited.
+	visible := visibleTaskIndexes(gts, effectiveDone, g.hideDone, now)
+	persistentStatusLines := 0
+	if headerCandidate && !g.transientHeader {
+		persistentStatusLines++
+	}
+	if footerCandidate && !g.transientFooter {
+		persistentStatusLines++
+	}
+	maxTasks := max(0, maxLines-persistentStatusLines)
+	if len(visible) > maxTasks {
+		visible = prioritiseActive(visible, gts, st.done, maxTasks)
+	}
+	showHeader := headerCandidate && (!g.transientHeader || len(visible) > 0)
+	showFooter := footerCandidate && (!g.transientFooter || len(visible) > 0)
+	statusLines := 0
+	if showHeader {
+		statusLines++
+	}
+	if showFooter {
+		statusLines++
+	}
+	if len(visible) > 0 && maxLines-statusLines <= 0 {
+		if showFooter && g.transientFooter {
+			showFooter = false
+			statusLines--
+		}
+		if showHeader && g.transientHeader && maxLines-statusLines <= 0 {
+			showHeader = false
+			statusLines--
+		}
+	}
+	maxTasks = max(0, maxLines-statusLines)
+	if len(visible) > maxTasks {
+		visible = prioritiseActive(visible, gts, st.done, maxTasks)
+	}
+	if len(visible) == 0 {
+		if g.transientHeader {
+			showHeader = false
+		}
+		if g.transientFooter {
+			showFooter = false
+		}
+	}
+	layout := measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
+	lines, headerLineCount, taskLineCount, footerLineCount := buildGroupFrameLines(
+		st.headerGT,
+		st.footerGT,
+		gts,
+		visible,
+		effectiveDone,
+		now,
+		layout,
+		showHeader,
+		showFooter,
+	)
+	width := output.Width()
+	// Physical-row cap: maxLines is a physical-row budget (terminal
+	// rows after wrap). Drop the lowest-priority task lines from the
+	// tail until the rendered block fits. Header and footer are
+	// preserved when possible because they were already accounted for
+	// when computing maxTasks above.
+	physRows := groupFrameRows(lines, width)
+	for physRows > maxLines && taskLineCount > 0 {
+		visible = visible[:taskLineCount-1]
+		layout = measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
+		lines, headerLineCount, taskLineCount, footerLineCount = buildGroupFrameLines(
+			st.headerGT,
+			st.footerGT,
+			gts,
+			visible,
+			effectiveDone,
+			now,
+			layout,
+			showHeader,
+			showFooter,
+		)
+		physRows = groupFrameRows(lines, width)
+	}
+	// If we couldn't fit any tasks, transient header/footer should
+	// drop too so we don't render a status-only block.
+	if taskLineCount == 0 {
+		if footerLineCount == 1 && g.transientFooter {
+			lines = lines[:len(lines)-1]
+		}
+		if headerLineCount == 1 && g.transientHeader {
+			lines = lines[1:]
+		}
+	}
+	return lines, width, true
+}
+
+// runGroupLoopRegion runs the group render loop with the group's block as one
+// multi-line slot of the output's shared [core.LiveRegion], blocking until
+// all tasks complete or the context is cancelled.
+//
+// The slot's render closure returns the most recently accepted frame rather
+// than composing one on demand: per-tick composition mutates shared group
+// state (completion draining, header/footer callbacks) and can query the
+// terminal cursor position, none of which may run under the region mutex
+// without stalling log displacement from other goroutines. So the heavy work
+// stays on this goroutine - the same ticker cadence as the legacy renderer -
+// and each accepted frame is published for the closure to hand back as a
+// cheap pointer load. Frames the region repaints between group ticks are
+// therefore identical and deduped away, keeping the byte stream equal to the
+// legacy renderer's when the group runs alone.
+func runGroupLoopRegion(
+	ctx context.Context,
+	st *groupLoopState,
+	region *core.LiveRegion,
+	tickRate time.Duration,
+) error {
+	var block atomic.Pointer[string]
+	empty := ""
+	block.Store(&empty)
+
+	registered := false
+	var slotID uint64
+	// Physical rows of the last accepted frame, mirroring the legacy
+	// renderer's renderedRows for the viewport-fit check. With other slots
+	// live this undercounts the full block, which only makes the check more
+	// conservative about painting near the viewport bottom.
+	rows := 0
+	unregister := func() {
+		if registered {
+			region.Unregister(slotID)
+			registered = false
+		}
+	}
+
+	ticker := time.NewTicker(tickRate)
+	defer ticker.Stop()
+
+	for st.remaining > 0 {
+		select {
+		case <-ctx.Done():
+			last := *block.Load()
+			// Unregister first: the region stops calling the render closure
+			// and erases the group's rows from the block.
+			unregister()
+			if !st.g.clearOnCancel && last != "" {
+				// Preserve the in-progress block as scrollback, mirroring the
+				// legacy renderer which leaves the last frame on screen. The
+				// frozen frame is written as regular displaced lines so it
+				// lands above any animations still live in the region.
+				region.WriteLines(last + nl)
+			}
+			st.failPending(ctx)
+			return ctx.Err()
+		case <-ticker.C:
+			now := time.Now()
+			lines, width, ok := st.composeFrame(now)
+			if !ok {
+				continue
+			}
+			frameRows := groupFrameRows(lines, width)
+			if !groupFrameFitsViewport(st.output, rows, frameRows) {
+				continue
+			}
+			joined := strings.Join(lines, nl)
+			block.Store(&joined)
+			rows = frameRows
+			if !registered {
+				if len(lines) == 0 {
+					continue
+				}
+				// Register paints the new slot immediately, so this is the
+				// group's first frame. Registration is deferred until a
+				// non-empty frame exists so an idle group (render delay, all
+				// tasks delayed) doesn't hide the cursor or hold a slot.
+				slotID = region.Register(func(time.Time) string {
+					return *block.Load()
+				}, tickRate)
+				registered = true
+				continue
+			}
+			// Identical frames are deduped inside the region, so this only
+			// writes when the group (or a sibling slot) actually changed.
+			region.RenderFrame(now)
+		}
+	}
+
+	unregister()
 	return nil
 }
 
