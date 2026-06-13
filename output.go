@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-	"syscall"
 	"time"
 
 	"github.com/charmbracelet/colorprofile"
@@ -246,7 +245,7 @@ func (o *Output) ListenResize() func() {
 		return func() {}
 	}
 	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGWINCH)
+	notifyResize(ch)
 	go func() {
 		for range ch {
 			o.RefreshWidth()
