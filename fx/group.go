@@ -245,12 +245,12 @@ func (ge *GroupEntry) Run(task TaskFunc) *TaskResult {
 	})
 }
 
-// Progress starts a task with progress update capability and returns a [TaskResult].
-func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
-	t := ge.task
+// newUpdate builds the [Update] that drives this task's rendered line, wiring it
+// to the task's atomic state so each Send is picked up by the render loop. It is
+// shared by [GroupEntry.Progress] (clog runs the work) and [GroupEntry.Manual]
+// (the caller runs the work).
+func (t *groupTask) newUpdate() *Update {
 	b := t.builder
-	g := ge.group
-
 	update := &Update{
 		msgText:           b.message,
 		msgPtr:            t.msgPtr,
@@ -265,6 +265,42 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		update.totalPtr = b.barTotalPtr
 	}
 	update.InitSelf(update)
+	return update
+}
+
+// Manual registers the task for live rendering but does not run it: the caller
+// drives the returned [Update] from its own goroutine and invokes finish exactly
+// once when the work ends, passing any error (nil on success). Use it to render
+// progress for work scheduled by your own executor - clog renders, you run.
+//
+// Unlike [GroupEntry.Progress], Manual spawns no goroutine and consumes no
+// parallelism slot, since the caller owns concurrency; the group's parallelism
+// option therefore does not apply. The task is marked started now, and finish
+// marks it finished and reports its result to [Group.Wait], which must still be
+// called (typically from another goroutine) to render and to await completion.
+// Every task added to the group must eventually finish, or Wait blocks forever.
+func (ge *GroupEntry) Manual() (*Update, func(err error)) {
+	t := ge.task
+	t.markStarted(time.Now())
+	update := t.newUpdate()
+
+	var once sync.Once
+	finish := func(err error) {
+		once.Do(func() {
+			t.markFinished(time.Now())
+			t.doneErr <- err
+		})
+	}
+	return update, finish
+}
+
+// Progress starts a task with progress update capability and returns a [TaskResult].
+func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
+	t := ge.task
+	b := t.builder
+	g := ge.group
+
+	update := t.newUpdate()
 
 	go func() {
 		defer func() {
