@@ -3,48 +3,16 @@ name: release
 on:
   push:
     tags:
-      - 'v[0-9]*.[0-9]*.[0-9]*'
+      - v[0-9]+.[0-9]+.[0-9]+
 
 permissions: {}
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ci-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
   release:
-    runs-on: ubuntu-latest
     permissions:
       contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Check for existing tags on this commit
-        run: |
-          COMMIT=$(git rev-list -n1 "$TAG")
-          OTHER_TAGS=$(git tag --points-at "$COMMIT" | grep -v "^${TAG}$" | grep '^v[0-9]' || true)
-          if [ -n "$OTHER_TAGS" ]; then
-            echo "::error::Commit $COMMIT already has version tag(s): $OTHER_TAGS"
-            exit 1
-          fi
-        env:
-          TAG: ${{ github.ref_name }}
-
-      - name: Release
-        run: |
-          PREV_TAG=$(git tag --sort=-version:refname | grep -A1 "^${TAG}$" | tail -1)
-          if [ "$PREV_TAG" = "$TAG" ]; then
-            NOTES=$(git log --oneline --format="- %h %s" "$TAG")
-          else
-            NOTES=$(git log --oneline --format="- %h %s" "${PREV_TAG}..${TAG}")
-          fi
-          NOTES=$(printf "### Changes\n\n%s" "$NOTES")
-          gh release create --repo="$GH_REPO" "$TAG" --notes "$NOTES"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
+    uses: gechr/actions/.github/workflows/release-notes.yaml@a0dfaeb072753c3d48cd4df5fdacfd035b2281bf # v0.2.4
