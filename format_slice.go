@@ -202,9 +202,10 @@ func formatStringSlice(
 		// from the body; otherwise style the whole quoted element as one unit.
 		if quoted && styles != nil && styles.FieldQuote != nil {
 			open, body, closing := quoteParts(v, quoteOpen, quoteClose, quoteSmart)
-			buf.WriteString(styles.FieldQuote.Render(open))
+			delim := styles.FieldQuote.Resolve(valueBaseStyle(v, "", kindString, styles))
+			buf.WriteString(delim.Render(open))
 			buf.WriteString(styleStringElem(body, v, styles))
-			buf.WriteString(styles.FieldQuote.Render(closing))
+			buf.WriteString(delim.Render(closing))
 
 			continue
 		}
@@ -265,13 +266,14 @@ func formatAnySlice(
 		// from the body; otherwise style the whole quoted element as one unit.
 		if quoted && styles != nil && styles.FieldQuote != nil {
 			open, body, closing := quoteParts(s, quoteOpen, quoteClose, quoteSmart)
+			delim := styles.FieldQuote.Resolve(valueBaseStyle(v, "", kind, styles))
 			styledBody := body
 			if styled := styleAnyElement(body, v, kind, styles, fmts); styled != "" {
 				styledBody = styled
 			}
-			buf.WriteString(styles.FieldQuote.Render(open))
+			buf.WriteString(delim.Render(open))
 			buf.WriteString(styledBody)
-			buf.WriteString(styles.FieldQuote.Render(closing))
+			buf.WriteString(delim.Render(closing))
 
 			continue
 		}

@@ -107,7 +107,7 @@ type Config struct {
 	// Style for the unit part of quantity values (e.g. "km" in "5km") [nil = plain text]
 	FieldQuantityUnit *lipgloss.Style
 	// Style for the quote delimiters around quoted values [nil = same style as the value]
-	FieldQuote *lipgloss.Style
+	FieldQuote *QuoteStyle
 	// Style for string field values [nil = plain text]
 	FieldString *lipgloss.Style
 	// Style for time.Time field values [nil = plain text]
@@ -138,6 +138,26 @@ type Config struct {
 	// Values maps typed values to styles. Keys use Go equality.
 	// Allows differentiating between e.g. `true` (bool) and "true" (string).
 	Values ValueMap
+}
+
+// QuoteStyle configures how the quote delimiters around a quoted value are
+// styled. When Inherit is true, Style is overlaid onto the value's own
+// resolved style (the delimiters keep the value's color but gain Style's own
+// attributes, e.g. bold); when false, Style is used as-is, ignoring the value.
+type QuoteStyle struct {
+	Style   lipgloss.Style
+	Inherit bool
+}
+
+// Resolve returns the concrete delimiter style for a value whose resolved
+// style is base (nil when the value has no style). With Inherit set, Style's
+// explicitly-set attributes win and any unset ones are taken from base;
+// otherwise Style is returned unchanged.
+func (q QuoteStyle) Resolve(base *lipgloss.Style) lipgloss.Style {
+	if q.Inherit && base != nil {
+		return q.Style.Inherit(*base)
+	}
+	return q.Style
 }
 
 // Merge applies non-zero fields from other into c. Pointer fields are

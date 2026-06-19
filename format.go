@@ -168,24 +168,17 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// separately from the body. Otherwise wrap first and style the whole
 		// quoted string as one unit (legacy behaviour: delimiters inherit the
 		// value's style).
-		if quoted && quoteDelimStyle(opts) != nil {
+		if cfg := quoteDelim(opts); quoted && cfg != nil {
 			open, body, closing := quoteParts(
 				valStr,
 				opts.quoteOpen,
 				opts.quoteClose,
 				opts.quoteSmart,
 			)
-			delim := quoteDelimStyle(opts)
-			styled := delim.Render(
-				open,
-			) + styledFieldValue(
-				f,
-				body,
-				kind,
-				opts,
-			) + delim.Render(
-				closing,
-			)
+			delim := cfg.Resolve(valueBaseStyle(f.Value, f.Key, kind, opts.styles))
+			styled := delim.Render(open) +
+				styledFieldValue(f, body, kind, opts) +
+				delim.Render(closing)
 			buf.WriteString(styled)
 			continue
 		}
@@ -387,14 +380,42 @@ func percentFraction(p core.Percent, maximum float64) float64 {
 	return p.Value / percent.EffectiveMaximum(p, maximum)
 }
 
-// quoteDelimStyle returns the configured quote-delimiter style, or nil when
-// styling is inactive (no color, level below the style threshold) or no
-// FieldQuote style is set.
-func quoteDelimStyle(opts formatFieldsOpts) Style {
+// quoteDelim returns the configured quote-delimiter style, or nil when styling
+// is inactive (no color, level below the style threshold) or no FieldQuote
+// style is set.
+func quoteDelim(opts formatFieldsOpts) *style.QuoteStyle {
 	if opts.noColor || opts.level < opts.fieldStyleLevel || opts.styles == nil {
 		return nil
 	}
 	return opts.styles.FieldQuote
+}
+
+// valueBaseStyle returns the style that styleValue would apply to a value of
+// the given kind (key > value > type priority), or nil when none applies. Only
+// the quotable kinds (string, error, time, default) are resolved; other kinds
+// never reach the quote-delimiter path. It is the base for QuoteStyle.Resolve.
+func valueBaseStyle(originalValue any, key string, kind valueKind, styles *style.Config) Style {
+	if styles == nil {
+		return nil
+	}
+	if key != "" {
+		if st := styles.Keys[key]; st != nil {
+			return st
+		}
+	}
+	if st := lookupValueStyle(originalValue, styles.Values); st != nil {
+		return st
+	}
+	switch kind { //nolint:exhaustive // only quotable kinds have a base style here
+	case kindString:
+		return styles.FieldString
+	case kindError:
+		return styles.FieldError
+	case kindTime:
+		return styles.FieldTime
+	default:
+		return nil
+	}
 }
 
 // styledFieldValue applies styling to a formatted field value.

@@ -89,6 +89,25 @@ Passing no pairs restores the default order. Smart quoting takes precedence over
 
 ## Styling Delimiters
 
-By default the quote delimiters share the styling of the value they wrap. Set a `FieldQuote` style (see [Styles](styles.md)) to color them independently of the value body.
+By default the quote delimiters share the styling of the value they wrap. Set a `FieldQuote` style (see [Styles](styles.md)) to control them independently:
+
+```go
+// Replace: delimiters are dim, regardless of the value's color.
+clog.SetStyles(&style.Config{
+  FieldQuote: &style.QuoteStyle{
+    Style: lipgloss.NewStyle().Faint(true),
+  },
+})
+
+// Inherit: delimiters keep the value's color but add their own attributes.
+clog.SetStyles(&style.Config{
+  FieldQuote: &style.QuoteStyle{
+    Style:   lipgloss.NewStyle().Bold(true),
+    Inherit: true,
+  },
+})
+```
+
+With `Inherit` set, the value's resolved style (which varies by type - string, error, number - and by per-key/per-value overrides) is used as the base, and only the attributes you set on `Style` are layered on top.
 
 Quoting applies to individual field values and to elements within string and `[]any` slices. All quoting settings are inherited by sub-loggers. Pass `0` to reset to the default (`strconv.Quote`).

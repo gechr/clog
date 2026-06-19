@@ -1497,7 +1497,7 @@ func TestSetSmartQuotesEndToEnd(t *testing.T) {
 func TestFormatFieldsQuoteDelimiterStyle(t *testing.T) {
 	styles := DefaultStyles()
 	quote := lipgloss.NewStyle().Bold(true)
-	styles.FieldQuote = &quote
+	styles.FieldQuote = &style.QuoteStyle{Style: quote}
 	styles.FieldString = nil // isolate the body so only delimiters carry style
 
 	opts := formatFieldsOpts{level: LevelInfo, styles: styles}
@@ -1505,6 +1505,22 @@ func TestFormatFieldsQuoteDelimiterStyle(t *testing.T) {
 
 	want := " " + styles.KeyDefault.Render("k") + styles.Separator.Render("=") +
 		quote.Render(`"`) + "hello world" + quote.Render(`"`)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsQuoteDelimiterStyleInherit(t *testing.T) {
+	styles := DefaultStyles()
+	valueColor := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styles.FieldString = &valueColor
+	// Inherit: delimiters keep the value's color but add bold.
+	styles.FieldQuote = &style.QuoteStyle{Style: lipgloss.NewStyle().Bold(true), Inherit: true}
+
+	opts := formatFieldsOpts{level: LevelInfo, styles: styles}
+	got := formatFields([]Field{{Key: "k", Value: "hello world"}}, opts)
+
+	delim := lipgloss.NewStyle().Bold(true).Inherit(valueColor)
+	want := " " + styles.KeyDefault.Render("k") + styles.Separator.Render("=") +
+		delim.Render(`"`) + valueColor.Render("hello world") + delim.Render(`"`)
 	assert.Equal(t, want, got)
 }
 
@@ -1524,7 +1540,7 @@ func TestFormatFieldsQuoteDelimiterStyleNilIsLegacy(t *testing.T) {
 func TestFormatStringSliceQuoteDelimiterStyle(t *testing.T) {
 	styles := DefaultStyles()
 	quote := lipgloss.NewStyle().Bold(true)
-	styles.FieldQuote = &quote
+	styles.FieldQuote = &style.QuoteStyle{Style: quote}
 	styles.FieldString = nil
 
 	got := formatStringSlice(

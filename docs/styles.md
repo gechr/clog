@@ -66,7 +66,7 @@ clog.SetStyles(&style.Config{
 | `FieldPercent`         | `Style`                  |                 | `nil`                      |
 | `FieldQuantityNumber`  | `Style`                  |                 | magenta                    |
 | `FieldQuantityUnit`    | `Style`                  |                 | magenta faint              |
-| `FieldQuote`           | `Style`                  |                 | `nil` (→ value's style)    |
+| `FieldQuote`           | `*QuoteStyle`            |                 | `nil` (→ value's style)    |
 | `FieldString`          | `Style`                  |                 | white                      |
 | `FieldTime`            | `Style`                  |                 | magenta                    |
 | `KeyDefault`           | `Style`                  |                 | blue                       |
@@ -113,7 +113,7 @@ See [Printer](printer.md) for per-format token style tables.
 | `FieldPercent`         | Base style for `Percent` fields (foreground overridden by gradient), nil to disable            |
 | `FieldQuantityNumber`  | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable                  |
 | `FieldQuantityUnit`    | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                    |
-| `FieldQuote`           | Style for the quote delimiters around quoted values, nil to use the value's own style          |
+| `FieldQuote`           | Style for the quote delimiters around quoted values (set `Inherit` to keep the value's color)  |
 | `FieldString`          | Style for string field values, nil to disable                                                  |
 | `FieldTime`            | Style for `time.Time` field values, nil to disable                                             |
 | `KeyDefault`           | Style for field key names without a per-key override, nil to disable                           |
