@@ -160,14 +160,40 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				fmts,
 			)
 		}
-		if opts.quoteMode != QuoteNever &&
+		quoted := opts.quoteMode != QuoteNever &&
 			(kind == kindDefault || kind == kindString || kind == kindError || kind == kindTime) &&
-			(opts.quoteMode == QuoteAlways || needsQuoting(valStr)) {
-			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart)
+			(opts.quoteMode == QuoteAlways || needsQuoting(valStr))
+
+		// When a quote-delimiter style is configured, style the delimiters
+		// separately from the body. Otherwise wrap first and style the whole
+		// quoted string as one unit (legacy behaviour: delimiters inherit the
+		// value's style).
+		if quoted && quoteDelimStyle(opts) != nil {
+			open, body, closing := quoteParts(
+				valStr,
+				opts.quoteOpen,
+				opts.quoteClose,
+				opts.quoteSmart,
+			)
+			delim := quoteDelimStyle(opts)
+			styled := delim.Render(
+				open,
+			) + styledFieldValue(
+				f,
+				body,
+				kind,
+				opts,
+			) + delim.Render(
+				closing,
+			)
+			buf.WriteString(styled)
+			continue
 		}
 
-		styled := styledFieldValue(f, valStr, kind, opts)
-		buf.WriteString(styled)
+		if quoted {
+			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart)
+		}
+		buf.WriteString(styledFieldValue(f, valStr, kind, opts))
 	}
 	return buf.String()
 }
@@ -361,6 +387,16 @@ func percentFraction(p core.Percent, maximum float64) float64 {
 	return p.Value / percent.EffectiveMaximum(p, maximum)
 }
 
+// quoteDelimStyle returns the configured quote-delimiter style, or nil when
+// styling is inactive (no color, level below the style threshold) or no
+// FieldQuote style is set.
+func quoteDelimStyle(opts formatFieldsOpts) Style {
+	if opts.noColor || opts.level < opts.fieldStyleLevel || opts.styles == nil {
+		return nil
+	}
+	return opts.styles.FieldQuote
+}
+
 // styledFieldValue applies styling to a formatted field value.
 // Returns the styled string, or the plain valStr if no styling applies.
 func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsOpts) string {
@@ -550,33 +586,45 @@ func needsQuoting(s string) bool {
 	return false
 }
 
-// quoteString wraps s in quotes. When smart is non-empty, it selects the first
-// pair whose delimiters do not occur in s (see [smartQuote]), ignoring
-// open/close. Otherwise, when open is 0 it uses [strconv.Quote] (Go-style
-// double-quoted with escaping), and when open is non-zero it wraps with the
-// open/close runes (open is used for both sides when close is 0).
+// quoteString wraps s in quotes (see [quoteParts] for delimiter selection).
 func quoteString(s string, openChar, closeChar rune, smart []QuotePair) string {
+	open, body, closing := quoteParts(s, openChar, closeChar, smart)
+	return open + body + closing
+}
+
+// quoteParts splits the quoting of s into its opening delimiter, body, and
+// closing delimiter, so callers can style the delimiters independently. The
+// body is the (possibly escaped) inner text. When smart is non-empty, it
+// selects the first pair whose delimiters do not occur in s (see
+// [smartQuoteParts]), ignoring open/close. Otherwise, when open is 0 it uses
+// [strconv.Quote] (Go-style escaping), and when open is non-zero it wraps with
+// the open/close runes (open is used for both sides when close is 0).
+func quoteParts(
+	s string,
+	openChar, closeChar rune,
+	smart []QuotePair,
+) (string, string, string) {
 	if len(smart) > 0 {
-		return smartQuote(s, smart)
+		return smartQuoteParts(s, smart)
 	}
 
 	if openChar == 0 {
-		return strconv.Quote(s)
+		return escapedQuoteParts(s)
 	}
 
 	if closeChar == 0 {
 		closeChar = openChar
 	}
-	return string(openChar) + s + string(closeChar)
+	return string(openChar), s, string(closeChar)
 }
 
-// smartQuote wraps s in the first pair from prefs whose delimiters do not
-// occur in s, so the result needs no escaping. A pair with a zero Close uses
-// its Open for both sides. Since literal wrapping cannot escape anything, this
-// only applies when s is raw-quotable (no backslash or non-printable runes);
+// smartQuoteParts selects the first pair from prefs whose delimiters do not
+// occur in s, so the body needs no escaping. A pair with a zero Close uses its
+// Open for both sides. Since literal wrapping cannot escape anything, this only
+// applies when s is raw-quotable (no backslash or non-printable runes);
 // otherwise, and when every pair collides with s, it falls back to
-// [strconv.Quote] (Go-style escaping).
-func smartQuote(s string, prefs []QuotePair) string {
+// [escapedQuoteParts] (Go-style escaping).
+func smartQuoteParts(s string, prefs []QuotePair) (string, string, string) {
 	if rawQuotable(s) {
 		for _, p := range prefs {
 			openChar, closeChar := p.Open, p.Close
@@ -586,10 +634,17 @@ func smartQuote(s string, prefs []QuotePair) string {
 			if strings.ContainsRune(s, openChar) || strings.ContainsRune(s, closeChar) {
 				continue
 			}
-			return string(openChar) + s + string(closeChar)
+			return string(openChar), s, string(closeChar)
 		}
 	}
-	return strconv.Quote(s)
+	return escapedQuoteParts(s)
+}
+
+// escapedQuoteParts returns the parts of [strconv.Quote]: the surrounding
+// double quotes and the escaped body between them.
+func escapedQuoteParts(s string) (string, string, string) {
+	q := strconv.Quote(s)
+	return `"`, q[1 : len(q)-1], `"`
 }
 
 // rawQuotable reports whether s can be wrapped in literal delimiters without

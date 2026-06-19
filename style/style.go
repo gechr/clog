@@ -106,6 +106,8 @@ type Config struct {
 	FieldQuantityNumber *lipgloss.Style
 	// Style for the unit part of quantity values (e.g. "km" in "5km") [nil = plain text]
 	FieldQuantityUnit *lipgloss.Style
+	// Style for the quote delimiters around quoted values [nil = same style as the value]
+	FieldQuote *lipgloss.Style
 	// Style for string field values [nil = plain text]
 	FieldString *lipgloss.Style
 	// Style for time.Time field values [nil = plain text]

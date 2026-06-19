@@ -87,4 +87,8 @@ clog.Info().Str("msg", "a » b").Msg("test")
 
 Passing no pairs restores the default order. Smart quoting takes precedence over `SetQuoteChars`.
 
+## Styling Delimiters
+
+By default the quote delimiters share the styling of the value they wrap. Set a `FieldQuote` style (see [Styles](styles.md)) to color them independently of the value body.
+
 Quoting applies to individual field values and to elements within string and `[]any` slices. All quoting settings are inherited by sub-loggers. Pass `0` to reset to the default (`strconv.Quote`).

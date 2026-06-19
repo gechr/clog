@@ -1453,7 +1453,7 @@ func TestSmartQuoteEscalation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, smartQuote(tt.in, defaultSmartQuoteChars))
+			assert.Equal(t, tt.want, quoteString(tt.in, 0, 0, defaultSmartQuoteChars))
 		})
 	}
 }
@@ -1461,11 +1461,11 @@ func TestSmartQuoteEscalation(t *testing.T) {
 func TestSmartQuoteCustomPairsDistinctDelimiters(t *testing.T) {
 	pairs := []QuotePair{{Open: '«', Close: '»'}, {Open: '[', Close: ']'}}
 	// First pair fits.
-	assert.Equal(t, "«hi there»", smartQuote("hi there", pairs))
+	assert.Equal(t, "«hi there»", quoteString("hi there", 0, 0, pairs))
 	// Value contains the close delimiter of the first pair, so fall through.
-	assert.Equal(t, "[a»b]", smartQuote("a»b", pairs))
+	assert.Equal(t, "[a»b]", quoteString("a»b", 0, 0, pairs))
 	// Value collides with both pairs -> escaped fallback.
-	assert.Equal(t, `"a»b]c"`, smartQuote("a»b]c", pairs))
+	assert.Equal(t, `"a»b]c"`, quoteString("a»b]c", 0, 0, pairs))
 }
 
 func TestFormatFieldsSmartQuotes(t *testing.T) {
@@ -1492,6 +1492,52 @@ func TestSetSmartQuotesEndToEnd(t *testing.T) {
 
 	l.Info().Str("k", "needs quoting").Msg("")
 	assert.Equal(t, "k=«needs quoting»", strings.TrimSpace(buf.String()))
+}
+
+func TestFormatFieldsQuoteDelimiterStyle(t *testing.T) {
+	styles := DefaultStyles()
+	quote := lipgloss.NewStyle().Bold(true)
+	styles.FieldQuote = &quote
+	styles.FieldString = nil // isolate the body so only delimiters carry style
+
+	opts := formatFieldsOpts{level: LevelInfo, styles: styles}
+	got := formatFields([]Field{{Key: "k", Value: "hello world"}}, opts)
+
+	want := " " + styles.KeyDefault.Render("k") + styles.Separator.Render("=") +
+		quote.Render(`"`) + "hello world" + quote.Render(`"`)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsQuoteDelimiterStyleNilIsLegacy(t *testing.T) {
+	// With no FieldQuote style, the whole quoted value is styled as one unit.
+	styles := DefaultStyles()
+	styles.FieldQuote = nil
+
+	opts := formatFieldsOpts{level: LevelInfo, styles: styles}
+	got := formatFields([]Field{{Key: "k", Value: "hello world"}}, opts)
+
+	want := " " + styles.KeyDefault.Render("k") + styles.Separator.Render("=") +
+		styles.FieldString.Render(`"hello world"`)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatStringSliceQuoteDelimiterStyle(t *testing.T) {
+	styles := DefaultStyles()
+	quote := lipgloss.NewStyle().Bold(true)
+	styles.FieldQuote = &quote
+	styles.FieldString = nil
+
+	got := formatStringSlice(
+		[]string{"a b"},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		styles,
+		QuoteAuto,
+		0,
+		0,
+		nil,
+	)
+	want := "[" + quote.Render(`"`) + "a b" + quote.Render(`"`) + "]"
+	assert.Equal(t, want, got)
 }
 
 func TestStyleQuantity(t *testing.T) {

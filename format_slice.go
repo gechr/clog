@@ -196,30 +196,42 @@ func formatStringSlice(
 			buf.WriteString(sf.sep)
 		}
 
+		quoted := quoteMode != QuoteNever && (quoteMode == QuoteAlways || needsQuoting(v))
+
+		// When a quote-delimiter style is set, style the delimiters separately
+		// from the body; otherwise style the whole quoted element as one unit.
+		if quoted && styles != nil && styles.FieldQuote != nil {
+			open, body, closing := quoteParts(v, quoteOpen, quoteClose, quoteSmart)
+			buf.WriteString(styles.FieldQuote.Render(open))
+			buf.WriteString(styleStringElem(body, v, styles))
+			buf.WriteString(styles.FieldQuote.Render(closing))
+
+			continue
+		}
+
 		display := v
-		if quoteMode != QuoteNever && (quoteMode == QuoteAlways || needsQuoting(v)) {
+		if quoted {
 			display = quoteString(v, quoteOpen, quoteClose, quoteSmart)
 		}
-
-		if styles != nil {
-			if style := styles.Values[v]; style != nil {
-				buf.WriteString(style.Render(display))
-
-				continue
-			}
-
-			if styles.FieldString != nil {
-				buf.WriteString(styles.FieldString.Render(display))
-
-				continue
-			}
-		}
-
-		buf.WriteString(display)
+		buf.WriteString(styleStringElem(display, v, styles))
 	}
 
 	buf.WriteString(sf.close)
 	return buf.String()
+}
+
+// styleStringElem styles a string slice element s (keyed by its raw value v):
+// a per-value style takes priority, then FieldString, else s is returned plain.
+func styleStringElem(s, v string, styles *style.Config) string {
+	if styles != nil {
+		if style := styles.Values[v]; style != nil {
+			return style.Render(s)
+		}
+		if styles.FieldString != nil {
+			return styles.FieldString.Render(s)
+		}
+	}
+	return s
 }
 
 // formatAnySlice formats a []any slice with per-element
@@ -245,9 +257,26 @@ func formatAnySlice(
 		s := fmt.Sprintf("%v", v)
 		kind := reflectValueKind(v)
 
-		if quoteMode != QuoteNever &&
+		quoted := quoteMode != QuoteNever &&
 			(kind == kindDefault || kind == kindString) &&
-			(quoteMode == QuoteAlways || needsQuoting(s)) {
+			(quoteMode == QuoteAlways || needsQuoting(s))
+
+		// When a quote-delimiter style is set, style the delimiters separately
+		// from the body; otherwise style the whole quoted element as one unit.
+		if quoted && styles != nil && styles.FieldQuote != nil {
+			open, body, closing := quoteParts(s, quoteOpen, quoteClose, quoteSmart)
+			styledBody := body
+			if styled := styleAnyElement(body, v, kind, styles, fmts); styled != "" {
+				styledBody = styled
+			}
+			buf.WriteString(styles.FieldQuote.Render(open))
+			buf.WriteString(styledBody)
+			buf.WriteString(styles.FieldQuote.Render(closing))
+
+			continue
+		}
+
+		if quoted {
 			s = quoteString(s, quoteOpen, quoteClose, quoteSmart)
 		}
 
