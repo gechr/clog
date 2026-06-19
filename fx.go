@@ -106,6 +106,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		quoteOpen:       l.quoteOpen,
 		quoteClose:      l.quoteClose,
 		quoteMode:       l.quoteMode,
+		quoteSmart:      l.smartQuotePairs(),
 		separatorText:   l.separatorText,
 		sliceClose:      l.sliceClose,
 		sliceOpen:       l.sliceOpen,

@@ -74,6 +74,8 @@ func defaultWrapperFuncs() map[string]any {
 		"SetSeparatorText":         SetSeparatorText,
 		"SetSliceBrackets":         SetSliceBrackets,
 		"SetSliceSeparator":        SetSliceSeparator,
+		"SetSmartQuoteChars":       SetSmartQuoteChars,
+		"SetSmartQuotes":           SetSmartQuotes,
 		"SetSpinnerDefaults":       SetSpinnerDefaults,
 		"SetStyles":                SetStyles,
 		"SetSymbols":               SetSymbols,

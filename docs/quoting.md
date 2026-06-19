@@ -50,4 +50,41 @@ clog.Info().Str("msg", "hello world").Msg("test")
 // INF ℹ️ test msg=[hello world]
 ```
 
+## Smart Quoting
+
+Enable smart quoting to pick a delimiter per value instead of escaping. Each quoted value is wrapped in the first delimiter that does not occur in it, so the output stays escape-free:
+
+```go
+clog.SetSmartQuotes(true)
+clog.Info().Str("msg", `plain value`).Msg("test")
+// INF ℹ️ test msg="plain value"
+
+clog.Info().Str("msg", `say "hi"`).Msg("test")
+// INF ℹ️ test msg='say "hi"'
+
+clog.Info().Str("msg", `it's a "test"`).Msg("test")
+// INF ℹ️ test msg=`it's a "test"`
+```
+
+The default preference order is `"`, then `'`, then `` ` ``. When a value contains all of them (or a backslash or a non-printable character, which cannot be wrapped literally), smart quoting falls back to Go-style escaped quoting via `strconv.Quote`.
+
+### Custom Preference Order
+
+Override the order with `SetSmartQuoteChars`. Each `QuotePair` may use distinct opening and closing runes (a zero `Close` mirrors `Open`):
+
+```go
+clog.SetSmartQuotes(true)
+clog.SetSmartQuoteChars(
+	clog.QuotePair{Open: '«', Close: '»'},
+	clog.QuotePair{Open: '['},
+)
+clog.Info().Str("msg", "hello world").Msg("test")
+// INF ℹ️ test msg=«hello world»
+
+clog.Info().Str("msg", "a » b").Msg("test")
+// INF ℹ️ test msg=[a » b]
+```
+
+Passing no pairs restores the default order. Smart quoting takes precedence over `SetQuoteChars`.
+
 Quoting applies to individual field values and to elements within string and `[]any` slices. All quoting settings are inherited by sub-loggers. Pass `0` to reset to the default (`strconv.Quote`).

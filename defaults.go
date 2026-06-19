@@ -178,6 +178,12 @@ func SetQuoteChars(openChar, closeChar rune) { Default.SetQuoteChars(openChar, c
 // SetQuote sets the quoting behaviour on the [Default] logger.
 func SetQuote(mode Quote) { Default.SetQuote(mode) }
 
+// SetSmartQuotes enables or disables content-adaptive quoting on the [Default] logger.
+func SetSmartQuotes(enabled bool) { Default.SetSmartQuotes(enabled) }
+
+// SetSmartQuoteChars sets the smart-quote delimiter preference order on the [Default] logger.
+func SetSmartQuoteChars(pairs ...QuotePair) { Default.SetSmartQuoteChars(pairs...) }
+
 // SetReportTimestamp enables or disables timestamps on the [Default] logger.
 func SetReportTimestamp(report bool) { Default.SetReportTimestamp(report) }
 

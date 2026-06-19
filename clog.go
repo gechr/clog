@@ -125,6 +125,8 @@ type Logger struct {
 	sliceClose         rune // 0 means default (']')
 	sliceOpen          rune // 0 means default ('[')
 	sliceSep           string
+	smartQuoteChars    []QuotePair     // preference order; empty = defaults
+	smartQuotes        bool            // enables content-adaptive quoting
 	spinnerConfig      *spinner.Config // nil = use spinner.DefaultConfig()
 	styles             *style.Config
 	printThemePair     *theme.Pair   // light/dark source for auto-detection; nil = built-in default pair
@@ -658,6 +660,47 @@ func (l *Logger) SetQuote(mode Quote) {
 	l.quoteMode = mode
 }
 
+// defaultSmartQuoteChars is the delimiter preference order used by smart
+// quoting when no custom pairs are configured: double quotes, then single
+// quotes, then backticks.
+var defaultSmartQuoteChars = []QuotePair{{Open: '"'}, {Open: '\''}, {Open: '`'}}
+
+// SetSmartQuotes enables or disables content-adaptive quoting. When enabled,
+// each quoted value is wrapped in the first delimiter pair (see
+// [Logger.SetSmartQuoteChars]) whose delimiters do not occur in the value, so
+// no escaping is needed; it falls back to Go-style escaped quoting only when
+// no pair fits (or the value contains backslashes or non-printable runes).
+// Smart quoting takes precedence over [Logger.SetQuoteChars].
+func (l *Logger) SetSmartQuotes(enabled bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.smartQuotes = enabled
+}
+
+// SetSmartQuoteChars sets the delimiter preference order used by smart quoting
+// (see [Logger.SetSmartQuotes]). Each pair may use distinct open/close runes
+// (e.g. {Open: '«', Close: '»'}); a zero Close mirrors Open. Passing no pairs
+// restores the default order ('"', then '\”, then '`'). This configures the
+// order only; it does not by itself enable smart quoting.
+func (l *Logger) SetSmartQuoteChars(pairs ...QuotePair) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.smartQuoteChars = pairs
+}
+
+// smartQuotePairs returns the active smart-quote preference list: nil when
+// smart quoting is disabled, the configured pairs when set, or
+// [defaultSmartQuoteChars] otherwise. Callers must hold l.mu.
+func (l *Logger) smartQuotePairs() []QuotePair {
+	if !l.smartQuotes {
+		return nil
+	}
+	if len(l.smartQuoteChars) > 0 {
+		return l.smartQuoteChars
+	}
+	return defaultSmartQuoteChars
+}
+
 // SetReportTimestamp enables or disables timestamp reporting.
 func (l *Logger) SetReportTimestamp(report bool) {
 	l.mu.Lock()
@@ -1170,6 +1213,7 @@ func (l *Logger) log(e *Event, msg string) {
 				quoteOpen:       l.quoteOpen,
 				quoteClose:      l.quoteClose,
 				quoteMode:       l.quoteMode,
+				quoteSmart:      l.smartQuotePairs(),
 				separatorText:   l.separatorText,
 				sliceClose:      l.sliceClose,
 				sliceOpen:       l.sliceOpen,

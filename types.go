@@ -41,6 +41,14 @@ const (
 	QuoteNever  = core.QuoteNever
 )
 
+// QuotePair is an opening/closing delimiter pair used for smart quoting
+// (see [Logger.SetSmartQuoteChars]). A zero Close means Close equals Open
+// (symmetric quoting).
+type QuotePair struct {
+	Open  rune
+	Close rune
+}
+
 // Wrap controls how log lines are wrapped when they exceed the terminal width.
 type Wrap int
 

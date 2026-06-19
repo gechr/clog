@@ -210,6 +210,7 @@ func TestFormatValue(t *testing.T) {
 				QuoteAuto,
 				0,
 				0,
+				nil,
 				"",
 				&defaultFieldFormats,
 			)
@@ -226,6 +227,7 @@ func TestFormatValueFraction(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -240,6 +242,7 @@ func TestFormatValueFractionZero(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -254,6 +257,7 @@ func TestFormatValuePercent(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -268,6 +272,7 @@ func TestFormatValuePercentDecimal(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -284,6 +289,7 @@ func TestFormatValuePercentPrecision(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&f,
 	)
@@ -297,6 +303,7 @@ func TestFormatValuePercentPrecision(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&f,
 	)
@@ -346,6 +353,7 @@ func TestFormatValueElapsed(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -361,6 +369,7 @@ func TestFormatValueElapsed(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&f,
 	)
@@ -375,6 +384,7 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -389,6 +399,7 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&f,
 	)
@@ -405,6 +416,7 @@ func TestFormatValueTimeCustomFormat(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		time.RFC3339,
 		&defaultFieldFormats,
 	)
@@ -422,6 +434,7 @@ func TestFormatValueTimeEmptyFormat(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)
@@ -990,6 +1003,7 @@ func TestStyledSliceBool(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		&defaultFieldFormats,
 	)
 
@@ -1010,6 +1024,7 @@ func TestStyledSliceFloat64(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		&defaultFieldFormats,
 	)
 
@@ -1077,6 +1092,7 @@ func TestStyledSliceAny(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		&defaultFieldFormats,
 	)
 
@@ -1148,6 +1164,7 @@ func TestStyledSliceDefault(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		&defaultFieldFormats,
 	)
 
@@ -1399,19 +1416,82 @@ func TestReflectValueKindBool(t *testing.T) {
 
 func TestQuoteStringOpenCharNoCloseChar(t *testing.T) {
 	// When closeChar is 0, openChar should be used for both sides.
-	got := quoteString("hello", '\'', 0)
+	got := quoteString("hello", '\'', 0, nil)
 	assert.Equal(t, "'hello'", got)
 }
 
 func TestQuoteStringOpenAndCloseChar(t *testing.T) {
-	got := quoteString("hello", '(', ')')
+	got := quoteString("hello", '(', ')', nil)
 	assert.Equal(t, "(hello)", got)
 }
 
 func TestQuoteStringDefaultQuoting(t *testing.T) {
 	// When openChar is 0, strconv.Quote is used.
-	got := quoteString("hello", 0, 0)
+	got := quoteString("hello", 0, 0, nil)
 	assert.Equal(t, `"hello"`, got)
+}
+
+func TestQuoteStringSmartTakesPrecedence(t *testing.T) {
+	// A non-empty smart list overrides open/close runes.
+	got := quoteString(`a"b`, '(', ')', defaultSmartQuoteChars)
+	assert.Equal(t, `'a"b'`, got)
+}
+
+func TestSmartQuoteEscalation(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{name: "no_quotes_uses_double", in: "hello world", want: `"hello world"`},
+		{name: "double_quote_uses_single", in: `say "hi"`, want: `'say "hi"'`},
+		{name: "both_uses_backtick", in: `it's a "test"`, want: "`it's a \"test\"`"},
+		{name: "all_three_escapes", in: "a\"b'c`d", want: "\"a\\\"b'c`d\""},
+		{name: "backslash_escapes", in: `a\b`, want: `"a\\b"`},
+		{name: "newline_escapes", in: "a\nb", want: `"a\nb"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, smartQuote(tt.in, defaultSmartQuoteChars))
+		})
+	}
+}
+
+func TestSmartQuoteCustomPairsDistinctDelimiters(t *testing.T) {
+	pairs := []QuotePair{{Open: '«', Close: '»'}, {Open: '[', Close: ']'}}
+	// First pair fits.
+	assert.Equal(t, "«hi there»", smartQuote("hi there", pairs))
+	// Value contains the close delimiter of the first pair, so fall through.
+	assert.Equal(t, "[a»b]", smartQuote("a»b", pairs))
+	// Value collides with both pairs -> escaped fallback.
+	assert.Equal(t, `"a»b]c"`, smartQuote("a»b]c", pairs))
+}
+
+func TestFormatFieldsSmartQuotes(t *testing.T) {
+	opts := formatFieldsOpts{noColor: true, quoteSmart: defaultSmartQuoteChars}
+	got := formatFields([]Field{{Key: "k", Value: `value with "quotes"`}}, opts)
+	assert.Equal(t, ` k='value with "quotes"'`, got)
+}
+
+func TestFormatFieldsSmartQuotesAllDelimitersFallBack(t *testing.T) {
+	// Value contains all three default delimiters (" ' `), so no bare wrap
+	// fits and it falls back to Go-style escaped quoting.
+	const value = "a \"b\" 'c' `d`"
+	opts := formatFieldsOpts{noColor: true, quoteSmart: defaultSmartQuoteChars}
+	got := formatFields([]Field{{Key: "k", Value: value}}, opts)
+	assert.Equal(t, " k=\"a \\\"b\\\" 'c' `d`\"", got)
+}
+
+func TestSetSmartQuotesEndToEnd(t *testing.T) {
+	var buf strings.Builder
+	l := New(NewOutput(&buf, ColorNever))
+	l.SetParts(PartFields)
+	l.SetSmartQuotes(true)
+	l.SetSmartQuoteChars(QuotePair{Open: '«', Close: '»'})
+
+	l.Info().Str("k", "needs quoting").Msg("")
+	assert.Equal(t, "k=«needs quoting»", strings.TrimSpace(buf.String()))
 }
 
 func TestStyleQuantity(t *testing.T) {
@@ -1467,6 +1547,7 @@ func TestFormatValueQuantity(t *testing.T) {
 		QuoteAuto,
 		0,
 		0,
+		nil,
 		"",
 		&defaultFieldFormats,
 	)

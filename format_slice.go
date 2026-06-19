@@ -185,6 +185,7 @@ func formatStringSlice(
 	styles *style.Config,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
+	quoteSmart []QuotePair,
 ) string {
 	var buf strings.Builder
 
@@ -197,7 +198,7 @@ func formatStringSlice(
 
 		display := v
 		if quoteMode != QuoteNever && (quoteMode == QuoteAlways || needsQuoting(v)) {
-			display = quoteString(v, quoteOpen, quoteClose)
+			display = quoteString(v, quoteOpen, quoteClose, quoteSmart)
 		}
 
 		if styles != nil {
@@ -229,6 +230,7 @@ func formatAnySlice(
 	styles *style.Config,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
+	quoteSmart []QuotePair,
 	fmts *FieldFormats,
 ) string {
 	var buf strings.Builder
@@ -246,7 +248,7 @@ func formatAnySlice(
 		if quoteMode != QuoteNever &&
 			(kind == kindDefault || kind == kindString) &&
 			(quoteMode == QuoteAlways || needsQuoting(s)) {
-			s = quoteString(s, quoteOpen, quoteClose)
+			s = quoteString(s, quoteOpen, quoteClose, quoteSmart)
 		}
 
 		if styles != nil {

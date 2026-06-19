@@ -26,6 +26,7 @@ type formatFieldsOpts struct {
 	quoteOpen       rune // 0 means default ('"' via strconv.Quote)
 	quoteClose      rune // 0 means same as quoteOpen (or default)
 	quoteMode       Quote
+	quoteSmart      []QuotePair // non-empty enables content-adaptive quoting
 	separatorText   string
 	sliceClose      rune // 0 means default (']')
 	sliceOpen       rune // 0 means default ('[')
@@ -154,6 +155,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				opts.quoteMode,
 				opts.quoteOpen,
 				opts.quoteClose,
+				opts.quoteSmart,
 				opts.timeFormat,
 				fmts,
 			)
@@ -161,7 +163,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		if opts.quoteMode != QuoteNever &&
 			(kind == kindDefault || kind == kindString || kind == kindError || kind == kindTime) &&
 			(opts.quoteMode == QuoteAlways || needsQuoting(valStr)) {
-			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose)
+			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart)
 		}
 
 		styled := styledFieldValue(f, valStr, kind, opts)
@@ -193,6 +195,7 @@ func formatValue(
 	sf sliceFormat,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
+	quoteSmart []QuotePair,
 	timeFormat string,
 	fmts *FieldFormats,
 ) (string, valueKind) {
@@ -236,7 +239,15 @@ func formatValue(
 	case []core.QuantityField:
 		return formatQuantitySlice(val, sf, nil, fmts.QuantityUnitsIgnoreCase), kindSlice
 	case []string:
-		return formatStringSlice(val, sf, nil, quoteMode, quoteOpen, quoteClose), kindSlice
+		return formatStringSlice(
+			val,
+			sf,
+			nil,
+			quoteMode,
+			quoteOpen,
+			quoteClose,
+			quoteSmart,
+		), kindSlice
 	case []int:
 		return formatIntSlice(val, sf, nil), kindSlice
 	case []int64:
@@ -257,6 +268,7 @@ func formatValue(
 			quoteMode,
 			quoteOpen,
 			quoteClose,
+			quoteSmart,
 			fmts,
 		), kindSlice
 	default:
@@ -370,6 +382,7 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 			opts.quoteMode,
 			opts.quoteOpen,
 			opts.quoteClose,
+			opts.quoteSmart,
 			fmts,
 		)
 	}
@@ -387,6 +400,7 @@ func styledSlice(
 	styles *style.Config,
 	quoteMode Quote,
 	quoteOpen, quoteClose rune,
+	quoteSmart []QuotePair,
 	fmts *FieldFormats,
 ) string {
 	switch vals := v.(type) {
@@ -407,7 +421,7 @@ func styledSlice(
 	case []float64:
 		return formatFloat64Slice(vals, sf, styles)
 	case []string:
-		return formatStringSlice(vals, sf, styles, quoteMode, quoteOpen, quoteClose)
+		return formatStringSlice(vals, sf, styles, quoteMode, quoteOpen, quoteClose, quoteSmart)
 	case []any:
 		return formatAnySlice(
 			vals,
@@ -416,10 +430,11 @@ func styledSlice(
 			quoteMode,
 			quoteOpen,
 			quoteClose,
+			quoteSmart,
 			fmts,
 		)
 	default:
-		s, _ := formatValue(v, sf, quoteMode, quoteOpen, quoteClose, "", fmts)
+		s, _ := formatValue(v, sf, quoteMode, quoteOpen, quoteClose, quoteSmart, "", fmts)
 		return s
 	}
 }
@@ -535,10 +550,16 @@ func needsQuoting(s string) bool {
 	return false
 }
 
-// quoteString wraps s in quotes. When open is 0, it uses [strconv.Quote]
-// (Go-style double-quoted with escaping). Otherwise it wraps with open/close runes.
-// If close is 0, open is used for both sides.
-func quoteString(s string, openChar, closeChar rune) string {
+// quoteString wraps s in quotes. When smart is non-empty, it selects the first
+// pair whose delimiters do not occur in s (see [smartQuote]), ignoring
+// open/close. Otherwise, when open is 0 it uses [strconv.Quote] (Go-style
+// double-quoted with escaping), and when open is non-zero it wraps with the
+// open/close runes (open is used for both sides when close is 0).
+func quoteString(s string, openChar, closeChar rune, smart []QuotePair) string {
+	if len(smart) > 0 {
+		return smartQuote(s, smart)
+	}
+
 	if openChar == 0 {
 		return strconv.Quote(s)
 	}
@@ -547,6 +568,40 @@ func quoteString(s string, openChar, closeChar rune) string {
 		closeChar = openChar
 	}
 	return string(openChar) + s + string(closeChar)
+}
+
+// smartQuote wraps s in the first pair from prefs whose delimiters do not
+// occur in s, so the result needs no escaping. A pair with a zero Close uses
+// its Open for both sides. Since literal wrapping cannot escape anything, this
+// only applies when s is raw-quotable (no backslash or non-printable runes);
+// otherwise, and when every pair collides with s, it falls back to
+// [strconv.Quote] (Go-style escaping).
+func smartQuote(s string, prefs []QuotePair) string {
+	if rawQuotable(s) {
+		for _, p := range prefs {
+			openChar, closeChar := p.Open, p.Close
+			if closeChar == 0 {
+				closeChar = openChar
+			}
+			if strings.ContainsRune(s, openChar) || strings.ContainsRune(s, closeChar) {
+				continue
+			}
+			return string(openChar) + s + string(closeChar)
+		}
+	}
+	return strconv.Quote(s)
+}
+
+// rawQuotable reports whether s can be wrapped in literal delimiters without
+// escaping: it must contain no backslash and no non-printable runes (control
+// characters, tabs, newlines). Mirrors the printability check in needsQuoting.
+func rawQuotable(s string) bool {
+	for _, r := range s {
+		if r == '\\' || !strconv.IsPrint(r) {
+			return false
+		}
+	}
+	return true
 }
 
 // isEmptyValue reports whether v is semantically "nothing": nil, an empty

@@ -214,6 +214,8 @@ func (l *Logger) clone() *Logger {
 		sliceClose:         l.sliceClose,
 		sliceOpen:          l.sliceOpen,
 		sliceSep:           l.sliceSep,
+		smartQuoteChars:    l.smartQuoteChars,
+		smartQuotes:        l.smartQuotes,
 		styles:             l.styles,
 		symbol:             l.symbol,
 		symbols:            l.symbols,
