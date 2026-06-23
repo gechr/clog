@@ -280,10 +280,11 @@ func (l *groupBarLayout) observe(
 	}
 }
 
-func (l *groupBarLayout) format(
+func (l *groupBarLayout) formatWithTruncationMarker(
 	parts, leftText, barStr, rightText, sep string,
 	placement bar.Placement,
 	termWidth int,
+	truncationMarker string,
 ) string {
 	switch placement {
 	case bar.PlaceLeftPad:
@@ -291,7 +292,7 @@ func (l *groupBarLayout) format(
 	case bar.PlaceRightPad:
 		return l.formatRightPad(parts, leftText, barStr, rightText, sep, termWidth)
 	case bar.PlaceAligned:
-		return l.formatAligned(parts, leftText, barStr, rightText, sep, termWidth)
+		return l.formatAligned(parts, leftText, barStr, rightText, sep, termWidth, truncationMarker)
 	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
 		barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)
 		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
@@ -306,7 +307,11 @@ func (l *groupBarLayout) format(
 // when a per-task width snapshot is one column wider than the layout's
 // observed max (e.g. "99%" -> "100%" between layout measurement and task
 // rendering). Reserving a column makes the math forgiving of that drift.
-const rightEdgeSlack = 1
+const (
+	rightEdgeSlack              = 1
+	minUsefulBarWidth           = 1
+	minUsefulTruncatedTextWidth = 5
+)
 
 func (l *groupBarLayout) formatLeftPad(
 	parts, leftText, barStr, rightText, sep string,
@@ -349,6 +354,7 @@ func (l *groupBarLayout) formatRightPad(
 func (l *groupBarLayout) formatAligned(
 	parts, leftText, barStr, rightText, sep string,
 	termWidth int,
+	truncationMarker string,
 ) string {
 	a := l.aligned
 	barFull := assembleBarColumns(a, leftText, barStr, rightText, sep)
@@ -358,22 +364,49 @@ func (l *groupBarLayout) formatAligned(
 	}
 	if termWidth > 0 {
 		var ok bool
-		parts, effectiveMax, ok = capAlignedParts(parts, barFull, sep, effectiveMax, termWidth)
+		parts, effectiveMax, ok = capAlignedParts(
+			parts,
+			barFull,
+			sep,
+			effectiveMax,
+			termWidth,
+			truncationMarker,
+		)
 		if !ok {
-			return xansi.Truncate(barFull, termWidth-rightEdgeSlack, "")
+			return truncateProgressColumns(
+				a,
+				leftText,
+				barStr,
+				rightText,
+				sep,
+				termWidth-rightEdgeSlack,
+			)
 		}
 	}
+	if parts == "" && effectiveMax == 0 {
+		return barFull
+	}
 	if a.maxParts == 0 {
+		if parts == "" {
+			return barFull
+		}
 		return parts + sep + barFull
 	}
 	padding := effectiveMax - lipgloss.Width(parts)
 	if padding <= 0 {
+		if parts == "" {
+			return barFull
+		}
 		return parts + sep + barFull
 	}
 	return parts + strings.Repeat(" ", padding) + sep + barFull
 }
 
-func capAlignedParts(parts, barFull, sep string, maxParts, termWidth int) (string, int, bool) {
+func capAlignedParts(
+	parts, barFull, sep string,
+	maxParts, termWidth int,
+	truncationMarker string,
+) (string, int, bool) {
 	target := termWidth - rightEdgeSlack
 	budget := target - lipgloss.Width(sep) - lipgloss.Width(barFull)
 	if budget < 0 {
@@ -381,9 +414,54 @@ func capAlignedParts(parts, barFull, sep string, maxParts, termWidth int) (strin
 	}
 	maxParts = min(maxParts, budget)
 	if lipgloss.Width(parts) > budget {
-		parts = xansi.Truncate(parts, budget, "")
+		if budget < minUsefulTruncatedTextWidth {
+			return "", 0, true
+		}
+		parts = xansi.Truncate(parts, budget, truncationMarker)
 	}
 	return parts, maxParts, true
+}
+
+func truncateProgressColumns(
+	cols groupBarColumns,
+	leftText, barStr, rightText, sep string,
+	width int,
+) string {
+	if width < minUsefulBarWidth {
+		return ""
+	}
+
+	barFull := assembleBarColumns(cols, leftText, barStr, rightText, sep)
+	if lipgloss.Width(barFull) <= width {
+		return barFull
+	}
+
+	if rightText != "" {
+		next := cols
+		next.hasRight = false
+		next.maxRight = 0
+		barFull = assembleBarColumns(next, leftText, barStr, "", sep)
+		if lipgloss.Width(barFull) <= width {
+			return barFull
+		}
+		cols = next
+		rightText = ""
+	}
+
+	if leftText != "" {
+		next := cols
+		next.hasLeft = false
+		next.maxLeft = 0
+		barFull = assembleBarColumns(next, "", barStr, rightText, sep)
+		if lipgloss.Width(barFull) <= width {
+			return barFull
+		}
+		cols = next
+		leftText = ""
+	}
+
+	barFull = assembleBarColumns(cols, leftText, barStr, rightText, sep)
+	return xansi.Truncate(barFull, width, "")
 }
 
 func (c groupBarColumns) barWidth(sep string) int {
@@ -853,7 +931,7 @@ func renderTaskBarLine(
 		return parts
 	}
 	if layout != nil {
-		return layout.bar.format(
+		return layout.bar.formatWithTruncationMarker(
 			parts,
 			leftText,
 			barStr,
@@ -861,6 +939,7 @@ func renderTaskBarLine(
 			sep,
 			gt.builder.barConfig.Placement,
 			gt.cfg.Output.Width(),
+			bar.ResolveTruncationMarker(gt.builder.barConfig),
 		)
 	}
 	barFull := assembleBarColumns(groupBarColumns{}, leftText, barStr, rightText, sep)

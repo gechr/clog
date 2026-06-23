@@ -111,6 +111,14 @@ func TestBarUpdateIntervalOption(t *testing.T) {
 	assert.Zero(t, b.BarStyle().UpdateInterval)
 }
 
+func TestBarTruncationMarkerOption(t *testing.T) {
+	b := Bar("test", 100, bar.WithTruncationMarker("..."))
+
+	require.NotNil(t, b.BarStyle().TruncationMarker)
+	assert.Equal(t, "...", *b.BarStyle().TruncationMarker)
+	assert.Equal(t, "...", bar.ResolveTruncationMarker(b.BarStyle()))
+}
+
 func TestBarSmoothingModeOption(t *testing.T) {
 	b := Bar("test", 100, bar.WithSmoothingMode(bar.SmoothNone))
 	assert.Equal(t, bar.SmoothNone, b.BarStyle().Smoothing)

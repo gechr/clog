@@ -23,6 +23,10 @@ const (
 	WidthDivisor    = 4  // terminal width fraction used for auto-sizing
 )
 
+// DefaultTruncationMarker is appended inside the width budget when bar
+// placement needs to truncate surrounding text to fit the terminal.
+const DefaultTruncationMarker = "…"
+
 // PercentDisplayMax is the maximum display percentage (always 100).
 const PercentDisplayMax = 100.0
 
@@ -90,6 +94,7 @@ type Config struct {
 	SmoothingTau     time.Duration        // exponential decay time constant; 0 = DefaultSmoothingTau (150ms)
 	StyleEmpty       *lipgloss.Style      // lipgloss style for empty cells; nil = plain text
 	StyleFill        *lipgloss.Style      // lipgloss style for filled cells; nil = plain text
+	TruncationMarker *string              // marker used when surrounding text is truncated to fit; nil = DefaultTruncationMarker
 	UpdateInterval   time.Duration        // samples the timing basis for ETA/rate/elapsed while leaving progress live
 	Width            int                  // fixed inner width; 0 = auto-size
 	WidgetLeft       Widget               // widget to the left of the bar; nil = nothing
@@ -121,6 +126,16 @@ type Widget func(State) string
 // ShowPending reports whether the bar block should be shown at the current progress.
 func ShowPending(s Config, current int) bool {
 	return s.PendingMode != PendingHide || current > 0
+}
+
+// ResolveTruncationMarker returns the marker used when surrounding text is
+// truncated to fit a terminal-width budget. A nil marker uses
+// [DefaultTruncationMarker]; an explicit empty string disables the marker.
+func ResolveTruncationMarker(s Config) string {
+	if s.TruncationMarker == nil {
+		return DefaultTruncationMarker
+	}
+	return *s.TruncationMarker
 }
 
 // Render renders the visual bar string for the given progress values.

@@ -172,6 +172,15 @@ func WithStyleFill(ls lipgloss.Style) Option {
 	}
 }
 
+// WithTruncationMarker sets the marker appended inside the width budget when
+// bar placement needs to truncate surrounding text to fit the terminal. Pass
+// an empty string to disable the marker.
+func WithTruncationMarker(marker string) Option {
+	return func(s *Config) {
+		s.TruncationMarker = &marker
+	}
+}
+
 // WithWidth sets a fixed inner width for the bar.
 // When w is 0, the bar auto-sizes from the terminal width.
 func WithWidth(w int) Option {

@@ -549,13 +549,38 @@ func TestRunGroupLoopTTYCancelPreservesReadyTaskError(t *testing.T) {
 	require.ErrorIs(t, g.tasks[1].err, context.Canceled)
 }
 
+func formatGroupBar(
+	layout *groupBarLayout,
+	parts, leftText, rightText string,
+	placement bar.Placement,
+	termWidth int,
+) string {
+	return layout.formatWithTruncationMarker(
+		parts,
+		leftText,
+		"BAR",
+		rightText,
+		" ",
+		placement,
+		termWidth,
+		bar.DefaultTruncationMarker,
+	)
+}
+
 func TestGroupBarLayoutRightPad(t *testing.T) {
 	layout := &groupBarLayout{}
 	layout.observe("short", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
 	layout.observe("much longer message", "", "BAR", "", bar.PlaceRightPad)
 
-	line1 := layout.format("short", " 29%", "BAR", "ETA 10s", " ", bar.PlaceRightPad, 40)
-	line2 := layout.format("much longer message", "", "BAR", "", " ", bar.PlaceRightPad, 40)
+	line1 := formatGroupBar(layout, "short", " 29%", "ETA 10s", bar.PlaceRightPad, 40)
+	line2 := formatGroupBar(
+		layout,
+		"much longer message",
+		"",
+		"",
+		bar.PlaceRightPad,
+		40,
+	)
 
 	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
 	// 1-column right-edge slack means rendered lines are at most tw-1.
@@ -567,7 +592,14 @@ func TestGroupBarLayoutRightPadFallsBackWhenTooNarrow(t *testing.T) {
 	layout := &groupBarLayout{}
 	layout.observe("very long message", " 29%", "BAR", "ETA 10s", bar.PlaceRightPad)
 
-	got := layout.format("very long message", " 29%", "BAR", "ETA 10s", " ", bar.PlaceRightPad, 10)
+	got := formatGroupBar(
+		layout,
+		"very long message",
+		" 29%",
+		"ETA 10s",
+		bar.PlaceRightPad,
+		10,
+	)
 	want := bar.FormatLine("very long message", " 29% BAR ETA 10s", " ", bar.PlaceRightPad, 10)
 
 	assert.Equal(t, want, got)
@@ -578,8 +610,8 @@ func TestGroupBarLayoutRightPadAlignsRightWidget(t *testing.T) {
 	layout.observe("one", "  0%", "BAR", "ETA 1h13m", bar.PlaceRightPad)
 	layout.observe("two", "  7%", "BAR", "ETA 34s", bar.PlaceRightPad)
 
-	line1 := layout.format("one", "  0%", "BAR", "ETA 1h13m", " ", bar.PlaceRightPad, 40)
-	line2 := layout.format("two", "  7%", "BAR", "ETA 34s", " ", bar.PlaceRightPad, 40)
+	line1 := formatGroupBar(layout, "one", "  0%", "ETA 1h13m", bar.PlaceRightPad, 40)
+	line2 := formatGroupBar(layout, "two", "  7%", "ETA 34s", bar.PlaceRightPad, 40)
 
 	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
 	assert.Equal(t, strings.Index(line1, "ETA"), strings.Index(line2, "ETA"))
@@ -590,8 +622,15 @@ func TestGroupBarLayoutAligned(t *testing.T) {
 	layout.observe("short", " 29%", "BAR", "", bar.PlaceAligned)
 	layout.observe("much longer message", " 50%", "BAR", "", bar.PlaceAligned)
 
-	line1 := layout.format("short", " 29%", "BAR", "", " ", bar.PlaceAligned, 80)
-	line2 := layout.format("much longer message", " 50%", "BAR", "", " ", bar.PlaceAligned, 80)
+	line1 := formatGroupBar(layout, "short", " 29%", "", bar.PlaceAligned, 80)
+	line2 := formatGroupBar(
+		layout,
+		"much longer message",
+		" 50%",
+		"",
+		bar.PlaceAligned,
+		80,
+	)
 
 	// Both bars should start at the same column.
 	assert.Equal(t, strings.Index(line1, "BAR"), strings.Index(line2, "BAR"))
@@ -605,7 +644,7 @@ func TestGroupBarLayoutAlignedNoPadForLongest(t *testing.T) {
 	layout.observe("short", "", "BAR", "", bar.PlaceAligned)
 
 	// The longest message should not get extra padding.
-	line := layout.format("longest msg", "", "BAR", "", " ", bar.PlaceAligned, 80)
+	line := formatGroupBar(layout, "longest msg", "", "", bar.PlaceAligned, 80)
 	assert.Equal(t, "longest msg BAR", line)
 }
 
@@ -613,7 +652,7 @@ func TestGroupBarLayoutAlignedCapsToTerminalWidth(t *testing.T) {
 	layout := &groupBarLayout{}
 	layout.observe(strings.Repeat("long ", 20), "", "BAR", "", bar.PlaceAligned)
 
-	line := layout.format("short", "", "BAR", "", " ", bar.PlaceAligned, 20)
+	line := formatGroupBar(layout, "short", "", "", bar.PlaceAligned, 20)
 
 	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
 	assert.Contains(t, line, "BAR")
@@ -624,11 +663,70 @@ func TestGroupBarLayoutAlignedTruncatesOutlierParts(t *testing.T) {
 	parts := strings.Repeat("long ", 20)
 	layout.observe(parts, "", "BAR", "", bar.PlaceAligned)
 
-	line := layout.format(parts, "", "BAR", "", " ", bar.PlaceAligned, 20)
+	line := formatGroupBar(layout, parts, "", "", bar.PlaceAligned, 20)
 
 	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
 	assert.Contains(t, line, "BAR")
+	assert.Contains(t, line, bar.DefaultTruncationMarker)
 	assert.NotEqual(t, parts+" BAR", line)
+}
+
+func TestGroupBarLayoutAlignedHidesTinyTruncatedParts(t *testing.T) {
+	layout := &groupBarLayout{}
+	parts := strings.Repeat("long ", 20)
+	layout.observe(parts, "", "BAR", "", bar.PlaceAligned)
+
+	line := formatGroupBar(layout, parts, "", "", bar.PlaceAligned, 9)
+
+	assert.Equal(t, "BAR", line)
+}
+
+func TestGroupBarLayoutAlignedTruncatesProgressWithoutMarker(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("message", "94%", "BARBARBAR", "", bar.PlaceAligned)
+
+	line := layout.formatWithTruncationMarker(
+		"message",
+		"94%",
+		"BARBARBAR",
+		"",
+		" ",
+		bar.PlaceAligned,
+		8,
+		"~~~",
+	)
+
+	assert.LessOrEqual(t, xansi.StringWidth(line), 7)
+	assert.NotContains(t, line, "94")
+	assert.NotContains(t, line, "~~~")
+	assert.NotEmpty(t, line)
+}
+
+func TestGroupBarLayoutAlignedKeepsWholeProgressWidgetWhenItFits(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("message", "94%", "BAR", "", bar.PlaceAligned)
+
+	line := formatGroupBar(layout, "message", "94%", "", bar.PlaceAligned, 9)
+
+	assert.Equal(t, "94% BAR", line)
+}
+
+func TestGroupBarLayoutAlignedDropsWholeProgressWidgetWhenItDoesNotFit(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("message", "94%", "BAR", "", bar.PlaceAligned)
+
+	line := formatGroupBar(layout, "message", "94%", "", bar.PlaceAligned, 7)
+
+	assert.Equal(t, "BAR", line)
+}
+
+func TestGroupBarLayoutAlignedDropsWholeRightProgressWidgetWhenItDoesNotFit(t *testing.T) {
+	layout := &groupBarLayout{}
+	layout.observe("message", "", "BAR", "94%", bar.PlaceAligned)
+
+	line := formatGroupBar(layout, "message", "", "94%", bar.PlaceAligned, 7)
+
+	assert.Equal(t, "BAR", line)
 }
 
 func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {

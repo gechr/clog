@@ -299,6 +299,20 @@ func TestUpdateIntervalZeroValue(t *testing.T) {
 	assert.Zero(t, bar.Config{}.UpdateInterval)
 }
 
+func TestResolveTruncationMarker(t *testing.T) {
+	assert.Equal(t, bar.DefaultTruncationMarker, bar.ResolveTruncationMarker(bar.Config{}))
+
+	marker := "..."
+	assert.Equal(
+		t,
+		marker,
+		bar.ResolveTruncationMarker(bar.Config{TruncationMarker: &marker}),
+	)
+
+	marker = ""
+	assert.Empty(t, bar.ResolveTruncationMarker(bar.Config{TruncationMarker: &marker}))
+}
+
 func TestSmoothingModeZeroValue(t *testing.T) {
 	assert.Equal(t, bar.SmoothEase, bar.SmoothingMode(0))
 	assert.Equal(t, bar.SmoothEase, bar.Config{}.Smoothing)
