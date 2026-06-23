@@ -44,9 +44,11 @@ func (o *Output) hyperlinkSettings() hyperlink.Config {
 	return hyperlink.DefaultConfig()
 }
 
-// hyperlink is like [Hyperlink] but uses the Output's color settings.
+// hyperlink is like [Hyperlink] but uses the Output's color settings. An empty
+// url has no link target, so the text is returned plain - callers can pass an
+// optional url without guarding it.
 func (o *Output) hyperlink(url, text string) string {
-	if !o.hyperlinkSettings().Enabled || o.ColorsDisabled() {
+	if url == "" || !o.hyperlinkSettings().Enabled || o.ColorsDisabled() {
 		return text
 	}
 	return hyperlink.OSC8(url, text)

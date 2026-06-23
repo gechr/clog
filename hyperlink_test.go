@@ -66,6 +66,13 @@ func TestOutputHyperlinkDisabled(t *testing.T) {
 	assert.Equal(t, "text", got)
 }
 
+func TestOutputHyperlinkEmptyURL(t *testing.T) {
+	output := NewOutput(io.Discard, ColorAlways)
+	got := output.Hyperlink("", "text")
+
+	assert.Equal(t, "text", got)
+}
+
 func TestOutputPathLinkNever(t *testing.T) {
 	output := NewOutput(io.Discard, ColorNever)
 
