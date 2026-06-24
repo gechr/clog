@@ -62,7 +62,7 @@ func (s *stubLogger) WithIndent(int, []core.TreePos) Logger { return s }
 
 func (s *stubLogger) Output() Output { return s.out }
 
-func (s *stubLogger) TaskConfig(*Builder) TaskConfig {
+func (s *stubLogger) TaskConfig(b *Builder) TaskConfig {
 	out := s.out
 	if out == nil {
 		out = &stubOutput{}
@@ -70,6 +70,7 @@ func (s *stubLogger) TaskConfig(*Builder) TaskConfig {
 	return TaskConfig{
 		AnimationInterval: s.animationInterval,
 		IsTTY:             out.tty,
+		NonTTYSilent:      b.SuppressesNonTTY(),
 		Label:             "INF",
 		LevelSymbol:       "INF",
 		Order:             testParts(),
@@ -547,6 +548,24 @@ func TestRunGroupLoopTTYCancelPreservesReadyTaskError(t *testing.T) {
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorIs(t, g.tasks[0].err, realErr)
 	require.ErrorIs(t, g.tasks[1].err, context.Canceled)
+}
+
+func TestRunGroupNonTTYSkipsNonTTYSilentTask(t *testing.T) {
+	var buf strings.Builder
+	log := &stubLogger{out: &stubOutput{w: &buf}} // tty: false
+
+	ctx := context.Background()
+	g := NewGroup(ctx, log)
+	g.Add(testSpinner(log, "loud"))
+	g.Add(testSpinner(log, "quiet").NonTTYSilent(true))
+	g.tasks[0].doneErr <- nil
+	g.tasks[1].doneErr <- nil
+
+	require.NoError(t, runGroupLoop(ctx, g))
+
+	// Only the normal task prints its static non-TTY line; the NonTTYSilent
+	// task is fully suppressed, leaving no second line.
+	require.Equal(t, "INF ⏳ loud\n", buf.String())
 }
 
 func formatGroupBar(

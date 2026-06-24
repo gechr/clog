@@ -1418,6 +1418,11 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	// initial zero values are meaningless without live updates.
 	if !gts[0].cfg.IsTTY {
 		for _, gt := range gts {
+			// A task may opt out of the non-TTY static line, matching the
+			// standalone animation path; the rest still print and block.
+			if gt.cfg.NonTTYSilent {
+				continue
+			}
 			b := gt.builder
 			fieldsStr := strings.TrimLeft(
 				gt.cfg.FormatFields(b.StripDynamicFields(*gt.fieldsPtr.Load())), " ",
