@@ -10,6 +10,9 @@ import (
 // Default returns the default color styles.
 func Default() *Config {
 	return &Config{
+		Backtick: new(
+			lipgloss.NewStyle().Foreground(lipgloss.Color("183")), // lavender
+		),
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
 		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
 		FieldDurationNumber: new(

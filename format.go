@@ -444,6 +444,14 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 		)
 	}
 
+	// String values may carry `code` spans; render them so backticked text takes
+	// the Backtick style over the value's own resolved base style. Errors are left
+	// verbatim in their own style - a backtick in an error message is content.
+	if kind == kindString && opts.styles != nil && opts.styles.Backtick != nil {
+		base := valueBaseStyle(f.Value, f.Key, kind, opts.styles)
+		return style.RenderBackticks(valStr, base, opts.styles.Backtick)
+	}
+
 	if styled := styleValue(valStr, f.Value, f.Key, kind, opts.styles, fmts); styled != "" {
 		return styled
 	}

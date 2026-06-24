@@ -1192,12 +1192,14 @@ func (l *Logger) log(e *Event, msg string) {
 				continue
 			}
 
-			if style := l.styles.Messages[e.level]; !noColor && style != nil {
-				s = style.Render(msg)
-			} else if !noColor && l.styles.Message != nil {
-				s = l.styles.Message.Render(msg)
-			} else {
+			if noColor {
 				s = msg
+			} else {
+				base := l.styles.Message
+				if ms := l.styles.Messages[e.level]; ms != nil {
+					base = ms
+				}
+				s = style.RenderBackticks(msg, base, l.styles.Backtick)
 			}
 
 			if l.indent > 0 || len(l.tree) > 0 {

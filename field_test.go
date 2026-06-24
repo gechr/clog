@@ -355,5 +355,5 @@ func TestEventTimeDiff(t *testing.T) {
 	end := time.Date(2025, 1, 1, 0, 0, 5, 0, time.UTC)
 
 	l.Info().TimeDiff("elapsed", end, start).Msg("done")
-	assert.Contains(t, buf.String(), "elapsed=5s")
+	assert.Equal(t, "INF ℹ️ done elapsed=5s\n", buf.String())
 }

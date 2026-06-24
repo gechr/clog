@@ -1201,9 +1201,7 @@ func TestOmitEmpty(t *testing.T) {
 	assert.NotContains(t, keys, "emptyslice")
 
 	// Non-empty values and zero-but-not-empty values should be kept.
-	assert.Contains(t, keys, "present")
-	assert.Contains(t, keys, "zero")
-	assert.Contains(t, keys, "falsy")
+	assert.Equal(t, []string{"present", "zero", "falsy"}, keys)
 }
 
 func TestOmitZero(t *testing.T) {
@@ -1240,8 +1238,7 @@ func TestOmitZero(t *testing.T) {
 	assert.NotContains(t, keys, "emptyslice")
 
 	// Non-zero values should be kept.
-	assert.Contains(t, keys, "present")
-	assert.Contains(t, keys, "nonzero")
+	assert.Equal(t, []string{"present", "nonzero"}, keys)
 }
 
 func TestOmitZeroSupersedesOmitEmpty(t *testing.T) {
@@ -1503,7 +1500,7 @@ func TestWrapHard(t *testing.T) {
 	got := wrapLine(line, 30, WrapHard)
 
 	// Hard wrap should break at exactly the column limit, even mid-word.
-	assert.Contains(t, got, "\n")
+	assert.Equal(t, "abc repositories=[alpha bravo \ncharlie delta echo foxtrot gol\nf hotel]", got)
 
 	for l := range strings.SplitSeq(got, "\n") {
 		assert.LessOrEqual(t, ansi.StringWidth(l), 30)
@@ -1515,7 +1512,7 @@ func TestWrapSoft(t *testing.T) {
 	got := wrapLine(line, 30, WrapSoft)
 
 	// Soft wrap should break at word boundaries.
-	assert.Contains(t, got, "\n")
+	assert.Equal(t, "abc repositories=[alpha bravo\ncharlie delta echo foxtrot\ngolf hotel]", got)
 
 	for l := range strings.SplitSeq(got, "\n") {
 		assert.LessOrEqual(t, ansi.StringWidth(l), 30)
@@ -1923,7 +1920,7 @@ func TestParseLevel(t *testing.T) {
 func TestParseLevelUnknown(t *testing.T) {
 	_, err := ParseLevel("bogus")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "bogus")
+	assert.EqualError(t, err, `unknown level "bogus"`)
 }
 
 func TestLevelMarshalText(t *testing.T) {

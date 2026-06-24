@@ -64,8 +64,7 @@ func TestColorModeUnmarshalTextCaseInsensitive(t *testing.T) {
 func TestColorModeUnmarshalTextInvalid(t *testing.T) {
 	var m ColorMode
 	err := m.UnmarshalText([]byte("bogus"))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown color mode")
+	require.EqualError(t, err, `unknown color mode: "bogus" (valid: "auto", "always", "never")`)
 }
 
 func TestColorsDisabledAlways(t *testing.T) {

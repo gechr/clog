@@ -70,6 +70,10 @@ type Config struct {
 	// nil disables YAML highlighting; use [DefaultYAML] to enable.
 	YAML *YAML
 
+	// Style for text inside `backticks`, in both the message and string field
+	// values (the delimiters are removed) [nil = leave backticks intact]. A
+	// non-color writer leaves the backticks as written.
+	Backtick *lipgloss.Style
 	// Style for divider line characters (see [clog.DividerBuilder]) [nil = plain text]
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]

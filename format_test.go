@@ -656,6 +656,40 @@ func TestFormatFieldsWithColors(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestFormatFieldsHighlightsBacktickValue(t *testing.T) {
+	styles := DefaultStyles()
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{Key: "k", Value: "x`y`z"}}, opts)
+	want := " " + styles.KeyDefault.Render("k") +
+		styles.Separator.Render("=") +
+		styles.FieldString.Render("x") +
+		styles.Backtick.Render("y") +
+		styles.FieldString.Render("z")
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsErrorValueNotBacktickStyled(t *testing.T) {
+	styles := DefaultStyles()
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{Key: "err", Value: errors.New("bad`x`")}}, opts)
+	// An error value keeps its own style verbatim: the backtick is content, so it
+	// is neither restyled nor stripped.
+	want := " " + styles.KeyDefault.Render("err") +
+		styles.Separator.Render("=") +
+		styles.FieldError.Render("bad`x`")
+	assert.Equal(t, want, got)
+}
+
 func TestFormatFieldsWithKeyStyles(t *testing.T) {
 	styles := DefaultStyles()
 	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("4"))
@@ -2156,8 +2190,7 @@ func TestInterpolateGradientMidpoint(t *testing.T) {
 func TestStyleFractionOutput(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleFraction("7/10", core.Fraction{Current: 7, Total: 10}, styles, false)
-	assert.Contains(t, got, "7/10")
-	assert.Contains(t, got, "\x1b[") // ANSI color applied
+	assert.Equal(t, "\x1b[38;2;202;255;0m7/10\x1b[m", got)
 }
 
 func TestStyleFractionNoGradient(t *testing.T) {

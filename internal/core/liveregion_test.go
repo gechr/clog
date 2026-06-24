@@ -122,7 +122,12 @@ func TestLiveRegionWriteLinesAddsMissingNewlineWhileLive(t *testing.T) {
 
 	// The repaint must start on a fresh row, so a newline is appended before
 	// the block is painted below the log line.
-	assert.Contains(t, buf.String(), "no newline\n"+repaint(0, "spinning"))
+	want := xansi.EnableSyncOutput +
+		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+		"no newline\n" +
+		repaint(0, "spinning") +
+		xansi.DisableSyncOutput
+	assert.Equal(t, want, buf.String())
 
 	r.Unregister(id)
 }

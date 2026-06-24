@@ -75,7 +75,7 @@ func TestPrinterJSONFlat(t *testing.T) {
 func TestPrinterJSONMarshalError(t *testing.T) {
 	l, buf := newTestPrinter()
 	l.Print().JSON(make(chan int))
-	assert.Contains(t, buf.String(), "unsupported type")
+	assert.Equal(t, "json: unsupported type: chan int\n", buf.String())
 }
 
 func TestPrinterRawJSONHooks(t *testing.T) {
@@ -312,7 +312,7 @@ func TestPrinterRawYAMLEmpty(t *testing.T) {
 func TestPrinterYAMLMarshalError(t *testing.T) {
 	l, buf := newTestPrinter()
 	l.Print().YAML(make(chan int))
-	assert.Contains(t, buf.String(), "unknown value type")
+	assert.Equal(t, "unknown value type chan int\n", buf.String())
 }
 
 func TestPrinterTOML(t *testing.T) {

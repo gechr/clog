@@ -372,6 +372,16 @@ func TestEventAnErr(t *testing.T) {
 	assert.Equal(t, "ERR ❌ failed cause=timeout\n", buf.String())
 }
 
+func TestEventBacktickNonColorLiteral(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(TestOutput(&buf))
+	l.Warn().Str("hint", "see `inline`").Msg("check `value`")
+
+	// A non-color writer leaves backticks literal in both the message and fields,
+	// emitting no styling.
+	assert.Equal(t, "WRN ⚠️ check `value` hint=\"see `inline`\"\n", buf.String())
+}
+
 func TestEventAnErrNil(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	result := e.AnErr("cause", nil)
@@ -537,9 +547,17 @@ func TestHighlightJSONNullDistinctFromBool(t *testing.T) {
 	styles := &style.JSON{BoolTrue: &trueStyle, BoolFalse: &falseStyle, Null: &nullStyle}
 	result := json.Highlight(`{"a":true,"b":false,"c":null}`, styles)
 
-	assert.Contains(t, result, trueStyle.Render("true"))
-	assert.Contains(t, result, falseStyle.Render("false"))
-	assert.Contains(t, result, nullStyle.Render("null"))
+	assert.Equal(
+		t,
+		"{\"a\":"+trueStyle.Render(
+			"true",
+		)+",\"b\":"+falseStyle.Render(
+			"false",
+		)+",\"c\":"+nullStyle.Render(
+			"null",
+		)+"}",
+		result,
+	)
 }
 
 func TestHighlightJSONNilFieldsUnstyled(t *testing.T) {
@@ -549,9 +567,7 @@ func TestHighlightJSONNilFieldsUnstyled(t *testing.T) {
 	}
 	result := json.Highlight(`{"k":42}`, styles)
 
-	assert.Contains(t, result, `"k"`)
-	assert.Contains(t, result, "42")
-	assert.Contains(t, result, styles.Key.Render(`"k"`))
+	assert.Equal(t, "{"+styles.Key.Render(`"k"`)+":42}", result)
 }
 
 func TestHighlightJSONFlattensWhitespace(t *testing.T) {
@@ -572,8 +588,7 @@ func TestHighlightJSONFlattensWhitespace(t *testing.T) {
 func TestHighlightJSONInvalidFallback(t *testing.T) {
 	// invalid JSON: scanner emits styled output then falls back unstyled
 	result := json.Highlight(`{"k":INVALID}`, &style.JSON{})
-	assert.Contains(t, result, `"k"`)
-	assert.Contains(t, result, "INVALID}")
+	assert.Equal(t, `{"k":INVALID}`, result)
 }
 
 func TestHighlightJSONTrailingBackslash(t *testing.T) {
@@ -603,21 +618,15 @@ func TestHighlightJSONHJSONUnquotesKeys(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeHuman}
 	result := json.Highlight(`{"status":"ok","code":200}`, styles)
 
-	assert.Contains(t, result, "status")
-	assert.NotContains(t, result, `"status"`)
-	assert.Contains(t, result, "code")
-	assert.NotContains(t, result, `"code"`)
+	assert.Equal(t, "{status:ok,code:200}", result)
 }
 
 func TestHighlightJSONHJSONUnquotesSimpleValues(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeHuman}
 	result := json.Highlight(`{"status":"ok","msg":"hello world"}`, styles)
 
-	// Simple value without special chars: unquoted.
-	assert.Contains(t, result, ":ok")
-	assert.NotContains(t, result, `:"ok"`)
-	// Value with a space: still unquoted (spaces are safe in HJSON values).
-	assert.Contains(t, result, "hello world")
+	// Simple values without special chars are unquoted; spaces are safe in HJSON values.
+	assert.Equal(t, "{status:ok,msg:hello world}", result)
 }
 
 func TestHighlightJSONHumanKeepsQuotedSpecialValues(t *testing.T) {
@@ -625,31 +634,31 @@ func TestHighlightJSONHumanKeepsQuotedSpecialValues(t *testing.T) {
 
 	// Value starting with { stays quoted (ambiguous).
 	result := json.Highlight(`{"a":"{not an object}"}`, styles)
-	assert.Contains(t, result, `"{not an object}"`)
+	assert.Equal(t, `{a:"{not an object}"}`, result)
 
 	// Value starting with [ stays quoted.
 	result = json.Highlight(`{"a":"[1,2]"}`, styles)
-	assert.Contains(t, result, `"[1,2]"`)
+	assert.Equal(t, `{a:"[1,2]"}`, result)
 
 	// Value with escape sequence stays quoted.
 	result = json.Highlight(`{"s":"line1\nline2"}`, styles)
-	assert.Contains(t, result, `"line1\nline2"`)
+	assert.Equal(t, `{s:"line1\nline2"}`, result)
 
 	// Keyword values stay quoted (would be ambiguous as bare tokens).
 	result = json.Highlight(`{"x":"true"}`, styles)
-	assert.Contains(t, result, `"true"`)
+	assert.Equal(t, `{x:"true"}`, result)
 	result = json.Highlight(`{"x":"null"}`, styles)
-	assert.Contains(t, result, `"null"`)
+	assert.Equal(t, `{x:"null"}`, result)
 
 	// Number-like values stay quoted.
 	result = json.Highlight(`{"x":"42"}`, styles)
-	assert.Contains(t, result, `"42"`)
+	assert.Equal(t, `{x:"42"}`, result)
 	result = json.Highlight(`{"x":"-1.5"}`, styles)
-	assert.Contains(t, result, `"-1.5"`)
+	assert.Equal(t, `{x:"-1.5"}`, result)
 
 	// Empty string stays quoted.
 	result = json.Highlight(`{"x":""}`, styles)
-	assert.Contains(t, result, `""`)
+	assert.Equal(t, `{x:""}`, result)
 }
 
 func TestHighlightJSONHumanKeepsQuotedSpecialKeys(t *testing.T) {
@@ -657,15 +666,15 @@ func TestHighlightJSONHumanKeepsQuotedSpecialKeys(t *testing.T) {
 
 	// Key with space stays quoted.
 	result := json.Highlight(`{"my key":1}`, styles)
-	assert.Contains(t, result, `"my key"`)
+	assert.Equal(t, `{"my key":1}`, result)
 
 	// Key with colon stays quoted.
 	result = json.Highlight(`{"a:b":1}`, styles)
-	assert.Contains(t, result, `"a:b"`)
+	assert.Equal(t, `{"a:b":1}`, result)
 
 	// Key with hash stays quoted.
 	result = json.Highlight(`{"a#b":1}`, styles)
-	assert.Contains(t, result, `"a#b"`)
+	assert.Equal(t, `{"a#b":1}`, result)
 }
 
 func TestHighlightJSONHumanUnquotesNonIdentifierKeys(t *testing.T) {
@@ -674,61 +683,56 @@ func TestHighlightJSONHumanUnquotesNonIdentifierKeys(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeHuman}
 
 	result := json.Highlight(`{"1key":1}`, styles)
-	assert.NotContains(t, result, `"1key"`)
-	assert.Contains(t, result, "1key")
+	assert.Equal(t, "{1key:1}", result)
 
 	result = json.Highlight(`{"a.b":1}`, styles)
-	assert.NotContains(t, result, `"a.b"`)
-	assert.Contains(t, result, "a.b")
+	assert.Equal(t, "{a.b:1}", result)
 }
 
 func TestHighlightJSONDefaultModeKeepsQuotes(t *testing.T) {
 	// JSONModeJSON (default) preserves all quotes.
 	styles := &style.JSON{}
 	result := json.Highlight(`{"key":"value"}`, styles)
-	assert.Contains(t, result, `"key"`)
-	assert.Contains(t, result, `"value"`)
+	//nolint:testifylint // exact highlighter output, not semantic JSON equality
+	assert.Equal(t, `{"key":"value"}`, result)
 }
 
 func TestHighlightJSONSpacingAfterColon(t *testing.T) {
 	styles := &style.JSON{Spacing: style.JSONSpacingAfterColon}
 	result := json.Highlight(`{"a":1,"b":"x"}`, styles)
 
-	assert.Contains(t, result, `"a": 1`)
-	assert.Contains(t, result, `"b": "x"`)
-	assert.NotContains(t, result, ", ") // no space after comma
+	//nolint:testifylint // exact spacing under test; JSONEq would normalize whitespace
+	assert.Equal(t, `{"a": 1,"b": "x"}`, result)
 }
 
 func TestHighlightJSONSpacingAfterComma(t *testing.T) {
 	styles := &style.JSON{Spacing: style.JSONSpacingAfterComma}
 	result := json.Highlight(`{"a":1,"b":"x"}`, styles)
 
-	assert.Contains(t, result, `1, "b"`)
-	assert.NotContains(t, result, `"a": `) // no space after colon
+	//nolint:testifylint // exact spacing under test; JSONEq would normalize whitespace
+	assert.Equal(t, `{"a":1, "b":"x"}`, result)
 }
 
 func TestHighlightJSONSpacingAll(t *testing.T) {
 	styles := &style.JSON{Spacing: style.JSONSpacingAll}
 	result := json.Highlight(`{"a":1,"b":"x"}`, styles)
 
-	assert.Contains(t, result, `"a": 1`)
-	assert.Contains(t, result, `1, "b"`)
+	//nolint:testifylint // exact spacing under test; JSONEq would normalize whitespace
+	assert.Equal(t, `{"a": 1, "b": "x"}`, result)
 }
 
 func TestHighlightJSONSpacingInArray(t *testing.T) {
 	styles := &style.JSON{Spacing: style.JSONSpacingAfterComma}
 	result := json.Highlight(`[1,2,3]`, styles)
 
-	assert.Contains(t, result, "1, 2")
-	assert.Contains(t, result, "2, 3")
+	assert.Equal(t, "[1, 2, 3]", result)
 }
 
 func TestHighlightJSONSpacingWithFlatMode(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeFlat, Spacing: style.JSONSpacingAll}
 	result := json.Highlight(`{"user":{"name":"alice"},"count":3}`, styles)
 
-	assert.Contains(t, result, "user.name: ")
-	assert.Contains(t, result, ", count")
+	assert.Equal(t, "{user.name: alice, count: 3}", result)
 }
 
 func TestHighlightJSONSpacingNone(t *testing.T) {
@@ -743,39 +747,41 @@ func TestHighlightJSONWithSpacingMethod(t *testing.T) {
 	styles := style.DefaultJSON().WithSpacing(style.JSONSpacingAll)
 	result := json.Highlight(`{"n":1}`, styles)
 
-	// With JSONSpacingAll a space is inserted after the colon.
-	// Tokens are styled, so check for colon-space-number using rendered values.
-	assert.Contains(t, result, styles.Colon.Render(":"))
-	assert.Contains(t, result, " "+styles.Number.Render("1"))
+	// WithSpacing(All) inserts a space after the colon; all tokens are styled.
+	want := styles.BraceRoot.Render(
+		"{",
+	) + styles.Key.Render(
+		`"n"`,
+	) + styles.Colon.Render(
+		":",
+	) + " " + styles.Number.Render(
+		"1",
+	) + styles.BraceRoot.Render(
+		"}",
+	)
+	assert.Equal(t, want, result)
 }
 
 func TestHighlightJSONFlatNestedObject(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeFlat}
 	result := json.Highlight(`{"user":{"name":"alice","age":30}}`, styles)
 
-	assert.Contains(t, result, "user.name")
-	assert.Contains(t, result, "user.age")
-	assert.NotContains(t, result, `"user"`)
-	assert.NotContains(t, result, `"name"`)
+	assert.Equal(t, "{user.name:alice,user.age:30}", result)
 }
 
 func TestHighlightJSONFlatArrayKeptIntact(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeFlat}
 	result := json.Highlight(`{"tags":["a","b","c"]}`, styles)
 
-	// Array is kept as-is; no indexing like tags[0]
-	assert.Contains(t, result, "tags")
-	assert.Contains(t, result, "[")
-	assert.NotContains(t, result, "tags[0]")
-	assert.NotContains(t, result, "tags.0")
+	// Array kept as-is; no index keys like tags[0] or tags.0.
+	assert.Equal(t, "{tags:[a,b,c]}", result)
 }
 
 func TestHighlightJSONFlatDeeplyNested(t *testing.T) {
 	styles := &style.JSON{Mode: style.JSONModeFlat}
 	result := json.Highlight(`{"a":{"b":{"c":1}}}`, styles)
 
-	assert.Contains(t, result, "a.b.c")
-	assert.NotContains(t, result, `"a"`)
+	assert.Equal(t, "{a.b.c:1}", result)
 }
 
 func TestHighlightJSONFlatMixedTypes(t *testing.T) {
@@ -785,33 +791,24 @@ func TestHighlightJSONFlatMixedTypes(t *testing.T) {
 		styles,
 	)
 
-	assert.Contains(t, result, "status")
-	assert.Contains(t, result, "meta.count")
-	assert.Contains(t, result, "meta.active")
-	assert.Contains(t, result, "tags")
-	// array preserved
-	assert.Contains(t, result, "[")
+	// Nested object flattened; array preserved inline.
+	assert.Equal(t, "{status:ok,meta.count:3,meta.active:true,tags:[x,y]}", result)
 }
 
 func TestHighlightJSONFlatNonObjectFallsBack(t *testing.T) {
-	// A root array should not be flattened
+	// A root array should not be flattened.
 	styles := &style.JSON{Mode: style.JSONModeFlat}
 	result := json.Highlight(`[1,2,3]`, styles)
 
-	assert.Contains(t, result, "1")
-	assert.Contains(t, result, "2")
-	assert.Contains(t, result, "3")
-	assert.NotContains(t, result, "0.") // no index-based keys
+	assert.Equal(t, "[1,2,3]", result)
 }
 
 func TestHighlightJSONFlatUnquotesValues(t *testing.T) {
-	// Flat mode implies human-style unquoting for scalar values
+	// Flat mode uses human-style unquoting for scalar values.
 	styles := &style.JSON{Mode: style.JSONModeFlat}
 	result := json.Highlight(`{"status":"ok","code":200}`, styles)
 
-	// "ok" should be unquoted (human mode for values)
-	assert.NotContains(t, result, `"ok"`)
-	assert.Contains(t, result, "ok")
+	assert.Equal(t, "{status:ok,code:200}", result)
 }
 
 func TestHighlightJSONRootBrace(t *testing.T) {
@@ -821,12 +818,16 @@ func TestHighlightJSONRootBrace(t *testing.T) {
 	styles := &style.JSON{Brace: &nestedStyle, BraceRoot: &rootStyle}
 	result := json.Highlight(`{"a":{"b":1}}`, styles)
 
-	// Root braces use RootBrace style.
-	assert.Contains(t, result, rootStyle.Render("{"))
-	assert.Contains(t, result, rootStyle.Render("}"))
-	// Nested braces use Brace style.
-	assert.Contains(t, result, nestedStyle.Render("{"))
-	assert.Contains(t, result, nestedStyle.Render("}"))
+	want := rootStyle.Render(
+		"{",
+	) + `"a":` + nestedStyle.Render(
+		"{",
+	) + `"b":1` + nestedStyle.Render(
+		"}",
+	) + rootStyle.Render(
+		"}",
+	)
+	assert.Equal(t, want, result)
 }
 
 func TestHighlightJSONRootBracket(t *testing.T) {
@@ -836,10 +837,20 @@ func TestHighlightJSONRootBracket(t *testing.T) {
 	styles := &style.JSON{Bracket: &nestedStyle, BracketRoot: &rootStyle}
 	result := json.Highlight(`[[1,2],[3]]`, styles)
 
-	assert.Contains(t, result, rootStyle.Render("["))
-	assert.Contains(t, result, rootStyle.Render("]"))
-	assert.Contains(t, result, nestedStyle.Render("["))
-	assert.Contains(t, result, nestedStyle.Render("]"))
+	want := rootStyle.Render(
+		"[",
+	) + nestedStyle.Render(
+		"[",
+	) + "1,2" + nestedStyle.Render(
+		"]",
+	) + "," + nestedStyle.Render(
+		"[",
+	) + "3" + nestedStyle.Render(
+		"]",
+	) + rootStyle.Render(
+		"]",
+	)
+	assert.Equal(t, want, result)
 }
 
 func TestHighlightJSONRootBraceFallsBackToBrace(t *testing.T) {
@@ -865,8 +876,7 @@ func TestHighlightJSONRootArray(t *testing.T) {
 	styles := &style.JSON{BracketRoot: &rootStyle}
 	result := json.Highlight(`[1,"x",null]`, styles)
 
-	assert.Contains(t, result, rootStyle.Render("["))
-	assert.Contains(t, result, rootStyle.Render("]"))
+	assert.Equal(t, rootStyle.Render("[")+"1,\"x\",null"+rootStyle.Render("]"), result)
 }
 
 func TestEventPath(t *testing.T) {
@@ -947,8 +957,7 @@ func TestEventColumnColorAlways(t *testing.T) {
 
 	val, ok := e.fields[0].Value.(string)
 	require.True(t, ok)
-	assert.Contains(t, val, "\x1b]8;;")
-	assert.Contains(t, val, "/tmp/test.go:10:5")
+	assert.Equal(t, "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:10:5\x1b]8;;\x1b\\", val)
 }
 
 func TestEventColumnMinimum(t *testing.T) {
@@ -1411,7 +1420,7 @@ func TestEventJSONMarshalErrorInf(t *testing.T) {
 
 	val, isStr := e.fields[0].Value.(string)
 	require.True(t, isStr, "expected error string value")
-	assert.Contains(t, val, "unsupported value")
+	assert.Equal(t, "json: unsupported value: +Inf", val)
 }
 
 func TestEventRawJSONNilReceiver(t *testing.T) {

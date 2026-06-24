@@ -81,10 +81,13 @@ func TestEntryJSONMarshal(t *testing.T) {
 		var m map[string]json.RawMessage
 		require.NoError(t, json.Unmarshal(data, &m))
 
-		// Keys should be lowercase.
-		assert.Contains(t, m, "level")
-		assert.Contains(t, m, "message")
-		assert.Contains(t, m, "fields")
+		// Keys should be lowercase and JSON should match exactly.
+		//nolint:testifylint // byte-exact serialization (key casing, order) under test
+		assert.Equal(
+			t,
+			`{"level":"info","message":"Server started","fields":[{"key":"port","value":"8080"}]}`,
+			string(data),
+		)
 
 		// Level should be a string, not an integer.
 		assert.Equal(t, `"info"`, string(m["level"]))
@@ -117,10 +120,13 @@ func TestEntryJSONMarshal(t *testing.T) {
 		data, err := json.Marshal(e)
 		require.NoError(t, err)
 
-		var m map[string]json.RawMessage
-		require.NoError(t, json.Unmarshal(data, &m))
-
-		assert.Contains(t, m, "time", "non-zero time should be present")
+		// Fixed timestamp makes the whole payload deterministic.
+		//nolint:testifylint // byte-exact serialization (time present, field order) under test
+		assert.Equal(
+			t,
+			`{"time":"2025-06-15T10:30:00Z","level":"info","message":"test"}`,
+			string(data),
+		)
 	})
 
 	t.Run("omit_empty_fields_and_symbol", func(t *testing.T) {

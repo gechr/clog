@@ -78,7 +78,7 @@ func TestFieldFormatsHyperlinkPresetExpansion(t *testing.T) {
 	assert.Equal(t, "vscode://file{path}:{line}", got.HyperlinkLineFormat)
 
 	link := logger.Output().PathLink("/tmp/main.go", 42, 0)
-	assert.Contains(t, link, "vscode://file/tmp/main.go:42")
+	assert.Equal(t, "\x1b]8;;vscode://file/tmp/main.go:42\x1b\\/tmp/main.go:42\x1b]8;;\x1b\\", link)
 }
 
 func TestFieldFormatsPercentMaximum(t *testing.T) {
