@@ -11,7 +11,7 @@ import (
 func Default() *Config {
 	return &Config{
 		Backtick: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("183")), // lavender
+			lipgloss.NewStyle().Foreground(lipgloss.Color("173")), // terracotta
 		),
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
 		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
