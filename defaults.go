@@ -87,6 +87,63 @@ func SetExitFunc(fn func(int)) { Default.SetExitFunc(fn) }
 // SetFieldFormats replaces the field-format configuration on the [Default] logger.
 func SetFieldFormats(f FieldFormats) { Default.SetFieldFormats(f) }
 
+// SetDurationFormat sets a custom duration formatter on the [Default] logger.
+func SetDurationFormat(format func(time.Duration) string) { Default.SetDurationFormat(format) }
+
+// SetDurationGradientMax sets the duration gradient maximum on the [Default] logger.
+func SetDurationGradientMax(maximum time.Duration) { Default.SetDurationGradientMax(maximum) }
+
+// SetElapsedFormat sets a custom elapsed formatter on the [Default] logger.
+func SetElapsedFormat(format func(time.Duration) string) { Default.SetElapsedFormat(format) }
+
+// SetElapsedGradientMax sets the elapsed gradient maximum on the [Default] logger.
+func SetElapsedGradientMax(maximum time.Duration) { Default.SetElapsedGradientMax(maximum) }
+
+// SetElapsedMinimum sets the minimum elapsed duration shown on the [Default] logger.
+func SetElapsedMinimum(minimum time.Duration) { Default.SetElapsedMinimum(minimum) }
+
+// SetElapsedPrecision sets the elapsed display precision on the [Default] logger.
+func SetElapsedPrecision(precision int) { Default.SetElapsedPrecision(precision) }
+
+// SetElapsedRound sets the elapsed rounding granularity on the [Default] logger.
+func SetElapsedRound(round time.Duration) { Default.SetElapsedRound(round) }
+
+// SetTimeGradientMax sets both the duration and elapsed gradient maxima on the [Default] logger.
+func SetTimeGradientMax(maximum time.Duration) { Default.SetTimeGradientMax(maximum) }
+
+// SetHyperlinkEnabled enables or disables hyperlink rendering on the [Default] logger.
+func SetHyperlinkEnabled(enabled bool) { Default.SetHyperlinkEnabled(enabled) }
+
+// SetHyperlinkColumnFormat sets the file+line+column hyperlink format on the [Default] logger.
+func SetHyperlinkColumnFormat(format string) { Default.SetHyperlinkColumnFormat(format) }
+
+// SetHyperlinkDirFormat sets the directory hyperlink format on the [Default] logger.
+func SetHyperlinkDirFormat(format string) { Default.SetHyperlinkDirFormat(format) }
+
+// SetHyperlinkFileFormat sets the file-only hyperlink format on the [Default] logger.
+func SetHyperlinkFileFormat(format string) { Default.SetHyperlinkFileFormat(format) }
+
+// SetHyperlinkLineFormat sets the file+line hyperlink format on the [Default] logger.
+func SetHyperlinkLineFormat(format string) { Default.SetHyperlinkLineFormat(format) }
+
+// SetHyperlinkPathFormat sets the generic path hyperlink format on the [Default] logger.
+func SetHyperlinkPathFormat(format string) { Default.SetHyperlinkPathFormat(format) }
+
+// SetPercentFormat sets a custom percent formatter on the [Default] logger.
+func SetPercentFormat(format func(float64) string) { Default.SetPercentFormat(format) }
+
+// SetPercentMaximum sets the percent input maximum on the [Default] logger.
+func SetPercentMaximum(maximum float64) { Default.SetPercentMaximum(maximum) }
+
+// SetPercentPrecision sets the percent display precision on the [Default] logger.
+func SetPercentPrecision(precision int) { Default.SetPercentPrecision(precision) }
+
+// SetPercentReverseGradient flips the percent gradient direction on the [Default] logger.
+func SetPercentReverseGradient(reverse bool) { Default.SetPercentReverseGradient(reverse) }
+
+// SetQuantityUnitsIgnoreCase toggles case-insensitive quantity units on the [Default] logger.
+func SetQuantityUnitsIgnoreCase(ignore bool) { Default.SetQuantityUnitsIgnoreCase(ignore) }
+
 // SetFieldSort sets the field sort order on the [Default] logger.
 func SetFieldSort(sort Sort) { Default.SetFieldSort(sort) }
 

@@ -78,6 +78,10 @@ current := logger.FieldFormats()
 
 `SetFieldFormats` has replace-all semantics (like `SetParts`): the struct you pass replaces the logger's entire field-format configuration, so always start from `DefaultFieldFormats()` (or `logger.FieldFormats()`) rather than a zero value.
 
+To change a single option without the read-modify-write dance, each field has a per-field convenience setter that preserves the rest of the snapshot - e.g. `logger.SetPercentPrecision(1)`, `logger.SetElapsedGradientMax(30*time.Second)`, `logger.SetHyperlinkFileFormat("vscode")` (presets are expanded and pushed to the output automatically). These also exist as package-level functions for the `Default` logger (`clog.SetPercentPrecision(1)`, etc.).
+
+`SetTimeGradientMax(max)` is a shorthand that sets both `DurationGradientMax` and `ElapsedGradientMax` at once, since duration and elapsed fields usually share a gradient ceiling.
+
 | Field                     | Type                         | Default          | Description                                                                                   |
 | ------------------------- | ---------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
 | `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`)  |
