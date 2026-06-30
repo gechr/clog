@@ -2190,7 +2190,20 @@ func TestInterpolateGradientMidpoint(t *testing.T) {
 func TestStyleFractionOutput(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleFraction("7/10", core.Fraction{Current: 7, Total: 10}, styles, false)
-	assert.Equal(t, "\x1b[38;2;202;255;0m7/10\x1b[m", got)
+	// The numbers take the gradient color; the "/" keeps that color but adds
+	// the faint attribute (SGR 2) so it renders dimmed.
+	assert.Equal(t,
+		"\x1b[38;2;202;255;0m7\x1b[m\x1b[2;38;2;202;255;0m/\x1b[m\x1b[38;2;202;255;0m10\x1b[m",
+		got)
+}
+
+func TestStyleFractionSeparatorOverride(t *testing.T) {
+	styles := DefaultStyles()
+	sep := lipgloss.NewStyle().Foreground(lipgloss.Color("#ff0000"))
+	styles.FieldFractionSeparator = &sep
+	got := styleFraction("7/10", core.Fraction{Current: 7, Total: 10}, styles, false)
+	// Explicit separator style wins over the dimmed-gradient default.
+	assert.Contains(t, got, "\x1b[38;2;255;0;0m/\x1b[m")
 }
 
 func TestStyleFractionNoGradient(t *testing.T) {

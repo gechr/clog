@@ -214,7 +214,7 @@ func styleFraction(valStr string, originalValue any, styles *style.Config, rever
 
 	hasGradient := len(styles.PercentGradient) > 0
 
-	if !hasGradient && styles.FieldPercent == nil {
+	if !hasGradient && styles.FieldPercent == nil && styles.FieldFractionSeparator == nil {
 		return ""
 	}
 
@@ -238,7 +238,32 @@ func styleFraction(valStr string, originalValue any, styles *style.Config, rever
 
 		ls = ls.Foreground(lipgloss.Color(c.Clamped().Hex()))
 	}
-	return ls.Render(valStr)
+
+	return renderFraction(valStr, ls, fractionSeparatorStyle(styles, ls))
+}
+
+// fractionSeparatorStyle resolves the style for the "/" in a fraction. An
+// explicit [style.Config.FieldFractionSeparator] wins; otherwise the separator
+// keeps the value's current color but adds the faint attribute, so it reads as
+// a dimmed version of whatever color (gradient or base) the numbers use.
+func fractionSeparatorStyle(styles *style.Config, base lipgloss.Style) lipgloss.Style {
+	if styles.FieldFractionSeparator != nil {
+		return *styles.FieldFractionSeparator
+	}
+	return base.Faint(true)
+}
+
+// renderFraction renders "current/total" with valueStyle on the numbers and
+// sepStyle on the single "/". When no separator is present it falls back to
+// styling the whole string.
+func renderFraction(valStr string, valueStyle, sepStyle lipgloss.Style) string {
+	idx := strings.LastIndex(valStr, "/")
+	if idx < 0 {
+		return valueStyle.Render(valStr)
+	}
+	return valueStyle.Render(valStr[:idx]) +
+		sepStyle.Render("/") +
+		valueStyle.Render(valStr[idx+1:])
 }
 
 // styleQuantity renders a quantity string with separate styles for the numeric

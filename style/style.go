@@ -102,6 +102,10 @@ type Config struct {
 	FieldElapsedUnit *lipgloss.Style
 	// Style for error field values [nil = plain text]
 	FieldError *lipgloss.Style
+	// Style for the "/" separator in fraction values. nil = the fraction's
+	// current (gradient or base) color with the faint attribute, so it reads
+	// as a dimmed version of the numbers.
+	FieldFractionSeparator *lipgloss.Style
 	// Style for int/float field values [nil = plain text]
 	FieldNumber *lipgloss.Style
 	// Base style for Percent fields (foreground overridden by gradient). nil = gradient color only.
