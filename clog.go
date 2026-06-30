@@ -1080,9 +1080,23 @@ func (l *Logger) log(e *Event, msg string) {
 		return
 	}
 
+	// Resolve omit settings: event override -> logger default.
+	omitZero := l.omitZero
+	if e.omitZero != nil {
+		omitZero = *e.omitZero
+	}
+	omitEmpty := l.omitEmpty
+	if e.omitEmpty != nil {
+		omitEmpty = *e.omitEmpty
+	}
+	fieldSort := l.fieldSort
+	if e.sort != nil {
+		fieldSort = *e.sort
+	}
+
 	// Merge logger context fields with event fields.
 	var allFields []Field
-	needsFilter := l.omitZero || l.omitEmpty
+	needsFilter := omitZero || omitEmpty
 	switch {
 	case len(l.fields) == 0 && len(e.fields) == 0:
 		// no fields
@@ -1102,11 +1116,11 @@ func (l *Logger) log(e *Event, msg string) {
 		allFields = slices.Concat(l.fields, e.fields)
 	}
 
-	if l.omitZero {
+	if omitZero {
 		allFields = slices.DeleteFunc(allFields, func(f Field) bool {
 			return isZeroValue(f.Value)
 		})
-	} else if l.omitEmpty {
+	} else if omitEmpty {
 		allFields = slices.DeleteFunc(allFields, func(f Field) bool {
 			return isEmptyValue(f.Value)
 		})
@@ -1207,7 +1221,7 @@ func (l *Logger) log(e *Event, msg string) {
 			}
 		case PartFields:
 			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
-				fieldSort:       l.fieldSort,
+				fieldSort:       fieldSort,
 				fieldStyleLevel: l.fieldStyleLevel,
 				formats:         l.loadFieldFormats(),
 				level:           e.level,

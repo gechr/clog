@@ -1289,6 +1289,89 @@ func TestSubLoggerInheritsOmitSettings(t *testing.T) {
 	assert.True(t, sub.omitZero)
 }
 
+func TestEventOmitZeroOverride(t *testing.T) {
+	var got Entry
+
+	l := NewWriter(io.Discard)
+	l.SetHandler(HandlerFunc(func(e Entry) { got = e }))
+
+	// Logger default is off; the line opts in.
+	l.Info().OmitZero(true).Int("zero", 0).Int("nonzero", 1).Msg("test")
+
+	require.Len(t, got.Fields, 1)
+	assert.Equal(t, "nonzero", got.Fields[0].Key)
+}
+
+func TestEventOmitEmptyOverride(t *testing.T) {
+	var got Entry
+
+	l := NewWriter(io.Discard)
+	l.SetHandler(HandlerFunc(func(e Entry) { got = e }))
+
+	l.Info().OmitEmpty(true).Str("empty", "").Int("zero", 0).Str("present", "x").Msg("test")
+
+	keys := make([]string, len(got.Fields))
+	for i, f := range got.Fields {
+		keys[i] = f.Key
+	}
+
+	// Empty string dropped; zero int kept (omit-empty, not omit-zero).
+	assert.Equal(t, []string{"zero", "present"}, keys)
+}
+
+func TestEventOmitOverrideDisablesLoggerSetting(t *testing.T) {
+	var got Entry
+
+	l := NewWriter(io.Discard)
+	l.SetOmitZero(true)
+	l.SetHandler(HandlerFunc(func(e Entry) { got = e }))
+
+	// Logger omits zero globally, but this line forces zeros to show.
+	l.Info().OmitZero(false).Int("zero", 0).Int("nonzero", 1).Msg("test")
+
+	require.Len(t, got.Fields, 2)
+}
+
+func TestEventOmitOverrideDoesNotMutateLoggerFields(t *testing.T) {
+	var got []Entry
+
+	l := NewWriter(io.Discard)
+	l.SetHandler(HandlerFunc(func(e Entry) { got = append(got, e) }))
+
+	sub := l.With().Int("ctx", 0).Logger()
+
+	// First line enables omit-zero only for itself; ctx=0 is dropped here...
+	sub.Info().OmitZero(true).Msg("first")
+	// ...but the logger's shared context fields must survive for later lines.
+	sub.Info().Msg("second")
+
+	require.Len(t, got, 2)
+	require.Empty(t, got[0].Fields)
+	require.Len(t, got[1].Fields, 1)
+	assert.Equal(t, "ctx", got[1].Fields[0].Key)
+}
+
+func TestEventSortOverride(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	// Logger default preserves insertion order; the line sorts ascending.
+	l.Info().Sort(SortAscending).Int("c", 3).Int("a", 1).Int("b", 2).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test a=1 b=2 c=3\n", buf.String())
+}
+
+func TestEventSortOverrideDisablesLoggerSort(t *testing.T) {
+	var buf bytes.Buffer
+
+	l := New(TestOutput(&buf))
+	l.SetFieldSort(SortAscending)
+	// Logger sorts ascending globally; this line forces insertion order.
+	l.Info().Sort(SortNone).Int("c", 3).Int("a", 1).Msg("test")
+
+	assert.Equal(t, "INF ℹ️ test c=3 a=1\n", buf.String())
+}
+
 func TestPackageLevelSetOmitEmpty(t *testing.T) {
 	origDefault := Default
 	defer func() { Default = origDefault }()

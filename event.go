@@ -25,7 +25,10 @@ type Event struct {
 	level        Level
 	exitCode     int       // exit code for Fatal-level events; 0 means default (1)
 	noExit       bool      // if true, skip exit even for LevelFatal (used by adapters)
+	omitEmpty    *bool     // nil = use logger's omitEmpty
+	omitZero     *bool     // nil = use logger's omitZero
 	parts        *[]Part   // nil = use logger's parts
+	sort         *Sort     // nil = use logger's fieldSort
 	symbol       *string   // nil = use logger/default symbol
 	timestamp    time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
@@ -620,6 +623,29 @@ func (e *Event) JSON(key string, val any) *Event {
 	return e
 }
 
+// OmitEmpty overrides the logger's omit-empty setting for this entry.
+// Empty means nil, empty strings, and nil or empty slices/maps.
+func (e *Event) OmitEmpty(omit bool) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.omitEmpty = new(omit)
+	return e
+}
+
+// OmitZero overrides the logger's omit-zero setting for this entry.
+// Zero means the zero value for any type (0, false, "", nil, etc.).
+// This is a superset of [Event.OmitEmpty].
+func (e *Event) OmitZero(omit bool) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.omitZero = new(omit)
+	return e
+}
+
 // Parts overrides the log-line part order for this entry.
 // Parts not included are hidden. This does not affect the logger's global parts.
 func (e *Event) Parts(parts ...Part) *Event {
@@ -628,6 +654,17 @@ func (e *Event) Parts(parts ...Part) *Event {
 	}
 
 	e.parts = new(parts)
+	return e
+}
+
+// Sort overrides the logger's field sort order for this entry.
+// Default [SortNone] preserves insertion order.
+func (e *Event) Sort(sort Sort) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.sort = new(sort)
 	return e
 }
 
