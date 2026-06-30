@@ -26,8 +26,10 @@ type Percent struct {
 
 // Fraction holds a current/total pair rendered as "current/total" with
 // gradient color styling based on current/total progress. When Reverse
-// is true, the gradient is flipped (useful for countdowns).
+// is true, the gradient is flipped (useful for countdowns). Format overrides
+// the logger's numeric formatting for this field when non-nil.
 type Fraction struct {
+	Format  *NumberFormat
 	Current int
 	Total   int
 	Reverse bool

@@ -65,16 +65,40 @@ type FieldFormats struct {
 	// QuantityUnitsIgnoreCase enables case-insensitive quantity unit
 	// matching. Note the default via [DefaultFieldFormats] is true.
 	QuantityUnitsIgnoreCase bool
+
+	// NumberFormat selects how integer fields and both halves of fraction
+	// fields are rendered. The zero value is [NumberPlain].
+	NumberFormat NumberFormat
+	// FractionFormat overrides NumberFormat for fraction fields only.
+	// nil means fractions inherit NumberFormat.
+	FractionFormat *NumberFormat
+	// NumberGroupSeparator is the separator inserted between digit groups
+	// for [NumberGrouped]. The default via [DefaultFieldFormats] is ",".
+	NumberGroupSeparator string
+	// NumberCompactMinimum is the smallest magnitude that [NumberCompact]
+	// abbreviates; values below it render using NumberCompactFallback. The
+	// default via [DefaultFieldFormats] is 1000.
+	NumberCompactMinimum int64
+	// NumberCompactFallback selects how [NumberCompact] renders values below
+	// NumberCompactMinimum. Only [NumberPlain] and [NumberGrouped] are
+	// meaningful; [NumberCompact] is treated as [NumberPlain]. The default
+	// via [DefaultFieldFormats] is [NumberGrouped] (e.g. "9,999" before
+	// "10K").
+	NumberCompactFallback NumberFormat
 }
 
 // DefaultFieldFormats returns the default field-format configuration:
 // hyperlinks enabled, elapsed rounded to whole seconds and hidden below one
-// second, case-insensitive quantity units, and built-in formatters.
+// second, case-insensitive quantity units, plain numbers with a "," group
+// separator and a 1000 compact minimum, and built-in formatters.
 func DefaultFieldFormats() FieldFormats {
 	return FieldFormats{
 		ElapsedMinimum:          time.Second,
 		ElapsedRound:            time.Second,
 		HyperlinkEnabled:        true,
+		NumberCompactFallback:   NumberGrouped,
+		NumberCompactMinimum:    1000, //nolint:mnd // default compact threshold
+		NumberGroupSeparator:    ",",
 		QuantityUnitsIgnoreCase: true,
 	}
 }
@@ -112,6 +136,48 @@ func (l *Logger) SetFieldFormats(f FieldFormats) {
 // configuration.
 func (l *Logger) FieldFormats() FieldFormats {
 	return *l.loadFieldFormats()
+}
+
+// mutateFieldFormats applies fn to a copy of the current formats snapshot and
+// stores the result. Hyperlink formats in the snapshot are already expanded,
+// so no re-expansion is needed.
+func (l *Logger) mutateFieldFormats(fn func(*FieldFormats)) {
+	f := *l.loadFieldFormats()
+	fn(&f)
+	l.fieldFormats.Store(&f)
+}
+
+// SetNumberFormat sets how integer fields and both halves of fraction fields
+// are rendered. It applies to fractions too unless [Logger.SetFractionFormat]
+// overrides them. Defaults to [NumberPlain].
+func (l *Logger) SetNumberFormat(format NumberFormat) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberFormat = format })
+}
+
+// SetFractionFormat overrides the numeric format for fraction fields only.
+// When unset, fractions fall back to [Logger.SetNumberFormat].
+func (l *Logger) SetFractionFormat(format NumberFormat) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.FractionFormat = &format })
+}
+
+// SetNumberGroupSeparator sets the separator inserted between digit groups for
+// [NumberGrouped] (e.g. "," for "1,234,567"). Defaults to ",".
+func (l *Logger) SetNumberGroupSeparator(sep string) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberGroupSeparator = sep })
+}
+
+// SetNumberCompactMinimum sets the smallest magnitude that [NumberCompact]
+// abbreviates; values below it render using the compact fallback (see
+// [Logger.SetNumberCompactFallback]). Defaults to 1000.
+func (l *Logger) SetNumberCompactMinimum(minimum int64) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberCompactMinimum = minimum })
+}
+
+// SetNumberCompactFallback sets how [NumberCompact] renders values below the
+// compact minimum: [NumberGrouped] (the default, e.g. "9,999") or
+// [NumberPlain] (e.g. "9999").
+func (l *Logger) SetNumberCompactFallback(format NumberFormat) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberCompactFallback = format })
 }
 
 // loadFieldFormats returns the logger's current immutable formats snapshot,

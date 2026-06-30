@@ -136,6 +136,21 @@ func SetLevelAlign(align Align) { Default.SetLevelAlign(align) }
 // SetLabels sets the level labels on the [Default] logger.
 func SetLabels(labels LabelMap) { Default.SetLabels(labels) }
 
+// SetNumberFormat sets the numeric format for integer and fraction fields on the [Default] logger.
+func SetNumberFormat(format NumberFormat) { Default.SetNumberFormat(format) }
+
+// SetFractionFormat overrides the numeric format for fraction fields on the [Default] logger.
+func SetFractionFormat(format NumberFormat) { Default.SetFractionFormat(format) }
+
+// SetNumberGroupSeparator sets the digit-group separator on the [Default] logger.
+func SetNumberGroupSeparator(sep string) { Default.SetNumberGroupSeparator(sep) }
+
+// SetNumberCompactMinimum sets the minimum magnitude for compact abbreviation on the [Default] logger.
+func SetNumberCompactMinimum(minimum int64) { Default.SetNumberCompactMinimum(minimum) }
+
+// SetNumberCompactFallback sets how compact mode renders sub-minimum values on the [Default] logger.
+func SetNumberCompactFallback(format NumberFormat) { Default.SetNumberCompactFallback(format) }
+
 // SetOmitEmpty enables or disables omitting empty fields on the [Default] logger.
 func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
 

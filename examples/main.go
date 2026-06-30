@@ -10,6 +10,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/field/fraction"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 	"github.com/gechr/clog/fx/pulse"
@@ -797,6 +798,20 @@ func main() {
 	clog.Info().
 		Percent("progress", 0.75).
 		Msg("Custom format hooks")
+	clog.SetFieldFormats(clog.DefaultFieldFormats()) // reset
+
+	// --- Number formatting ---
+	header("Number Formatting")
+	clog.Info().Int("rows", 1234567).Fraction("processed", 1234567, 9999999).Msg("plain (default)")
+	clog.SetNumberFormat(clog.NumberGrouped)
+	clog.Info().Int("rows", 1234567).Fraction("processed", 1234567, 9999999).Msg("grouped")
+	clog.SetNumberFormat(clog.NumberCompact)
+	clog.Info().Int("rows", 1234567).Fraction("processed", 1234567, 9999999).Msg("compact")
+	clog.SetNumberFormat(clog.NumberPlain)
+	clog.Info().
+		Int("rows", 1234567).
+		Fraction("processed", 1234567, 9999999, fraction.WithFormat(clog.NumberCompact)).
+		Msg("per-field compact fraction, plain int")
 	clog.SetFieldFormats(clog.DefaultFieldFormats()) // reset
 
 	// --- Field sort order ---

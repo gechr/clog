@@ -60,7 +60,7 @@ logger := clog.NewWriter(os.Stderr) // equivalent to New(NewOutput(os.Stderr, Co
 
 ## Field Formats
 
-Field formatting (durations, elapsed timers, percentages, hyperlinks, quantity units) is configured per-logger via the `FieldFormats` struct. Start from `DefaultFieldFormats()`, set the fields you want, and apply with `SetFieldFormats` - configuration is per-`Logger`, so two loggers can format fields differently:
+Field formatting (durations, elapsed timers, percentages, numbers, hyperlinks, quantity units) is configured per-logger via the `FieldFormats` struct. Start from `DefaultFieldFormats()`, set the fields you want, and apply with `SetFieldFormats` - configuration is per-`Logger`, so two loggers can format fields differently:
 
 ```go
 f := clog.DefaultFieldFormats()
@@ -78,28 +78,68 @@ current := logger.FieldFormats()
 
 `SetFieldFormats` has replace-all semantics (like `SetParts`): the struct you pass replaces the logger's entire field-format configuration, so always start from `DefaultFieldFormats()` (or `logger.FieldFormats()`) rather than a zero value.
 
-| Field                     | Type                         | Default          | Description                                                                                  |
-| ------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
-| `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`) |
-| `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                               |
-| `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                   |
-| `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                        |
-| `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                               |
-| `ElapsedPrecision`        | `int`                        | `0`              | Decimal places for elapsed display (`0` = `3s`, `1` = `3.2s`)                                |
-| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Rounding granularity for elapsed values (`0` disables rounding)                              |
-| `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                       |
-| `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                   |
-| `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                          |
-| `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                          |
-| `HyperlinkLineFormat`     | `string`                     | `""`             | URL format for file+line hyperlinks                                                          |
-| `HyperlinkPathFormat`     | `string`                     | `""`             | Generic fallback URL format for any path                                                     |
-| `PercentFormat`           | `func(float64) string`       | `nil` (built-in) | Custom formatter for `Percent` fields (receives the display value, already scaled to 0–100)  |
-| `PercentMaximum`          | `float64`                    | `0` (= `1.0`)    | Percent input maximum (`0` means `1.0` = fractions 0–1; set `100` for 0–100 input)           |
-| `PercentPrecision`        | `int`                        | `0`              | Decimal places for `Percent` display (`0` = `75%`, `1` = `75.0%`)                            |
-| `PercentReverseGradient`  | `bool`                       | `false`          | Reverse the percent gradient (green=0%, red=100%)                                            |
-| `QuantityUnitsIgnoreCase` | `bool`                       | `true`           | Case-insensitive quantity unit matching                                                      |
+| Field                     | Type                         | Default          | Description                                                                                   |
+| ------------------------- | ---------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
+| `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`)  |
+| `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                                |
+| `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                    |
+| `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                         |
+| `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                                |
+| `ElapsedPrecision`        | `int`                        | `0`              | Decimal places for elapsed display (`0` = `3s`, `1` = `3.2s`)                                 |
+| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Rounding granularity for elapsed values (`0` disables rounding)                               |
+| `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                        |
+| `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                    |
+| `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                           |
+| `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                           |
+| `HyperlinkLineFormat`     | `string`                     | `""`             | URL format for file+line hyperlinks                                                           |
+| `HyperlinkPathFormat`     | `string`                     | `""`             | Generic fallback URL format for any path                                                      |
+| `PercentFormat`           | `func(float64) string`       | `nil` (built-in) | Custom formatter for `Percent` fields (receives the display value, already scaled to 0–100)   |
+| `PercentMaximum`          | `float64`                    | `0` (= `1.0`)    | Percent input maximum (`0` means `1.0` = fractions 0–1; set `100` for 0–100 input)            |
+| `PercentPrecision`        | `int`                        | `0`              | Decimal places for `Percent` display (`0` = `75%`, `1` = `75.0%`)                             |
+| `PercentReverseGradient`  | `bool`                       | `false`          | Reverse the percent gradient (green=0%, red=100%)                                             |
+| `NumberFormat`            | `NumberFormat`               | `NumberPlain`    | How integers and both halves of fractions render (`plain`, `grouped`, `compact`)              |
+| `FractionFormat`          | `*NumberFormat`              | `nil` (inherit)  | Overrides `NumberFormat` for fraction fields only (`nil` inherits `NumberFormat`)             |
+| `NumberGroupSeparator`    | `string`                     | `","`            | Digit-group separator for `NumberGrouped` (e.g. `1,234,567`)                                  |
+| `NumberCompactMinimum`    | `int64`                      | `1000`           | Smallest magnitude `NumberCompact` abbreviates; values below it use the fallback              |
+| `NumberCompactFallback`   | `NumberFormat`               | `NumberGrouped`  | How `NumberCompact` renders sub-minimum values (`NumberGrouped` or `NumberPlain`)             |
+| `QuantityUnitsIgnoreCase` | `bool`                       | `true`           | Case-insensitive quantity unit matching                                                       |
 
 Hyperlink format fields accept either a full format string with `{path}`/`{line}`/`{column}` placeholders, or a named preset (e.g. `"vscode"`), which is expanded when `SetFieldFormats` is called. See [Hyperlinks](hyperlinks.md) for details.
+
+### Number formatting
+
+By default numbers render verbatim (`1234567`, `1234567/9999999`). Three modes control how integer fields and both halves of a `Fraction` are rendered:
+
+- `NumberPlain` - verbatim, e.g. `1234567` (the default).
+- `NumberGrouped` - locale-style digit grouping, e.g. `1,234,567`. The separator is configurable.
+- `NumberCompact` - abbreviated with K/M/B/T suffixes, e.g. `1.2M`. Values below `NumberCompactMinimum` (default `1000`) render with `NumberCompactFallback` (grouped by default), so a series reads `9,999` → `10K` → `11K` rather than jumping straight from plain to abbreviated. Set `NumberCompactFallback = NumberPlain` to keep small values verbatim (`9999`).
+
+Convenience setters avoid the read-modify-write dance for the common cases:
+
+```go
+logger.SetNumberFormat(clog.NumberGrouped)   // applies to ints AND fractions
+logger.SetNumberGroupSeparator(" ")          // "1 234 567"
+
+logger.SetFractionFormat(clog.NumberCompact) // fractions only; ints keep NumberFormat
+logger.SetNumberCompactMinimum(10_000)       // only abbreviate at >= 10,000
+```
+
+To combine grouping and abbreviation - grouped digits for small values, K/M/B/T suffixes for large ones - select `NumberCompact` and raise the minimum:
+
+```go
+logger.SetNumberFormat(clog.NumberCompact)
+logger.SetNumberCompactMinimum(10_000) // 9,999 -> 10K -> 11K -> 1.2M
+```
+
+`SetNumberFormat` is the global knob; `SetFractionFormat` overrides it for fractions and falls back to it when unset. A single field can override both via `fraction.WithFormat`:
+
+```go
+clog.Info("progress").
+    Fraction("done", 1234567, 9999999, fraction.WithFormat(clog.NumberCompact)).
+    Send() // done=1.2M/10M
+```
+
+The separator is not locale-aware - pick the one that suits your output (`","`, `"."`, `" "`, `"_"`).
 
 ## Utility Functions
 

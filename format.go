@@ -2,6 +2,7 @@ package clog
 
 import (
 	"fmt"
+	"math"
 	"reflect"
 	"slices"
 	"strconv"
@@ -14,6 +15,7 @@ import (
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/printer/json"
 	"github.com/gechr/clog/style"
+	"github.com/gechr/x/human"
 )
 
 // formatFieldsOpts configures field formatting behaviour.
@@ -207,6 +209,66 @@ func (opts formatFieldsOpts) sliceFmt() sliceFormat {
 	return sliceFormat{open: string(openChar), close: string(closeChar), sep: sep}
 }
 
+// formatNumber renders n according to mode, drawing the group separator and
+// compact minimum from fmts. NumberPlain (and any unrecognised mode) returns
+// the plain base-10 string.
+func formatNumber(n int64, mode NumberFormat, fmts *FieldFormats) string {
+	switch mode {
+	case NumberGrouped:
+		return groupNumber(n, fmts)
+	case NumberCompact:
+		if n > -fmts.NumberCompactMinimum && n < fmts.NumberCompactMinimum {
+			// Below the abbreviation threshold, render with the configured
+			// fallback (grouped by default) so smaller values still read
+			// nicely (e.g. "9,999" before "10K"). Guard against recursing
+			// back into compact.
+			if fmts.NumberCompactFallback == NumberGrouped {
+				return groupNumber(n, fmts)
+			}
+			return strconv.FormatInt(n, 10)
+		}
+		return human.FormatNumberCompact(n)
+	case NumberPlain:
+		return strconv.FormatInt(n, 10)
+	default:
+		return strconv.FormatInt(n, 10)
+	}
+}
+
+// groupNumber renders n with the configured digit-group separator, defaulting
+// to "," when none is set.
+func groupNumber(n int64, fmts *FieldFormats) string {
+	sep := fmts.NumberGroupSeparator
+	if sep == "" {
+		sep = ","
+	}
+	return human.FormatNumber(n, sep)
+}
+
+// formatUnsignedNumber renders n like [formatNumber], falling back to a plain
+// decimal string for values too large to represent as an int64 (the helpers
+// in x/human operate on int64).
+func formatUnsignedNumber(n uint64, mode NumberFormat, fmts *FieldFormats) string {
+	if n > math.MaxInt64 {
+		return strconv.FormatUint(n, 10)
+	}
+	return formatNumber(int64(n), mode, fmts)
+}
+
+// fractionNumberFormat resolves the effective numeric format for a fraction
+// field: an explicit per-field override wins, then the logger's
+// FractionFormat, then its general NumberFormat.
+func fractionNumberFormat(f core.Fraction, fmts *FieldFormats) NumberFormat {
+	switch {
+	case f.Format != nil:
+		return *f.Format
+	case fmts.FractionFormat != nil:
+		return *fmts.FractionFormat
+	default:
+		return fmts.NumberFormat
+	}
+}
+
 // formatValue converts a field value to its string representation.
 // The returned valueKind indicates the type category for styling and quoting.
 func formatValue(
@@ -222,7 +284,9 @@ func formatValue(
 	case core.ElapsedField:
 		return formatElapsed(time.Duration(val), fmts.ElapsedPrecision), kindElapsed
 	case core.Fraction:
-		return strconv.Itoa(val.Current) + "/" + strconv.Itoa(val.Total), kindFraction
+		mode := fractionNumberFormat(val, fmts)
+		return formatNumber(int64(val.Current), mode, fmts) +
+			"/" + formatNumber(int64(val.Total), mode, fmts), kindFraction
 	case error:
 		return val.Error(), kindError
 	case core.RawJSON:
@@ -230,13 +294,13 @@ func formatValue(
 	case string:
 		return val, kindString
 	case int:
-		return strconv.Itoa(val), kindNumber
+		return formatNumber(int64(val), fmts.NumberFormat, fmts), kindNumber
 	case int64:
-		return strconv.FormatInt(val, 10), kindNumber
+		return formatNumber(val, fmts.NumberFormat, fmts), kindNumber
 	case uint:
-		return strconv.FormatUint(uint64(val), 10), kindNumber
+		return formatUnsignedNumber(uint64(val), fmts.NumberFormat, fmts), kindNumber
 	case uint64:
-		return strconv.FormatUint(val, 10), kindNumber
+		return formatUnsignedNumber(val, fmts.NumberFormat, fmts), kindNumber
 	case float64:
 		return strconv.FormatFloat(val, 'f', -1, 64), kindNumber
 	case bool:
