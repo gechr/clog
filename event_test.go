@@ -889,6 +889,30 @@ func TestEventPath(t *testing.T) {
 	assert.Equal(t, "/tmp", e.fields[0].Value)
 }
 
+func TestEventPaths(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Paths("dirs", []string{"/tmp", "/var"})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "dirs", e.fields[0].Key)
+	assert.Equal(t, []string{"/tmp", "/var"}, e.fields[0].Value)
+}
+
+func TestEventPathsColorAlways(t *testing.T) {
+	l := New(NewOutput(io.Discard, ColorAlways))
+
+	e := l.Info()
+	e.Paths("dirs", []string{"/tmp/test.go"})
+
+	require.Len(t, e.fields, 1)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok)
+	require.Len(t, vals, 1)
+	assert.Equal(t, "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go\x1b]8;;\x1b\\", vals[0])
+}
+
 func TestEventLine(t *testing.T) {
 	l := NewWriter(io.Discard)
 	e := l.Info()
@@ -936,6 +960,44 @@ func TestEventLineOmittedWhenZero(t *testing.T) {
 	assert.Equal(t, "main.go", e.fields[0].Value)
 }
 
+func TestEventLines(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Lines("files", []Line{
+		{Path: "main.go", Line: 42},
+		{Path: "util.go", Line: 10},
+	})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "files", e.fields[0].Key)
+	// Colors disabled in tests (no TTY), so returns plain text.
+	assert.Equal(t, []string{"main.go:42", "util.go:10"}, e.fields[0].Value)
+}
+
+func TestEventLinesColorAlways(t *testing.T) {
+	l := New(NewOutput(io.Discard, ColorAlways))
+
+	e := l.Info()
+	e.Lines("files", []Line{{Path: "/tmp/test.go", Line: 10}})
+
+	require.Len(t, e.fields, 1)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok)
+	require.Len(t, vals, 1)
+	assert.Equal(t, "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:10\x1b]8;;\x1b\\", vals[0])
+}
+
+func TestEventLinesOmittedWhenZero(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Lines("files", []Line{{Path: "main.go", Line: 0}})
+
+	require.Len(t, e.fields, 1)
+	// Line number 0 omits the line suffix - equivalent to Path().
+	assert.Equal(t, []string{"main.go"}, e.fields[0].Value)
+}
+
 func TestEventColumn(t *testing.T) {
 	l := NewWriter(io.Discard)
 	e := l.Info()
@@ -968,6 +1030,44 @@ func TestEventColumnMinimum(t *testing.T) {
 	require.Len(t, e.fields, 1)
 	// Both line and column should be clamped to 1.
 	assert.Equal(t, "main.go:1:1", e.fields[0].Value)
+}
+
+func TestEventColumns(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Columns("locs", []Column{
+		{Path: "main.go", Line: 42, Column: 10},
+		{Path: "util.go", Line: 1, Column: 5},
+	})
+
+	require.Len(t, e.fields, 1)
+	assert.Equal(t, "locs", e.fields[0].Key)
+	// Colors disabled in tests (no TTY), so returns plain text.
+	assert.Equal(t, []string{"main.go:42:10", "util.go:1:5"}, e.fields[0].Value)
+}
+
+func TestEventColumnsColorAlways(t *testing.T) {
+	l := New(NewOutput(io.Discard, ColorAlways))
+
+	e := l.Info()
+	e.Columns("locs", []Column{{Path: "/tmp/test.go", Line: 10, Column: 5}})
+
+	require.Len(t, e.fields, 1)
+
+	vals, ok := e.fields[0].Value.([]string)
+	require.True(t, ok)
+	require.Len(t, vals, 1)
+	assert.Equal(t, "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:10:5\x1b]8;;\x1b\\", vals[0])
+}
+
+func TestEventColumnsMinimum(t *testing.T) {
+	l := NewWriter(io.Discard)
+	e := l.Info()
+	e.Columns("locs", []Column{{Path: "main.go", Line: 0, Column: 0}})
+
+	require.Len(t, e.fields, 1)
+	// Both line and column should be clamped to 1.
+	assert.Equal(t, []string{"main.go:1:1"}, e.fields[0].Value)
 }
 
 func TestEventStringer(t *testing.T) {

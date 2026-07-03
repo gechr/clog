@@ -55,6 +55,25 @@ func (c *Context) Column(key, path string, line, column int) *Context {
 	return c
 }
 
+// Columns adds a string slice field where each element is a path:line:column
+// hyperlink. Respects the logger's [ColorMode] setting.
+func (c *Context) Columns(key string, items []Column) *Context {
+	output := c.logger.Output()
+	vals := make([]string, len(items))
+	for i, item := range items {
+		line, column := item.Line, item.Column
+		if line < 1 {
+			line = 1
+		}
+		if column < 1 {
+			column = 1
+		}
+		vals[i] = output.pathLink(item.Path, line, column)
+	}
+	c.Fields = append(c.Fields, Field{Key: key, Value: vals})
+	return c
+}
+
 // Dict adds a group of fields under a key prefix using dot notation.
 // Build the nested fields using [Dict] to create a field-only Event:
 //
@@ -86,6 +105,20 @@ func (c *Context) Line(key, path string, line int) *Context {
 		c.Fields,
 		Field{Key: key, Value: c.logger.Output().pathLink(path, line, 0)},
 	)
+	return c
+}
+
+// Lines adds a string slice field where each element is a path:line
+// hyperlink. If an item's Line < 1, that element is rendered as a plain path
+// hyperlink (equivalent to [Context.Path]). Respects the logger's
+// [ColorMode] setting.
+func (c *Context) Lines(key string, items []Line) *Context {
+	output := c.logger.Output()
+	vals := make([]string, len(items))
+	for i, item := range items {
+		vals[i] = output.pathLink(item.Path, item.Line, 0)
+	}
+	c.Fields = append(c.Fields, Field{Key: key, Value: vals})
 	return c
 }
 
@@ -134,6 +167,18 @@ func (c *Context) Path(key, path string) *Context {
 		c.Fields,
 		Field{Key: key, Value: c.logger.Output().pathLink(path, 0, 0)},
 	)
+	return c
+}
+
+// Paths adds a string slice field where each element is a path hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (c *Context) Paths(key string, paths []string) *Context {
+	output := c.logger.Output()
+	vals := make([]string, len(paths))
+	for i, p := range paths {
+		vals[i] = output.pathLink(p, 0, 0)
+	}
+	c.Fields = append(c.Fields, Field{Key: key, Value: vals})
 	return c
 }
 

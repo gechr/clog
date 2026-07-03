@@ -130,6 +130,40 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 	return e
 }
 
+// Column represents a file path with a line and column number for use with [Event.Columns].
+type Column struct {
+	Path   string
+	Line   int
+	Column int
+}
+
+// Columns adds a string slice field where each element is a path:line:column
+// hyperlink. Respects the logger's [ColorMode] setting.
+func (e *Event) Columns(key string, items []Column) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	vals := make([]string, len(items))
+	for i, item := range items {
+		line, column := item.Line, item.Column
+		if line < 1 {
+			line = 1
+		}
+		if column < 1 {
+			column = 1
+		}
+		vals[i] = output.pathLink(item.Path, line, column)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
 // Dict adds a group of fields under a key prefix using dot notation.
 // Build the nested fields using [Dict] to create a field-only Event:
 //
@@ -431,6 +465,34 @@ func (e *Event) Line(key, path string, line int) *Event {
 	return e
 }
 
+// Line represents a file path with a line number for use with [Event.Lines].
+type Line struct {
+	Path string
+	Line int
+}
+
+// Lines adds a string slice field where each element is a path:line
+// hyperlink. If an item's Line < 1, that element is rendered as a plain path
+// hyperlink (equivalent to [Event.Path]). Respects the logger's [ColorMode]
+// setting.
+func (e *Event) Lines(key string, items []Line) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	vals := make([]string, len(items))
+	for i, item := range items {
+		vals[i] = output.pathLink(item.Path, item.Line, 0)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
 // Link represents a hyperlink with a URL and display text.
 type Link struct {
 	URL  string
@@ -592,6 +654,26 @@ func (e *Event) Path(key, path string) *Event {
 		e.fields,
 		Field{Key: key, Value: output.pathLink(path, 0, 0)},
 	)
+	return e
+}
+
+// Paths adds a string slice field where each element is a path hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Paths(key string, paths []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	vals := make([]string, len(paths))
+	for i, p := range paths {
+		vals[i] = output.pathLink(p, 0, 0)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 
