@@ -193,6 +193,45 @@ func (g *Group) Wait() *GroupResult {
 	return result
 }
 
+// Suspend temporarily releases the terminal used by the group's live renderer.
+// It stops live repaints and clears the current live block so another
+// interactive process can own the terminal. By default it preserves the
+// current cursor visibility; use [WithShowCursor] to show the cursor while the
+// terminal is released. It is safe to call repeatedly and is a no-op for
+// inactive groups or outputs without live-region support.
+func (g *Group) Suspend(opts ...SuspendOption) {
+	if g == nil || g.log == nil {
+		return
+	}
+	p, ok := g.log.Output().(liveRegionProvider)
+	if !ok {
+		return
+	}
+	if region := p.LiveRegion(); region != nil {
+		cfg := suspendOptions{}
+		for _, opt := range opts {
+			opt(&cfg)
+		}
+		region.Suspend(cfg.showCursor)
+	}
+}
+
+// Resume restores a group live renderer previously released with [Group.Suspend].
+// It repaints the current live block and restarts live repaints. It is safe to
+// call repeatedly and is a no-op when the group is not suspended.
+func (g *Group) Resume() {
+	if g == nil || g.log == nil {
+		return
+	}
+	p, ok := g.log.Output().(liveRegionProvider)
+	if !ok {
+		return
+	}
+	if region := p.LiveRegion(); region != nil {
+		region.Resume()
+	}
+}
+
 func (g *Group) acquireSlot(ctx context.Context) error {
 	if g.parallelism <= 0 {
 		return nil

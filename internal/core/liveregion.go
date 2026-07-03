@@ -48,6 +48,7 @@ type LiveRegion struct {
 	rows      int      // physical rows the block currently occupies on screen
 	lastLines []string // last painted slot lines, for skip-identical dedup
 	lastWidth int      // terminal width at last paint
+	suspended bool
 
 	// wake nudges the render loop to recompute its tick rate after the slot
 	// set changes; buffered so Register/Unregister never block on it.
@@ -87,7 +88,7 @@ func (r *LiveRegion) Register(render func(now time.Time) string, tick time.Durat
 	id := r.nextID
 	r.slots = append(r.slots, liveSlot{id: id, render: render, tick: tick})
 
-	if len(r.slots) == 1 {
+	if len(r.slots) == 1 && !r.suspended {
 		// First slot: take over the region. The cursor stays hidden until
 		// the last slot unregisters so per-frame repaints don't flicker it.
 		writeString(r.out, xansi.HideCursor)
@@ -96,8 +97,10 @@ func (r *LiveRegion) Register(render func(now time.Time) string, tick time.Durat
 		go r.loop(stop)
 	}
 
-	r.paintLocked(time.Now())
-	r.wakeLocked()
+	if !r.suspended {
+		r.paintLocked(time.Now())
+		r.wakeLocked()
+	}
 	return id
 }
 
@@ -116,13 +119,26 @@ func (r *LiveRegion) Unregister(id uint64) {
 	}
 	r.slots = slices.Delete(r.slots, idx, idx+1)
 
+	if r.suspended {
+		if len(r.slots) == 0 {
+			r.suspended = false
+			r.lastLines = nil
+			r.lastWidth = 0
+			r.rows = 0
+			writeString(r.out, xansi.ShowCursor)
+		}
+		return
+	}
+
 	// Repaint the shrunken block; with no slots left this erases it entirely
 	// (AppendRepaint handles the zero-line frame).
 	r.paintLocked(time.Now())
 
 	if len(r.slots) == 0 {
 		writeString(r.out, xansi.ShowCursor)
-		close(r.stop)
+		if r.stop != nil {
+			close(r.stop)
+		}
 		r.stop = nil
 		r.lastLines = nil
 		r.lastWidth = 0
@@ -138,6 +154,59 @@ func (r *LiveRegion) Active() bool {
 	return len(r.slots) > 0
 }
 
+// Suspend temporarily releases the terminal while keeping registered slots.
+// It stops the render loop and erases the current live block. When showCursor
+// is true it also shows the cursor for the released period. It is idempotent
+// and does nothing when no slots are active.
+func (r *LiveRegion) Suspend(showCursor bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.suspended || len(r.slots) == 0 {
+		return
+	}
+
+	if r.stop != nil {
+		close(r.stop)
+		r.stop = nil
+	}
+	if r.rows > 0 {
+		var buf strings.Builder
+		r.rows = AppendRepaint(&buf, nil, r.rows, r.lastWidth)
+		writeString(r.out, buf.String())
+	}
+	if showCursor {
+		writeString(r.out, xansi.ShowCursor)
+	}
+	r.lastLines = nil
+	r.lastWidth = 0
+	r.suspended = true
+}
+
+// Resume restores a previously suspended live region. It repaints the current
+// slot state immediately and restarts the render loop. It is idempotent and
+// does nothing when the region is not suspended or no slots are active.
+func (r *LiveRegion) Resume() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if !r.suspended {
+		return
+	}
+	if len(r.slots) == 0 {
+		r.suspended = false
+		return
+	}
+
+	r.suspended = false
+	writeString(r.out, xansi.HideCursor)
+	stop := make(chan struct{})
+	r.stop = stop
+	go r.loop(stop)
+	r.paintLocked(time.Now())
+	r.wakeLocked()
+}
+
 // WriteLines writes s (one or more fully formatted log lines) to the output.
 // With no block on screen it is a plain write. While the block is live, the
 // write displaces it: one synchronized frame erases the block, writes s
@@ -145,11 +214,16 @@ func (r *LiveRegion) Active() bool {
 // scroll up naturally above the animations instead of being overpainted by
 // the next frame. s should end with a newline; one is added if missing while
 // a block is live, because the repaint must start at the beginning of a
-// fresh row.
+// fresh row. While suspended, writes pass through without repainting the live
+// block.
 func (r *LiveRegion) WriteLines(s string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	if r.suspended {
+		writeString(r.out, s)
+		return
+	}
 	if r.rows == 0 {
 		writeString(r.out, s)
 		return
@@ -184,6 +258,9 @@ func (r *LiveRegion) WriteLines(s string) {
 func (r *LiveRegion) RenderFrame(now time.Time) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if r.suspended {
+		return
+	}
 	r.paintLocked(now)
 }
 

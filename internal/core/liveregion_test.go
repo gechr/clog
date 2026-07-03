@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -346,6 +347,97 @@ func TestLiveRegionRenderLoopRepaintsChangingFrames(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return strings.Contains(buf.String(), "frame-3")
 	}, 2*time.Second, time.Millisecond)
+
+	r.Unregister(id)
+}
+
+func TestLiveRegionSuspendResumeInactiveNoop(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	r.Suspend(false)
+	r.Resume()
+
+	assert.Empty(t, buf.String())
+}
+
+func TestLiveRegionSuspendStopsRenderLoop(t *testing.T) {
+	var buf syncWriter
+	r := NewLiveRegion(&buf, func() int { return testWidth })
+
+	var frames atomic.Int64
+	id := r.Register(func(time.Time) string {
+		n := frames.Add(1)
+		return fmt.Sprintf("frame-%d", n)
+	}, time.Millisecond)
+
+	require.Eventually(t, func() bool {
+		return frames.Load() >= 3
+	}, 2*time.Second, time.Millisecond)
+
+	r.Suspend(false)
+	afterSuspend := buf.String()
+	framesAtSuspend := frames.Load()
+
+	time.Sleep(25 * time.Millisecond)
+	assert.Equal(t, afterSuspend, buf.String())
+	assert.Equal(t, framesAtSuspend, frames.Load())
+
+	r.Suspend(false)
+	assert.Equal(t, afterSuspend, buf.String())
+
+	r.Unregister(id)
+}
+
+func TestLiveRegionSuspendCursorBehavior(t *testing.T) {
+	t.Run("preserves cursor visibility by default", func(t *testing.T) {
+		var buf bytes.Buffer
+		r := newTestRegion(&buf)
+
+		id := r.Register(staticSlot("spinning"), neverTick)
+		buf.Reset()
+
+		r.Suspend(false)
+		assert.Equal(t, repaint(1), buf.String())
+
+		buf.Reset()
+		r.Unregister(id)
+		assert.Equal(t, xansi.ShowCursor, buf.String())
+	})
+
+	t.Run("can show cursor while suspended", func(t *testing.T) {
+		var buf bytes.Buffer
+		r := newTestRegion(&buf)
+
+		id := r.Register(staticSlot("spinning"), neverTick)
+		buf.Reset()
+
+		r.Suspend(true)
+		assert.Equal(t, repaint(1)+xansi.ShowCursor, buf.String())
+
+		buf.Reset()
+		r.Unregister(id)
+		assert.Equal(t, xansi.ShowCursor, buf.String())
+	})
+}
+
+func TestLiveRegionResumeRepaintsSuspendedRegion(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	var frames atomic.Int64
+	id := r.Register(func(time.Time) string {
+		n := frames.Add(1)
+		return fmt.Sprintf("frame-%d", n)
+	}, neverTick)
+	assert.Equal(t, int64(1), frames.Load())
+
+	r.Suspend(false)
+	buf.Reset()
+
+	r.Resume()
+	assert.Equal(t, int64(2), frames.Load())
+	assert.Equal(t, xansi.HideCursor+repaint(0, "frame-2"), buf.String())
 
 	r.Unregister(id)
 }

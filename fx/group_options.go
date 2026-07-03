@@ -5,6 +5,22 @@ import "time"
 // GroupOption configures a group before it starts rendering.
 type GroupOption func(*Group)
 
+type suspendOptions struct {
+	showCursor bool
+}
+
+// SuspendOption configures [Group.Suspend].
+type SuspendOption func(*suspendOptions)
+
+// WithShowCursor controls whether [Group.Suspend] shows the cursor while the
+// terminal is released. By default Suspend preserves the current cursor
+// visibility; final cleanup still restores the cursor.
+func WithShowCursor(show bool) SuspendOption {
+	return func(o *suspendOptions) {
+		o.showCursor = show
+	}
+}
+
 // WithFieldAlignment sets the group-level field alignment mode.
 func WithFieldAlignment(alignment FieldAlignment) GroupOption {
 	return func(g *Group) {
