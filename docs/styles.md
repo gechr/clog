@@ -51,6 +51,8 @@ clog.SetStyles(&style.Config{
 
 | Field                    | Type                     | Alias           | Default                      |
 | ------------------------ | ------------------------ | --------------- | ---------------------------- |
+| `Backtick`               | `Style`                  |                 | terracotta                   |
+| `BacktickMode`           | `style.BacktickMode`     |                 | `style.BacktickStrip`        |
 | `DurationGradient`       | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `DurationGradientMode`   | `style.GradientMode`     |                 | `style.GradientFade`         |
 | `DurationThresholds`     | `map[string][]Threshold` | `ThresholdMap`  | `{}`                         |
@@ -99,6 +101,8 @@ See [Printer](printer.md) for per-format token style tables.
 
 | Field                    | Description                                                                                    |
 | ------------------------ | ---------------------------------------------------------------------------------------------- |
+| `Backtick`               | Style for text inside backtick pairs in messages and string field values, nil to disable       |
+| `BacktickMode`           | Backtick delimiters: `BacktickStrip` drops them, `BacktickKeep` keeps them (width-stable)      |
 | `DurationGradient`       | Gradient color stops for `Duration` fields; active when `FieldFormats.DurationGradientMax` > 0 |
 | `DurationGradientMode`   | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                 |
 | `DurationThresholds`     | Duration unit -> magnitude-based style thresholds                                              |
@@ -166,6 +170,16 @@ styles.QuantityThresholds["ms"] = style.Thresholds{
 ```
 
 Value styles only apply at `Info` level and above by default. Use `SetFieldStyleLevel` to change the threshold.
+
+## Backtick Spans
+
+Text inside a matched pair of backticks - in the message or in string field values - is rendered with the `Backtick` style. By default the delimiters are dropped (`style.BacktickStrip`), which shrinks the message by two visible columns per span. For pre-aligned content such as grid-padded table rows, use `style.BacktickKeep` to render the delimiters as part of the styled span, so the visible width is exactly what was written:
+
+```go
+clog.SetStyles(&style.Config{BacktickMode: style.BacktickKeep})
+```
+
+An unmatched backtick is content, not a delimiter, and is left untouched in both modes. A non-color writer always leaves backticks exactly as written.
 
 ## Per-Level Message Styles
 

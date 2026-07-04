@@ -1213,7 +1213,7 @@ func (l *Logger) log(e *Event, msg string) {
 				if ms := l.styles.Messages[e.level]; ms != nil {
 					base = ms
 				}
-				s = style.RenderBackticks(msg, base, l.styles.Backtick)
+				s = l.styles.BacktickMode.Render(msg, base, l.styles.Backtick)
 			}
 
 			if l.indent > 0 || len(l.tree) > 0 {

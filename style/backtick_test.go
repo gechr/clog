@@ -38,3 +38,51 @@ func TestRenderBackticks(t *testing.T) {
 		require.Equal(t, base.Render("a `b"), got)
 	})
 }
+
+func TestBacktickModeRender(t *testing.T) {
+	base := new(lipgloss.NewStyle().Foreground(lipgloss.Color("4")))   // blue
+	code := new(lipgloss.NewStyle().Foreground(lipgloss.Color("183"))) // lavender
+
+	t.Run("keep preserves visible width of pre-aligned content", func(t *testing.T) {
+		msg := "open   `probe`   check" // grid-padded columns
+		got := style.BacktickKeep.Render(msg, base, code)
+		require.Equal(t, base.Render("open   ")+code.Render("`probe`")+base.Render("   check"), got)
+		require.Equal(t, lipgloss.Width(msg), lipgloss.Width(got))
+	})
+
+	t.Run("strip shrinks each span by two columns", func(t *testing.T) {
+		msg := "open   `probe`   check"
+		got := style.BacktickStrip.Render(msg, base, code)
+		require.Equal(t, lipgloss.Width(msg)-2, lipgloss.Width(got))
+	})
+
+	t.Run("unset renders like strip", func(t *testing.T) {
+		msg := "see `inline` now"
+		require.Equal(t,
+			style.BacktickStrip.Render(msg, base, code),
+			style.BacktickUnset.Render(msg, base, code),
+		)
+		require.Equal(t,
+			style.RenderBackticks(msg, base, code),
+			style.BacktickUnset.Render(msg, base, code),
+		)
+	})
+
+	t.Run("lone unpaired backtick is untouched in both modes", func(t *testing.T) {
+		msg := "a `b"
+		require.Equal(t, base.Render(msg), style.BacktickStrip.Render(msg, base, code))
+		require.Equal(t, base.Render(msg), style.BacktickKeep.Render(msg, base, code))
+	})
+}
+
+func TestConfigMergeBacktickMode(t *testing.T) {
+	c := &style.Config{BacktickMode: style.BacktickKeep}
+
+	// An unset mode in the merged config keeps the current one.
+	c.Merge(&style.Config{})
+	require.Equal(t, style.BacktickKeep, c.BacktickMode)
+
+	// An explicit strip overrides an inherited keep.
+	c.Merge(&style.Config{BacktickMode: style.BacktickStrip})
+	require.Equal(t, style.BacktickStrip, c.BacktickMode)
+}

@@ -71,9 +71,14 @@ type Config struct {
 	YAML *YAML
 
 	// Style for text inside `backticks`, in both the message and string field
-	// values (the delimiters are removed) [nil = leave backticks intact]. A
-	// non-color writer leaves the backticks as written.
+	// values [nil = leave backticks intact]. A non-color writer leaves the
+	// backticks as written. BacktickMode controls the delimiters.
 	Backtick *lipgloss.Style
+	// How the backtick delimiters around styled spans are handled:
+	// [BacktickStrip] (the default) drops them, [BacktickKeep] renders them
+	// as part of the styled span so the message keeps the visible width the
+	// caller wrote (pre-aligned content stays aligned).
+	BacktickMode BacktickMode
 	// Style for divider line characters (see [clog.DividerBuilder]) [nil = plain text]
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]

@@ -673,6 +673,24 @@ func TestFormatFieldsHighlightsBacktickValue(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestFormatFieldsBacktickKeepModeRetainsDelimiters(t *testing.T) {
+	styles := DefaultStyles()
+	styles.BacktickMode = style.BacktickKeep
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{Key: "k", Value: "x`y`z"}}, opts)
+	want := " " + styles.KeyDefault.Render("k") +
+		styles.Separator.Render("=") +
+		styles.FieldString.Render("x") +
+		styles.Backtick.Render("`y`") +
+		styles.FieldString.Render("z")
+	assert.Equal(t, want, got)
+}
+
 func TestFormatFieldsErrorValueNotBacktickStyled(t *testing.T) {
 	styles := DefaultStyles()
 	opts := formatFieldsOpts{
