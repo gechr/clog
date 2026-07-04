@@ -2,9 +2,9 @@ package clog
 
 import (
 	"strings"
-	"unicode/utf8"
 
 	"github.com/gechr/clog/style"
+	xansi "github.com/gechr/x/ansi"
 )
 
 const (
@@ -116,7 +116,7 @@ func renderDividerWithTitle(
 		styledTitle = styles.DividerTitle.Render(title)
 	}
 
-	titleWidth := utf8.RuneCountInString(title)
+	titleWidth := xansi.StringWidth(title)
 	padding := 1
 	lineCharsAvailable := width - titleWidth - (padding * 2) //nolint:mnd // both sides
 

@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/gechr/clog/internal/env"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // DefaultEnvPrefix is the default environment variable prefix.
@@ -59,7 +60,7 @@ func PairFromEnv(opts ...PairOption) (*Pair, error) {
 // It returns (nil, nil) when no theme variables are set. A set-but-invalid
 // value returns an error.
 func FromEnv(opts ...PairOption) (*Pair, error) {
-	if value, envVar := lookupEnv(envTheme); strings.TrimSpace(value) != "" {
+	if value, envVar := lookupEnv(envTheme); !xstrings.IsBlank(value) {
 		var t Theme
 		if err := t.UnmarshalText([]byte(strings.TrimSpace(value))); err != nil {
 			return nil, fmt.Errorf("%s: %w", envVar, err)
@@ -69,7 +70,7 @@ func FromEnv(opts ...PairOption) (*Pair, error) {
 
 	lightName, _ := lookupEnv(envThemeLight)
 	darkName, _ := lookupEnv(envThemeDark)
-	if strings.TrimSpace(lightName) == "" && strings.TrimSpace(darkName) == "" {
+	if xstrings.IsBlank(lightName) && xstrings.IsBlank(darkName) {
 		return nil, nil //nolint:nilnil // no theme configured is a valid absence, not an error
 	}
 

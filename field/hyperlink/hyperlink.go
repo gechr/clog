@@ -5,10 +5,11 @@ package hyperlink
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+
+	xos "github.com/gechr/x/os"
 )
 
 // Config holds resolved hyperlink rendering configuration.
@@ -204,8 +205,8 @@ func (c Config) buildPathURL(absPath string, line, column int, isDir bool) strin
 
 // isDirectory reports whether path is an existing directory.
 func isDirectory(path string) bool {
-	info, err := os.Stat(path)
-	return err == nil && info.IsDir()
+	isDir, _ := xos.IsDir(path)
+	return isDir
 }
 
 // firstFormat returns the first non-empty format string.

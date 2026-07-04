@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/gechr/x/terminal"
 	"github.com/muesli/termenv"
-	"golang.org/x/term"
 )
 
 // Background describes the terminal background a theme is designed for.
@@ -38,7 +38,7 @@ func (b Background) valid() bool {
 
 // DetectBackground queries a terminal for its background color.
 func DetectBackground(out *os.File) (Background, bool) {
-	if out == nil || !term.IsTerminal(int(out.Fd())) {
+	if !terminal.Is(out) {
 		return BackgroundDark, false
 	}
 
