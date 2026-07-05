@@ -18,6 +18,7 @@ import (
 	"github.com/gechr/clog/level"
 	"github.com/gechr/clog/style"
 	xansi "github.com/gechr/x/ansi"
+	xmath "github.com/gechr/x/math"
 )
 
 // renderTask holds per-animation mutable state for both the single-animation
@@ -235,7 +236,7 @@ func prioritiseActive(visible []int, gts []*renderTask, done []bool, maxLines in
 }
 
 func renderBarProgress(progress float64, s bar.Config, termWidth int) string {
-	progress = max(0, min(1, progress))
+	progress = xmath.Clamp01(progress)
 	current := int(math.Round(progress * monotonicBarScale))
 	return bar.Render(current, monotonicBarScale, s, termWidth)
 }

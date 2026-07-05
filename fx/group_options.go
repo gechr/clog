@@ -1,6 +1,10 @@
 package fx
 
-import "time"
+import (
+	"time"
+
+	xmath "github.com/gechr/x/math"
+)
 
 // GroupOption configures a group before it starts rendering.
 type GroupOption func(*Group)
@@ -99,7 +103,7 @@ func WithMaxLines(n int) GroupOption {
 // When both WithMaxLines and WithMaxHeightPercent are set, the smaller wins.
 func WithMaxHeightPercent(percent float64) GroupOption {
 	return func(g *Group) {
-		g.maxHeightPercent = max(0, min(percent, 1))
+		g.maxHeightPercent = xmath.Clamp01(percent)
 	}
 }
 

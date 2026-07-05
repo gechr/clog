@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
+	xmath "github.com/gechr/x/math"
 	"github.com/lucasb-eyer/go-colorful"
 )
 
@@ -59,7 +60,7 @@ func styleDurationGradient(
 		return ""
 	}
 
-	t := core.Clamp01(float64(d) / float64(gm))
+	t := xmath.Clamp01(float64(d) / float64(gm))
 
 	var c colorful.Color
 	switch {
@@ -134,7 +135,7 @@ func styleElapsedGradient(
 		return ""
 	}
 
-	t := core.Clamp01(float64(time.Duration(ef)) / float64(gm))
+	t := xmath.Clamp01(float64(time.Duration(ef)) / float64(gm))
 
 	var c colorful.Color
 	switch {

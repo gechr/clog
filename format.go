@@ -841,11 +841,3 @@ func computeLabelWidth(labels LabelMap) int {
 	}
 	return maxWidth
 }
-
-// centerPad centres s within width, padding with spaces.
-func centerPad(s string, width int) string {
-	pad := width - len(s)
-	left := pad / 2 //nolint:mnd // half the padding goes left
-	right := pad - left
-	return strings.Repeat(" ", left) + s + strings.Repeat(" ", right)
-}

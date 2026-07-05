@@ -10,6 +10,7 @@ import (
 	"github.com/gechr/clog/field/fraction"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
+	xmath "github.com/gechr/x/math"
 )
 
 // Event represents a log event being constructed. All methods are safe
@@ -594,7 +595,7 @@ func (e *Event) Fraction(key string, current, total int, opts ...fraction.Option
 	if e == nil {
 		return e
 	}
-	current = max(0, min(current, total))
+	current = xmath.Clamp(current, 0, total)
 	f := core.Fraction{Current: current, Total: total}
 	fraction.Apply(&f, opts...)
 	e.fields = append(e.fields, Field{Key: key, Value: f})

@@ -12,6 +12,7 @@ import (
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/internal/numfmt"
 	"github.com/gechr/clog/style"
+	xmath "github.com/gechr/x/math"
 )
 
 const (
@@ -284,7 +285,7 @@ func resolveWidth(s Config, termWidth int) int {
 		w = termWidth / WidthDivisor
 	}
 
-	return max(minW, min(maxW, w))
+	return xmath.Clamp(w, minW, maxW)
 }
 
 // FormatLine positions barPart relative to msgParts according to the

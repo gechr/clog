@@ -27,6 +27,7 @@ import (
 	"github.com/gechr/clog/style"
 	"github.com/gechr/clog/theme"
 	xansi "github.com/gechr/x/ansi"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // Level represents a log level.
@@ -1043,21 +1044,11 @@ func (l *Logger) recomputePaddedLabels() {
 	for lvl, label := range l.labels {
 		switch l.levelAlign {
 		case AlignLeft:
-			pad := maxW - len(label)
-			if pad > 0 {
-				m[lvl] = label + strings.Repeat(" ", pad)
-			} else {
-				m[lvl] = label
-			}
+			m[lvl] = xstrings.PadRight(label, maxW)
 		case AlignRight:
-			pad := maxW - len(label)
-			if pad > 0 {
-				m[lvl] = strings.Repeat(" ", pad) + label
-			} else {
-				m[lvl] = label
-			}
+			m[lvl] = xstrings.PadLeft(label, maxW)
 		case AlignCenter:
-			m[lvl] = centerPad(label, maxW)
+			m[lvl] = xstrings.PadCenter(label, maxW)
 		case AlignNone:
 			m[lvl] = label
 		}
