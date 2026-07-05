@@ -1,6 +1,9 @@
 package fx
 
-import "github.com/gechr/clog/internal/core"
+import (
+	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/internal/core"
+)
 
 // resultBase holds common fields and fluent-config methods shared by
 // WaitResult, TaskResult, and GroupResult.
@@ -10,6 +13,7 @@ type resultBase[T any] struct {
 	ErrorMsg     *string
 	LevelError   core.Level
 	Log          Logger
+	MsgStyle     *lipgloss.Style
 	PartOverride *[]core.Part
 	SuccessLevel core.Level
 	SuccessMsg   string
@@ -37,6 +41,14 @@ func (b *resultBase[T]) OnSuccessLevel(lvl core.Level) *T {
 // OnSuccessMessage sets the message for the success case.
 func (b *resultBase[T]) OnSuccessMessage(msg string) *T {
 	b.SuccessMsg = msg
+	return b.Self
+}
+
+// MessageStyle overrides the message text style for the completion log line,
+// taking precedence over the global and per-level styles without mutating them.
+// An empty [lipgloss.NewStyle] renders the message plain.
+func (b *resultBase[T]) MessageStyle(s *lipgloss.Style) *T {
+	b.MsgStyle = s
 	return b.Self
 }
 

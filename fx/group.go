@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 )
@@ -422,6 +423,7 @@ func (r *TaskResult) Send() error {
 		finalFields,
 		r.PartOverride,
 		r.SymbolStr,
+		r.MsgStyle,
 		r.SuccessLevel,
 		r.LevelError,
 		msg,
@@ -462,6 +464,7 @@ func (r *GroupResult) Send() error {
 		r.Fields,
 		r.PartOverride,
 		r.SymbolStr,
+		r.MsgStyle,
 		r.SuccessLevel,
 		r.LevelError,
 		r.SuccessMsg,
@@ -492,6 +495,7 @@ func sendResult(
 	fields []core.Field,
 	parts *[]core.Part,
 	symbol *string,
+	msgStyle *lipgloss.Style,
 	successLevel, errorLevel core.Level,
 	successMsg string,
 	errorMsg *string,
@@ -515,12 +519,13 @@ func sendResult(
 	}
 
 	evt := DoneEvent{
-		Level:  lvl,
-		Fields: fields,
-		Parts:  parts,
-		Symbol: symbol,
-		Msg:    msg,
-		Err:    errField,
+		Level:    lvl,
+		Fields:   fields,
+		MsgStyle: msgStyle,
+		Parts:    parts,
+		Symbol:   symbol,
+		Msg:      msg,
+		Err:      errField,
 	}
 	l.Done(evt)
 }

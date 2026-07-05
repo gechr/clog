@@ -22,9 +22,10 @@ type Event struct {
 	dict         bool      // true for events created by Dict() (must not call Msg/Send)
 	elapsedStart time.Time // set by Elapsed(); zero means no elapsed field
 	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
+	exitCode     int       // exit code for Fatal-level events; 0 means default (1)
 	fields       []Field
 	level        Level
-	exitCode     int       // exit code for Fatal-level events; 0 means default (1)
+	msgStyle     Style     // nil = use logger/global message style
 	noExit       bool      // if true, skip exit even for LevelFatal (used by adapters)
 	omitEmpty    *bool     // nil = use logger's omitEmpty
 	omitZero     *bool     // nil = use logger's omitZero
@@ -758,6 +759,21 @@ func (e *Event) Symbol(symbol string) *Event {
 	}
 
 	e.symbol = new(symbol)
+	return e
+}
+
+// MessageStyle overrides the message text style for this entry, taking
+// precedence over the global [style.Config.Message] and per-level
+// [style.Config.Messages]. It lets a caller style one line without mutating
+// global styles; a nil style falls back to those globals, and an empty
+// [lipgloss.NewStyle] renders the message plain (the level colour does not
+// leak, since this replaces the level style rather than nesting inside it).
+func (e *Event) MessageStyle(s Style) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.msgStyle = s
 	return e
 }
 

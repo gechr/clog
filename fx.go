@@ -36,6 +36,9 @@ func (f fxLogger) Done(evt fx.DoneEvent) {
 	if evt.Symbol != nil {
 		e = e.withSymbol(*evt.Symbol)
 	}
+	if evt.MsgStyle != nil {
+		e = e.MessageStyle(evt.MsgStyle)
+	}
 	if evt.Err != nil {
 		e.Err(evt.Err).Msg(evt.Msg)
 	} else {
@@ -133,7 +136,14 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		}
 		return lab
 	}
+	msgStyleOverride := b.MessageStyleOverride()
 	cfg.StyleMessage = func(msg string, lvl core.Level) string {
+		if msgStyleOverride != nil {
+			if noColor {
+				return msg
+			}
+			return msgStyleOverride.Render(msg)
+		}
 		return styledMsg(msg, lvl, styles, noColor)
 	}
 	cfg.StyleSymbol = func(symbol string, lvl core.Level) string {

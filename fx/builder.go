@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/fx/spinner"
@@ -36,8 +37,9 @@ type Builder struct {
 	lvl            core.Level    // log level used during animation rendering (default: LevelInfo)
 	message        string
 	mode           Animation
-	partOverrides  *[]core.Part // nil = use logger's parts
-	percentMax     float64      // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
+	msgStyle       *lipgloss.Style // per-builder message text style override; nil = use level style
+	partOverrides  *[]core.Part    // nil = use logger's parts
+	percentMax     float64         // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
 	pulseStops     []gradient.ColorStop
 	shimmerDir     shimmer.Direction
 	shimmerStops   []gradient.ColorStop
@@ -160,6 +162,10 @@ func (b *Builder) SuppressesNonTTY() bool { return b.suppressNonTTY }
 // SymbolOverride returns the static animation icon override, if set.
 func (b *Builder) SymbolOverride() string { return b.symbolIcon }
 
+// MessageStyleOverride returns the per-builder message text style override, or
+// nil to use the level style.
+func (b *Builder) MessageStyleOverride() *lipgloss.Style { return b.msgStyle }
+
 // TreePositions returns the additional tree levels applied to the animation.
 func (b *Builder) TreePositions() []core.TreePos { return slices.Clone(b.treePos) }
 
@@ -233,6 +239,14 @@ func (b *Builder) Parts(parts ...core.Part) *Builder {
 // Symbol sets the icon displayed beside the message during animation.
 func (b *Builder) Symbol(symbol string) *Builder {
 	b.symbolIcon = symbol
+	return b
+}
+
+// MessageStyle overrides the message text style for both the live animation and
+// its completion line, taking precedence over the global and per-level styles
+// without mutating them. An empty [lipgloss.NewStyle] renders the message plain.
+func (b *Builder) MessageStyle(s *lipgloss.Style) *Builder {
+	b.msgStyle = s
 	return b
 }
 
@@ -406,6 +420,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 
 	msg := *msgPtr.Load()
 	w := NewWaitResult(err, b.IndentedLogger(l), b.partOverrides, b.lvl, msg)
+	w.MsgStyle = b.msgStyle
 	w.Fields = b.ResolveDynamicFields(*fieldsPtr.Load(), time.Since(startTime))
 	return w
 }

@@ -6,6 +6,7 @@ import (
 	"io"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/core"
 )
 
@@ -80,10 +81,11 @@ type TaskConfig struct {
 
 // DoneEvent holds the parameters for logging a done event.
 type DoneEvent struct {
-	Err    error
-	Fields []core.Field
-	Level  core.Level
-	Msg    string
-	Parts  *[]core.Part
-	Symbol *string
+	Err      error
+	Fields   []core.Field
+	Level    core.Level
+	Msg      string
+	MsgStyle *lipgloss.Style
+	Parts    *[]core.Part
+	Symbol   *string
 }

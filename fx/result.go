@@ -83,11 +83,12 @@ func (w *WaitResult) Send() error {
 	}
 
 	evt := DoneEvent{
-		Level:  lvl,
-		Fields: w.Fields,
-		Parts:  w.PartOverride,
-		Symbol: w.SymbolStr,
-		Msg:    msg,
+		Level:    lvl,
+		Fields:   w.Fields,
+		MsgStyle: w.MsgStyle,
+		Parts:    w.PartOverride,
+		Symbol:   w.SymbolStr,
+		Msg:      msg,
 	}
 	if errField != nil {
 		evt.Err = errField

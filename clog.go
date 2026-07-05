@@ -1204,6 +1204,9 @@ func (l *Logger) log(e *Event, msg string) {
 				if ms := l.styles.Messages[e.level]; ms != nil {
 					base = ms
 				}
+				if e.msgStyle != nil {
+					base = e.msgStyle
+				}
 				s = l.styles.BacktickMode.Render(msg, base, l.styles.Backtick)
 			}
 
