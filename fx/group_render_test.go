@@ -550,6 +550,47 @@ func TestRunGroupLoopTTYCancelPreservesReadyTaskError(t *testing.T) {
 	require.ErrorIs(t, g.tasks[1].err, context.Canceled)
 }
 
+func TestRunGroupLoopNonTTYCancelPreservesSuccess(t *testing.T) {
+	var buf strings.Builder
+	log := &stubLogger{out: &stubOutput{w: &buf}} // tty: false
+
+	ctx, cancel := context.WithCancel(context.Background())
+	g := NewGroup(ctx, log)
+	g.Add(testSpinner(log, "done"))
+	g.Add(testSpinner(log, "pending"))
+	g.tasks[0].doneErr <- nil // succeeded before cancellation
+	cancel()
+
+	err := runGroupLoop(ctx, g)
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.NoError(t, g.tasks[0].err, "successful task must keep its nil error")
+	require.ErrorIs(t, g.tasks[1].err, context.Canceled)
+}
+
+func TestGroupTaskDurationFrozenAtFinish(t *testing.T) {
+	finished := &groupTask{}
+	finished.markStarted(time.Unix(10, 0))
+	finished.markFinished(time.Unix(15, 0))
+	assert.Equal(t, 5*time.Second, finished.duration(time.Unix(100, 0)))
+
+	running := &groupTask{}
+	running.markStarted(time.Unix(10, 0))
+	assert.Equal(t, 90*time.Second, running.duration(time.Unix(100, 0)))
+}
+
+func TestGroupProgressPanicMarksFinished(t *testing.T) {
+	log := newStubLogger()
+	g := NewGroup(context.Background(), log)
+	entry := g.Add(testSpinner(log, "boom"))
+
+	_ = entry.Run(func(context.Context) error { panic("kaboom") })
+
+	err := <-entry.task.doneErr
+	require.EqualError(t, err, "panic: kaboom")
+	require.NotZero(t, entry.task.finishedAt.Load())
+}
+
 func TestRunGroupNonTTYSkipsNonTTYSilentTask(t *testing.T) {
 	var buf strings.Builder
 	log := &stubLogger{out: &stubOutput{w: &buf}} // tty: false
@@ -605,6 +646,24 @@ func TestGroupBarLayoutRightPad(t *testing.T) {
 	// 1-column right-edge slack means rendered lines are at most tw-1.
 	assert.Len(t, line1, 39)
 	assert.Len(t, line2, 39)
+}
+
+func TestGroupBarLayoutPadClampsDriftedParts(t *testing.T) {
+	// The message is not frame-snapshotted, so parts rendered can be wider
+	// than the parts measured. The pad count must clamp to zero, not panic.
+	drifted := strings.Repeat("x", 50)
+
+	leftPad := &groupBarLayout{}
+	leftPad.observe("short", "", "BAR", "", bar.PlaceLeftPad)
+	assert.NotPanics(t, func() {
+		formatGroupBar(leftPad, drifted, "", "", bar.PlaceLeftPad, 20)
+	})
+
+	rightPad := &groupBarLayout{}
+	rightPad.observe("short", "", "BAR", "", bar.PlaceRightPad)
+	assert.NotPanics(t, func() {
+		formatGroupBar(rightPad, drifted, "", "", bar.PlaceRightPad, 20)
+	})
 }
 
 func TestGroupBarLayoutRightPadFallsBackWhenTooNarrow(t *testing.T) {
@@ -968,6 +1027,38 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	assert.Equal(t, "INF 📡 repo stage=receiving progress=10% elapsed=2s [=---------]", first)
 	assert.Equal(t, "INF 📡 repo stage=receiving progress=90% elapsed=2s [=========-]", second)
 	assert.Equal(t, "INF 📡 repo stage=receiving progress=90% elapsed=3s [=========-]", third)
+}
+
+func TestRenderTaskLineDoneFreezesElapsed(t *testing.T) {
+	log := newStubLogger()
+	b := testSpinner(log, "task").Elapsed("elapsed")
+
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "task"
+	fields := []core.Field{{Key: "elapsed", Value: core.ElapsedField(0)}}
+	symbol := "✓"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+
+	gt := &renderTask{
+		groupTask: &groupTask{
+			builder:   b,
+			fieldsPtr: fieldsPtr,
+			msgPtr:    msgPtr,
+			symbolPtr: symbolPtr,
+		},
+	}
+	gt.markStarted(time.Unix(1, 0))
+	gt.markFinished(time.Unix(3, 0))
+	captureTaskConfig(gt)
+
+	// Rendered long after the task finished (siblings still running): the
+	// elapsed field stays frozen at the task's 2s runtime.
+	line := renderTaskLine(gt, true, time.Unix(60, 0), nil)
+	assert.Equal(t, "INF ✓ task elapsed=2s", line)
 }
 
 func TestRenderTaskLineMonotonic(t *testing.T) {

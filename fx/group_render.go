@@ -329,8 +329,11 @@ func (l *groupBarLayout) formatLeftPad(
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
 	}
 
+	// The message is not part of the per-tick frame snapshot, so parts can
+	// drift wider than the measured max between layout and render; clamp so
+	// the pad count never goes negative (strings.Repeat panics on negative).
 	return barFull +
-		strings.Repeat(" ", gap+shared.maxParts-lipgloss.Width(parts)) +
+		strings.Repeat(" ", max(0, gap+shared.maxParts-lipgloss.Width(parts))) +
 		parts
 }
 
@@ -349,7 +352,8 @@ func (l *groupBarLayout) formatRightPad(
 		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
 	}
 
-	return parts + strings.Repeat(" ", shared.maxParts-lipgloss.Width(parts)+gap) + barFull
+	// Clamp for the same measure/render message drift as formatLeftPad.
+	return parts + strings.Repeat(" ", max(0, shared.maxParts-lipgloss.Width(parts)+gap)) + barFull
 }
 
 func (l *groupBarLayout) formatAligned(
@@ -1439,17 +1443,17 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			)
 			writeString(gt.cfg.Out, line+nl)
 		}
-		for _, ft := range fxTasks {
+		for i, ft := range fxTasks {
 			select {
 			case ft.err = <-ft.doneErr:
 			case <-ctx.Done():
-				for _, ft2 := range fxTasks {
-					if ft2.err == nil {
-						select {
-						case ft2.err = <-ft2.doneErr:
-						default:
-							ft2.err = ctx.Err()
-						}
+				// Tasks before i already received their real results
+				// (including nil for success); only the rest are pending.
+				for _, ft2 := range fxTasks[i:] {
+					select {
+					case ft2.err = <-ft2.doneErr:
+					default:
+						ft2.err = ctx.Err()
 					}
 				}
 				return ctx.Err()

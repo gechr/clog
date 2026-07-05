@@ -91,11 +91,17 @@ func (t *groupTask) started() bool {
 	return !t.startTime().IsZero()
 }
 
-// duration returns the elapsed execution time, or zero while the task is queued.
+// duration returns the elapsed execution time, or zero while the task is
+// queued. Once the task has finished the duration is frozen at the finish
+// time, so done lines and final results report the task's actual runtime
+// rather than time that keeps accruing while sibling tasks run.
 func (t *groupTask) duration(now time.Time) time.Duration {
 	start := t.startTime()
 	if start.IsZero() {
 		return 0
+	}
+	if finish := t.finishTime(); !finish.IsZero() && finish.Before(now) {
+		now = finish
 	}
 	return now.Sub(start)
 }
@@ -344,6 +350,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
+				t.markFinished(time.Now())
 				t.doneErr <- fmt.Errorf("panic: %v", r)
 			}
 		}()

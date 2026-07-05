@@ -126,7 +126,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 
 `WithParallelism(n)` removes the limit when `n <= 0`.
 
-Animation sync (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task. `WithoutSyncAnimations()` disables this and lets each task animate from its own start time.
+Animation sync (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task and freeze at each task's finish time, so a completed line reports the task's actual runtime while its siblings continue. `WithoutSyncAnimations()` disables this and lets each task animate from its own start time.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
 
