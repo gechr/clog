@@ -45,6 +45,8 @@ e.Msg("deploy")
 // INF ℹ️ deploy env=prod elapsed=12s
 ```
 
+On animated builders (`fx.Builder`), fields added at runtime via a live update always render after the builder's base fields - use `elapsed.Trailing()` to pin the elapsed field to the end of the row regardless (see [Spinner](spinner.md#elapsed-timer)).
+
 ## Custom Key
 
 The key parameter controls the field name:

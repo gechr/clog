@@ -222,6 +222,7 @@ func main() {
 
 		_ = clog.Spinner("Deploying").
 			Str("env", "production").
+			Elapsed("elapsed", elapsed.Trailing()).
 			Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 				update.Msg("Building image").Send()
 				time.Sleep(500 * time.Millisecond)

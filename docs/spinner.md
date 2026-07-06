@@ -205,6 +205,20 @@ err := clog.Spinner("Processing batch").
   Msg("Batch processed")
 ```
 
+Fields added at runtime via a live update (see [Dynamic Status Updates](#dynamic-status-updates)) always render after the builder's base fields, so a runtime-added field would normally appear after the elapsed timer. Pass `elapsed.Trailing()` to pin the elapsed field to the end of the row regardless:
+
+```go
+err := clog.Spinner("Deploying").
+  Str("env", "production").
+  Elapsed("elapsed", elapsed.Trailing()).
+  Progress(ctx, func(ctx context.Context, update *clog.Update) error {
+    update.Str("tag", "v1.2.3").Send() // runtime-added field
+    return deploy(ctx)
+  }).
+  Msg("Deployed")
+// INF ✅ Deployed env=production tag=v1.2.3 elapsed=2s
+```
+
 ## Per-Event Parts Override
 
 Override the [part order](part-order.md) for a spinner and its completion message without mutating the logger:

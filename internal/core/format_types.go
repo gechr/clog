@@ -18,13 +18,15 @@ type QuantityField string
 // elapsed-time styling. GradientMax, Gradient, and GradientMode override the
 // logger's elapsed gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.ElapsedMinimum] threshold for
-// this field when non-nil.
+// this field when non-nil. Trailing pins the field to the end of the row when
+// fx.Builder.ResolveDynamicFields reorders fields for animated rows.
 type ElapsedField struct {
 	Value        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
 	Minimum      *time.Duration
+	Trailing     bool
 }
 
 // DurationField wraps a time.Duration so formatValue can identify it for

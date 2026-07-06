@@ -332,7 +332,29 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 			out[i].Value = b.BarPercentValue()
 		}
 	}
+	if b.elapsedOverride.Trailing && b.elapsedKey != "" {
+		out = moveFieldLast(out, b.elapsedKey)
+	}
 	return out
+}
+
+// moveFieldLast returns out with the first field matching key moved to the
+// end, preserving the order of the rest. out must be a fresh copy - the shift
+// mutates it in place.
+func moveFieldLast(out []core.Field, key string) []core.Field {
+	idx := -1
+	for i := range out {
+		if out[i].Key == key {
+			idx = i
+			break
+		}
+	}
+	if idx < 0 {
+		return out
+	}
+	f := out[idx]
+	out = append(out[:idx], out[idx+1:]...)
+	return append(out, f)
 }
 
 // Path adds a file path field as a clickable terminal hyperlink.

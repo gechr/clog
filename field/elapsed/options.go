@@ -56,6 +56,15 @@ func WithMinimum(minimum time.Duration) Option {
 	}
 }
 
+// Trailing returns an [Option] that renders the elapsed field last on the
+// row, after any fields added at runtime via a live Update. Use when elapsed
+// is a persistent timer that should always trail the row's own attrs.
+func Trailing() Option {
+	return func(e *Elapsed) {
+		e.Trailing = true
+	}
+}
+
 // Apply applies the given options to e.
 func Apply(e *Elapsed, opts ...Option) {
 	for _, o := range opts {
