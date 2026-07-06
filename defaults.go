@@ -214,6 +214,9 @@ func SetOmitEmpty(omit bool) { Default.SetOmitEmpty(omit) }
 // SetOmitZero enables or disables omitting zero-value fields on the [Default] logger.
 func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
 
+// SetInput sets the reader used by [Input] and [Password] on the [Default] logger.
+func SetInput(r io.Reader) { Default.SetInput(r) }
+
 // SetOutput sets the output on the [Default] logger.
 func SetOutput(out *Output) { Default.SetOutput(out) }
 

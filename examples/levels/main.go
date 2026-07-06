@@ -10,9 +10,9 @@ const SuccessLevel clog.Level = clog.LevelDry + 1
 
 func main() {
 	clog.RegisterLevel(SuccessLevel, clog.LevelConfig{
-		Name:   "success",
-		Label:  "SCS", Symbol: "✅",
-		Style:  new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))),
+		Name:  "success",
+		Label: "SCS", Symbol: "✅",
+		Style: new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))),
 	})
 
 	clog.SetLevel(clog.LevelTrace)

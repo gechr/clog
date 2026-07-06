@@ -28,7 +28,7 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(5 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Inference engine ready")
 
 	_ = clog.Pulse("Replicating data across regions",
@@ -41,6 +41,6 @@ func main() {
 		Wait(context.Background(), func(_ context.Context) error {
 			time.Sleep(5 * time.Second)
 			return nil
-		}). Symbol("✅").
+		}).Symbol("✅").
 		Msg("Data replicated")
 }

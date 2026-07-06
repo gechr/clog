@@ -101,10 +101,11 @@ type Logger struct {
 	fieldTimeFormat    string
 	handler            Handler
 	hooks              map[HookPoint][]func()
-	indent             int      // number of indent levels for nested output
-	indentPrefixes     []string // per-depth decorations cycled after space indent
-	indentPrefixSep    *string  // separator after indent prefix; nil = default " "
-	indentWidth        int      // spaces per indent level (default 2)
+	indent             int          // number of indent levels for nested output
+	indentPrefixes     []string     // per-depth decorations cycled after space indent
+	indentPrefixSep    *string      // separator after indent prefix; nil = default " "
+	indentWidth        int          // spaces per indent level (default 2)
+	input              *inputSource // source for Input/Password; nil = os.Stdin, lazily wrapped
 	labels             LabelMap
 	labelsPadded       LabelMap
 	labelWidth         int
@@ -615,6 +616,19 @@ func (l *Logger) Output() *Output {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.output
+}
+
+// SetInput sets the reader used by [Logger.Input] and [Logger.Password].
+// Defaults to [os.Stdin]. Primarily useful for tests. Pass nil to restore
+// the default.
+func (l *Logger) SetInput(r io.Reader) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if r == nil {
+		l.input = nil
+		return
+	}
+	l.input = newInputSource(r)
 }
 
 // SetParts sets the order in which parts appear in log output.

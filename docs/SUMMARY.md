@@ -6,6 +6,7 @@
   - [Styles](styles.md)
   - [Hyperlinks](hyperlinks.md)
   - [Sub-loggers](sub-loggers.md)
+  - [Input](input.md)
   - [Hooks](hooks.md)
   - [Handlers](handlers.md)
   - [`log/slog`](slog.md)

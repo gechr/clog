@@ -88,6 +88,7 @@ func defaultWrapperFuncs() map[string]any {
 		"SetNumberCompactFallback":   SetNumberCompactFallback,
 		"SetOmitEmpty":               SetOmitEmpty,
 		"SetOmitZero":                SetOmitZero,
+		"SetInput":                   SetInput,
 		"SetOutput":                  SetOutput,
 		"SetOutputWriter":            SetOutputWriter,
 		"SetParts":                   SetParts,
