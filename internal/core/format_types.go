@@ -17,11 +17,14 @@ type QuantityField string
 // ElapsedField wraps a time.Duration so formatValue can identify it for
 // elapsed-time styling. GradientMax, Gradient, and GradientMode override the
 // logger's elapsed gradient settings for this field when non-nil/non-empty.
+// Minimum overrides the logger's [FieldFormats.ElapsedMinimum] threshold for
+// this field when non-nil.
 type ElapsedField struct {
 	Value        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
+	Minimum      *time.Duration
 }
 
 // DurationField wraps a time.Duration so formatValue can identify it for

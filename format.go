@@ -98,7 +98,11 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if r := fmts.ElapsedRound; r > 0 {
 				d = d.Round(r)
 			}
-			if d < fmts.ElapsedMinimum {
+			minimum := fmts.ElapsedMinimum
+			if val.Minimum != nil {
+				minimum = *val.Minimum
+			}
+			if d < minimum {
 				continue
 			}
 			val.Value = d

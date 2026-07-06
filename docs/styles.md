@@ -245,7 +245,7 @@ import "github.com/gechr/clog/field/duration"
 clog.SetDurationGradientMax(20 * time.Second)
 
 clog.Info().
-  Duration("latency", d).                                          // uses the 20s default
+  Duration("latency", d).                                                 // uses the 20s default
   Duration("timeout_check", d2, duration.WithGradientMax(1*time.Second)). // this field maxes out at 1s
   Msg("request handled")
 ```
@@ -276,7 +276,7 @@ clog.SetElapsedGradientMax(30 * time.Second)
 
 clog.Info().
   Elapsed("elapsed").                                            // uses the 30s default
-  Elapsed("quick_step", elapsed.WithGradientMax(2*time.Second)).  // this field maxes out at 2s
+  Elapsed("quick_step", elapsed.WithGradientMax(2*time.Second)). // this field maxes out at 2s
   Msg("batch complete")
 ```
 
@@ -291,6 +291,17 @@ clog.Info().Elapsed("elapsed",
   ),
   elapsed.WithGradientMode(style.GradientStep),
 ).Msg("render")
+```
+
+`elapsed.WithMinimum(d)` overrides `ElapsedMinimum` for that field only - the field is hidden entirely when its duration falls below `d`, regardless of the logger's threshold:
+
+```go
+clog.SetElapsedMinimum(time.Second) // logger default: hide fields under 1s
+
+clog.Info().
+  Elapsed("elapsed").                               // hidden if under 1s
+  Elapsed("critical_step", elapsed.WithMinimum(0)). // always shown
+  Msg("batch complete")
 ```
 
 These options work the same way on animated builders - `fx.Builder.Elapsed` (see [Spinner](spinner.md#elapsed-timer)) accepts the same `elapsed.Option` values for its auto-updating field.
@@ -317,8 +328,8 @@ clog.SetStyles(&style.Config{ElapsedGradientMode: style.GradientStep})
 ```go
 clog.SetStyles(&style.Config{
   ElapsedGradient: []style.ColorStop{
-    {Position: 0, Color: colorful.Color{R: 0, G: 1, B: 0}},   // green
-    {Position: 1, Color: colorful.Color{R: 1, G: 0, B: 0}},   // red
+    {Position: 0, Color: colorful.Color{R: 0, G: 1, B: 0}}, // green
+    {Position: 1, Color: colorful.Color{R: 1, G: 0, B: 0}}, // red
   },
 })
 ```

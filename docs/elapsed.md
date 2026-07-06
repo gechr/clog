@@ -94,12 +94,15 @@ The elapsed field respects the same per-logger [`FieldFormats`](configuration.md
 | `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
 | `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
 
-`ElapsedGradientMax`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides):
+`ElapsedGradientMax`, `ElapsedMinimum`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides):
 
 ```go
 import "github.com/gechr/clog/field/elapsed"
 
-e := clog.Info().Elapsed("elapsed", elapsed.WithGradientMax(5*time.Second))
+e := clog.Info().Elapsed("elapsed",
+  elapsed.WithGradientMax(5*time.Second),
+  elapsed.WithMinimum(0), // always show this field, regardless of the logger default
+)
 runMigrations()
 e.Msg("database migration")
 ```
