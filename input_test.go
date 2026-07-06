@@ -3,6 +3,7 @@ package clog
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"io"
 	"strings"
 	"testing"
@@ -153,4 +154,81 @@ func TestInputAppliesSensitiveOption(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "secret", got)
+}
+
+func TestInputContextCancelledWhileBlocked(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
+	l.SetInput(r) // nothing ever written: the read blocks
+
+	ctx, cancel := context.WithCancel(t.Context())
+	go cancel()
+
+	got, err := l.InputContext(ctx, "Name: ")
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, got)
+}
+
+func TestInputContextReadsLine(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	r, w := io.Pipe()
+	defer r.Close()
+	l.SetInput(r)
+	go func() {
+		_, writeErr := io.WriteString(w, "hello\n")
+		_ = writeErr
+	}()
+
+	got, err := l.InputContext(t.Context(), "Name: ")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+}
+
+func TestPasswordContextCancelledWhileBlocked(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	r, w := io.Pipe()
+	defer r.Close()
+	defer w.Close()
+	l.SetInput(r)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	go cancel()
+
+	got, err := l.PasswordContext(ctx, "Password: ")
+
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, got)
+}
+
+func TestInputWithFieldsRendersPrompt(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("hunter2\n"))
+
+	got, err := l.Password("Enter passphrase", WithFields(func(e *Event) {
+		e.Str("user", "alice").Int("attempts", 3)
+	}))
+
+	require.NoError(t, err)
+	assert.Equal(t, "hunter2", got)
+	assert.Equal(t, "Enter passphrase user=alice attempts=3: ", out.String())
+}
+
+func TestInputWithFieldsEmptyFields(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("x\n"))
+
+	got, err := l.Input("Name", WithFields(func(*Event) {}))
+
+	require.NoError(t, err)
+	assert.Equal(t, "x", got)
+	assert.Equal(t, "Name: ", out.String())
 }
