@@ -94,14 +94,15 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 		// Elapsed pre-processing: round, apply minimum threshold, update value.
 		if val, ok := f.Value.(core.ElapsedField); ok {
-			d := time.Duration(val)
+			d := val.Value
 			if r := fmts.ElapsedRound; r > 0 {
 				d = d.Round(r)
 			}
 			if d < fmts.ElapsedMinimum {
 				continue
 			}
-			f.Value = core.ElapsedField(d)
+			val.Value = d
+			f.Value = val
 		}
 
 		buf.WriteString(" ")
@@ -133,8 +134,14 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 				fn = fmts.DurationFormat
 			}
 			if fn != nil {
-				valStr = fn(time.Duration(val))
+				valStr = fn(val.Value)
 				kind = kindElapsed
+				customFormatted = true
+			}
+		case core.DurationField:
+			if fn := fmts.DurationFormat; fn != nil {
+				valStr = fn(val.Value)
+				kind = kindDuration
 				customFormatted = true
 			}
 		case time.Duration:
@@ -282,7 +289,7 @@ func formatValue(
 ) (string, valueKind) {
 	switch val := v.(type) {
 	case core.ElapsedField:
-		return formatElapsed(time.Duration(val), fmts.ElapsedPrecision), kindElapsed
+		return formatElapsed(val.Value, fmts.ElapsedPrecision), kindElapsed
 	case core.Fraction:
 		mode := fractionNumberFormat(val, fmts)
 		return formatNumber(int64(val.Current), mode, fmts) +
@@ -310,6 +317,8 @@ func formatValue(
 		return strconv.FormatFloat(display, 'f', fmts.PercentPrecision, 64) + "%", kindPercent
 	case core.QuantityField:
 		return string(val), kindQuantity
+	case core.DurationField:
+		return val.Value.String(), kindDuration
 	case time.Duration:
 		return val.String(), kindDuration
 	case time.Time:

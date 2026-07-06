@@ -111,7 +111,7 @@ func stubFormatFields(fields []core.Field) string {
 		case core.Percent:
 			fmt.Fprintf(&b, "%.0f%%", v.Value*percentScale)
 		case core.ElapsedField:
-			b.WriteString(time.Duration(v).Truncate(time.Second).String())
+			b.WriteString(v.Value.Truncate(time.Second).String())
 		default:
 			fmt.Fprint(&b, v)
 		}
@@ -993,7 +993,7 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 	fields := []core.Field{
 		{Key: "stage", Value: "receiving"},
 		{Key: "progress", Value: core.Percent{}},
-		{Key: "elapsed", Value: core.ElapsedField(0)},
+		{Key: "elapsed", Value: core.ElapsedField{Value: 0}},
 	}
 	symbol := "📡"
 	msgPtr.Store(&msg)
@@ -1037,7 +1037,7 @@ func TestRenderTaskLineDoneFreezesElapsed(t *testing.T) {
 	fieldsPtr := &atomic.Pointer[[]core.Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "task"
-	fields := []core.Field{{Key: "elapsed", Value: core.ElapsedField(0)}}
+	fields := []core.Field{{Key: "elapsed", Value: core.ElapsedField{Value: 0}}}
 	symbol := "✓"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)

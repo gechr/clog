@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/shimmer"
 	"github.com/gechr/clog/fx/spinner"
@@ -24,30 +25,31 @@ const DefaultSymbol = "⏳"
 type Builder struct {
 	core.FieldBuilder[Builder]
 
-	animatedSymbol bool          // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
-	clearOnCancel  bool          // when true, erase the animation line on context cancellation
-	barPercentKey  string        // when set, a formatted percent field is injected each tick
-	barProgressPtr *atomic.Int64 // bar mode: current progress; nil for non-bar modes
-	barConfig      bar.Config    // bar mode: visual style
-	barTotalPtr    *atomic.Int64 // bar mode: total progress; nil for non-bar modes
-	delayDur       time.Duration // when set, suppresses animation until this duration elapses
-	elapsedKey     string        // when set, a formatted elapsed-time field is injected each tick
-	indentDepth    int           // additional indent depth applied to the animation
-	log            Logger        // the logger interface; nil uses Default
-	lvl            core.Level    // log level used during animation rendering (default: LevelInfo)
-	message        string
-	mode           Animation
-	msgStyle       *lipgloss.Style // per-builder message text style override; nil = use level style
-	partOverrides  *[]core.Part    // nil = use logger's parts
-	percentMax     float64         // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
-	pulseStops     []gradient.ColorStop
-	shimmerDir     shimmer.Direction
-	shimmerStops   []gradient.ColorStop
-	speed          float64
-	spinnerConfig  spinner.Config
-	suppressNonTTY bool           // when true, no output is produced on non-TTY writers
-	symbolIcon     string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
-	treePos        []core.TreePos // additional tree levels applied to the animation
+	animatedSymbol  bool              // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
+	clearOnCancel   bool              // when true, erase the animation line on context cancellation
+	barPercentKey   string            // when set, a formatted percent field is injected each tick
+	barProgressPtr  *atomic.Int64     // bar mode: current progress; nil for non-bar modes
+	barConfig       bar.Config        // bar mode: visual style
+	barTotalPtr     *atomic.Int64     // bar mode: total progress; nil for non-bar modes
+	delayDur        time.Duration     // when set, suppresses animation until this duration elapses
+	elapsedKey      string            // when set, a formatted elapsed-time field is injected each tick
+	elapsedOverride core.ElapsedField // per-field gradient overrides set via Elapsed's options
+	indentDepth     int               // additional indent depth applied to the animation
+	log             Logger            // the logger interface; nil uses Default
+	lvl             core.Level        // log level used during animation rendering (default: LevelInfo)
+	message         string
+	mode            Animation
+	msgStyle        *lipgloss.Style // per-builder message text style override; nil = use level style
+	partOverrides   *[]core.Part    // nil = use logger's parts
+	percentMax      float64         // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
+	pulseStops      []gradient.ColorStop
+	shimmerDir      shimmer.Direction
+	shimmerStops    []gradient.ColorStop
+	speed           float64
+	spinnerConfig   spinner.Config
+	suppressNonTTY  bool           // when true, no output is produced on non-TTY writers
+	symbolIcon      string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
+	treePos         []core.TreePos // additional tree levels applied to the animation
 }
 
 // BuilderConfig provides the initial configuration for a [Builder].
@@ -262,10 +264,13 @@ func (b *Builder) Spinner(opts ...spinner.Option) *Builder {
 	return b
 }
 
-// Elapsed enables an auto-updating elapsed-time field.
-func (b *Builder) Elapsed(key string) *Builder {
+// Elapsed enables an auto-updating elapsed-time field. Use options from the
+// [elapsed] package (e.g. [elapsed.WithGradientMax]) to override the
+// logger's gradient settings for this builder's elapsed field only.
+func (b *Builder) Elapsed(key string, opts ...elapsed.Option) *Builder {
 	b.elapsedKey = key
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: core.ElapsedField(0)})
+	elapsed.Apply(&b.elapsedOverride, opts...)
+	b.Fields = append(b.Fields, core.Field{Key: key, Value: b.elapsedOverride})
 	return b
 }
 
@@ -320,7 +325,9 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 	for i := range out {
 		switch out[i].Key {
 		case b.elapsedKey:
-			out[i].Value = core.ElapsedField(dur)
+			f := b.elapsedOverride
+			f.Value = dur
+			out[i].Value = f
 		case b.barPercentKey:
 			out[i].Value = b.BarPercentValue()
 		}

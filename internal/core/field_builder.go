@@ -62,9 +62,18 @@ func (fb *FieldBuilder[T]) Bytes(key string, val []byte) *T {
 	return fb.Self
 }
 
-// Duration adds a [time.Duration] field.
-func (fb *FieldBuilder[T]) Duration(key string, val time.Duration) *T {
-	fb.Fields = append(fb.Fields, Field{Key: key, Value: val})
+// Duration adds a [time.Duration] field. opts are applied to a
+// [DurationField] wrapping val (see the duration package's Option type).
+func (fb *FieldBuilder[T]) Duration(
+	key string,
+	val time.Duration,
+	opts ...func(*DurationField),
+) *T {
+	f := DurationField{Value: val}
+	for _, o := range opts {
+		o(&f)
+	}
+	fb.Fields = append(fb.Fields, Field{Key: key, Value: f})
 	return fb.Self
 }
 

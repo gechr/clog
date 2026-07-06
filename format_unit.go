@@ -38,38 +38,68 @@ func styleDuration(
 	)
 }
 
+// asDurationField normalizes a duration-typed field value to a
+// [core.DurationField], accepting both the wrapped type produced by
+// [Event.Duration] and a raw [time.Duration] (e.g. passed via [Event.Any])
+// with no per-field overrides. ok is false for any other type.
+func asDurationField(v any) (core.DurationField, bool) {
+	switch val := v.(type) {
+	case core.DurationField:
+		return val, true
+	case time.Duration:
+		return core.DurationField{Value: val}, true
+	default:
+		return core.DurationField{}, false
+	}
+}
+
 // styleDurationGradient colors the entire duration string based on value/max.
 // Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
+// A field-level override set via [duration.WithGradientMax], [duration.WithGradient],
+// or [duration.WithGradientMode] takes precedence over the logger defaults
+// passed in via gradientMax and styles.
 func styleDurationGradient(
 	s string,
 	originalValue any,
 	styles *style.Config,
 	gradientMax time.Duration,
 ) string {
-	if len(styles.DurationGradient) == 0 {
-		return ""
-	}
-
-	gm := gradientMax
-	if gm <= 0 {
-		return ""
-	}
-
-	d, ok := originalValue.(time.Duration)
+	df, ok := asDurationField(originalValue)
 	if !ok {
 		return ""
 	}
 
-	t := xmath.Clamp01(float64(d) / float64(gm))
+	stops := styles.DurationGradient
+	if len(df.Gradient) > 0 {
+		stops = df.Gradient
+	}
+	if len(stops) == 0 {
+		return ""
+	}
+
+	gm := gradientMax
+	if df.GradientMax != nil {
+		gm = *df.GradientMax
+	}
+	if gm <= 0 {
+		return ""
+	}
+
+	mode := styles.DurationGradientMode
+	if df.GradientMode != nil {
+		mode = *df.GradientMode
+	}
+
+	t := xmath.Clamp01(float64(df.Value) / float64(gm))
 
 	var c colorful.Color
 	switch {
-	case len(styles.DurationGradient) == 1:
-		c = styles.DurationGradient[0].Color
-	case styles.DurationGradientMode == style.GradientStep:
-		c = style.StepGradient(t, styles.DurationGradient)
+	case len(stops) == 1:
+		c = stops[0].Color
+	case mode == style.GradientStep:
+		c = style.StepGradient(t, stops)
 	default:
-		c = style.InterpolateGradient(t, styles.DurationGradient)
+		c = style.InterpolateGradient(t, stops)
 	}
 
 	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
@@ -115,36 +145,51 @@ func styleElapsed(
 
 // styleElapsedGradient colors the entire elapsed string based on elapsed/max.
 // Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
+// A field-level override set via [elapsed.WithGradientMax], [elapsed.WithGradient],
+// or [elapsed.WithGradientMode] takes precedence over the logger defaults
+// passed in via gradientMax and styles.
 func styleElapsedGradient(
 	s string,
 	originalValue any,
 	styles *style.Config,
 	gradientMax time.Duration,
 ) string {
-	if len(styles.ElapsedGradient) == 0 {
-		return ""
-	}
-
-	gm := gradientMax
-	if gm <= 0 {
-		return ""
-	}
-
 	ef, ok := originalValue.(core.ElapsedField)
 	if !ok {
 		return ""
 	}
 
-	t := xmath.Clamp01(float64(time.Duration(ef)) / float64(gm))
+	stops := styles.ElapsedGradient
+	if len(ef.Gradient) > 0 {
+		stops = ef.Gradient
+	}
+	if len(stops) == 0 {
+		return ""
+	}
+
+	gm := gradientMax
+	if ef.GradientMax != nil {
+		gm = *ef.GradientMax
+	}
+	if gm <= 0 {
+		return ""
+	}
+
+	mode := styles.ElapsedGradientMode
+	if ef.GradientMode != nil {
+		mode = *ef.GradientMode
+	}
+
+	t := xmath.Clamp01(float64(ef.Value) / float64(gm))
 
 	var c colorful.Color
 	switch {
-	case len(styles.ElapsedGradient) == 1:
-		c = styles.ElapsedGradient[0].Color
-	case styles.ElapsedGradientMode == style.GradientStep:
-		c = style.StepGradient(t, styles.ElapsedGradient)
+	case len(stops) == 1:
+		c = stops[0].Color
+	case mode == style.GradientStep:
+		c = style.StepGradient(t, stops)
 	default:
-		c = style.InterpolateGradient(t, styles.ElapsedGradient)
+		c = style.InterpolateGradient(t, stops)
 	}
 
 	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))

@@ -12,6 +12,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -170,7 +171,7 @@ func TestSpinnerBuilderDur(t *testing.T) {
 
 	require.Len(t, b.Fields, 1)
 	assert.Equal(t, "elapsed", b.Fields[0].Key)
-	assert.Equal(t, time.Second, b.Fields[0].Value)
+	assert.Equal(t, core.DurationField{Value: time.Second}, b.Fields[0].Value)
 }
 
 func TestSpinnerBuilderPath(t *testing.T) {

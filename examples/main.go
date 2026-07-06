@@ -10,6 +10,7 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/fraction"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
@@ -356,6 +357,11 @@ func main() {
 	e = clog.Info().Elapsed("elapsed")
 	time.Sleep(3 * time.Second)
 	e.Msg("slow operation (red)")
+	// Per-field override: this field maxes out at 1s regardless of the
+	// logger's 3s default, so a 1s operation still renders red.
+	e = clog.Info().Elapsed("elapsed", elapsed.WithGradientMax(1*time.Second))
+	time.Sleep(1 * time.Second)
+	e.Msg("per-field gradient max override (red)")
 	clog.SetFieldFormats(clog.DefaultFieldFormats()) // reset
 
 	// --- Context propagation ---

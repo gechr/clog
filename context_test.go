@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gechr/clog/internal/core"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -106,7 +107,7 @@ func TestContextBools(t *testing.T) {
 
 func TestContextDur(t *testing.T) {
 	ctx := NewWriter(io.Discard).With().Duration("elapsed", time.Second)
-	assertSingleField(t, ctx.Fields, "elapsed", time.Second)
+	assertSingleField(t, ctx.Fields, "elapsed", core.DurationField{Value: time.Second})
 }
 
 func TestContextTime(t *testing.T) {

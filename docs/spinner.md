@@ -196,6 +196,15 @@ The elapsed field respects its position relative to other field methods - it app
 
 The display format uses the logger's [`FieldFormats`](configuration.md#field-formats): `ElapsedPrecision` (default 0 decimal places), rounding to `ElapsedRound` (default 1s), hiding values below `ElapsedMinimum` (default 1s), and can be fully overridden with `ElapsedFormat`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
 
+`.Elapsed(key)` also accepts `elapsed.Option` values to override the gradient max, stops, or transition mode for this animation's field only - see [Per-Field Overrides](styles.md#per-field-overrides):
+
+```go
+err := clog.Spinner("Processing batch").
+  Elapsed("elapsed", elapsed.WithGradientMax(10*time.Second)).
+  Wait(ctx, processBatch).
+  Msg("Batch processed")
+```
+
 ## Per-Event Parts Override
 
 Override the [part order](part-order.md) for a spinner and its completion message without mutating the logger:

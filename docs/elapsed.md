@@ -94,6 +94,16 @@ The elapsed field respects the same per-logger [`FieldFormats`](configuration.md
 | `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
 | `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
 
+`ElapsedGradientMax`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides):
+
+```go
+import "github.com/gechr/clog/field/elapsed"
+
+e := clog.Info().Elapsed("elapsed", elapsed.WithGradientMax(5*time.Second))
+runMigrations()
+e.Msg("database migration")
+```
+
 ### Duration Format Function
 
 `DurationFormat` configures a single format function that applies to both [`Duration`](structured-fields.md) fields and `Elapsed` fields. This is useful when you have a shared helper (e.g. from a utility package) that you want applied consistently across all duration logging:

@@ -236,7 +236,7 @@ func TestEventBools(t *testing.T) {
 func TestEventDur(t *testing.T) {
 	e := NewWriter(io.Discard).Info()
 	e.Duration("elapsed", time.Second)
-	assertSingleField(t, e.fields, "elapsed", time.Second)
+	assertSingleField(t, e.fields, "elapsed", core.DurationField{Value: time.Second})
 }
 
 func TestEventTime(t *testing.T) {

@@ -348,7 +348,7 @@ func TestFormatElapsed(t *testing.T) {
 func TestFormatValueElapsed(t *testing.T) {
 	// Default precision 0 → no decimal places.
 	got, kind := formatValue(
-		core.ElapsedField(3200*time.Millisecond),
+		core.ElapsedField{Value: 3200 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		QuoteAuto,
 		0,
@@ -364,7 +364,7 @@ func TestFormatValueElapsed(t *testing.T) {
 	f := DefaultFieldFormats()
 	f.ElapsedPrecision = 1
 	got, kind = formatValue(
-		core.ElapsedField(3200*time.Millisecond),
+		core.ElapsedField{Value: 3200 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		QuoteAuto,
 		0,
@@ -379,7 +379,7 @@ func TestFormatValueElapsed(t *testing.T) {
 
 func TestFormatValueElapsedPrecision(t *testing.T) {
 	got, kind := formatValue(
-		core.ElapsedField(3210*time.Millisecond),
+		core.ElapsedField{Value: 3210 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		QuoteAuto,
 		0,
@@ -394,7 +394,7 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 	f := DefaultFieldFormats()
 	f.ElapsedPrecision = 2
 	got, kind = formatValue(
-		core.ElapsedField(3210*time.Millisecond),
+		core.ElapsedField{Value: 3210 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
 		QuoteAuto,
 		0,
@@ -2599,7 +2599,7 @@ func TestDurationFormatFuncFallbackForElapsed(t *testing.T) {
 	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(3456 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 3456 * time.Millisecond}},
 	}, opts)
 	assert.Equal(t, " took=dur:3s", got)
 }
@@ -2615,7 +2615,7 @@ func TestDurationFormatFuncElapsedSpecificOverrides(t *testing.T) {
 	opts := formatFieldsOpts{noColor: true, formats: &f}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(3 * time.Second)},
+		{Key: "took", Value: core.ElapsedField{Value: 3 * time.Second}},
 	}, opts)
 	assert.Equal(t, " took=ela:3s", got)
 }
@@ -2644,7 +2644,7 @@ func TestElapsedFormatFunc(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(3456 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 3456 * time.Millisecond}},
 	}, opts)
 	assert.Equal(t, " took=3s", got)
 }
@@ -2673,7 +2673,7 @@ func TestElapsedFormatFuncNilFallsBack(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 3200 * time.Millisecond}},
 	}, opts)
 	assert.Equal(t, " took=3s", got)
 }
@@ -2768,7 +2768,7 @@ func TestElapsedMinimum(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(500 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 500 * time.Millisecond}},
 		{Key: "name", Value: "test"},
 	}, opts)
 	// Elapsed below minimum is hidden; other fields remain.
@@ -2786,7 +2786,7 @@ func TestElapsedMinimumZeroDisabled(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(500 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 500 * time.Millisecond}},
 	}, opts)
 	// All values shown when minimum is 0.
 	assert.Equal(t, " took=500ms", got)
@@ -2804,7 +2804,7 @@ func TestElapsedRound(t *testing.T) {
 	}
 
 	got := formatFields([]Field{
-		{Key: "took", Value: core.ElapsedField(2600 * time.Millisecond)},
+		{Key: "took", Value: core.ElapsedField{Value: 2600 * time.Millisecond}},
 	}, opts)
 	// 2.6s rounds to 3s.
 	assert.Equal(t, " took=3s", got)
@@ -2934,7 +2934,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 	t.Run("active_gradient", func(t *testing.T) {
 		styles := DefaultStyles()
 
-		val := core.ElapsedField(15 * time.Second) // t=0.5 → yellow
+		val := core.ElapsedField{Value: 15 * time.Second} // t=0.5 → yellow
 		got := styleElapsed("15s", val, styles, 30*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;255;255;0m15s\x1b[m", got)
@@ -2943,7 +2943,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 	t.Run("gradient_at_zero", func(t *testing.T) {
 		styles := DefaultStyles()
 
-		val := core.ElapsedField(0)
+		val := core.ElapsedField{Value: 0}
 		got := styleElapsed("0s", val, styles, 30*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;0;255;0m0s\x1b[m", got)
@@ -2952,14 +2952,14 @@ func TestStyleElapsedGradient(t *testing.T) {
 	t.Run("gradient_clamped_beyond_max", func(t *testing.T) {
 		styles := DefaultStyles()
 
-		val := core.ElapsedField(60 * time.Second) // way beyond max
+		val := core.ElapsedField{Value: 60 * time.Second} // way beyond max
 		got := styleElapsed("60s", val, styles, 10*time.Second)
 
 		// Should use the t=1.0 end color (red), not crash.
 		assert.Equal(t, "\x1b[38;2;255;0;0m60s\x1b[m", got)
 
 		// Should produce the same result as exactly at max.
-		atMax := core.ElapsedField(10 * time.Second)
+		atMax := core.ElapsedField{Value: 10 * time.Second}
 		gotAtMax := styleElapsed("10s", atMax, styles, 10*time.Second)
 		assert.NotEmpty(t, gotAtMax)
 	})
@@ -2967,7 +2967,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 	t.Run("inactive_zero_max", func(t *testing.T) {
 		styles := DefaultStyles()
 
-		val := core.ElapsedField(5 * time.Second)
+		val := core.ElapsedField{Value: 5 * time.Second}
 		got := styleElapsed("5s", val, styles, 0) // disabled
 
 		// Should fall through to number/unit path (non-empty with default styles).
@@ -2979,7 +2979,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		styles := DefaultStyles()
 		styles.ElapsedGradient = nil
 
-		val := core.ElapsedField(5 * time.Second)
+		val := core.ElapsedField{Value: 5 * time.Second}
 		got := styleElapsed("5s", val, styles, 30*time.Second)
 
 		// Should fall through to number/unit path.
@@ -3003,7 +3003,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		blue := colorful.Color{R: 0, G: 0, B: 1}
 		styles.ElapsedGradient = []style.ColorStop{{Position: 0.5, Color: blue}}
 
-		val := core.ElapsedField(5 * time.Second)
+		val := core.ElapsedField{Value: 5 * time.Second}
 		got := styleElapsed("5s", val, styles, 10*time.Second)
 
 		assert.Equal(t, "\x1b[38;2;0;0;255m5s\x1b[m", got)
@@ -3012,8 +3012,8 @@ func TestStyleElapsedGradient(t *testing.T) {
 	t.Run("different_positions_different_colors", func(t *testing.T) {
 		styles := DefaultStyles()
 
-		earlyVal := core.ElapsedField(1 * time.Second) // t≈0.03 → green
-		lateVal := core.ElapsedField(29 * time.Second) // t≈0.97 → red
+		earlyVal := core.ElapsedField{Value: 1 * time.Second} // t≈0.03 → green
+		lateVal := core.ElapsedField{Value: 29 * time.Second} // t≈0.97 → red
 
 		early := styleElapsed("1s", earlyVal, styles, 30*time.Second)
 		late := styleElapsed("29s", lateVal, styles, 30*time.Second)
@@ -3026,8 +3026,8 @@ func TestStyleElapsedGradient(t *testing.T) {
 		styles.ElapsedGradientMode = style.GradientStep
 
 		// Two values in the same step region should produce the same color.
-		val1 := core.ElapsedField(1 * time.Second)  // t≈0.03 → first stop (green)
-		val2 := core.ElapsedField(10 * time.Second) // t≈0.33 → still first stop (green)
+		val1 := core.ElapsedField{Value: 1 * time.Second}  // t≈0.03 → first stop (green)
+		val2 := core.ElapsedField{Value: 10 * time.Second} // t≈0.33 → still first stop (green)
 
 		got1 := styleElapsed("1s", val1, styles, 30*time.Second)
 		got2 := styleElapsed("10s", val2, styles, 30*time.Second)
@@ -3037,7 +3037,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		assert.NotEmpty(t, got2)
 
 		// Values crossing a step boundary should differ.
-		val3 := core.ElapsedField(20 * time.Second) // t≈0.67 → second stop (yellow)
+		val3 := core.ElapsedField{Value: 20 * time.Second} // t≈0.67 → second stop (yellow)
 		got3 := styleElapsed("20s", val3, styles, 30*time.Second)
 		assert.NotEqual(
 			t,
@@ -3055,7 +3055,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		stepStyles.ElapsedGradientMode = style.GradientStep
 
 		// At a midpoint, fade and step should produce different colors.
-		val := core.ElapsedField(10 * time.Second) // t≈0.33
+		val := core.ElapsedField{Value: 10 * time.Second} // t≈0.33
 		fade := styleElapsed("10s", val, fadeStyles, 30*time.Second)
 		step := styleElapsed("10s", val, stepStyles, 30*time.Second)
 

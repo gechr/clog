@@ -236,6 +236,20 @@ Use `style.DefaultElapsedGradient()` to get the default green → yellow → red
 
 The `DurationGradientMode` field controls transition style - see [Gradient Mode](#gradient-mode) below.
 
+Override the gradient max, stops, or transition mode for a single `Duration` field, regardless of the logger's `FieldFormats`/`style.Config` settings, using options from the `duration` package:
+
+```go
+import "github.com/gechr/clog/field/duration"
+
+// Logger default: 20s gradient max
+clog.SetDurationGradientMax(20 * time.Second)
+
+clog.Info().
+  Duration("latency", d).                                          // uses the 20s default
+  Duration("timeout_check", d2, duration.WithGradientMax(1*time.Second)). // this field maxes out at 1s
+  Msg("request handled")
+```
+
 ## Elapsed Gradient
 
 Color elapsed-time fields on a gradient that transitions from green (fast) through yellow to red (slow). Set a max duration to enable the gradient - elapsed values are mapped onto 0→max, clamping at max:
@@ -249,6 +263,39 @@ clog.SetFieldFormats(f)
 When active, the gradient overrides `FieldElapsedNumber` / `FieldElapsedUnit` and colors the entire formatted string. When the max is 0 (the default) or `ElapsedGradient` stops are nil, the existing number/unit split styling is used.
 
 Use `style.DefaultElapsedGradient()` to get the default green → yellow → red gradient stops used for `Elapsed` fields (same stops as `DurationGradient` by default).
+
+### Per-Field Overrides
+
+Override the gradient max, stops, or transition mode for a single `Elapsed` field, regardless of the logger's `FieldFormats`/`style.Config` settings, using options from the `elapsed` package:
+
+```go
+import "github.com/gechr/clog/field/elapsed"
+
+// Logger default: 30s gradient max
+clog.SetElapsedGradientMax(30 * time.Second)
+
+clog.Info().
+  Elapsed("elapsed").                                            // uses the 30s default
+  Elapsed("quick_step", elapsed.WithGradientMax(2*time.Second)).  // this field maxes out at 2s
+  Msg("batch complete")
+```
+
+`elapsed.WithGradient(stops...)` overrides the color stops, and `elapsed.WithGradientMode(mode)` overrides fade vs. step transitions, for that field only:
+
+```go
+clog.Info().Elapsed("elapsed",
+  elapsed.WithGradientMax(5*time.Second),
+  elapsed.WithGradient(
+    style.ColorStop{Position: 0, Color: colorful.Color{R: 0, G: 1, B: 1}}, // cyan
+    style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0, B: 1}}, // magenta
+  ),
+  elapsed.WithGradientMode(style.GradientStep),
+).Msg("render")
+```
+
+These options work the same way on animated builders - `fx.Builder.Elapsed` (see [Spinner](spinner.md#elapsed-timer)) accepts the same `elapsed.Option` values for its auto-updating field.
+
+The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, and `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above).
 
 ### Gradient Mode
 

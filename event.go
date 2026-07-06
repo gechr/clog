@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clog/field/duration"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/fraction"
 	"github.com/gechr/clog/field/percent"
 	"github.com/gechr/clog/internal/core"
@@ -185,13 +187,19 @@ func (e *Event) Dict(key string, dict *Event) *Event {
 	return e
 }
 
-// Duration adds a [time.Duration] field.
-func (e *Event) Duration(key string, val time.Duration) *Event {
+// Duration adds a [time.Duration] field. Use options from the [duration]
+// package (e.g. [duration.WithGradientMax]) to override the logger's
+// gradient settings for this field only:
+//
+//	clog.Info().Duration("latency", d, duration.WithGradientMax(3*time.Second))
+func (e *Event) Duration(key string, val time.Duration, opts ...duration.Option) *Event {
 	if e == nil {
 		return e
 	}
 
-	e.fields = append(e.fields, Field{Key: key, Value: val})
+	f := core.DurationField{Value: val}
+	duration.Apply(&f, opts...)
+	e.fields = append(e.fields, Field{Key: key, Value: f})
 	return e
 }
 
@@ -1082,33 +1090,40 @@ func (e *Event) withSymbol(symbol string) *Event {
 // [Event.Msgf].
 //
 // The key parameter is the field name (e.g. "elapsed"). The field uses the
-// same formatting and styling as [fx.Builder.Elapsed].
+// same formatting and styling as [fx.Builder.Elapsed]. Use options from the
+// [elapsed] package (e.g. [elapsed.WithGradientMax]) to override the
+// logger's gradient settings for this field only:
 //
-//	e := clog.Info().Str("step", "migrate").Elapsed("elapsed")
+//	e := clog.Info().Str("step", "migrate").
+//	    Elapsed("elapsed", elapsed.WithGradientMax(3*time.Second))
 //	runMigrations()
 //	e.Msg("done")
 //	// Output: INF ℹ️ done step=migrate elapsed=2s
-func (e *Event) Elapsed(key string) *Event {
+func (e *Event) Elapsed(key string, opts ...elapsed.Option) *Event {
 	if e == nil {
 		return e
 	}
 	if e.elapsedStart.IsZero() {
 		e.elapsedStart = time.Now()
 	}
-	e.fields = append(e.fields, Field{Key: key, Value: core.ElapsedField(0)})
+	f := core.ElapsedField{}
+	elapsed.Apply(&f, opts...)
+	e.fields = append(e.fields, Field{Key: key, Value: f})
 	return e
 }
 
-// resolveElapsed replaces any core.ElapsedField(0) placeholder values in the event's
-// fields with the actual elapsed duration since the first [Event.Elapsed] call.
+// resolveElapsed replaces any zero-value core.ElapsedField placeholders in the
+// event's fields with the actual elapsed duration since the first
+// [Event.Elapsed] call, preserving any per-field overrides set on them.
 func (e *Event) resolveElapsed() {
 	if e.elapsedStart.IsZero() {
 		return
 	}
-	dur := core.ElapsedField(time.Since(e.elapsedStart))
+	dur := time.Since(e.elapsedStart)
 	for i := range e.fields {
-		if v, ok := e.fields[i].Value.(core.ElapsedField); ok && v == 0 {
-			e.fields[i].Value = dur
+		if v, ok := e.fields[i].Value.(core.ElapsedField); ok && v.Value == 0 {
+			v.Value = dur
+			e.fields[i].Value = v
 		}
 	}
 }

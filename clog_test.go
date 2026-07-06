@@ -2088,7 +2088,7 @@ func TestFieldFormatsElapsedFormat(t *testing.T) {
 
 	// Directly inject an elapsed field via the logger's fields.
 	l.mu.Lock()
-	l.fields = []Field{{Key: "took", Value: core.ElapsedField(3 * time.Second)}}
+	l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 3 * time.Second}}}
 	l.mu.Unlock()
 
 	l.Info().Msg("test")
@@ -2107,7 +2107,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: core.ElapsedField(1 * time.Second)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 1 * time.Second}}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -2125,7 +2125,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: core.ElapsedField(2 * time.Second)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 2 * time.Second}}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -2143,7 +2143,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: core.ElapsedField(100 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 100 * time.Millisecond}}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -2164,7 +2164,7 @@ func TestFieldFormatsElapsedPrecision(t *testing.T) {
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 3200 * time.Millisecond}}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -2183,7 +2183,7 @@ func TestFieldFormatsElapsedPrecision(t *testing.T) {
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
-		l.fields = []Field{{Key: "took", Value: core.ElapsedField(3200 * time.Millisecond)}}
+		l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 3200 * time.Millisecond}}}
 		l.mu.Unlock()
 
 		l.Info().Msg("test")
@@ -2203,7 +2203,7 @@ func TestFieldFormatsElapsedRound(t *testing.T) {
 	l.SetFieldFormats(f)
 
 	l.mu.Lock()
-	l.fields = []Field{{Key: "took", Value: core.ElapsedField(2600 * time.Millisecond)}}
+	l.fields = []Field{{Key: "took", Value: core.ElapsedField{Value: 2600 * time.Millisecond}}}
 	l.mu.Unlock()
 
 	l.Info().Msg("test")

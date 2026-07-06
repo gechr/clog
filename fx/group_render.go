@@ -703,7 +703,9 @@ func resolveDynamicFields(
 	for i := range out {
 		switch out[i].Key {
 		case b.elapsedKey:
-			out[i].Value = core.ElapsedField(dur)
+			f := b.elapsedOverride
+			f.Value = dur
+			out[i].Value = f
 		case b.barPercentKey:
 			out[i].Value = core.Percent{Value: pct}
 		}
