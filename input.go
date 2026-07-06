@@ -11,10 +11,18 @@ import (
 	"golang.org/x/term"
 )
 
+// ErrInputNotHidden reports that a sensitive read could not disable echo
+// (the input is not a terminal *os.File) and [WithRequireHidden] forbade the
+// echoing cooked-read fallback.
+var ErrInputNotHidden = errors.New("input cannot be hidden: not a terminal")
+
 // inputConfig holds resolved input configuration.
 type inputConfig struct {
 	// sensitive suppresses echo of typed characters, for password-style input.
 	sensitive bool
+	// requireHidden makes a sensitive read fail with ErrInputNotHidden when
+	// echo cannot be disabled, instead of falling back to a cooked read.
+	requireHidden bool
 	// fields, when non-nil, collects clog-styled key=value fields that are
 	// rendered into the prompt after the message, followed by ": ".
 	fields func(*Event)
@@ -26,9 +34,26 @@ type InputOption func(*inputConfig)
 // WithSensitive returns an [InputOption] that suppresses echo of typed
 // characters, masking password-style input. [Logger.Password] applies this
 // automatically.
+//
+// When the input is not a terminal (a pipe, a test reader), the read falls
+// back to a plain cooked read WITH echo - there is no terminal to mask.
+// Security-critical callers that must never echo should add
+// [WithRequireHidden].
 func WithSensitive(v bool) InputOption {
 	return func(c *inputConfig) {
 		c.sensitive = v
+	}
+}
+
+// WithRequireHidden returns an [InputOption] that makes a sensitive read
+// fail with [ErrInputNotHidden] when echo cannot be disabled (the input is
+// not a terminal *os.File), instead of silently falling back to an echoing
+// cooked read. Use it when the value being read must never appear on screen:
+//
+//	pin, err := clog.PasswordContext(ctx, "Enter PIN", clog.WithRequireHidden())
+func WithRequireHidden() InputOption {
+	return func(c *inputConfig) {
+		c.requireHidden = true
 	}
 }
 
@@ -124,7 +149,7 @@ func (l *Logger) InputContext(
 		prompt = l.renderPrompt(prompt, ev.fields)
 	}
 
-	return readInput(ctx, src, w, prompt, cfg.sensitive)
+	return readInput(ctx, src, w, prompt, cfg)
 }
 
 // Password is [Logger.Input] with [WithSensitive] applied: on a terminal,
@@ -230,13 +255,17 @@ func readInput(
 	src *inputSource,
 	w io.Writer,
 	prompt string,
-	sensitive bool,
+	cfg inputConfig,
 ) (string, error) {
 	writeString(w, prompt)
 
-	if sensitive {
+	if cfg.sensitive {
 		if f, ok := src.raw.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
 			return readPassword(ctx, int(f.Fd()), w)
+		}
+		if cfg.requireHidden {
+			writeString(w, nl)
+			return "", ErrInputNotHidden
 		}
 	}
 

@@ -232,3 +232,25 @@ func TestInputWithFieldsEmptyFields(t *testing.T) {
 	assert.Equal(t, "x", got)
 	assert.Equal(t, "Name: ", out.String())
 }
+
+func TestPasswordRequireHiddenFailsOnNonTerminal(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("secret\n"))
+
+	got, err := l.Password("Value", WithRequireHidden())
+
+	require.ErrorIs(t, err, ErrInputNotHidden)
+	assert.Empty(t, got)
+}
+
+func TestInputRequireHiddenIgnoredWhenNotSensitive(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("hello\n"))
+
+	got, err := l.Input("Name: ", WithRequireHidden())
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+}
