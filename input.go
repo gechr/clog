@@ -35,7 +35,11 @@ func WithSensitive(v bool) InputOption {
 // WithFields returns an [InputOption] that renders clog-styled key=value
 // fields into the prompt. The prompt string becomes the message part and is
 // followed by the fields and a ": " suffix, styled exactly like a log line's
-// message and fields:
+// message and fields.
+//
+// Field values are DISPLAYED verbatim on the terminal - [WithSensitive]
+// masks only the typed input, never the prompt - so fields must carry
+// identifiers and metadata only, never secrets:
 //
 //	pass, err := clog.Password("Enter passphrase", clog.WithFields(func(e *clog.Event) {
 //		e.Str("user", "alice").Int("attempts", 3)
@@ -257,9 +261,12 @@ func readInput(
 }
 
 // readPassword reads without echo from the terminal fd, honouring ctx: on
-// cancellation the pre-read terminal state is restored (ReadPassword only
-// restores it when its read returns, which an aborted prompt never waits
-// for) and the prompt line is terminated.
+// cancellation the pre-read terminal state is restored, the input queue is
+// flushed (so a partially typed secret is not handed to the shell), and the
+// prompt line is terminated. Cancellable reads go through hiddenReadLine,
+// where the caller is the single termios writer; the non-cancellable path
+// keeps term.ReadPassword on the calling goroutine (no concurrent restore,
+// so no race).
 func readPassword(ctx context.Context, fd int, w io.Writer) (string, error) {
 	if ctx.Done() == nil {
 		b, err := term.ReadPassword(fd)
@@ -269,33 +276,7 @@ func readPassword(ctx context.Context, fd int, w io.Writer) (string, error) {
 		}
 		return string(b), nil
 	}
-
-	state, err := term.GetState(fd)
-	if err != nil {
-		return "", err
-	}
-	type result struct {
-		b   []byte
-		err error
-	}
-	ch := make(chan result, 1)
-	go func() {
-		b, rerr := term.ReadPassword(fd)
-		ch <- result{b: b, err: rerr}
-	}()
-	select {
-	case <-ctx.Done():
-		restoreErr := term.Restore(fd, state)
-		_ = restoreErr
-		writeString(w, nl)
-		return "", ctx.Err()
-	case r := <-ch:
-		writeString(w, nl)
-		if r.err != nil {
-			return "", r.err
-		}
-		return string(r.b), nil
-	}
+	return hiddenReadLine(ctx, fd, w)
 }
 
 // readLineCooked reads a single newline-delimited line from r.
