@@ -1,6 +1,8 @@
 package clog
 
 import (
+	"slices"
+
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
@@ -78,6 +80,8 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		combinedTree = append(append([]TreePos{}, l.tree...), treePos...)
 	}
 	noColor := l.output.ColorsDisabled()
+	omitEmpty := l.omitEmpty
+	omitZero := l.omitZero
 	styles := l.styles
 	label := l.formatLabel(level)
 	labels := l.allPaddedLabels()
@@ -127,6 +131,18 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	}
 
 	cfg.FormatFields = func(fields []core.Field) string {
+		// Honor the logger's omit settings so task rows match regular log
+		// lines. Dynamic fields (elapsed/percent) are already resolved or
+		// stripped by the time render loops call this.
+		if omitZero {
+			fields = slices.DeleteFunc(slices.Clone(fields), func(f core.Field) bool {
+				return isZeroValue(f.Value)
+			})
+		} else if omitEmpty {
+			fields = slices.DeleteFunc(slices.Clone(fields), func(f core.Field) bool {
+				return isEmptyValue(f.Value)
+			})
+		}
 		return formatFields(fields, fieldOpts)
 	}
 	cfg.StyleLevel = func(lvl core.Level) string {

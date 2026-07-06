@@ -33,3 +33,5 @@ clog.Info().
 ```
 
 Both settings are inherited by sub-loggers created with `With()`. When both are enabled, `OmitZero` takes precedence.
+
+Both settings also apply to animated task rows (`Task`, `Group` tasks, progress bars): an empty field stays hidden while the row is live and appears in place - preserving its declared position - once it is given a value via a live `Update` or the task result. This makes it possible to reserve a slot for a late-arriving field (e.g. a URL) ahead of `elapsed` without rendering an empty `url=` in the meantime.

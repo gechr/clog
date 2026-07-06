@@ -390,3 +390,40 @@ func TestGroupAnimationDisplacesLogLines(t *testing.T) {
 	assert.False(t, out.LiveRegion().Active())
 	assert.Contains(t, got, xansi.ShowCursor)
 }
+
+func TestTaskConfigFormatFieldsOmitEmpty(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetOmitEmpty(true)
+
+	cfg := fxLogger{l}.TaskConfig(Spinner("test"))
+	got := cfg.FormatFields([]core.Field{
+		{Key: "name", Value: "alice"},
+		{Key: "url", Value: ""},
+		{Key: "age", Value: 0},
+	})
+	assert.Equal(t, " name=alice age=0", got)
+}
+
+func TestTaskConfigFormatFieldsOmitZero(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetOmitZero(true)
+
+	cfg := fxLogger{l}.TaskConfig(Spinner("test"))
+	got := cfg.FormatFields([]core.Field{
+		{Key: "name", Value: "alice"},
+		{Key: "url", Value: ""},
+		{Key: "age", Value: 0},
+	})
+	assert.Equal(t, " name=alice", got)
+}
+
+func TestTaskConfigFormatFieldsNoOmit(t *testing.T) {
+	l := NewWriter(io.Discard)
+
+	cfg := fxLogger{l}.TaskConfig(Spinner("test"))
+	got := cfg.FormatFields([]core.Field{
+		{Key: "name", Value: "alice"},
+		{Key: "url", Value: ""},
+	})
+	assert.Equal(t, " name=alice url=", got)
+}

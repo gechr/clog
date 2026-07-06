@@ -657,6 +657,18 @@ func main() {
 		Int("age", 0).
 		Bool("admin", false).
 		Msg("Empty string and nil omitted; zero int and false kept")
+	_ = clog.Spinner("Waiting for login").
+		Str("url", ""). // hidden until set, but keeps its slot before elapsed
+		Elapsed("elapsed").
+		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
+			time.Sleep(750 * time.Millisecond)
+			update.Msg("Waiting for login").
+				Str("url", "https://example.com/login").
+				Send()
+			time.Sleep(750 * time.Millisecond)
+			return nil
+		}).Symbol("✅").
+		Msg("Logged in")
 	clog.SetOmitEmpty(false) // reset
 
 	// --- OmitZero ---
