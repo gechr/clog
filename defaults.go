@@ -93,6 +93,15 @@ func SetDurationFormat(format func(time.Duration) string) { Default.SetDurationF
 // SetDurationGradientMax sets the duration gradient maximum on the [Default] logger.
 func SetDurationGradientMax(maximum time.Duration) { Default.SetDurationGradientMax(maximum) }
 
+// SetDurationMinimum sets the minimum duration shown on the [Default] logger.
+func SetDurationMinimum(minimum time.Duration) { Default.SetDurationMinimum(minimum) }
+
+// SetDurationPrecision sets the duration display precision on the [Default] logger.
+func SetDurationPrecision(precision int) { Default.SetDurationPrecision(precision) }
+
+// SetDurationRound sets the duration rounding granularity on the [Default] logger.
+func SetDurationRound(round time.Duration) { Default.SetDurationRound(round) }
+
 // SetElapsedFormat sets a custom elapsed formatter on the [Default] logger.
 func SetElapsedFormat(format func(time.Duration) string) { Default.SetElapsedFormat(format) }
 

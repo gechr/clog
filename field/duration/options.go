@@ -42,6 +42,15 @@ func WithGradientMode(mode style.GradientMode) Option {
 	}
 }
 
+// WithMinimum returns an [Option] that overrides the logger's duration
+// minimum threshold for this field - the field is hidden entirely when its
+// value falls below minimum.
+func WithMinimum(minimum time.Duration) Option {
+	return func(d *Duration) {
+		d.Minimum = &minimum
+	}
+}
+
 // Apply applies the given options to d.
 func Apply(d *Duration, opts ...Option) {
 	for _, o := range opts {

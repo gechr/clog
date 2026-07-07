@@ -90,13 +90,16 @@ The elapsed field respects the same per-logger [`FieldFormats`](configuration.md
 | --------------------- | ---------------- | -------------------------------------------------------------------------------------- |
 | `DurationFormat`      | `nil` (built-in) | Custom formatter for both `Duration` and `Elapsed` fields                              |
 | `DurationGradientMax` | `0` (disabled)   | Max duration for `Duration` field gradient (see [Styles](styles.md#duration-gradient)) |
+| `DurationMinimum`     | `time.Second`    | Hide `Duration` fields below this threshold (`0` shows all values)                     |
+| `DurationPrecision`   | `0`              | Decimal places for `Duration` fields (`0` = `3s`, `1` = `3.2s`)                        |
+| `DurationRound`       | `time.Second`    | Rounding granularity for `Duration` fields (`0` disables rounding)                     |
 | `ElapsedFormat`       | `nil` (built-in) | Custom formatter for elapsed durations (takes priority over `DurationFormat`)          |
 | `ElapsedGradientMax`  | `0` (disabled)   | Max duration for gradient coloring (see [Styles](styles.md#elapsed-gradient))          |
 | `ElapsedMinimum`      | `time.Second`    | Hide elapsed field below this threshold (`0` shows all values)                         |
 | `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
 | `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
 
-`ElapsedGradientMax`, `ElapsedMinimum`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides):
+`ElapsedGradientMax`, `ElapsedMinimum`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides). The `duration` package mirrors this for `Duration` fields, including `duration.WithMinimum`:
 
 ```go
 import "github.com/gechr/clog/field/elapsed"

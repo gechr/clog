@@ -306,7 +306,7 @@ clog.Info().
 
 These options work the same way on animated builders - `fx.Builder.Elapsed` (see [Spinner](spinner.md#elapsed-timer)) accepts the same `elapsed.Option` values for its auto-updating field.
 
-The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, and `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above).
+The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above), and `duration.WithMinimum`, which overrides `DurationMinimum` for that field only.
 
 ### Gradient Mode
 

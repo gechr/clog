@@ -92,18 +92,37 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 	for i := range fields {
 		f := fields[i]
 
-		// Elapsed pre-processing: round, apply minimum threshold, update value.
+		// Elapsed pre-processing: apply the minimum threshold to the raw value
+		// (so a field only first appears once real time reaches the minimum,
+		// rather than as soon as rounding pushes it there), then round.
 		if val, ok := f.Value.(core.ElapsedField); ok {
 			d := val.Value
-			if r := fmts.ElapsedRound; r > 0 {
-				d = d.Round(r)
-			}
 			minimum := fmts.ElapsedMinimum
 			if val.Minimum != nil {
 				minimum = *val.Minimum
 			}
 			if d < minimum {
 				continue
+			}
+			if r := fmts.ElapsedRound; r > 0 {
+				d = d.Round(r)
+			}
+			val.Value = d
+			f.Value = val
+		}
+
+		// Duration pre-processing mirrors Elapsed's above.
+		if val, ok := f.Value.(core.DurationField); ok {
+			d := val.Value
+			minimum := fmts.DurationMinimum
+			if val.Minimum != nil {
+				minimum = *val.Minimum
+			}
+			if d < minimum {
+				continue
+			}
+			if r := fmts.DurationRound; r > 0 {
+				d = d.Round(r)
 			}
 			val.Value = d
 			f.Value = val
@@ -293,7 +312,7 @@ func formatValue(
 ) (string, valueKind) {
 	switch val := v.(type) {
 	case core.ElapsedField:
-		return formatElapsed(val.Value, fmts.ElapsedPrecision), kindElapsed
+		return formatDurationValue(val.Value, fmts.ElapsedPrecision), kindElapsed
 	case core.Fraction:
 		mode := fractionNumberFormat(val, fmts)
 		return formatNumber(int64(val.Current), mode, fmts) +
@@ -322,7 +341,7 @@ func formatValue(
 	case core.QuantityField:
 		return string(val), kindQuantity
 	case core.DurationField:
-		return val.Value.String(), kindDuration
+		return formatDurationValue(val.Value, fmts.DurationPrecision), kindDuration
 	case time.Duration:
 		return val.String(), kindDuration
 	case time.Time:
@@ -393,12 +412,13 @@ func formatETA(d time.Duration) string {
 	return strconv.Itoa(s) + "s"
 }
 
-// formatElapsed formats a duration for display. For durations >= 1 hour it
-// uses composite "XhYm" format (omitting Ym when Y=0). For durations >= 1
-// minute it uses "XmYs" (omitting Ys when Y=0). For shorter durations it
-// picks the largest unit where the value is >= 1 and formats with the given
-// decimal precision (no trailing zero trimming).
-func formatElapsed(d time.Duration, precision int) string {
+// formatDurationValue formats a duration for display, shared by Elapsed and
+// Duration fields. For durations >= 1 hour it uses composite "XhYm" format
+// (omitting Ym when Y=0). For durations >= 1 minute it uses "XmYs" (omitting
+// Ys when Y=0). For shorter durations it picks the largest unit where the
+// value is >= 1 and formats with the given decimal precision (no trailing
+// zero trimming).
+func formatDurationValue(d time.Duration, precision int) string {
 	if d < 0 {
 		d = -d
 	}

@@ -1,4 +1,4 @@
-# Structured Fields
+//# Structured Fields
 
 Events and contexts support typed field methods. All methods are safe to call on a nil receiver (disabled events are no-ops).
 
@@ -83,7 +83,7 @@ clog.SetSliceBrackets('|', '|')    // |a, b, c| - same char for open and close
 
 ## Duration Formatting
 
-By default, `Duration` fields use Go's built-in `time.Duration.String()` (e.g. `3.2s`, `1m30s`). Set the `DurationFormat` field of [`FieldFormats`](configuration.md#field-formats) to apply a custom formatter per-logger:
+By default, `Duration` fields are hidden below `DurationMinimum` (`time.Second`), rounded to `DurationRound` (`time.Second`), and formatted with `DurationPrecision` (`0` decimal places, e.g. `3s`) - the same defaults as [`Elapsed`](elapsed.md#elapsed-configuration) fields. Durations >= 1m use composite format (e.g. `1m30s`, `2h15m`). Set the `DurationFormat` field of [`FieldFormats`](configuration.md#field-formats) to apply a custom formatter per-logger instead:
 
 ```go
 f := clog.DefaultFieldFormats()
@@ -105,9 +105,9 @@ f := clog.DefaultFieldFormats()
 f.DurationGradientMax = 20 * time.Second
 clog.SetFieldFormats(f)
 
-clog.Info().Duration("duration", 500*time.Millisecond).Msg("fast")  // green
-clog.Info().Duration("duration", 10*time.Second).Msg("medium")       // yellow
-clog.Info().Duration("duration", 25*time.Second).Msg("slow")         // red (clamped)
+clog.Info().Duration("duration", 2*time.Second).Msg("fast")    // green
+clog.Info().Duration("duration", 10*time.Second).Msg("medium") // yellow
+clog.Info().Duration("duration", 25*time.Second).Msg("slow")   // red (clamped)
 ```
 
 When active, the gradient overrides `FieldDurationNumber` / `FieldDurationUnit`. See [Duration Gradient](styles.md#duration-gradient) in the styles reference for gradient mode and custom stop configuration.

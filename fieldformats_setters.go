@@ -38,6 +38,24 @@ func (l *Logger) SetDurationGradientMax(maximum time.Duration) {
 	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationGradientMax = maximum })
 }
 
+// SetDurationMinimum hides duration fields below this duration. 0 shows all
+// values. Defaults to [time.Second].
+func (l *Logger) SetDurationMinimum(minimum time.Duration) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationMinimum = minimum })
+}
+
+// SetDurationPrecision sets the decimal precision for duration display
+// (0 = "3s", 1 = "3.2s").
+func (l *Logger) SetDurationPrecision(precision int) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationPrecision = precision })
+}
+
+// SetDurationRound sets the rounding granularity for duration values. 0
+// disables rounding. Defaults to [time.Second].
+func (l *Logger) SetDurationRound(round time.Duration) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationRound = round })
+}
+
 // SetElapsedFormat sets a custom formatter for elapsed-time fields (takes
 // priority over the duration formatter). nil restores the built-in format.
 func (l *Logger) SetElapsedFormat(format func(time.Duration) string) {

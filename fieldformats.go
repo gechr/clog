@@ -18,6 +18,15 @@ type FieldFormats struct {
 	// DurationGradientMax is the duration mapped to the end of the
 	// Duration gradient stops. 0 disables the gradient.
 	DurationGradientMax time.Duration
+	// DurationMinimum hides duration fields below this duration.
+	// The default is [time.Second]; 0 shows all values.
+	DurationMinimum time.Duration
+	// DurationPrecision is the decimal precision for duration display
+	// (0 = "3s", 1 = "3.2s").
+	DurationPrecision int
+	// DurationRound is the rounding granularity for duration values.
+	// The default is [time.Second]; 0 disables rounding.
+	DurationRound time.Duration
 	// ElapsedFormat overrides the formatter for elapsed-time fields.
 	// nil means DurationFormat, then the built-in format.
 	ElapsedFormat func(time.Duration) string
@@ -88,11 +97,14 @@ type FieldFormats struct {
 }
 
 // DefaultFieldFormats returns the default field-format configuration:
-// hyperlinks enabled, elapsed rounded to whole seconds and hidden below one
-// second, case-insensitive quantity units, plain numbers with a "," group
-// separator and a 1000 compact minimum, and built-in formatters.
+// hyperlinks enabled, duration and elapsed both rounded to whole seconds and
+// hidden below one second, case-insensitive quantity units, plain numbers
+// with a "," group separator and a 1000 compact minimum, and built-in
+// formatters.
 func DefaultFieldFormats() FieldFormats {
 	return FieldFormats{
+		DurationMinimum:         time.Second,
+		DurationRound:           time.Second,
 		ElapsedMinimum:          time.Second,
 		ElapsedRound:            time.Second,
 		HyperlinkEnabled:        true,

@@ -86,6 +86,9 @@ To change a single option without the read-modify-write dance, each field has a 
 | ------------------------- | ---------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
 | `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`)  |
 | `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                                |
+| `DurationMinimum`         | `time.Duration`              | `time.Second`    | Hide duration fields below this duration (`0` shows all values)                               |
+| `DurationPrecision`       | `int`                        | `0`              | Decimal places for duration display (`0` = `3s`, `1` = `3.2s`)                                |
+| `DurationRound`           | `time.Duration`              | `time.Second`    | Rounding granularity for duration values (`0` disables rounding)                              |
 | `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                    |
 | `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                         |
 | `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                                |

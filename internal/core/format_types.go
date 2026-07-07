@@ -32,11 +32,14 @@ type ElapsedField struct {
 // DurationField wraps a time.Duration so formatValue can identify it for
 // duration styling. GradientMax, Gradient, and GradientMode override the
 // logger's duration gradient settings for this field when non-nil/non-empty.
+// Minimum overrides the logger's [FieldFormats.DurationMinimum] threshold for
+// this field when non-nil.
 type DurationField struct {
 	Value        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
+	Minimum      *time.Duration
 }
 
 // Percent holds a percentage value (0–100) with an optional reverse
