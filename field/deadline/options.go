@@ -1,0 +1,54 @@
+// Package deadline provides options for countdown deadline field rendering in clog.
+package deadline
+
+import (
+	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/style"
+)
+
+// Deadline is the value type for countdown deadline fields.
+type Deadline = core.DeadlineField
+
+// Option configures how a deadline field is rendered.
+type Option func(*Deadline)
+
+// WithGradient returns an [Option] that overrides the logger's elapsed
+// gradient color stops for this field. The gradient runs from the first stop
+// on a fresh deadline to the last stop at expiry.
+//
+//	clog.Spinner("Waiting for confirmation").Deadline("timeout", 15*time.Second,
+//	    deadline.WithGradient(
+//	        style.ColorStop{Position: 0, Color: green},
+//	        style.ColorStop{Position: 1, Color: red},
+//	    ))
+func WithGradient(stops ...style.ColorStop) Option {
+	return func(d *Deadline) {
+		d.Gradient = stops
+	}
+}
+
+// WithGradientMode returns an [Option] that overrides the logger's elapsed
+// gradient transition mode ([style.GradientFade] or [style.GradientStep])
+// for this field.
+func WithGradientMode(mode style.GradientMode) Option {
+	return func(d *Deadline) {
+		d.GradientMode = &mode
+	}
+}
+
+// WithTrailing returns an [Option] that renders the deadline field last on
+// the row, after any fields added at runtime via a live Update. Use when the
+// deadline is a persistent countdown that should always trail the row's own
+// attrs.
+func WithTrailing() Option {
+	return func(d *Deadline) {
+		d.Trailing = true
+	}
+}
+
+// Apply applies the given options to d.
+func Apply(d *Deadline, opts ...Option) {
+	for _, o := range opts {
+		o(d)
+	}
+}

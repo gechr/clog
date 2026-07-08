@@ -19,6 +19,7 @@ import (
 	"github.com/gechr/clog/style"
 	xansi "github.com/gechr/x/ansi"
 	xmath "github.com/gechr/x/math"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // renderTask holds per-animation mutable state for both the single-animation
@@ -670,7 +671,7 @@ func renderTaskFields(
 	current, total int,
 ) string {
 	b := gt.builder
-	if b.elapsedKey != "" || b.barPercentKey != "" {
+	if xstrings.AnyNonEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
 		resolved := resolveDynamicFields(*fieldsPtr, b, dur, current, total)
 		gt.cachedFieldsStr = strings.TrimLeft(gt.cfg.FormatFields(resolved), " ")
 	} else if fieldsPtr != gt.cachedFieldsPtr {
@@ -702,6 +703,10 @@ func resolveDynamicFields(
 
 	for i := range out {
 		switch out[i].Key {
+		case b.deadlineKey:
+			f := b.deadlineOverride
+			f.Remaining = max(f.From-dur, 0)
+			out[i].Value = f
 		case b.elapsedKey:
 			f := b.elapsedOverride
 			f.Value = dur

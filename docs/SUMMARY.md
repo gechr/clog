@@ -19,6 +19,7 @@
   - [Quoting](quoting.md)
   - [Omit Empty/Zero](omit-empty-zero.md)
   - [Elapsed](elapsed.md)
+  - [Deadline](deadline.md)
   - [`NO_COLOR`](no-color.md)
 
 - [Layout]()

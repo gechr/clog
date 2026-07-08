@@ -196,6 +196,93 @@ func styleElapsedGradient(
 	return ls.Render(s)
 }
 
+// styleDeadline renders a countdown string. When the deadline gradient is
+// active ([style.Config.ElapsedGradient] non-empty and From > 0), the entire
+// string is colored by interpolating the gradient based on the consumed time
+// (From - Remaining) / From, so a fresh deadline uses the first stop and an
+// expiring one the last. Otherwise it falls back to the number/unit split
+// path using [style.Config.FieldElapsedNumber] and
+// [style.Config.FieldElapsedUnit]. Returns "" when no styles apply.
+func styleDeadline(
+	s string,
+	originalValue any,
+	styles *style.Config,
+) string {
+	if styled := styleDeadlineGradient(s, originalValue, styles); styled != "" {
+		return styled
+	}
+
+	// Number/unit split path.
+	numStyle := styles.FieldElapsedNumber
+	if numStyle == nil {
+		numStyle = styles.FieldDurationNumber
+	}
+
+	unitStyle := styles.FieldElapsedUnit
+	if unitStyle == nil {
+		unitStyle = styles.FieldDurationUnit
+	}
+
+	return styleNumberUnit(
+		s,
+		numStyle,
+		unitStyle,
+		styles.DurationUnits,
+		styles.DurationThresholds,
+		true,
+	)
+}
+
+// styleDeadlineGradient colors the entire countdown string based on
+// (From - Remaining) / From - the deadline's From is the implicit gradient
+// maximum, so no GradientMax configuration applies. Returns "" when the
+// gradient is inactive (no stops, non-positive From, or wrong type).
+// A field-level override set via [deadline.WithGradient] or
+// [deadline.WithGradientMode] takes precedence over the logger defaults.
+func styleDeadlineGradient(
+	s string,
+	originalValue any,
+	styles *style.Config,
+) string {
+	df, ok := originalValue.(core.DeadlineField)
+	if !ok {
+		return ""
+	}
+
+	stops := styles.ElapsedGradient
+	if len(df.Gradient) > 0 {
+		stops = df.Gradient
+	}
+	if len(stops) == 0 {
+		return ""
+	}
+
+	if df.From <= 0 {
+		return ""
+	}
+
+	mode := styles.ElapsedGradientMode
+	if df.GradientMode != nil {
+		mode = *df.GradientMode
+	}
+
+	consumed := df.From - df.Remaining
+	t := xmath.Clamp01(float64(consumed) / float64(df.From))
+
+	var c colorful.Color
+	switch {
+	case len(stops) == 1:
+		c = stops[0].Color
+	case mode == style.GradientStep:
+		c = style.StepGradient(t, stops)
+	default:
+		c = style.InterpolateGradient(t, stops)
+	}
+
+	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+	return ls.Render(s)
+}
+
 // stylePercent renders a percentage string with a gradient color based on the
 // value. The color is interpolated from the [style.Config.PercentGradient] stops and
 // applied as the foreground on top of [style.Config.FieldPercent] (if set).

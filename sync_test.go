@@ -14,6 +14,7 @@ func TestEventFieldBuilderMethodSync(t *testing.T) {
 	// that require logger/output state not available in FieldBuilder.
 	eventOnly := map[string]bool{
 		"Column":       true, // needs logger output
+		"Deadline":     true, // event lifecycle
 		"Dict":         true, // takes *Event
 		"Discard":      true, // event lifecycle
 		"Disabled":     true, // event lifecycle

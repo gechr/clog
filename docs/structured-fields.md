@@ -1,4 +1,4 @@
-//# Structured Fields
+# Structured Fields
 
 Events and contexts support typed field methods. All methods are safe to call on a nil receiver (disabled events are no-ops).
 

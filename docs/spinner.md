@@ -219,6 +219,20 @@ err := clog.Spinner("Deploying").
 // INF ✅ Deployed env=production tag=v1.2.3 elapsed=2s
 ```
 
+## Deadline Countdown
+
+`.Deadline(key, from)` is the countdown mirror of the elapsed timer: the field displays the time remaining (counting down to `0s`), colored by the time consumed - green when fresh, red near expiry, with `from` as the gradient maximum:
+
+```go
+err := clog.Spinner("Waiting for confirmation").
+  Deadline("timeout", 15*time.Second).
+  Wait(ctx, waitForConfirmation).
+  Msg("Confirmed")
+// renders timeout=15s, 14s, ... 1s while waiting
+```
+
+Remaining time rounds with the ceiling (a countdown never shows `0s` until truly expired), and `ElapsedMinimum` never hides the field. `.Deadline` accepts `deadline.Option` values - `deadline.WithGradient`/`deadline.WithGradientMode` to restyle, and `deadline.WithTrailing()` to pin the field to the end of the row like `elapsed.Trailing()`. See [Deadline](deadline.md) for the event-level form and configuration details.
+
 ## Per-Event Parts Override
 
 Override the [part order](part-order.md) for a spinner and its completion message without mutating the logger:

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/gechr/clog/field/deadline"
 	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/field/fraction"
@@ -21,20 +22,21 @@ import (
 type Event struct {
 	logger *Logger
 
-	dict         bool      // true for events created by Dict() (must not call Msg/Send)
-	elapsedStart time.Time // set by Elapsed(); zero means no elapsed field
-	err          error     // set by Err(); used as message by Send(), or as error= field by Msg()
-	exitCode     int       // exit code for Fatal-level events; 0 means default (1)
-	fields       []Field
-	level        Level
-	msgStyle     Style     // nil = use logger/global message style
-	noExit       bool      // if true, skip exit even for LevelFatal (used by adapters)
-	omitEmpty    *bool     // nil = use logger's omitEmpty
-	omitZero     *bool     // nil = use logger's omitZero
-	parts        *[]Part   // nil = use logger's parts
-	sort         *Sort     // nil = use logger's fieldSort
-	symbol       *string   // nil = use logger/default symbol
-	timestamp    time.Time // if non-zero, overrides time.Now() in Logger.log()
+	deadlineStart time.Time // set by Deadline(); zero means no deadline field
+	dict          bool      // true for events created by Dict() (must not call Msg/Send)
+	elapsedStart  time.Time // set by Elapsed(); zero means no elapsed field
+	err           error     // set by Err(); used as message by Send(), or as error= field by Msg()
+	exitCode      int       // exit code for Fatal-level events; 0 means default (1)
+	fields        []Field
+	level         Level
+	msgStyle      Style     // nil = use logger/global message style
+	noExit        bool      // if true, skip exit even for LevelFatal (used by adapters)
+	omitEmpty     *bool     // nil = use logger's omitEmpty
+	omitZero      *bool     // nil = use logger's omitZero
+	parts         *[]Part   // nil = use logger's parts
+	sort          *Sort     // nil = use logger's fieldSort
+	symbol        *string   // nil = use logger/default symbol
+	timestamp     time.Time // if non-zero, overrides time.Now() in Logger.log()
 }
 
 // NOTE: The field methods below intentionally duplicate FieldBuilder[T] methods.
@@ -561,6 +563,7 @@ func (e *Event) Msg(msg string) {
 	}
 
 	e.resolveElapsed()
+	e.resolveDeadline()
 
 	if e.err != nil {
 		e.fields = append(e.fields, Field{Key: ErrorKey, Value: e.err})
@@ -1110,6 +1113,52 @@ func (e *Event) Elapsed(key string, opts ...elapsed.Option) *Event {
 	elapsed.Apply(&f, opts...)
 	e.fields = append(e.fields, Field{Key: key, Value: f})
 	return e
+}
+
+// Deadline adds a countdown field at the current position in the field list.
+// The field displays the time remaining until from has elapsed (clamped at 0),
+// measured from the first Deadline call on this event until the event is
+// finalised with [Event.Send], [Event.Msg], or [Event.Msgf].
+//
+// The key parameter is the field name (e.g. "timeout"). The field uses the
+// same formatting and styling as [fx.Builder.Deadline]: it is colored by the
+// consumed time against the logger's elapsed gradient, so a fresh deadline
+// uses the gradient's first stop (green) and an expiring one the last (red).
+// Use options from the [deadline] package (e.g. [deadline.WithGradient]) to
+// override the gradient settings for this field only:
+//
+//	e := clog.Info().Str("job", "upload").
+//	    Deadline("timeout", 15*time.Second)
+//	waitForCompletion()
+//	e.Msg("done")
+//	// Output: INF ℹ️ done job=upload timeout=12s
+func (e *Event) Deadline(key string, from time.Duration, opts ...deadline.Option) *Event {
+	if e == nil {
+		return e
+	}
+	if e.deadlineStart.IsZero() {
+		e.deadlineStart = time.Now()
+	}
+	f := core.DeadlineField{From: from}
+	deadline.Apply(&f, opts...)
+	e.fields = append(e.fields, Field{Key: key, Value: f})
+	return e
+}
+
+// resolveDeadline replaces any unresolved core.DeadlineField placeholders in
+// the event's fields with the remaining time since the first [Event.Deadline]
+// call, preserving any per-field overrides set on them.
+func (e *Event) resolveDeadline() {
+	if e.deadlineStart.IsZero() {
+		return
+	}
+	dur := time.Since(e.deadlineStart)
+	for i := range e.fields {
+		if v, ok := e.fields[i].Value.(core.DeadlineField); ok && v.Remaining == 0 {
+			v.Remaining = max(v.From-dur, 0)
+			e.fields[i].Value = v
+		}
+	}
 }
 
 // resolveElapsed replaces any zero-value core.ElapsedField placeholders in the

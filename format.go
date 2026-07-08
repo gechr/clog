@@ -52,6 +52,7 @@ type valueKind int
 const (
 	kindDefault valueKind = iota
 	kindBool
+	kindDeadline
 	kindDuration
 	kindElapsed
 	kindError
@@ -111,6 +112,18 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			f.Value = val
 		}
 
+		// Deadline pre-processing: round the remaining value up at the
+		// elapsed granularity so a running countdown never displays 0 -
+		// remaining time in (0, round] shows as one full step and only a
+		// truly expired deadline renders "0s". No minimum threshold applies:
+		// hiding a countdown as it nears expiry would defeat its purpose.
+		if val, ok := f.Value.(core.DeadlineField); ok {
+			if r := fmts.ElapsedRound; r > 0 {
+				val.Remaining = ceilDuration(val.Remaining, r)
+			}
+			f.Value = val
+		}
+
 		// Duration pre-processing mirrors Elapsed's above.
 		if val, ok := f.Value.(core.DurationField); ok {
 			d := val.Value
@@ -159,6 +172,16 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if fn != nil {
 				valStr = fn(val.Value)
 				kind = kindElapsed
+				customFormatted = true
+			}
+		case core.DeadlineField:
+			fn := fmts.ElapsedFormat
+			if fn == nil {
+				fn = fmts.DurationFormat
+			}
+			if fn != nil {
+				valStr = fn(val.Remaining)
+				kind = kindDeadline
 				customFormatted = true
 			}
 		case core.DurationField:
@@ -311,6 +334,8 @@ func formatValue(
 	fmts *FieldFormats,
 ) (string, valueKind) {
 	switch val := v.(type) {
+	case core.DeadlineField:
+		return formatDurationValue(val.Remaining, fmts.ElapsedPrecision), kindDeadline
 	case core.ElapsedField:
 		return formatDurationValue(val.Value, fmts.ElapsedPrecision), kindElapsed
 	case core.Fraction:
@@ -447,6 +472,18 @@ func formatDurationValue(d time.Duration, precision int) string {
 		}
 	}
 	return "0s"
+}
+
+// ceilDuration rounds d up to the next multiple of r. Non-positive durations
+// are returned unchanged (an expired deadline stays at 0).
+func ceilDuration(d, r time.Duration) time.Duration {
+	if d <= 0 {
+		return d
+	}
+	if rem := d % r; rem > 0 {
+		d += r - rem
+	}
+	return d
 }
 
 func formatCompositeDuration(d time.Duration) (string, bool) {
@@ -645,6 +682,10 @@ func styleValue(
 			styles,
 			fmts.DurationGradientMax,
 		); styled != "" {
+			return styled
+		}
+	case kindDeadline:
+		if styled := styleDeadline(valStr, originalValue, styles); styled != "" {
 			return styled
 		}
 	case kindElapsed:

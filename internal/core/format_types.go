@@ -29,6 +29,22 @@ type ElapsedField struct {
 	Trailing     bool
 }
 
+// DeadlineField wraps a countdown so formatValue can identify it for
+// deadline styling. Remaining is the displayed value (counting down from From
+// to 0); coloring is based on the consumed time (From - Remaining) against an
+// implicit gradient maximum of From, so a fresh deadline uses the gradient's
+// first stop and an expired one uses the last. Gradient and GradientMode
+// override the logger's elapsed gradient settings for this field when
+// non-nil/non-empty. Trailing pins the field to the end of the row when
+// fx.Builder.ResolveDynamicFields reorders fields for animated rows.
+type DeadlineField struct {
+	Remaining    time.Duration
+	From         time.Duration
+	Gradient     []style.ColorStop
+	GradientMode *style.GradientMode
+	Trailing     bool
+}
+
 // DurationField wraps a time.Duration so formatValue can identify it for
 // duration styling. GradientMax, Gradient, and GradientMode override the
 // logger's duration gradient settings for this field when non-nil/non-empty.

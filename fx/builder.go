@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/field/deadline"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/shimmer"
@@ -14,6 +15,7 @@ import (
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/level"
+	xstrings "github.com/gechr/x/strings"
 )
 
 // DefaultSymbol is the default icon shown during pulse, shimmer, and bar animations.
@@ -25,31 +27,33 @@ const DefaultSymbol = "⏳"
 type Builder struct {
 	core.FieldBuilder[Builder]
 
-	animatedSymbol  bool              // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
-	clearOnCancel   bool              // when true, erase the animation line on context cancellation
-	barPercentKey   string            // when set, a formatted percent field is injected each tick
-	barProgressPtr  *atomic.Int64     // bar mode: current progress; nil for non-bar modes
-	barConfig       bar.Config        // bar mode: visual style
-	barTotalPtr     *atomic.Int64     // bar mode: total progress; nil for non-bar modes
-	delayDur        time.Duration     // when set, suppresses animation until this duration elapses
-	elapsedKey      string            // when set, a formatted elapsed-time field is injected each tick
-	elapsedOverride core.ElapsedField // per-field gradient overrides set via Elapsed's options
-	indentDepth     int               // additional indent depth applied to the animation
-	log             Logger            // the logger interface; nil uses Default
-	lvl             core.Level        // log level used during animation rendering (default: LevelInfo)
-	message         string
-	mode            Animation
-	msgStyle        *lipgloss.Style // per-builder message text style override; nil = use level style
-	partOverrides   *[]core.Part    // nil = use logger's parts
-	percentMax      float64         // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
-	pulseStops      []gradient.ColorStop
-	shimmerDir      shimmer.Direction
-	shimmerStops    []gradient.ColorStop
-	speed           float64
-	spinnerConfig   spinner.Config
-	suppressNonTTY  bool           // when true, no output is produced on non-TTY writers
-	symbolIcon      string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
-	treePos         []core.TreePos // additional tree levels applied to the animation
+	animatedSymbol   bool               // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
+	clearOnCancel    bool               // when true, erase the animation line on context cancellation
+	barPercentKey    string             // when set, a formatted percent field is injected each tick
+	barProgressPtr   *atomic.Int64      // bar mode: current progress; nil for non-bar modes
+	barConfig        bar.Config         // bar mode: visual style
+	barTotalPtr      *atomic.Int64      // bar mode: total progress; nil for non-bar modes
+	deadlineKey      string             // when set, a formatted countdown field is injected each tick
+	deadlineOverride core.DeadlineField // countdown start (From) and per-field overrides set via Deadline's options
+	delayDur         time.Duration      // when set, suppresses animation until this duration elapses
+	elapsedKey       string             // when set, a formatted elapsed-time field is injected each tick
+	elapsedOverride  core.ElapsedField  // per-field gradient overrides set via Elapsed's options
+	indentDepth      int                // additional indent depth applied to the animation
+	log              Logger             // the logger interface; nil uses Default
+	lvl              core.Level         // log level used during animation rendering (default: LevelInfo)
+	message          string
+	mode             Animation
+	msgStyle         *lipgloss.Style // per-builder message text style override; nil = use level style
+	partOverrides    *[]core.Part    // nil = use logger's parts
+	percentMax       float64         // percent input-range maximum stamped from the logger's FieldFormats; 0 = 1.0
+	pulseStops       []gradient.ColorStop
+	shimmerDir       shimmer.Direction
+	shimmerStops     []gradient.ColorStop
+	speed            float64
+	spinnerConfig    spinner.Config
+	suppressNonTTY   bool           // when true, no output is produced on non-TTY writers
+	symbolIcon       string         // icon shown during animation; defaults to DefaultSymbol for pulse/shimmer/bar
+	treePos          []core.TreePos // additional tree levels applied to the animation
 }
 
 // BuilderConfig provides the initial configuration for a [Builder].
@@ -112,6 +116,9 @@ func (b *Builder) BarProgress() (int64, int64, bool) {
 	}
 	return b.barProgressPtr.Load(), b.barTotalPtr.Load(), true
 }
+
+// DeadlineFieldKey returns the dynamic countdown field key, if enabled.
+func (b *Builder) DeadlineFieldKey() string { return b.deadlineKey }
 
 // Delay returns the delay before the animation becomes visible.
 func (b *Builder) Delay() time.Duration { return b.delayDur }
@@ -274,6 +281,21 @@ func (b *Builder) Elapsed(key string, opts ...elapsed.Option) *Builder {
 	return b
 }
 
+// Deadline enables an auto-updating countdown field that displays the time
+// remaining until from has elapsed, clamped at 0. Coloring runs against the
+// logger's elapsed gradient by consumed time, so a fresh deadline starts at
+// the gradient's first stop (green) and an expiring one ends at the last
+// (red). Use options from the [deadline] package (e.g. [deadline.WithGradient])
+// to override the gradient settings for this builder's deadline field only.
+func (b *Builder) Deadline(key string, from time.Duration, opts ...deadline.Option) *Builder {
+	b.deadlineKey = key
+	b.deadlineOverride.From = from
+	b.deadlineOverride.Remaining = from
+	deadline.Apply(&b.deadlineOverride, opts...)
+	b.Fields = append(b.Fields, core.Field{Key: key, Value: b.deadlineOverride})
+	return b
+}
+
 // BarPercent enables an auto-updating percentage field for [AnimationBar].
 func (b *Builder) BarPercent(key string) *Builder {
 	b.barPercentKey = key
@@ -301,12 +323,12 @@ func (b *Builder) percentMaximum() float64 {
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.
 func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
-	if b.elapsedKey == "" && b.barPercentKey == "" {
+	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
 		return fields
 	}
 	out := make([]core.Field, 0, len(fields))
 	for _, f := range fields {
-		if f.Key == b.elapsedKey || f.Key == b.barPercentKey {
+		if f.Key == b.deadlineKey || f.Key == b.elapsedKey || f.Key == b.barPercentKey {
 			continue
 		}
 		out = append(out, f)
@@ -314,9 +336,9 @@ func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
 	return out
 }
 
-// ResolveDynamicFields clones fields and injects elapsed/percent values.
+// ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
 func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
-	if b.elapsedKey == "" && b.barPercentKey == "" {
+	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
 		return fields
 	}
 
@@ -324,6 +346,10 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 	copy(out, fields)
 	for i := range out {
 		switch out[i].Key {
+		case b.deadlineKey:
+			f := b.deadlineOverride
+			f.Remaining = max(f.From-dur, 0)
+			out[i].Value = f
 		case b.elapsedKey:
 			f := b.elapsedOverride
 			f.Value = dur
@@ -334,6 +360,9 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 	}
 	if b.elapsedOverride.Trailing && b.elapsedKey != "" {
 		out = moveFieldLast(out, b.elapsedKey)
+	}
+	if b.deadlineOverride.Trailing && b.deadlineKey != "" {
+		out = moveFieldLast(out, b.deadlineKey)
 	}
 	return out
 }

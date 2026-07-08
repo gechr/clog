@@ -3068,6 +3068,201 @@ func TestStyleElapsedGradient(t *testing.T) {
 	})
 }
 
+func TestFormatValueDeadline(t *testing.T) {
+	// Default precision 0 → no decimal places.
+	got, kind := formatValue(
+		core.DeadlineField{Remaining: 3200 * time.Millisecond, From: 15 * time.Second},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		nil,
+		"",
+		&defaultFieldFormats,
+	)
+	assert.Equal(t, "3s", got)
+	assert.Equal(t, kindDeadline, kind)
+
+	// Precision 1 → one decimal place, no trimming.
+	f := DefaultFieldFormats()
+	f.ElapsedPrecision = 1
+	got, kind = formatValue(
+		core.DeadlineField{Remaining: 3200 * time.Millisecond, From: 15 * time.Second},
+		sliceFormat{open: "[", close: "]", sep: ", "},
+		QuoteAuto,
+		0,
+		0,
+		nil,
+		"",
+		&f,
+	)
+	assert.Equal(t, "3.2s", got)
+	assert.Equal(t, kindDeadline, kind)
+}
+
+func TestCeilDuration(t *testing.T) {
+	tests := []struct {
+		name string
+		d    time.Duration
+		r    time.Duration
+		want time.Duration
+	}{
+		{"zero", 0, time.Second, 0},
+		{"negative", -500 * time.Millisecond, time.Second, -500 * time.Millisecond},
+		{"exact_multiple", 3 * time.Second, time.Second, 3 * time.Second},
+		{
+			"rounds_up_below_half",
+			14*time.Second + 200*time.Millisecond,
+			time.Second,
+			15 * time.Second,
+		},
+		{
+			"rounds_up_above_half",
+			14*time.Second + 800*time.Millisecond,
+			time.Second,
+			15 * time.Second,
+		},
+		{"sub_step_never_zero", 1 * time.Millisecond, time.Second, time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ceilDuration(tt.d, tt.r))
+		})
+	}
+}
+
+func TestStyleDeadlineGradient(t *testing.T) {
+	t.Run("fresh_uses_first_stop", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		val := core.DeadlineField{
+			Remaining: 30 * time.Second,
+			From:      30 * time.Second,
+		} // t=0 → green
+		got := styleDeadline("30s", val, styles)
+
+		assert.Equal(t, "\x1b[38;2;0;255;0m30s\x1b[m", got)
+	})
+
+	t.Run("midpoint", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		val := core.DeadlineField{
+			Remaining: 15 * time.Second,
+			From:      30 * time.Second,
+		} // t=0.5 → yellow
+		got := styleDeadline("15s", val, styles)
+
+		assert.Equal(t, "\x1b[38;2;255;255;0m15s\x1b[m", got)
+	})
+
+	t.Run("expired_uses_last_stop", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		val := core.DeadlineField{Remaining: 0, From: 30 * time.Second} // t=1 → red
+		got := styleDeadline("0s", val, styles)
+
+		assert.Equal(t, "\x1b[38;2;255;0;0m0s\x1b[m", got)
+	})
+
+	t.Run("clamped_beyond_from", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		// Remaining beyond From (negative consumed) clamps to the t=0 start
+		// color (green), not crash.
+		val := core.DeadlineField{Remaining: 60 * time.Second, From: 30 * time.Second}
+		got := styleDeadline("60s", val, styles)
+
+		assert.Equal(t, "\x1b[38;2;0;255;0m60s\x1b[m", got)
+	})
+
+	t.Run("inactive_zero_from", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		val := core.DeadlineField{Remaining: 5 * time.Second, From: 0} // disabled
+
+		// Should fall through to number/unit path (non-empty with default styles).
+		got := styleDeadline("5s", val, styles)
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("inactive_nil_stops", func(t *testing.T) {
+		styles := DefaultStyles()
+		styles.ElapsedGradient = nil
+
+		val := core.DeadlineField{Remaining: 5 * time.Second, From: 30 * time.Second}
+		got := styleDeadline("5s", val, styles)
+
+		// Should fall through to number/unit path.
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("inactive_wrong_type", func(t *testing.T) {
+		styles := DefaultStyles()
+
+		// Pass a non-DeadlineField value - gradient path should not apply.
+		got := styleDeadline("5s", "not deadline", styles)
+
+		// Falls through to number/unit path.
+		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		assert.Equal(t, want, got)
+	})
+
+	t.Run("per_field_gradient_override", func(t *testing.T) {
+		styles := DefaultStyles()
+		blue := colorful.Color{R: 0, G: 0, B: 1}
+
+		val := core.DeadlineField{
+			Remaining: 5 * time.Second,
+			From:      10 * time.Second,
+			Gradient:  []style.ColorStop{{Position: 0.5, Color: blue}},
+		}
+		got := styleDeadline("5s", val, styles)
+
+		assert.Equal(t, "\x1b[38;2;0;0;255m5s\x1b[m", got)
+	})
+
+	t.Run("step_mode", func(t *testing.T) {
+		styles := DefaultStyles()
+		mode := style.GradientStep
+
+		// Two values in the same step region should produce the same color.
+		val1 := core.DeadlineField{
+			Remaining:    29 * time.Second,
+			From:         30 * time.Second,
+			GradientMode: &mode,
+		} // t≈0.03 → first stop (green)
+		val2 := core.DeadlineField{
+			Remaining:    20 * time.Second,
+			From:         30 * time.Second,
+			GradientMode: &mode,
+		} // t≈0.33 → still first stop (green)
+
+		got1 := styleDeadline("29s", val1, styles)
+		got2 := styleDeadline("20s", val2, styles)
+
+		assert.NotEmpty(t, got1)
+		assert.NotEmpty(t, got2)
+
+		// Values crossing a step boundary should differ.
+		val3 := core.DeadlineField{
+			Remaining:    10 * time.Second,
+			From:         30 * time.Second,
+			GradientMode: &mode,
+		} // t≈0.67 → second stop (yellow)
+		got3 := styleDeadline("10s", val3, styles)
+		assert.NotEqual(
+			t,
+			got1,
+			got3,
+			"values in different step regions should have different colors",
+		)
+	})
+}
+
 func TestFormatETA(t *testing.T) {
 	tests := []struct {
 		name string
