@@ -28,6 +28,14 @@ Both `Input` and `Password` accept `InputOption` values. `Password` is exactly `
 secret, err := clog.Input("Token: ", clog.WithSensitive(true))
 ```
 
+Use `WithClearOnSuccess`, `WithClearOnError`, or `WithClearOnDone` to erase the prompt/input line after the read completes:
+
+```go
+name, err := clog.Input("Name: ", clog.WithClearOnDone())
+```
+
+Clearing only applies when the logger's output is a terminal. Redirected output keeps the prompt text and never receives cursor-control escape sequences.
+
 ## Testing
 
 `SetInput` overrides the reader `Input`/`Password` read from, so prompts can be driven in tests without a real terminal:

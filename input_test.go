@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	xansi "github.com/gechr/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -154,6 +155,84 @@ func TestInputAppliesSensitiveOption(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "secret", got)
+}
+
+func TestInputClearOnSuccessClearsTTYPrompt(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	l := New(out)
+	l.SetInput(strings.NewReader("hello\n"))
+
+	got, err := l.Input("Name: ", WithClearOnSuccess())
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(
+		t,
+		"Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine,
+		buf.String(),
+	)
+}
+
+func TestInputClearOnErrorClearsTTYPrompt(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	l := New(out)
+	l.SetInput(strings.NewReader(""))
+
+	got, err := l.Input("Name: ", WithClearOnError())
+
+	require.ErrorIs(t, err, io.EOF)
+	assert.Empty(t, got)
+	assert.Equal(t, "Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine, buf.String())
+}
+
+func TestInputClearOnDoneCoversSuccessAndError(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		var buf bytes.Buffer
+		out := TestOutput(&buf)
+		out.isTTY = true
+		l := New(out)
+		l.SetInput(strings.NewReader("hello\n"))
+
+		got, err := l.Input("Name: ", WithClearOnDone())
+
+		require.NoError(t, err)
+		assert.Equal(t, "hello", got)
+		assert.Equal(
+			t,
+			"Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine,
+			buf.String(),
+		)
+	})
+
+	t.Run("error", func(t *testing.T) {
+		var buf bytes.Buffer
+		out := TestOutput(&buf)
+		out.isTTY = true
+		l := New(out)
+		l.SetInput(strings.NewReader(""))
+
+		got, err := l.Input("Name: ", WithClearOnDone())
+
+		require.ErrorIs(t, err, io.EOF)
+		assert.Empty(t, got)
+		assert.Equal(t, "Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine, buf.String())
+	})
+}
+
+func TestInputClearIgnoredForNonTTYOutput(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("hello\n"))
+
+	got, err := l.Input("Name: ", WithClearOnDone())
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(t, "Name: ", out.String())
 }
 
 func TestInputContextCancelledWhileBlocked(t *testing.T) {

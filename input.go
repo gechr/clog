@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
 )
 
@@ -26,6 +27,10 @@ type inputConfig struct {
 	// fields, when non-nil, collects clog-styled key=value fields that are
 	// rendered into the prompt after the message, followed by ": ".
 	fields func(*Event)
+	// clearOnSuccess clears the prompt/input line after a successful read.
+	clearOnSuccess bool
+	// clearOnError clears the prompt/input line after a failed read.
+	clearOnError bool
 }
 
 // InputOption configures how [Logger.Input] reads and displays input.
@@ -54,6 +59,34 @@ func WithSensitive(v bool) InputOption {
 func WithRequireHidden() InputOption {
 	return func(c *inputConfig) {
 		c.requireHidden = true
+	}
+}
+
+// WithClearOnSuccess returns an [InputOption] that erases the prompt/input
+// line after a successful terminal read. It is ignored when the logger's output
+// is not a TTY, so redirected output never receives cursor-control sequences.
+func WithClearOnSuccess() InputOption {
+	return func(c *inputConfig) {
+		c.clearOnSuccess = true
+	}
+}
+
+// WithClearOnError returns an [InputOption] that erases the prompt/input line
+// after a failed terminal read. It is ignored when the logger's output is not a
+// TTY, so redirected output never receives cursor-control sequences.
+func WithClearOnError() InputOption {
+	return func(c *inputConfig) {
+		c.clearOnError = true
+	}
+}
+
+// WithClearOnDone returns an [InputOption] that erases the prompt/input line
+// after any completed terminal read, successful or failed. It is equivalent to
+// using [WithClearOnSuccess] and [WithClearOnError] together.
+func WithClearOnDone() InputOption {
+	return func(c *inputConfig) {
+		c.clearOnSuccess = true
+		c.clearOnError = true
 	}
 }
 
@@ -136,7 +169,8 @@ func (l *Logger) InputContext(
 	}
 
 	l.mu.Lock()
-	w := l.output.Writer()
+	out := l.output
+	w := out.Writer()
 	if l.input == nil {
 		l.input = newInputSource(os.Stdin)
 	}
@@ -149,7 +183,7 @@ func (l *Logger) InputContext(
 		prompt = l.renderPrompt(prompt, ev.fields)
 	}
 
-	return readInput(ctx, src, w, prompt, cfg)
+	return readInput(ctx, src, w, prompt, cfg, out.IsTTY())
 }
 
 // Password is [Logger.Input] with [WithSensitive] applied: on a terminal,
@@ -256,21 +290,24 @@ func readInput(
 	w io.Writer,
 	prompt string,
 	cfg inputConfig,
+	outputTTY bool,
 ) (string, error) {
 	writeString(w, prompt)
 
 	if cfg.sensitive {
 		if f, ok := src.raw.(*os.File); ok && term.IsTerminal(int(f.Fd())) {
-			return readPassword(ctx, int(f.Fd()), w)
+			line, err := readPassword(ctx, int(f.Fd()), w)
+			return finishInput(w, line, err, true, cfg, outputTTY)
 		}
 		if cfg.requireHidden {
 			writeString(w, nl)
-			return "", ErrInputNotHidden
+			return finishInput(w, "", ErrInputNotHidden, true, cfg, outputTTY)
 		}
 	}
 
 	if ctx.Done() == nil {
-		return readLineCooked(src.buf)
+		line, err := readLineCooked(src.buf)
+		return finishInput(w, line, err, err == nil, cfg, outputTTY)
 	}
 	type result struct {
 		line string
@@ -283,10 +320,31 @@ func readInput(
 	}()
 	select {
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return finishInput(w, "", ctx.Err(), false, cfg, outputTTY)
 	case r := <-ch:
-		return r.line, r.err
+		return finishInput(w, r.line, r.err, r.err == nil, cfg, outputTTY)
 	}
+}
+
+func finishInput(
+	w io.Writer,
+	line string,
+	err error,
+	lineAdvanced bool,
+	cfg inputConfig,
+	outputTTY bool,
+) (string, error) {
+	if outputTTY && ((err == nil && cfg.clearOnSuccess) || (err != nil && cfg.clearOnError)) {
+		clearInputLine(w, lineAdvanced)
+	}
+	return line, err
+}
+
+func clearInputLine(w io.Writer, lineAdvanced bool) {
+	if lineAdvanced {
+		writeString(w, xansi.CursorUp(1))
+	}
+	writeString(w, xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine)
 }
 
 // readPassword reads without echo from the terminal fd, honouring ctx: on
