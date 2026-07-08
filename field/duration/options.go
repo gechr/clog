@@ -51,6 +51,14 @@ func WithMinimum(minimum time.Duration) Option {
 	}
 }
 
+// WithOmitOnDone returns an [Option] that controls whether an animated
+// duration field is omitted from the fx.Builder done row.
+func WithOmitOnDone(omit bool) Option {
+	return func(d *Duration) {
+		d.OmitOnDone = omit
+	}
+}
+
 // Apply applies the given options to d.
 func Apply(d *Duration, opts ...Option) {
 	for _, o := range opts {

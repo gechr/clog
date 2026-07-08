@@ -413,7 +413,7 @@ func (r *TaskResult) Send() error {
 		msg = *t.msgPtr.Load()
 	}
 
-	finalFields := t.builder.ResolveDynamicFields(*t.fieldsPtr.Load(), t.duration(time.Now()))
+	finalFields := t.builder.ResolveDoneFields(*t.fieldsPtr.Load(), t.duration(time.Now()))
 	if len(r.Fields) > 0 {
 		finalFields = core.MergeFields(finalFields, r.Fields)
 	}

@@ -231,7 +231,7 @@ err := clog.Spinner("Waiting for confirmation").
 // renders timeout=15s, 14s, ... 1s while waiting
 ```
 
-Remaining time rounds with the ceiling (a countdown never shows `0s` until truly expired), and `ElapsedMinimum` never hides the field. `.Deadline` accepts `deadline.Option` values - `deadline.WithGradient`/`deadline.WithGradientMode` to restyle, and `deadline.WithTrailing()` to pin the field to the end of the row like `elapsed.Trailing()`. See [Deadline](deadline.md) for the event-level form and configuration details.
+Remaining time rounds with the ceiling (a countdown never shows `0s` until truly expired), and `ElapsedMinimum` never hides the field. Builder deadlines are omitted from the done row by default because the final remaining value is usually stale; use `deadline.WithOmitOnDone(false)` to keep it. `.Deadline` accepts `deadline.Option` values - `deadline.WithGradient`/`deadline.WithGradientMode` to restyle, and `deadline.WithTrailing()` to pin the field to the end of the row like `elapsed.Trailing()`. See [Deadline](deadline.md) for the event-level form and configuration details.
 
 ## Per-Event Parts Override
 

@@ -56,6 +56,14 @@ func WithMinimum(minimum time.Duration) Option {
 	}
 }
 
+// WithOmitOnDone returns an [Option] that controls whether an animated elapsed
+// field is omitted from the fx.Builder done row.
+func WithOmitOnDone(omit bool) Option {
+	return func(e *Elapsed) {
+		e.OmitOnDone = omit
+	}
+}
+
 // Trailing returns an [Option] that renders the elapsed field last on the
 // row, after any fields added at runtime via a live Update. Use when elapsed
 // is a persistent timer that should always trail the row's own attrs.

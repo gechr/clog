@@ -18,14 +18,17 @@ type QuantityField string
 // elapsed-time styling. GradientMax, Gradient, and GradientMode override the
 // logger's elapsed gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.ElapsedMinimum] threshold for
-// this field when non-nil. Trailing pins the field to the end of the row when
-// fx.Builder.ResolveDynamicFields reorders fields for animated rows.
+// this field when non-nil. OmitOnDone removes the field from fx.Builder done
+// rows while leaving the live animation field visible. Trailing
+// pins the field to the end of the row when fx.Builder.ResolveDynamicFields
+// reorders fields for animated rows.
 type ElapsedField struct {
 	Value        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
 	Minimum      *time.Duration
+	OmitOnDone   bool
 	Trailing     bool
 }
 
@@ -35,13 +38,16 @@ type ElapsedField struct {
 // implicit gradient maximum of From, so a fresh deadline uses the gradient's
 // first stop and an expired one uses the last. Gradient and GradientMode
 // override the logger's elapsed gradient settings for this field when
-// non-nil/non-empty. Trailing pins the field to the end of the row when
-// fx.Builder.ResolveDynamicFields reorders fields for animated rows.
+// OmitOnDone removes the field from fx.Builder done rows while leaving
+// the live animation countdown visible. Trailing pins the field to the end of
+// the row when fx.Builder.ResolveDynamicFields reorders fields for animated
+// rows.
 type DeadlineField struct {
 	Remaining    time.Duration
 	From         time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
+	OmitOnDone   bool
 	Trailing     bool
 }
 
@@ -49,13 +55,15 @@ type DeadlineField struct {
 // duration styling. GradientMax, Gradient, and GradientMode override the
 // logger's duration gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.DurationMinimum] threshold for
-// this field when non-nil.
+// this field when non-nil. OmitOnDone removes the field from fx.Builder done
+// rows while leaving the live animation field visible.
 type DurationField struct {
 	Value        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
 	Minimum      *time.Duration
+	OmitOnDone   bool
 }
 
 // Percent holds a percentage value (0–100) with an optional reverse

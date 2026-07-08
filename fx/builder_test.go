@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/field/deadline"
+	"github.com/gechr/clog/field/duration"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/internal/core"
 	"github.com/stretchr/testify/assert"
@@ -58,8 +59,12 @@ func TestResolveDynamicFieldsDeadline(t *testing.T) {
 
 	assert.Equal(t, []core.Field{
 		{
-			Key:   "timeout",
-			Value: core.DeadlineField{Remaining: 12 * time.Second, From: 15 * time.Second},
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining:  12 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
 		},
 		{Key: "url", Value: "https://example.com"},
 	}, out)
@@ -72,7 +77,14 @@ func TestResolveDynamicFieldsDeadlineClampsAtZero(t *testing.T) {
 	out := b.ResolveDynamicFields(b.Fields, 20*time.Second)
 
 	assert.Equal(t, []core.Field{
-		{Key: "timeout", Value: core.DeadlineField{Remaining: 0, From: 15 * time.Second}},
+		{
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining:  0,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
 	}, out)
 }
 
@@ -94,9 +106,10 @@ func TestResolveDynamicFieldsDeadlineTrailing(t *testing.T) {
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
-				Remaining: 12 * time.Second,
-				From:      15 * time.Second,
-				Trailing:  true,
+				Remaining:  12 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+				Trailing:   true,
 			},
 		},
 	}, out)
@@ -117,6 +130,87 @@ func TestStripDynamicFieldsDeadline(t *testing.T) {
 	}, out)
 }
 
+func TestResolveDoneFieldsOmitsDeadlineByDefault(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+	b.Deadline("timeout", 15*time.Second)
+
+	fields := append(slices.Clone(b.Fields),
+		core.Field{Key: "visible", Value: "yes"},
+	)
+
+	done := b.ResolveDoneFields(fields, 3*time.Second)
+	assert.Equal(t, []core.Field{
+		{Key: "visible", Value: "yes"},
+	}, done)
+}
+
+func TestResolveDoneFieldsKeepsDeadlineWhenRequested(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+	b.Deadline("timeout", 15*time.Second, deadline.WithOmitOnDone(false))
+
+	done := b.ResolveDoneFields(b.Fields, 3*time.Second)
+	assert.Equal(t, []core.Field{
+		{
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining: 12 * time.Second,
+				From:      15 * time.Second,
+			},
+		},
+	}, done)
+}
+
+func TestResolveDoneFieldsOmitsDefaultDeadlineAndOptInTimers(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+	b.Elapsed("elapsed", elapsed.WithOmitOnDone(true))
+	b.Deadline("timeout", 15*time.Second)
+	b.Duration("latency", 3*time.Second, duration.WithOmitOnDone(true))
+
+	fields := append(slices.Clone(b.Fields),
+		core.Field{Key: "visible", Value: "yes"},
+	)
+
+	live := b.ResolveDynamicFields(fields, 3*time.Second)
+	assert.Equal(t, []core.Field{
+		{
+			Key: "elapsed",
+			Value: core.ElapsedField{
+				Value:      3 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+		{
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining:  12 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+		{
+			Key: "latency",
+			Value: core.DurationField{
+				Value:      3 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+		{Key: "visible", Value: "yes"},
+	}, live)
+
+	done := b.ResolveDoneFields(fields, 3*time.Second)
+	assert.Equal(t, []core.Field{
+		{Key: "visible", Value: "yes"},
+	}, done)
+}
+
+func TestResolveDoneFieldsDurationOption(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+	b.Duration("latency", 3*time.Second, duration.WithOmitOnDone(true))
+
+	done := b.ResolveDoneFields(b.Fields, 3*time.Second)
+	assert.Empty(t, done)
+}
+
 func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 	b := NewBuilder(BuilderConfig{})
 	b.Deadline("timeout", 15*time.Second)
@@ -125,8 +219,12 @@ func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 
 	assert.Equal(t, []core.Field{
 		{
-			Key:   "timeout",
-			Value: core.DeadlineField{Remaining: 9 * time.Second, From: 15 * time.Second},
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining:  9 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
 		},
 	}, out)
 
@@ -134,6 +232,13 @@ func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 	out = resolveDynamicFields(b.Fields, b, time.Minute, 0, 0)
 
 	assert.Equal(t, []core.Field{
-		{Key: "timeout", Value: core.DeadlineField{Remaining: 0, From: 15 * time.Second}},
+		{
+			Key: "timeout",
+			Value: core.DeadlineField{
+				Remaining:  0,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
 	}, out)
 }

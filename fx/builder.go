@@ -291,6 +291,7 @@ func (b *Builder) Deadline(key string, from time.Duration, opts ...deadline.Opti
 	b.deadlineKey = key
 	b.deadlineOverride.From = from
 	b.deadlineOverride.Remaining = from
+	b.deadlineOverride.OmitOnDone = true
 	deadline.Apply(&b.deadlineOverride, opts...)
 	b.Fields = append(b.Fields, core.Field{Key: key, Value: b.deadlineOverride})
 	return b
@@ -365,6 +366,45 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 		out = moveFieldLast(out, b.deadlineKey)
 	}
 	return out
+}
+
+// ResolveDoneFields resolves animation-only dynamic fields for a done row,
+// then removes fields marked OmitOnDone.
+func (b *Builder) ResolveDoneFields(fields []core.Field, dur time.Duration) []core.Field {
+	return omitOnDoneFields(b.ResolveDynamicFields(fields, dur))
+}
+
+func omitOnDoneFields(fields []core.Field) []core.Field {
+	var out []core.Field
+	for i, f := range fields {
+		if !fieldOmitOnDone(f.Value) {
+			if out != nil {
+				out = append(out, f)
+			}
+			continue
+		}
+		if out == nil {
+			out = make([]core.Field, 0, len(fields)-1)
+			out = append(out, fields[:i]...)
+		}
+	}
+	if out == nil {
+		return fields
+	}
+	return out
+}
+
+func fieldOmitOnDone(v any) bool {
+	switch f := v.(type) {
+	case core.DeadlineField:
+		return f.OmitOnDone
+	case core.DurationField:
+		return f.OmitOnDone
+	case core.ElapsedField:
+		return f.OmitOnDone
+	default:
+		return false
+	}
 }
 
 // moveFieldLast returns out with the first field matching key moved to the
@@ -479,6 +519,6 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	msg := *msgPtr.Load()
 	w := NewWaitResult(err, b.IndentedLogger(l), b.partOverrides, b.lvl, msg)
 	w.MsgStyle = b.msgStyle
-	w.Fields = b.ResolveDynamicFields(*fieldsPtr.Load(), time.Since(startTime))
+	w.Fields = b.ResolveDoneFields(*fieldsPtr.Load(), time.Since(startTime))
 	return w
 }

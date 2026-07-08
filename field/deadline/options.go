@@ -36,6 +36,15 @@ func WithGradientMode(mode style.GradientMode) Option {
 	}
 }
 
+// WithOmitOnDone returns an [Option] that controls whether an animated
+// deadline is omitted from the fx.Builder done row. Builder deadlines default
+// to true because a final remaining-time value is usually stale or misleading.
+func WithOmitOnDone(omit bool) Option {
+	return func(d *Deadline) {
+		d.OmitOnDone = omit
+	}
+}
+
 // WithTrailing returns an [Option] that renders the deadline field last on
 // the row, after any fields added at runtime via a live Update. Use when the
 // deadline is a persistent countdown that should always trail the row's own
