@@ -1,6 +1,7 @@
 module github.com/gechr/clog
 
-go 1.26.4
+// clover: provider=auto
+go 1.26.5
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
