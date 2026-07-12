@@ -365,11 +365,25 @@ func detectProfile(w io.Writer, isTTY bool, mode ColorMode) colorprofile.Profile
 	case ColorNever:
 		return colorprofile.NoTTY
 	case ColorAuto:
-		if !isTTY || noColorEnvSet.Load() {
+		if noColorEnvSet.Load() {
+			return colorprofile.NoTTY
+		}
+		// A non-terminal writer disables color, unless CLICOLOR_FORCE explicitly
+		// asks for it (https://bixense.com/clicolors/) - detection below then
+		// honors the force, so `cmd | cat` still colors when requested.
+		if !isTTY && !cliColorForced() {
 			return colorprofile.NoTTY
 		}
 	}
 	return colorprofile.Detect(w, os.Environ())
+}
+
+// cliColorForced reports whether CLICOLOR_FORCE is set to a truthy value, which
+// forces color even when the writer is not a terminal. NO_COLOR takes
+// precedence, so callers check it first.
+func cliColorForced() bool {
+	force, _ := strconv.ParseBool(os.Getenv("CLICOLOR_FORCE"))
+	return force
 }
 
 // IsTerminal returns true if the [Default] logger's output is connected to a terminal.

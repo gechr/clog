@@ -853,9 +853,15 @@ func TestColorsDisabledPerOutput(t *testing.T) {
 	never := New(NewOutput(io.Discard, ColorNever))
 	assert.True(t, never.colorsDisabled())
 
-	auto := New(NewOutput(io.Discard, ColorAuto))
 	// ColorAuto on a non-TTY writer -> colors disabled.
+	t.Setenv("CLICOLOR_FORCE", "")
+	auto := New(NewOutput(io.Discard, ColorAuto))
 	assert.True(t, auto.colorsDisabled())
+
+	// CLICOLOR_FORCE re-enables color on a non-TTY writer under ColorAuto.
+	t.Setenv("CLICOLOR_FORCE", "1")
+	forced := New(NewOutput(io.Discard, ColorAuto))
+	assert.False(t, forced.colorsDisabled())
 }
 
 func TestPackageLevelSetColorMode(t *testing.T) {
