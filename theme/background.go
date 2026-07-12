@@ -2,10 +2,8 @@ package theme
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/gechr/x/terminal"
-	"github.com/muesli/termenv"
 )
 
 // Background describes the terminal background a theme is designed for.
@@ -16,8 +14,6 @@ const (
 	BackgroundLight
 	BackgroundDark
 )
-
-const darkBackgroundLightnessThreshold = 0.5
 
 func (b Background) String() string {
 	switch b {
@@ -36,19 +32,13 @@ func (b Background) valid() bool {
 	return b == BackgroundLight || b == BackgroundDark
 }
 
-// DetectBackground queries a terminal for its background color.
-func DetectBackground(out *os.File) (Background, bool) {
-	if !terminal.Is(out) {
+// DetectBackground queries the controlling terminal for its background color.
+func DetectBackground() (Background, bool) {
+	dark, ok := terminal.IsDark()
+	if !ok {
 		return BackgroundDark, false
 	}
-
-	bg := termenv.NewOutput(out, termenv.WithTTY(true)).BackgroundColor()
-	if _, ok := bg.(termenv.NoColor); ok {
-		return BackgroundDark, false
-	}
-
-	_, _, lightness := termenv.ConvertToRGB(bg).Hsl()
-	if lightness < darkBackgroundLightnessThreshold {
+	if dark {
 		return BackgroundDark, true
 	}
 	return BackgroundLight, true
@@ -62,9 +52,8 @@ type Pair struct {
 }
 
 // Auto selects from clog's built-in themes using the terminal background.
-// Defaults to os.Stdout if no files are provided.
-func Auto(files ...*os.File) *Theme {
-	return DefaultPair().Auto(files...)
+func Auto() *Theme {
+	return DefaultPair().Auto()
 }
 
 // DefaultPair returns clog's built-in light/dark theme pair.
@@ -114,46 +103,14 @@ func Single(t *Theme) *Pair {
 	return &Pair{Light: t, Dark: t, Fallback: BackgroundDark}
 }
 
-// Auto selects from the pair using the terminal background.
-// Defaults to os.Stdout if no files are provided.
-// All provided files must report the same background, otherwise the pair fallback is used.
-func (p *Pair) Auto(files ...*os.File) *Theme {
-	if len(files) == 0 {
-		files = []*os.File{os.Stdout}
-	}
-
-	bg, ok := detectBackground(files)
+// Auto selects from the pair using the terminal background, falling back to
+// the pair's Fallback when detection is unavailable.
+func (p *Pair) Auto() *Theme {
+	bg, ok := DetectBackground()
 	if !ok {
 		bg = p.Fallback
 	}
 	return p.ForBackground(bg)
-}
-
-// ForTerminal queries out and returns the theme matching its terminal background.
-func (p *Pair) ForTerminal(out *os.File) *Theme {
-	bg, ok := DetectBackground(out)
-	if !ok {
-		bg = p.Fallback
-	}
-	return p.ForBackground(bg)
-}
-
-func detectBackground(files []*os.File) (Background, bool) {
-	var detected Background
-	for i, f := range files {
-		bg, ok := DetectBackground(f)
-		if !ok {
-			return BackgroundDark, false
-		}
-		if i == 0 {
-			detected = bg
-			continue
-		}
-		if bg != detected {
-			return BackgroundDark, false
-		}
-	}
-	return detected, true
 }
 
 // ForBackground returns the theme matching bg.

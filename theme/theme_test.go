@@ -54,11 +54,11 @@ func TestLightPalette(t *testing.T) {
 func TestAutoUsesFallbackWhenDetectionUnavailable(t *testing.T) {
 	resetThemeEnvPrefix(t)
 
-	require.Equal(t, theme.Dark().Name(), theme.Auto(nil).Name())
+	require.Equal(t, theme.Dark().Name(), theme.Auto().Name())
 	require.Equal(
 		t,
 		theme.Light().Name(),
-		theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)).Auto(nil).Name(),
+		theme.DefaultPair(theme.WithFallback(theme.BackgroundLight)).Auto().Name(),
 	)
 }
 

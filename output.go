@@ -15,6 +15,7 @@ import (
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/theme"
 	xansi "github.com/gechr/x/ansi"
+	"github.com/gechr/x/terminal"
 	"golang.org/x/term"
 )
 
@@ -152,7 +153,9 @@ func (o *Output) background() (theme.Background, bool) {
 
 	if !o.bgDone {
 		o.bgDone = true
-		o.bg, o.bgOK = theme.DetectBackground(o.file())
+		if terminal.Is(o.file()) {
+			o.bg, o.bgOK = theme.DetectBackground()
+		}
 	}
 
 	return o.bg, o.bgOK
