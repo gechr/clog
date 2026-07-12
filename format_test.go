@@ -784,6 +784,158 @@ func TestFormatFieldsKeyStyleTakesPriority(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestFormatFieldsKeyValueMatch(t *testing.T) {
+	styles := DefaultStyles()
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styles.KeyValues["status"] = style.KeyValue{
+		Values: style.ValueMap{"active": new(activeStyle)},
+	}
+
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "status",
+		Value: "active",
+	}}, opts)
+
+	want := " " + styles.KeyDefault.Render(
+		"status",
+	) + styles.Separator.Render(
+		"=",
+	) + activeStyle.Render(
+		"active",
+	)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsKeyValueDefault(t *testing.T) {
+	styles := DefaultStyles()
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	defaultStyle := lipgloss.NewStyle().Faint(true)
+	styles.KeyValues["status"] = style.KeyValue{
+		Values:  style.ValueMap{"active": new(activeStyle)},
+		Default: new(defaultStyle),
+	}
+
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "status",
+		Value: "queued",
+	}}, opts)
+
+	// Unlisted value falls back to the entry's Default.
+	want := " " + styles.KeyDefault.Render(
+		"status",
+	) + styles.Separator.Render(
+		"=",
+	) + defaultStyle.Render(
+		"queued",
+	)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsKeyValuePlainWhenNoDefault(t *testing.T) {
+	styles := DefaultStyles()
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	// String type style would normally apply; the governing entry suppresses it.
+	styles.FieldString = new(lipgloss.NewStyle().Foreground(lipgloss.Color("15")))
+	styles.Keys["status"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("5")))
+	styles.KeyValues["status"] = style.KeyValue{
+		Values: style.ValueMap{"active": new(activeStyle)},
+	}
+
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "status",
+		Value: "queued",
+	}}, opts)
+
+	// No match and no Default: value renders plain - no fall-through to Keys,
+	// Values or the type style.
+	want := " " + styles.KeyDefault.Render(
+		"status",
+	) + styles.Separator.Render(
+		"=",
+	) + "queued"
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsKeyValueTakesPriorityOverKey(t *testing.T) {
+	styles := DefaultStyles()
+	keyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	styles.Keys["status"] = new(keyStyle)
+	styles.KeyValues["status"] = style.KeyValue{
+		Values: style.ValueMap{"active": new(activeStyle)},
+	}
+
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "status",
+		Value: "active",
+	}}, opts)
+
+	// KeyValues entry wins over the Keys style for the same key.
+	want := " " + styles.KeyDefault.Render(
+		"status",
+	) + styles.Separator.Render(
+		"=",
+	) + activeStyle.Render(
+		"active",
+	)
+	assert.Equal(t, want, got)
+}
+
+func TestFormatFieldsKeyValueScopedToKey(t *testing.T) {
+	styles := DefaultStyles()
+	activeStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
+	stringStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("15"))
+	styles.FieldString = new(stringStyle)
+	styles.KeyValues["status"] = style.KeyValue{
+		Values: style.ValueMap{"active": new(activeStyle)},
+	}
+
+	opts := formatFieldsOpts{
+		noColor: false,
+		level:   LevelInfo,
+		styles:  styles,
+	}
+
+	got := formatFields([]Field{{
+		Key:   "state",
+		Value: "active",
+	}}, opts)
+
+	// A different key with the same value is unaffected by the entry.
+	want := " " + styles.KeyDefault.Render(
+		"state",
+	) + styles.Separator.Render(
+		"=",
+	) + stringStyle.Render(
+		"active",
+	)
+	assert.Equal(t, want, got)
+}
+
 func TestFormatFieldsNumberStyle(t *testing.T) {
 	styles := DefaultStyles()
 	opts := formatFieldsOpts{

@@ -544,6 +544,10 @@ func valueBaseStyle(originalValue any, key string, kind valueKind, styles *style
 	if styles == nil {
 		return nil
 	}
+	// Per-key per-value styling fully governs the key when an entry exists.
+	if st, governed := lookupKeyValueStyle(key, originalValue, styles); governed {
+		return st
+	}
 	if key != "" {
 		if st := styles.Keys[key]; st != nil {
 			return st
@@ -575,6 +579,14 @@ func styledFieldValue(f Field, valStr string, kind valueKind, opts formatFieldsO
 
 	// KeyStyles takes priority over per-element styling for slices.
 	if kind == kindSlice {
+		// A governing KeyValues entry styles the whole slice (its value is
+		// unhashable, so it resolves via the entry's Default, else plain).
+		if st, governed := lookupKeyValueStyle(f.Key, f.Value, opts.styles); governed {
+			if st != nil {
+				return st.Render(valStr)
+			}
+			return valStr
+		}
 		if style := opts.styles.Keys[f.Key]; style != nil {
 			return style.Render(valStr)
 		}
@@ -651,8 +663,9 @@ func styledSlice(
 }
 
 // styleValue applies the appropriate style to a formatted value.
-// Priority: key style -> value style -> type style. Returns "" if no style applies.
-// originalValue is the pre-format typed value for typed Values map lookups.
+// Priority: key-value style -> key style -> value style -> type style.
+// Returns "" if no style applies. originalValue is the pre-format typed value
+// for typed Values map lookups.
 func styleValue(
 	valStr string,
 	originalValue any,
@@ -661,6 +674,15 @@ func styleValue(
 	styles *style.Config,
 	fmts *FieldFormats,
 ) string {
+	// Per-key per-value styling fully governs the key when an entry exists,
+	// short-circuiting the tiers below (plain when it resolves to no style).
+	if st, governed := lookupKeyValueStyle(key, originalValue, styles); governed {
+		if st != nil {
+			return st.Render(valStr)
+		}
+		return ""
+	}
+
 	// Per-key styling takes priority. Slice elements pass no key.
 	if key != "" {
 		if style := styles.Keys[key]; style != nil {
@@ -902,6 +924,25 @@ func reflectValueKind(v any) valueKind {
 	default:
 		return kindDefault
 	}
+}
+
+// lookupKeyValueStyle resolves the KeyValues style for a key/value pair. The
+// second return is true when a KeyValues entry exists for key, in which case
+// that entry fully governs the value's style: the per-value match if present,
+// else the entry's Default, else nil (render plain). When false, no entry
+// exists and the caller falls through to the remaining styling tiers.
+func lookupKeyValueStyle(key string, v any, styles *style.Config) (*lipgloss.Style, bool) {
+	if key == "" || len(styles.KeyValues) == 0 {
+		return nil, false
+	}
+	kv, ok := styles.KeyValues[key]
+	if !ok {
+		return nil, false
+	}
+	if st := lookupValueStyle(v, kv.Values); st != nil {
+		return st, true
+	}
+	return kv.Default, true
 }
 
 // lookupValueStyle safely looks up a typed value in the Values map.

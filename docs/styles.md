@@ -23,29 +23,70 @@ clog.SetStyles(&style.Config{
 
 ## Value Coloring
 
-Values are styled with a three-tier priority system:
+Values are styled with a four-tier priority system - the first tier that applies wins:
 
+1. **Key-value styles** - per-key value styling: style a specific key's values individually (see [Per-Key Value Styles](#per-key-value-styles))
 1. **Key styles** - style all values of a specific field key
 1. **Value styles** - style values matching a typed key (bool `true` != string `"true"`)
 1. **Type styles** - style values by their Go type
 
 ```go
 clog.SetStyles(&style.Config{
-  // 1. Key styles: all values of the "status" field are green
-  Keys: style.Map{
-    "status": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+  // 1. Key-value styles: only the "status" key, styled per value
+  KeyValues: style.KeyValueMap{
+    "status": {
+      Values: style.ValueMap{
+        "active": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))), // green
+        "failed": new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
+      },
+    },
   },
-  // 2. Value styles: typed key matches (bool `true` != string "true")
+  // 2. Key styles: all values of the "path" field are blue
+  Keys: style.Map{
+    "path": new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),
+  },
+  // 3. Value styles: typed key matches (bool `true` != string "true"), on any key
   Values: style.ValueMap{
     "PASS": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
     "FAIL": new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),
   },
-  // 3. Type styles
+  // 4. Type styles
   FieldString: new(lipgloss.NewStyle().Foreground(lipgloss.Color("15"))),
   FieldNumber: new(lipgloss.NewStyle().Foreground(lipgloss.Color("5"))),
   FieldError:  new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))),
 })
 ```
+
+### Per-Key Value Styles
+
+`KeyValues` scopes value styling to a single field key: *if the key is `"status"`, then style these values this way*. Unlike `Values` (which matches a value on **any** key), a `KeyValue` entry only affects the named key, so the same value can be styled differently - or left alone - under a different key.
+
+```go
+clog.SetStyles(&style.Config{
+  KeyValues: style.KeyValueMap{
+    "status": {
+      Values: style.ValueMap{
+        "active":  new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))), // green
+        "pending": new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))), // yellow
+        "failed":  new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
+      },
+      Default: new(lipgloss.NewStyle().Faint(true)), // any other "status" value
+    },
+  },
+})
+
+clog.Info().Str("status", "active").Msg("ok")   // "active" → green
+clog.Info().Str("status", "queued").Msg("wait") // no match → faint (Default)
+clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
+```
+
+**A `KeyValue` entry fully governs its key.** When the key has an entry, that entry is authoritative and the lower tiers (`Keys`, `Values`, type styles) are never consulted for it:
+
+- The value is present in `Values` → that style.
+- Otherwise `Default` is set → `Default`.
+- Otherwise → **plain** (unstyled). It does *not* fall through to `Keys[key]`, `Values`, or the type style.
+
+`Values` keys use Go equality, so a typed `true` (bool) is distinct from `"true"` (string) - the same typed-value rules as the top-level `Values` map.
 
 ## Styles Reference
 
@@ -74,6 +115,7 @@ clog.SetStyles(&style.Config{
 | `FieldTime`              | `Style`                  |                 | magenta                      |
 | `KeyDefault`             | `Style`                  |                 | blue                         |
 | `Keys`                   | `map[string]Style`       | `StyleMap`      | `{}`                         |
+| `KeyValues`              | `map[string]KeyValue`    | `KeyValueMap`   | `{}`                         |
 | `Levels`                 | `map[Level]Style`        | `LevelStyleMap` | per-level bold colors        |
 | `Messages`               | `map[Level]Style`        | `LevelStyleMap` | `style.DefaultMessages()`    |
 | `PercentGradient`        | `[]style.ColorStop`      |                 | red → yellow → green         |
@@ -99,40 +141,41 @@ See [Printer](printer.md) for per-format token style tables.
 
 ### Field Descriptions
 
-| Field                    | Description                                                                                    |
-| ------------------------ | ---------------------------------------------------------------------------------------------- |
-| `Backtick`               | Style for text inside backtick pairs in messages and string field values, nil to disable       |
-| `BacktickMode`           | Backtick delimiters: `BacktickStrip` drops them, `BacktickKeep` keeps them (width-stable)      |
-| `DurationGradient`       | Gradient color stops for `Duration` fields; active when `FieldFormats.DurationGradientMax` > 0 |
-| `DurationGradientMode`   | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                 |
-| `DurationThresholds`     | Duration unit -> magnitude-based style thresholds                                              |
-| `DurationUnits`          | Duration unit string -> style override                                                         |
-| `ElapsedGradient`        | Gradient color stops for `Elapsed` fields; active when `FieldFormats.ElapsedGradientMax` > 0   |
-| `ElapsedGradientMode`    | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                 |
-| `FieldDurationNumber`    | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable            |
-| `FieldDurationUnit`      | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable               |
-| `FieldElapsedNumber`     | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber`     |
-| `FieldElapsedUnit`       | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`          |
-| `FieldError`             | Style for error field values, nil to disable                                                   |
-| `FieldFractionSeparator` | Style for the `/` in fraction values; nil keeps the value's color and adds the faint attribute |
-| `FieldNumber`            | Style for int/float field values, nil to disable                                               |
-| `FieldPercent`           | Base style for `Percent` fields (foreground overridden by gradient), nil to disable            |
-| `FieldQuantityNumber`    | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable                  |
-| `FieldQuantityUnit`      | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                    |
-| `FieldQuote`             | Style for the quote delimiters around quoted values (set `Inherit` to keep the value's color)  |
-| `FieldString`            | Style for string field values, nil to disable                                                  |
-| `FieldTime`              | Style for `time.Time` field values, nil to disable                                             |
-| `KeyDefault`             | Style for field key names without a per-key override, nil to disable                           |
-| `Keys`                   | Field key name -> value style override                                                         |
-| `Levels`                 | Per-level label style (e.g. "INF", "ERR"), nil to disable                                      |
-| `Messages`               | Per-level message text style, nil to disable                                                   |
-| `PercentGradient`        | Gradient color stops for `Percent` fields                                                      |
-| `QuantityThresholds`     | Quantity unit -> magnitude-based style thresholds                                              |
-| `QuantityUnits`          | Quantity unit string -> style override                                                         |
-| `Separator`              | Style for the separator between key and value                                                  |
-| `Symbols`                | Per-level symbol style                                                                         |
-| `Timestamp`              | Style for the timestamp, nil to disable                                                        |
-| `Values`                 | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                     |
+| Field                    | Description                                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| `Backtick`               | Style for text inside backtick pairs in messages and string field values, nil to disable                      |
+| `BacktickMode`           | Backtick delimiters: `BacktickStrip` drops them, `BacktickKeep` keeps them (width-stable)                     |
+| `DurationGradient`       | Gradient color stops for `Duration` fields; active when `FieldFormats.DurationGradientMax` > 0                |
+| `DurationGradientMode`   | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                                |
+| `DurationThresholds`     | Duration unit -> magnitude-based style thresholds                                                             |
+| `DurationUnits`          | Duration unit string -> style override                                                                        |
+| `ElapsedGradient`        | Gradient color stops for `Elapsed` fields; active when `FieldFormats.ElapsedGradientMax` > 0                  |
+| `ElapsedGradientMode`    | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                                |
+| `FieldDurationNumber`    | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable                           |
+| `FieldDurationUnit`      | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable                              |
+| `FieldElapsedNumber`     | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber`                    |
+| `FieldElapsedUnit`       | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`                         |
+| `FieldError`             | Style for error field values, nil to disable                                                                  |
+| `FieldFractionSeparator` | Style for the `/` in fraction values; nil keeps the value's color and adds the faint attribute                |
+| `FieldNumber`            | Style for int/float field values, nil to disable                                                              |
+| `FieldPercent`           | Base style for `Percent` fields (foreground overridden by gradient), nil to disable                           |
+| `FieldQuantityNumber`    | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable                                 |
+| `FieldQuantityUnit`      | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                                   |
+| `FieldQuote`             | Style for the quote delimiters around quoted values (set `Inherit` to keep the value's color)                 |
+| `FieldString`            | Style for string field values, nil to disable                                                                 |
+| `FieldTime`              | Style for `time.Time` field values, nil to disable                                                            |
+| `KeyDefault`             | Style for field key names without a per-key override, nil to disable                                          |
+| `Keys`                   | Field key name -> value style override                                                                        |
+| `KeyValues`              | Field key name -> per-value styles; fully governs its key (see [Per-Key Value Styles](#per-key-value-styles)) |
+| `Levels`                 | Per-level label style (e.g. "INF", "ERR"), nil to disable                                                     |
+| `Messages`               | Per-level message text style, nil to disable                                                                  |
+| `PercentGradient`        | Gradient color stops for `Percent` fields                                                                     |
+| `QuantityThresholds`     | Quantity unit -> magnitude-based style thresholds                                                             |
+| `QuantityUnits`          | Quantity unit string -> style override                                                                        |
+| `Separator`              | Style for the separator between key and value                                                                 |
+| `Symbols`                | Per-level symbol style                                                                                        |
+| `Timestamp`              | Style for the timestamp, nil to disable                                                                       |
+| `Values`                 | Typed value -> style (uses Go equality, so bool `true` != string `"true"`)                                    |
 
 ## Configuration
 

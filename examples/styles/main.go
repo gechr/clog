@@ -7,6 +7,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/field/percent"
+	"github.com/gechr/clog/style"
 )
 
 func main() {
@@ -32,11 +33,23 @@ func main() {
 	styles.Values["production"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("1")))
 	styles.Values["staging"] = new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))
 
+	// Per-key value styles: only the "status" key, colored per value, with a
+	// faint default for any unlisted value. Fully governs the "status" key.
+	styles.KeyValues["status"] = style.KeyValue{
+		Values: style.ValueMap{
+			"active":  new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))), // green
+			"pending": new(lipgloss.NewStyle().Foreground(lipgloss.Color("3"))), // yellow
+			"failed":  new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
+		},
+		Default: new(lipgloss.NewStyle().Faint(true)),
+	}
+
 	clog.SetStyles(styles)
 
 	clog.Trace().Symbol("🔍").Str("module", "auth").Msg("Token validation started")
 	clog.Debug().Symbol("🐛").Str("query", "SELECT *").Duration("latency", 2*time.Millisecond).Msg("Query executed")
-	clog.Info().Symbol("🚀").Str("env", "production").Int("port", 8080).Msg("Server started")
+	clog.Info().Symbol("🚀").Str("env", "production").Str("status", "active").Int("port", 8080).Msg("Server started")
+	clog.Info().Symbol("⏳").Str("status", "queued").Msg("Unlisted value uses the faint default")
 	clog.Warn().Symbol("!!").Percent("usage", 95, percent.WithReverseGradient()).Msg("Low disk space")
-	clog.Error().Symbol("💥").Err(errors.New("connection refused")).Str("host", "db.internal").Msg("Connection failed")
+	clog.Error().Symbol("💥").Str("status", "failed").Err(errors.New("connection refused")).Str("host", "db.internal").Msg("Connection failed")
 }

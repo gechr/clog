@@ -44,7 +44,8 @@ func Default() *Config {
 		KeyDefault: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("4")), // blue
 		),
-		Keys: make(Map),
+		Keys:      make(Map),
+		KeyValues: make(KeyValueMap),
 		Levels: LevelMap{
 			level.Trace: new(lipgloss.NewStyle().
 				Bold(true).

@@ -44,6 +44,25 @@ type LevelMap = map[level.Level]*lipgloss.Style
 // (e.g. bool true != string "true").
 type ValueMap = map[any]*lipgloss.Style
 
+// KeyValueMap maps a field key name to per-value styles for that key.
+type KeyValueMap = map[string]KeyValue
+
+// KeyValue holds per-value styles for a single field key, plus an optional
+// Default for that key's values that have no explicit entry. Values are keyed
+// by Go equality (e.g. bool true != string "true").
+//
+// When a field key has a KeyValue entry it fully governs that key's value
+// styling: a value present in Values takes its style; otherwise Default is
+// applied, or - when Default is nil - the value renders plain (unstyled). This
+// is the highest-priority value styling tier, taking precedence over Keys,
+// Values and the type styles.
+type KeyValue struct {
+	// Values maps this key's typed values to styles (Go equality).
+	Values ValueMap
+	// Default styles this key's values absent from Values [nil = plain text].
+	Default *lipgloss.Style
+}
+
 // GradientMode controls how gradient colors transition between stops.
 type GradientMode int
 
@@ -129,6 +148,10 @@ type Config struct {
 	KeyDefault *lipgloss.Style
 	// Field key name -> value style (e.g. "path" -> blue).
 	Keys Map
+	// Field key name -> per-value styles (see [KeyValue]). Highest-priority
+	// value styling tier: when a key has an entry it fully governs that key's
+	// values, overriding Keys, Values and the type styles.
+	KeyValues KeyValueMap
 	// Level label style (e.g. "INF", "ERR").
 	Levels LevelMap
 	// Global message text style [nil = plain text]. Overridden by Messages[level] when set.
