@@ -304,9 +304,20 @@ clog.Info().
   Msg("batch complete")
 ```
 
+`elapsed.WithRound(d)` overrides `ElapsedRound` for that field only - the field's value is rounded at granularity `d` instead of the logger's, and `0` disables rounding for the field:
+
+```go
+clog.SetElapsedRound(time.Second) // logger default: round to whole seconds
+
+clog.Info().
+  Elapsed("elapsed").                                            // rounds to 1s
+  Elapsed("quick_step", elapsed.WithRound(time.Millisecond)).    // sub-second values stay visible
+  Msg("batch complete")
+```
+
 These options work the same way on animated builders - `fx.Builder.Elapsed` (see [Spinner](spinner.md#elapsed-timer)) accepts the same `elapsed.Option` values for its auto-updating field.
 
-The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above), and `duration.WithMinimum`, which overrides `DurationMinimum` for that field only.
+The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above), `duration.WithMinimum`, which overrides `DurationMinimum` for that field only, and `duration.WithRound`, which overrides `DurationRound`. The `deadline` package accepts `deadline.WithRound` to override the countdown's `ElapsedRound` granularity.
 
 ### Gradient Mode
 

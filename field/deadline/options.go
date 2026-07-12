@@ -2,6 +2,8 @@
 package deadline
 
 import (
+	"time"
+
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/style"
 )
@@ -33,6 +35,14 @@ func WithGradient(stops ...style.ColorStop) Option {
 func WithGradientMode(mode style.GradientMode) Option {
 	return func(d *Deadline) {
 		d.GradientMode = &mode
+	}
+}
+
+// WithRound returns an [Option] that overrides the logger's elapsed rounding
+// granularity for this field's countdown. 0 disables rounding for this field.
+func WithRound(round time.Duration) Option {
+	return func(d *Deadline) {
+		d.Round = &round
 	}
 }
 

@@ -51,6 +51,14 @@ func WithMinimum(minimum time.Duration) Option {
 	}
 }
 
+// WithRound returns an [Option] that overrides the logger's duration rounding
+// granularity for this field. 0 disables rounding for this field.
+func WithRound(round time.Duration) Option {
+	return func(d *Duration) {
+		d.Round = &round
+	}
+}
+
 // WithOmitOnDone returns an [Option] that controls whether an animated
 // duration field is omitted from the fx.Builder done row.
 func WithOmitOnDone(omit bool) Option {

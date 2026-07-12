@@ -99,7 +99,7 @@ The elapsed field respects the same per-logger [`FieldFormats`](configuration.md
 | `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
 | `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
 
-`ElapsedGradientMax`, `ElapsedMinimum`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides). The `duration` package mirrors this for `Duration` fields, including `duration.WithMinimum`:
+`ElapsedGradientMax`, `ElapsedMinimum`, `ElapsedRound`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides). The `duration` package mirrors this for `Duration` fields, including `duration.WithMinimum` and `duration.WithRound`:
 
 ```go
 import "github.com/gechr/clog/field/elapsed"

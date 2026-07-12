@@ -105,8 +105,12 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if d < minimum {
 				continue
 			}
-			if r := fmts.ElapsedRound; r > 0 {
-				d = d.Round(r)
+			round := fmts.ElapsedRound
+			if val.Round != nil {
+				round = *val.Round
+			}
+			if round > 0 {
+				d = d.Round(round)
 			}
 			val.Value = d
 			f.Value = val
@@ -118,8 +122,12 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// truly expired deadline renders "0s". No minimum threshold applies:
 		// hiding a countdown as it nears expiry would defeat its purpose.
 		if val, ok := f.Value.(core.DeadlineField); ok {
-			if r := fmts.ElapsedRound; r > 0 {
-				val.Remaining = ceilDuration(val.Remaining, r)
+			round := fmts.ElapsedRound
+			if val.Round != nil {
+				round = *val.Round
+			}
+			if round > 0 {
+				val.Remaining = ceilDuration(val.Remaining, round)
 			}
 			f.Value = val
 		}
@@ -134,8 +142,12 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if d < minimum {
 				continue
 			}
-			if r := fmts.DurationRound; r > 0 {
-				d = d.Round(r)
+			round := fmts.DurationRound
+			if val.Round != nil {
+				round = *val.Round
+			}
+			if round > 0 {
+				d = d.Round(round)
 			}
 			val.Value = d
 			f.Value = val

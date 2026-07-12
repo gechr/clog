@@ -2810,6 +2810,71 @@ func TestElapsedRound(t *testing.T) {
 	assert.Equal(t, " took=3s", got)
 }
 
+func TestElapsedRoundPerFieldOverride(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.ElapsedRound = time.Second
+	f.ElapsedMinimum = 0
+	f.ElapsedPrecision = 0
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		formats: &f,
+	}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: core.ElapsedField{
+			Value: 450 * time.Millisecond,
+			Round: new(time.Millisecond),
+		}},
+	}, opts)
+	// The per-field millisecond granularity overrides the logger's 1s rounding,
+	// so a sub-second value renders instead of collapsing to 0s.
+	assert.Equal(t, " took=450ms", got)
+}
+
+func TestDurationRoundPerFieldOverride(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.DurationRound = time.Second
+	f.DurationMinimum = 0
+	f.DurationPrecision = 0
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		formats: &f,
+	}
+
+	got := formatFields([]Field{
+		{Key: "took", Value: core.DurationField{
+			Value: 450 * time.Millisecond,
+			Round: new(time.Millisecond),
+		}},
+	}, opts)
+	// The per-field millisecond granularity overrides the logger's 1s rounding,
+	// so a sub-second value renders instead of collapsing to 0s.
+	assert.Equal(t, " took=450ms", got)
+}
+
+func TestDeadlineRoundPerFieldOverride(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.ElapsedRound = time.Second
+	f.ElapsedPrecision = 0
+
+	opts := formatFieldsOpts{
+		noColor: true,
+		formats: &f,
+	}
+
+	got := formatFields([]Field{
+		{Key: "left", Value: core.DeadlineField{
+			Remaining: 450 * time.Millisecond,
+			From:      10 * time.Second,
+			Round:     new(time.Millisecond),
+		}},
+	}, opts)
+	// The per-field millisecond granularity overrides the logger's 1s ceiling.
+	assert.Equal(t, " left=450ms", got)
+}
+
 func TestFormatInt64SlicePlain(t *testing.T) {
 	tests := []struct {
 		name string
