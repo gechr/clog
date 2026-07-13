@@ -31,12 +31,13 @@ type Event struct {
 	level         Level
 	msgStyle      Style     // nil = use logger/global message style
 	noExit        bool      // if true, skip exit even for LevelFatal (used by adapters)
+	noTimestamp   bool      // if true, render no timestamp even when reporting is enabled (adapter passed a zero timestamp)
 	omitEmpty     *bool     // nil = use logger's omitEmpty
 	omitZero      *bool     // nil = use logger's omitZero
 	parts         *[]Part   // nil = use logger's parts
 	sort          *Sort     // nil = use logger's fieldSort
 	symbol        *string   // nil = use logger/default symbol
-	timestamp     time.Time // if non-zero, overrides time.Now() in Logger.log()
+	timestamp     time.Time // if non-zero, overrides the time.Now() value in Logger.log(); rendered only when timestamp reporting is enabled
 }
 
 // NOTE: The field methods below intentionally duplicate FieldBuilder[T] methods.

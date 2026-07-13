@@ -255,6 +255,11 @@ func (l *Logger) WithContext(ctx context.Context) context.Context {
 
 // LogFields logs a message at the given level with the provided timestamp and fields.
 // This is used by adapters (e.g. [sloghandler]) that build fields externally.
+// The timestamp overrides the [time.Now] value but is only rendered when the
+// logger reports timestamps ([Logger.SetReportTimestamp]) -- an adapter inherits
+// the logger's timestamp visibility rather than forcing its own. A zero
+// timestamp means the source record carries no time (slog semantics): none is
+// rendered, even when reporting is enabled.
 // Unlike direct Fatal() calls, LogFields does not trigger [os.Exit] for
 // [LevelFatal] events -- adapters should not cause process termination.
 func (l *Logger) LogFields(level Level, ts time.Time, msg string, fields []Field) {
@@ -263,6 +268,7 @@ func (l *Logger) LogFields(level Level, ts time.Time, msg string, fields []Field
 		return
 	}
 	e.timestamp = ts
+	e.noTimestamp = ts.IsZero()
 	e.fields = fields
 	e.noExit = true
 	e.Msg(msg)
@@ -1143,10 +1149,12 @@ func (l *Logger) log(e *Event, msg string) {
 			Fields:  allFields,
 			Tree:    l.tree,
 		}
-		if !e.timestamp.IsZero() {
-			entry.Time = e.timestamp.In(l.timeLocation)
-		} else if l.reportTimestamp {
-			entry.Time = time.Now().In(l.timeLocation)
+		if l.reportTimestamp && !e.noTimestamp {
+			if !e.timestamp.IsZero() {
+				entry.Time = e.timestamp.In(l.timeLocation)
+			} else {
+				entry.Time = time.Now().In(l.timeLocation)
+			}
 		}
 
 		l.runHooks(HookBeforeWrite)
@@ -1173,7 +1181,7 @@ func (l *Logger) log(e *Event, msg string) {
 
 		switch p {
 		case PartTimestamp:
-			if e.timestamp.IsZero() && !l.reportTimestamp {
+			if !l.reportTimestamp || e.noTimestamp {
 				continue
 			}
 

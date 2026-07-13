@@ -31,6 +31,9 @@ func TestConformance(t *testing.T) {
 	var buf bytes.Buffer
 	l := clog.New(clog.TestOutput(&buf))
 	l.SetLevel(clog.LevelTrace)
+	// slog conformance requires the record time to propagate; visibility is
+	// governed by the logger, so reporting must be on for it to surface.
+	l.SetReportTimestamp(true)
 
 	// Use a clog handler to capture structured entries for slogtest verification.
 	var entries []map[string]any
@@ -337,6 +340,22 @@ func TestTimestamp(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "2024-06-15T14:30:00Z INF ℹ️ timestamped\n", buf.String())
+}
+
+func TestTimestampHiddenWhenLoggerDisablesReporting(t *testing.T) {
+	var buf bytes.Buffer
+	// Reporting left off: the record's (always non-zero) time must not force a
+	// timestamp through - the bridge inherits the logger's visibility.
+	l := clog.New(clog.TestOutput(&buf))
+	l.SetLevel(clog.LevelTrace)
+	h := sloghandler.New(l, nil)
+
+	ts := time.Date(2024, 6, 15, 14, 30, 0, 0, time.UTC)
+	r := slog.NewRecord(ts, slog.LevelInfo, "timestamped", 0)
+	err := h.Handle(context.Background(), r)
+	require.NoError(t, err)
+
+	assert.Equal(t, "INF ℹ️ timestamped\n", buf.String())
 }
 
 func TestInterface(t *testing.T) {

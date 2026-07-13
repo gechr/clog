@@ -67,6 +67,32 @@ func TestEntryTimeZeroWhenTimestampDisabled(t *testing.T) {
 	assert.True(t, got.Time.IsZero(), "expected zero Time when reportTimestamp is false")
 }
 
+func TestEntryExplicitTimestampRespectsReporting(t *testing.T) {
+	ts := time.Date(2024, 6, 15, 14, 30, 0, 0, time.UTC)
+
+	var got Entry
+
+	l := NewWriter(io.Discard)
+	l.SetHandler(HandlerFunc(func(e Entry) {
+		got = e
+	}))
+	l.SetTimeLocation(time.UTC)
+
+	// Reporting disabled: an explicit timestamp must not force one through.
+	l.LogFields(LevelInfo, ts, "hello", nil)
+	assert.True(t, got.Time.IsZero(), "expected zero Time when reportTimestamp is false")
+
+	// Reporting enabled: the explicit timestamp overrides time.Now().
+	l.SetReportTimestamp(true)
+	l.LogFields(LevelInfo, ts, "hello", nil)
+	assert.Equal(t, ts, got.Time)
+
+	// Reporting enabled, zero timestamp: the record carries no time, so none
+	// is rendered (slog semantics) -- not substituted with time.Now().
+	l.LogFields(LevelInfo, time.Time{}, "hello", nil)
+	assert.True(t, got.Time.IsZero(), "expected zero Time for a zero adapter timestamp")
+}
+
 func TestEntryJSONMarshal(t *testing.T) {
 	t.Run("lowercase_keys_and_string_level", func(t *testing.T) {
 		e := Entry{
