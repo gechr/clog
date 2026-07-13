@@ -10,9 +10,7 @@ import (
 // Default returns the default color styles.
 func Default() *Config {
 	return &Config{
-		Backtick: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("173")), // terracotta
-		),
+		Backtick:     BacktickFor(theme.BackgroundDark),
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
 		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
 		FieldDurationNumber: new(
@@ -86,6 +84,17 @@ func Default() *Config {
 		Timestamp:          new(lipgloss.NewStyle().Faint(true)),
 		Values:             DefaultValues(),
 	}
+}
+
+// BacktickFor returns the default inline-code style, with a violet-pink chosen
+// for readable contrast against bg. Dark terminals get a pale orchid; light
+// terminals get a deeper fuchsia.
+func BacktickFor(bg theme.Background) *lipgloss.Style {
+	color := lipgloss.Color("#f0abfc")
+	if bg == theme.BackgroundLight {
+		color = lipgloss.Color("#a21caf")
+	}
+	return new(lipgloss.NewStyle().Foreground(color))
 }
 
 // DefaultElapsedGradient returns the default green -> yellow -> red gradient

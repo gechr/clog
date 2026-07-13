@@ -36,6 +36,7 @@ func TestResolvePrintThemeUsesFallbackBackground(t *testing.T) {
 	l.mu.Unlock()
 
 	require.False(t, l.printThemeDirty)
+	require.Equal(t, style.BacktickFor(theme.BackgroundLight), l.styles.Backtick)
 	require.Equal(t, style.NewJSON(theme.Light()), l.styles.JSON)
 }
 
@@ -101,10 +102,20 @@ func TestSetStylesDefaultPassthroughStillAdapts(t *testing.T) {
 	l.SetStyles(DefaultStyles())
 	resolved(t, l)
 
+	require.Equal(t, style.BacktickFor(theme.BackgroundLight), l.styles.Backtick)
 	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.ElapsedGradient)
 	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.DurationGradient)
 	require.Equal(t, style.PercentGradientFor(theme.BackgroundLight), l.styles.PercentGradient)
 	require.Equal(t, style.NewJSON(theme.Light()), l.styles.JSON)
+}
+
+func TestSetStylesCustomBacktickPreserved(t *testing.T) {
+	l := lightLogger(t)
+	custom := style.BacktickFor(theme.BackgroundDark).Bold(true)
+	l.SetStyles(&style.Config{Backtick: &custom})
+	resolved(t, l)
+
+	require.Equal(t, &custom, l.styles.Backtick)
 }
 
 func TestSetStylesCustomGradientPreserved(t *testing.T) {

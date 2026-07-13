@@ -92,7 +92,7 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 
 | Field                    | Type                     | Alias           | Default                      |
 | ------------------------ | ------------------------ | --------------- | ---------------------------- |
-| `Backtick`               | `Style`                  |                 | terracotta                   |
+| `Backtick`               | `Style`                  |                 | pink                         |
 | `BacktickMode`           | `style.BacktickMode`     |                 | `style.BacktickStrip`        |
 | `DurationGradient`       | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `DurationGradientMode`   | `style.GradientMode`     |                 | `style.GradientFade`         |
@@ -216,7 +216,7 @@ Value styles only apply at `Info` level and above by default. Use `SetFieldStyle
 
 ## Backtick Spans
 
-Text inside a matched pair of backticks - in the message or in string field values - is rendered with the `Backtick` style. By default the delimiters are dropped (`style.BacktickStrip`), which shrinks the message by two visible columns per span. For pre-aligned content such as grid-padded table rows, use `style.BacktickKeep` to render the delimiters as part of the styled span, so the visible width is exactly what was written:
+Text inside a matched pair of backticks - in the message or in string field values - is rendered with the `Backtick` style. Its default violet-pink adapts to the detected terminal background: deeper on light terminals and paler on dark terminals. By default the delimiters are dropped (`style.BacktickStrip`), which shrinks the message by two visible columns per span. For pre-aligned content such as grid-padded table rows, use `style.BacktickKeep` to render the delimiters as part of the styled span, so the visible width is exactly what was written:
 
 ```go
 clog.SetStyles(&style.Config{BacktickMode: style.BacktickKeep})

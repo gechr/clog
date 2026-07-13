@@ -79,6 +79,7 @@ var Default = New(Stdout(ColorAuto))
 // explicitly via [Logger.SetStyles]. Each set flag is excluded from
 // background-driven theme resolution so it is never overwritten.
 type styleOverride struct {
+	backtick bool
 	json     bool
 	yaml     bool
 	toml     bool
@@ -813,6 +814,9 @@ func (l *Logger) resolvePrintThemeLocked() {
 // explicitly via [Logger.SetStyles] is left untouched, so overriding one (e.g.
 // JSON) does not opt the rest out of background detection.
 func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
+	if !l.styleOverride.backtick {
+		l.styles.Backtick = style.BacktickFor(t.Background)
+	}
 	if !l.styleOverride.json {
 		l.styles.JSON = style.NewJSON(t)
 	}
@@ -850,6 +854,9 @@ func (l *Logger) SetStyles(styles *style.Config) {
 	// background-adaptable default. Passing DefaultStyles() through unchanged
 	// (or with unrelated fields tweaked) must still adapt to the terminal, and
 	// each style opts out individually so the rest keep adapting.
+	if customStyle(styles.Backtick, style.BacktickFor(theme.BackgroundDark)) {
+		l.styleOverride.backtick = true
+	}
 	if customStyle(styles.JSON, style.DefaultJSON()) {
 		l.styleOverride.json = true
 	}
