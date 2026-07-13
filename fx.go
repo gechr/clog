@@ -97,6 +97,9 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		Label: label,
 		NonTTYSilent: b.SuppressesNonTTY() ||
 			(l.nonTTYLevel != UnsetLevel && level < l.nonTTYLevel),
+		// A task whose level is below the logger minimum renders nothing,
+		// mirroring how Done drops its sub-threshold completion event.
+		Silent:          !l.LevelEnabled(level),
 		Order:           order,
 		Out:             l.output.Writer(),
 		Output:          l.output,

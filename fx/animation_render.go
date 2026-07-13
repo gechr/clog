@@ -72,6 +72,16 @@ func runAnimation(
 	}
 	captureTaskConfig(gt)
 
+	// A level-disabled task still runs, but renders nothing on any writer.
+	if gt.cfg.Silent {
+		select {
+		case err := <-done:
+			return err
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+
 	// Don't animate if not a TTY (CI, piped output, etc.).
 	// Print the initial message so the user knows something is in progress,
 	// unless NonTTYSilent() was set, in which case suppress all output.

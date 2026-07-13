@@ -64,6 +64,7 @@ type TaskConfig struct {
 	Label             string        // pre-computed padded label for the builder's level
 	LevelSymbol       string        // styled padded label for the builder's level
 	NonTTYSilent      bool          // suppress all output on non-TTY writers
+	Silent            bool          // suppress all output; the builder's level is below the logger minimum
 	Order             []core.Part   // log-line part order
 	Out               io.Writer     // output.Writer()
 	Output            RenderOutput  // for Width()/Height()/cursor queries

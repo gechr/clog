@@ -179,6 +179,46 @@ func TestNonTTYLevelResetWithUnsetLevel(t *testing.T) {
 	assert.NotEmpty(t, buf.String(), "UnsetLevel restores normal non-TTY output")
 }
 
+func TestLevelBelowMinimumSuppressesSpinner(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.SetLevel(LevelWarn)
+
+	ran := false
+	result := l.Spinner("loading"). // info-level by default
+					Wait(context.Background(), func(_ context.Context) error {
+			ran = true
+			time.Sleep(20 * time.Millisecond)
+			return nil
+		})
+
+	require.NoError(t, result.Silent())
+	assert.True(t, ran, "the task should still run even when its level is suppressed")
+	assert.Empty(
+		t,
+		buf.String(),
+		"an info-level spinner should render nothing when the logger minimum is Warn",
+	)
+}
+
+func TestLevelBelowMinimumSuppressesGroup(t *testing.T) {
+	var buf bytes.Buffer
+	l := NewWriter(&buf)
+	l.SetLevel(LevelWarn)
+
+	g := l.Group(context.Background())
+	update, finish := g.Add(l.Spinner("Checking for updates")).Manual()
+	update.Fraction("progress", 3, 7).Send()
+	finish(nil)
+
+	require.NoError(t, g.Wait().Silent())
+	assert.Empty(
+		t,
+		buf.String(),
+		"an info-level group task should render nothing when the logger minimum is Warn",
+	)
+}
+
 func TestElapsedFieldOrdering(t *testing.T) {
 	tests := []struct {
 		name     string

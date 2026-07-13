@@ -198,6 +198,9 @@ func shouldRenderTask(gt *renderTask, isDone bool, now time.Time) bool {
 func visibleTaskIndexes(gts []*renderTask, done []bool, hideDone bool, now time.Time) []int {
 	indexes := make([]int, 0, len(gts))
 	for i, gt := range gts {
+		if gt.cfg.Silent {
+			continue
+		}
 		if hideDone && done[i] {
 			continue
 		}
@@ -1431,8 +1434,9 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	if !gts[0].cfg.IsTTY {
 		for _, gt := range gts {
 			// A task may opt out of the non-TTY static line, matching the
-			// standalone animation path; the rest still print and block.
-			if gt.cfg.NonTTYSilent {
+			// standalone animation path; the rest still print and block. A
+			// level-disabled task prints nothing on any writer.
+			if gt.cfg.NonTTYSilent || gt.cfg.Silent {
 				continue
 			}
 			b := gt.builder
@@ -1763,6 +1767,11 @@ func (st *groupLoopState) composeFrame(now time.Time) ([]string, int, bool) {
 		if headerLineCount == 1 && g.transientHeader {
 			lines = lines[1:]
 		}
+	}
+	// Nothing to draw this tick (e.g. every task is level-disabled): skip the
+	// repaint entirely rather than hiding the cursor over an empty block.
+	if len(lines) == 0 {
+		return nil, width, false
 	}
 	return lines, width, true
 }
