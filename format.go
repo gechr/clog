@@ -102,13 +102,10 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if val.Minimum != nil {
 				minimum = *val.Minimum
 			}
-			if d < minimum {
+			if minimum > 0 && d < minimum {
 				continue
 			}
-			round := fmts.ElapsedRound
-			if val.Round != nil {
-				round = *val.Round
-			}
+			round := fmts.elapsedRound(d, val.Round, val.Scale)
 			if round > 0 {
 				d = d.Round(round)
 			}
@@ -122,10 +119,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// truly expired deadline renders "0s". No minimum threshold applies:
 		// hiding a countdown as it nears expiry would defeat its purpose.
 		if val, ok := f.Value.(core.DeadlineField); ok {
-			round := fmts.ElapsedRound
-			if val.Round != nil {
-				round = *val.Round
-			}
+			round := fmts.elapsedRound(val.Remaining, val.Round, val.Scale)
 			if round > 0 {
 				val.Remaining = ceilDuration(val.Remaining, round)
 			}
@@ -139,13 +133,10 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			if val.Minimum != nil {
 				minimum = *val.Minimum
 			}
-			if d < minimum {
+			if minimum > 0 && d < minimum {
 				continue
 			}
-			round := fmts.DurationRound
-			if val.Round != nil {
-				round = *val.Round
-			}
+			round := fmts.durationRound(d, val.Round, val.Scale)
 			if round > 0 {
 				d = d.Round(round)
 			}
@@ -347,9 +338,11 @@ func formatValue(
 ) (string, valueKind) {
 	switch val := v.(type) {
 	case core.DeadlineField:
-		return formatDurationValue(val.Remaining, fmts.ElapsedPrecision), kindDeadline
+		precision, trim := fmts.elapsedDisplay(val.Remaining, val.Scale)
+		return formatDurationValueOptions(val.Remaining, precision, trim), kindDeadline
 	case core.ElapsedField:
-		return formatDurationValue(val.Value, fmts.ElapsedPrecision), kindElapsed
+		precision, trim := fmts.elapsedDisplay(val.Value, val.Scale)
+		return formatDurationValueOptions(val.Value, precision, trim), kindElapsed
 	case core.Fraction:
 		mode := fractionNumberFormat(val, fmts)
 		return formatNumber(int64(val.Current), mode, fmts) +
@@ -378,7 +371,8 @@ func formatValue(
 	case core.QuantityField:
 		return string(val), kindQuantity
 	case core.DurationField:
-		return formatDurationValue(val.Value, fmts.DurationPrecision), kindDuration
+		precision, trim := fmts.durationDisplay(val.Value, val.Scale)
+		return formatDurationValueOptions(val.Value, precision, trim), kindDuration
 	case time.Duration:
 		return val.String(), kindDuration
 	case time.Time:
@@ -456,6 +450,12 @@ func formatETA(d time.Duration) string {
 // value is >= 1 and formats with the given decimal precision (no trailing
 // zero trimming).
 func formatDurationValue(d time.Duration, precision int) string {
+	return formatDurationValueOptions(d, precision, false)
+}
+
+// formatDurationValueOptions formats a duration like formatDurationValue and
+// optionally removes trailing fractional zeroes.
+func formatDurationValueOptions(d time.Duration, precision int, trim bool) string {
 	if d < 0 {
 		d = -d
 	}
@@ -464,7 +464,7 @@ func formatDurationValue(d time.Duration, precision int) string {
 		return s
 	}
 
-	// Single unit with precision, no trailing zero trimming.
+	// Single unit with fixed precision and optional trailing-zero trimming.
 	type unit struct {
 		suffix string
 		div    time.Duration
@@ -480,7 +480,11 @@ func formatDurationValue(d time.Duration, precision int) string {
 	for _, u := range units {
 		if d >= u.div {
 			val := float64(d) / float64(u.div)
-			return strconv.FormatFloat(val, 'f', precision, 64) + u.suffix
+			formatted := strconv.FormatFloat(val, 'f', precision, 64)
+			if trim && strings.Contains(formatted, ".") {
+				formatted = strings.TrimRight(strings.TrimRight(formatted, "0"), ".")
+			}
+			return formatted + u.suffix
 		}
 	}
 	return "0s"

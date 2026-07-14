@@ -360,7 +360,9 @@ clog.Info().
 
 These options work the same way on animated builders - `fx.Builder.Elapsed` (see [Spinner](spinner.md#elapsed-timer)) accepts the same `elapsed.Option` values for its auto-updating field.
 
-The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above), `duration.WithMinimum`, which overrides `DurationMinimum` for that field only, and `duration.WithRound`, which overrides `DurationRound`. The `deadline` package accepts `deadline.WithRound` to override the countdown's `ElapsedRound` granularity.
+`elapsed.WithScale` selects a magnitude-keyed `TimeScale` for one field; it is useful when a deliberate variable-width live timer is preferable to the stable whole-second default. A per-field `WithRound` takes precedence over a per-field or logger scale.
+
+The `duration` package mirrors this for `Duration` fields: `duration.WithGradientMax`, `duration.WithGradient`, `duration.WithGradientMode` (see [Duration Gradient](#duration-gradient) above), `duration.WithMinimum`, which overrides `DurationMinimum` for that field only, `duration.WithRound`, and `duration.WithScale`. The `deadline` package accepts `deadline.WithRound` and `deadline.WithScale`; deadline scale settings otherwise inherit from elapsed.
 
 ### Gradient Mode
 
@@ -408,7 +410,7 @@ f.PercentFormat = func(v float64) string {
 clog.SetFieldFormats(f)
 ```
 
-When set to `nil` (the default), the built-in formatters are used (`formatElapsed` with `ElapsedPrecision` for elapsed, `strconv.FormatFloat` with `PercentPrecision` + "%" for percent). Custom percent format functions receive the **display** percentage (0–100), not the raw stored value.
+When set to `nil` (the default), the built-in formatters are used (the resolved scalar/scale precision for time fields, and `strconv.FormatFloat` with `PercentPrecision` + "%" for percent). Custom percent format functions receive the **display** percentage (0–100), not the raw stored value.
 
 ## Field Sort Order
 

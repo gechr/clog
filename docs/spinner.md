@@ -194,7 +194,7 @@ err := clog.Spinner("Processing batch").
 
 The elapsed field respects its position relative to other field methods - it appears between `batch` and `workers` in the output above because `.Elapsed("elapsed")` was called between `.Str()` and `.Int()`.
 
-The display format uses the logger's [`FieldFormats`](configuration.md#field-formats): `ElapsedPrecision` (default 0 decimal places), rounding to `ElapsedRound` (default 1s), hiding values below `ElapsedMinimum` (default 1s), and can be fully overridden with `ElapsedFormat`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
+The display format uses the logger's [`FieldFormats`](configuration.md#field-formats). Live elapsed fields default to stable whole-second rendering through the scalar `ElapsedRound`/`ElapsedPrecision` settings and are hidden below `ElapsedMinimum` (default 1s). Set `ElapsedScale = nil` to inherit the shared magnitude-keyed `TimeScale`, provide a dedicated scale, or fully override formatting with `ElapsedFormat`. Durations >= 1m use composite format (e.g. "1m30s", "2h15m").
 
 `.Elapsed(key)` also accepts `elapsed.Option` values to override the gradient max, stops, or transition mode for this animation's field only - see [Per-Field Overrides](styles.md#per-field-overrides):
 

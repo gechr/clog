@@ -402,6 +402,12 @@ func main() {
 		Time("started", time.Now().Add(-30*time.Second)).
 		Msg("Request handled")
 
+	// --- Duration precision scale ---
+	header("Duration Precision Scale")
+	clog.Info().Duration("took", 450*time.Millisecond).Msg("Sub-second")
+	clog.Info().Duration("took", 1540*time.Millisecond).Msg("Fractional second")
+	clog.Info().Duration("took", 12400*time.Millisecond).Msg("Whole second")
+
 	clog.Error().
 		Err(errors.New("connection refused")).
 		Str("host", "db.internal").

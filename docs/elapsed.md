@@ -90,16 +90,21 @@ The elapsed field respects the same per-logger [`FieldFormats`](configuration.md
 | --------------------- | ---------------- | -------------------------------------------------------------------------------------- |
 | `DurationFormat`      | `nil` (built-in) | Custom formatter for both `Duration` and `Elapsed` fields                              |
 | `DurationGradientMax` | `0` (disabled)   | Max duration for `Duration` field gradient (see [Styles](styles.md#duration-gradient)) |
-| `DurationMinimum`     | `time.Second`    | Hide `Duration` fields below this threshold (`0` shows all values)                     |
-| `DurationPrecision`   | `0`              | Decimal places for `Duration` fields (`0` = `3s`, `1` = `3.2s`)                        |
-| `DurationRound`       | `time.Second`    | Rounding granularity for `Duration` fields (`0` disables rounding)                     |
+| `DurationMinimum`     | `0`              | Hide `Duration` fields below this threshold (`0` shows all values)                     |
+| `DurationPrecision`   | `0`              | Scalar decimal places for `Duration` fields when no scale applies                      |
+| `DurationRound`       | `time.Second`    | Scalar rounding for `Duration` fields when no scale applies                            |
+| `DurationScale`       | `nil` (inherit)  | Duration-specific override of `TimeScale`                                              |
 | `ElapsedFormat`       | `nil` (built-in) | Custom formatter for elapsed durations (takes priority over `DurationFormat`)          |
 | `ElapsedGradientMax`  | `0` (disabled)   | Max duration for gradient coloring (see [Styles](styles.md#elapsed-gradient))          |
 | `ElapsedMinimum`      | `time.Second`    | Hide elapsed field below this threshold (`0` shows all values)                         |
-| `ElapsedPrecision`    | `0`              | Decimal places (`0` = `3s`, `1` = `3.2s`)                                              |
-| `ElapsedRound`        | `time.Second`    | Rounding granularity (`0` disables rounding)                                           |
+| `ElapsedPrecision`    | `0`              | Scalar decimal places when no elapsed scale applies                                    |
+| `ElapsedRound`        | `time.Second`    | Scalar rounding when no elapsed scale applies                                          |
+| `ElapsedScale`        | empty (scalars)  | Elapsed/deadline override; nil inherits `TimeScale`                                    |
+| `TimeScale`           | three brackets   | Shared magnitude-keyed rounding and precision scale                                    |
 
-`ElapsedGradientMax`, `ElapsedMinimum`, `ElapsedRound`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings, can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides). The `duration` package mirrors this for `Duration` fields, including `duration.WithMinimum` and `duration.WithRound`:
+The default duration scale renders `450ms`, `1.5s`, and `12s`, while live elapsed/deadline fields stay at whole-second width. Set `ElapsedScale = nil` to inherit `TimeScale`, provide a non-empty scale to override it, or keep a non-nil empty scale to use `ElapsedRound` and `ElapsedPrecision`. The corresponding setters handle these states automatically.
+
+`ElapsedGradientMax`, `ElapsedMinimum`, `ElapsedRound`, `ElapsedScale`, and the `ElapsedGradient`/`ElapsedGradientMode` style settings can also be overridden per field with options from the `elapsed` package - see [Per-Field Overrides](styles.md#per-field-overrides). The `duration` package mirrors this for `Duration` fields, including `duration.WithMinimum`, `duration.WithRound`, and `duration.WithScale`:
 
 ```go
 import "github.com/gechr/clog/field/elapsed"

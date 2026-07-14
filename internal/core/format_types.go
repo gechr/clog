@@ -1,6 +1,7 @@
 package core
 
 import (
+	"math"
 	"time"
 
 	"github.com/gechr/clog/style"
@@ -19,7 +20,8 @@ type QuantityField string
 // logger's elapsed gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.ElapsedMinimum] threshold and
 // Round the logger's [FieldFormats.ElapsedRound] granularity for this field
-// when non-nil. OmitOnDone removes the field from fx.Builder done
+// when non-nil. Scale overrides the logger's elapsed scale when non-nil.
+// OmitOnDone removes the field from fx.Builder done
 // rows while leaving the live animation field visible. Trailing
 // pins the field to the end of the row when fx.Builder.ResolveDynamicFields
 // reorders fields for animated rows.
@@ -30,6 +32,7 @@ type ElapsedField struct {
 	GradientMode *style.GradientMode
 	Minimum      *time.Duration
 	Round        *time.Duration
+	Scale        TimeScale
 	OmitOnDone   bool
 	Trailing     bool
 }
@@ -41,7 +44,8 @@ type ElapsedField struct {
 // first stop and an expired one uses the last. Gradient and GradientMode
 // override the logger's elapsed gradient settings for this field when
 // non-nil/non-empty. Round overrides the logger's [FieldFormats.ElapsedRound]
-// granularity for this field when non-nil.
+// granularity for this field when non-nil. Scale overrides the logger's
+// elapsed scale when non-nil.
 // OmitOnDone removes the field from fx.Builder done rows while leaving
 // the live animation countdown visible. Trailing pins the field to the end of
 // the row when fx.Builder.ResolveDynamicFields reorders fields for animated
@@ -52,6 +56,7 @@ type DeadlineField struct {
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode
 	Round        *time.Duration
+	Scale        TimeScale
 	OmitOnDone   bool
 	Trailing     bool
 }
@@ -61,7 +66,8 @@ type DeadlineField struct {
 // logger's duration gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.DurationMinimum] threshold and
 // Round the logger's [FieldFormats.DurationRound] granularity for this field
-// when non-nil. OmitOnDone removes the field from fx.Builder done
+// when non-nil. Scale overrides the logger's duration scale when non-nil.
+// OmitOnDone removes the field from fx.Builder done
 // rows while leaving the live animation field visible.
 type DurationField struct {
 	Value        time.Duration
@@ -70,7 +76,43 @@ type DurationField struct {
 	GradientMode *style.GradientMode
 	Minimum      *time.Duration
 	Round        *time.Duration
+	Scale        TimeScale
 	OmitOnDone   bool
+}
+
+// TimeScale maps a duration's magnitude to display settings. A nil scale
+// inherits its parent scale; a non-nil empty scale disables scale inheritance
+// and falls back to the corresponding scalar precision and rounding settings.
+type TimeScale []TimeScaleStep
+
+// TimeScaleStep is one bracket of a [TimeScale]. Below is an exclusive upper
+// bound; zero matches all remaining values. Precision controls decimal places,
+// Round controls rounding granularity, and Trim removes trailing fractional
+// zeroes without exceeding Precision.
+type TimeScaleStep struct {
+	Below     time.Duration
+	Precision int
+	Round     time.Duration
+	Trim      bool
+}
+
+// Resolve returns the step governing d by absolute magnitude.
+func (s TimeScale) Resolve(d time.Duration) (TimeScaleStep, bool) {
+	if len(s) == 0 {
+		return TimeScaleStep{}, false
+	}
+	if d < 0 {
+		d = -d
+		if d < 0 { // time.Duration's minimum value cannot be negated.
+			d = time.Duration(math.MaxInt64)
+		}
+	}
+	for _, step := range s {
+		if step.Below == 0 || d < step.Below {
+			return step, true
+		}
+	}
+	return s[len(s)-1], true
 }
 
 // Percent holds a percentage value (0–100) with an optional reverse

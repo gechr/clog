@@ -43,7 +43,34 @@ func TestSetHyperlinkLineFormatExpandsPreset(t *testing.T) {
 func TestSetElapsedPrecision(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.SetElapsedPrecision(1)
-	assert.Equal(t, 1, l.FieldFormats().ElapsedPrecision)
+	f := l.FieldFormats()
+	assert.Equal(t, 1, f.ElapsedPrecision)
+	assert.NotNil(t, f.ElapsedScale)
+	assert.Empty(t, f.ElapsedScale)
+}
+
+func TestSetDurationRoundSelectsScalarSettings(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetDurationRound(10 * time.Millisecond)
+
+	f := l.FieldFormats()
+	assert.Equal(t, 10*time.Millisecond, f.DurationRound)
+	assert.NotNil(t, f.DurationScale)
+	assert.Empty(t, f.DurationScale)
+}
+
+func TestSetTimeScaleClearsFieldOverrides(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetDurationScale(TimeScale{{Round: time.Minute}})
+	l.SetElapsedScale(TimeScale{})
+
+	scale := TimeScale{{Round: 100 * time.Millisecond}}
+	l.SetTimeScale(scale)
+
+	f := l.FieldFormats()
+	assert.Equal(t, scale, f.TimeScale)
+	assert.Nil(t, f.DurationScale)
+	assert.Nil(t, f.ElapsedScale)
 }
 
 func TestSetTimeGradientMaxSetsBoth(t *testing.T) {

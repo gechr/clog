@@ -108,6 +108,9 @@ func SetDurationPrecision(precision int) { Default.SetDurationPrecision(precisio
 // SetDurationRound sets the duration rounding granularity on the [Default] logger.
 func SetDurationRound(round time.Duration) { Default.SetDurationRound(round) }
 
+// SetDurationScale sets the duration rounding/precision scale on the [Default] logger.
+func SetDurationScale(scale TimeScale) { Default.SetDurationScale(scale) }
+
 // SetElapsedFormat sets a custom elapsed formatter on the [Default] logger.
 func SetElapsedFormat(format func(time.Duration) string) { Default.SetElapsedFormat(format) }
 
@@ -122,6 +125,12 @@ func SetElapsedPrecision(precision int) { Default.SetElapsedPrecision(precision)
 
 // SetElapsedRound sets the elapsed rounding granularity on the [Default] logger.
 func SetElapsedRound(round time.Duration) { Default.SetElapsedRound(round) }
+
+// SetElapsedScale sets the elapsed and deadline rounding/precision scale on the [Default] logger.
+func SetElapsedScale(scale TimeScale) { Default.SetElapsedScale(scale) }
+
+// SetTimeScale sets the shared rounding/precision scale for all time fields on the [Default] logger.
+func SetTimeScale(scale TimeScale) { Default.SetTimeScale(scale) }
 
 // SetTimeGradientMax sets both the duration and elapsed gradient maxima on the [Default] logger.
 func SetTimeGradientMax(maximum time.Duration) { Default.SetTimeGradientMax(maximum) }

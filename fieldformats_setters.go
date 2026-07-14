@@ -39,7 +39,7 @@ func (l *Logger) SetDurationGradientMax(maximum time.Duration) {
 }
 
 // SetDurationMinimum hides duration fields below this duration. 0 shows all
-// values. Defaults to [time.Second].
+// values and is the default.
 func (l *Logger) SetDurationMinimum(minimum time.Duration) {
 	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationMinimum = minimum })
 }
@@ -47,13 +47,26 @@ func (l *Logger) SetDurationMinimum(minimum time.Duration) {
 // SetDurationPrecision sets the decimal precision for duration display
 // (0 = "3s", 1 = "3.2s").
 func (l *Logger) SetDurationPrecision(precision int) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationPrecision = precision })
+	l.mutateFieldFormats(func(f *FieldFormats) {
+		f.DurationPrecision = precision
+		f.DurationScale = TimeScale{}
+	})
 }
 
 // SetDurationRound sets the rounding granularity for duration values. 0
 // disables rounding. Defaults to [time.Second].
 func (l *Logger) SetDurationRound(round time.Duration) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationRound = round })
+	l.mutateFieldFormats(func(f *FieldFormats) {
+		f.DurationRound = round
+		f.DurationScale = TimeScale{}
+	})
+}
+
+// SetDurationScale sets the magnitude-keyed rounding and precision scale for
+// duration fields. nil inherits [FieldFormats.TimeScale]; a non-nil empty
+// scale restores the scalar settings. See [TimeScale].
+func (l *Logger) SetDurationScale(scale TimeScale) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.DurationScale = scale })
 }
 
 // SetElapsedFormat sets a custom formatter for elapsed-time fields (takes
@@ -77,13 +90,36 @@ func (l *Logger) SetElapsedMinimum(minimum time.Duration) {
 // SetElapsedPrecision sets the decimal precision for elapsed display
 // (0 = "3s", 1 = "3.2s").
 func (l *Logger) SetElapsedPrecision(precision int) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.ElapsedPrecision = precision })
+	l.mutateFieldFormats(func(f *FieldFormats) {
+		f.ElapsedPrecision = precision
+		f.ElapsedScale = TimeScale{}
+	})
 }
 
 // SetElapsedRound sets the rounding granularity for elapsed values. 0 disables
 // rounding. Defaults to [time.Second].
 func (l *Logger) SetElapsedRound(round time.Duration) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.ElapsedRound = round })
+	l.mutateFieldFormats(func(f *FieldFormats) {
+		f.ElapsedRound = round
+		f.ElapsedScale = TimeScale{}
+	})
+}
+
+// SetElapsedScale sets the magnitude-keyed rounding and precision scale for
+// elapsed (and deadline) fields. nil inherits [FieldFormats.TimeScale]; a
+// non-nil empty scale restores the scalar settings. See [TimeScale].
+func (l *Logger) SetElapsedScale(scale TimeScale) {
+	l.mutateFieldFormats(func(f *FieldFormats) { f.ElapsedScale = scale })
+}
+
+// SetTimeScale sets the shared time scale and clears the duration and elapsed
+// overrides so all time fields inherit it. nil restores scalar settings.
+func (l *Logger) SetTimeScale(scale TimeScale) {
+	l.mutateFieldFormats(func(f *FieldFormats) {
+		f.TimeScale = scale
+		f.DurationScale = nil
+		f.ElapsedScale = nil
+	})
 }
 
 // SetTimeGradientMax sets both [FieldFormats.DurationGradientMax] and

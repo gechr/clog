@@ -3027,6 +3027,113 @@ func TestDeadlineRoundPerFieldOverride(t *testing.T) {
 	assert.Equal(t, " left=450ms", got)
 }
 
+func TestDefaultDurationScale(t *testing.T) {
+	tests := []struct {
+		name  string
+		value time.Duration
+		want  string
+	}{
+		{name: "milliseconds", value: 450 * time.Millisecond, want: " took=450ms"},
+		{name: "negative_milliseconds", value: -450 * time.Millisecond, want: " took=450ms"},
+		{name: "one_second_trims_zero", value: time.Second, want: " took=1s"},
+		{name: "fractional_seconds", value: 1540 * time.Millisecond, want: " took=1.5s"},
+		{name: "below_ten_seconds", value: 9940 * time.Millisecond, want: " took=9.9s"},
+		{name: "rounds_across_boundary", value: 9960 * time.Millisecond, want: " took=10s"},
+		{name: "whole_seconds", value: 12400 * time.Millisecond, want: " took=12s"},
+	}
+
+	f := DefaultFieldFormats()
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := formatFields(
+				[]Field{{Key: "took", Value: core.DurationField{Value: tt.value}}},
+				opts,
+			)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestDefaultLiveTimeScaleUsesStableWholeSeconds(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.ElapsedMinimum = 0
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+
+	got := formatFields([]Field{
+		{Key: "elapsed", Value: core.ElapsedField{Value: 1600 * time.Millisecond}},
+		{
+			Key:   "left",
+			Value: core.DeadlineField{Remaining: 1100 * time.Millisecond, From: 10 * time.Second},
+		},
+	}, opts)
+	assert.Equal(t, " elapsed=2s left=2s", got)
+}
+
+func TestTimeScaleInheritance(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.DurationScale = nil
+	f.ElapsedMinimum = 0
+	f.ElapsedScale = nil
+	f.TimeScale = TimeScale{{Precision: 1, Round: 100 * time.Millisecond, Trim: true}}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+
+	got := formatFields([]Field{
+		{Key: "duration", Value: core.DurationField{Value: 1240 * time.Millisecond}},
+		{Key: "elapsed", Value: core.ElapsedField{Value: 1240 * time.Millisecond}},
+		{
+			Key:   "left",
+			Value: core.DeadlineField{Remaining: 1210 * time.Millisecond, From: 10 * time.Second},
+		},
+	}, opts)
+	assert.Equal(t, " duration=1.2s elapsed=1.2s left=1.3s", got)
+}
+
+func TestTimeScaleFieldOverridePrecedence(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.DurationScale = TimeScale{{Round: time.Second}}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+
+	got := formatFields([]Field{
+		{Key: "scaled", Value: core.DurationField{
+			Value: 450 * time.Millisecond,
+			Scale: TimeScale{{Round: time.Millisecond}},
+		}},
+		{Key: "rounded", Value: core.DurationField{
+			Value: 450 * time.Millisecond,
+			Round: new(time.Second),
+			Scale: TimeScale{{Round: time.Millisecond}},
+		}},
+	}, opts)
+	assert.Equal(t, " scaled=450ms rounded=0s", got)
+}
+
+func TestTimeScaleWithoutCatchAllUsesLastStep(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.DurationScale = TimeScale{{Below: time.Second, Precision: 1, Round: 100 * time.Millisecond}}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+
+	got := formatFields(
+		[]Field{{Key: "took", Value: core.DurationField{Value: 2200 * time.Millisecond}}},
+		opts,
+	)
+	assert.Equal(t, " took=2.2s", got)
+}
+
+func TestDurationSliceIgnoresTimeScale(t *testing.T) {
+	f := DefaultFieldFormats()
+	f.TimeScale = TimeScale{{Round: time.Second}}
+	opts := formatFieldsOpts{noColor: true, formats: &f}
+
+	got := formatFields(
+		[]Field{
+			{Key: "took", Value: []time.Duration{450 * time.Millisecond, 1500 * time.Millisecond}},
+		},
+		opts,
+	)
+	assert.Equal(t, " took=[450ms, 1.5s]", got)
+}
+
 func TestFormatInt64SlicePlain(t *testing.T) {
 	tests := []struct {
 		name string

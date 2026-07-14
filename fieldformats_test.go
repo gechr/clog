@@ -53,6 +53,16 @@ func TestFieldFormatsDefaultWithoutSet(t *testing.T) {
 	assert.Equal(t, DefaultFieldFormats(), got)
 }
 
+func TestDefaultFieldFormatsTimeScales(t *testing.T) {
+	f := DefaultFieldFormats()
+
+	assert.Zero(t, f.DurationMinimum)
+	assert.Len(t, f.TimeScale, 3)
+	assert.Nil(t, f.DurationScale)
+	assert.NotNil(t, f.ElapsedScale)
+	assert.Empty(t, f.ElapsedScale)
+}
+
 func TestFieldFormatsSubLoggerInheritsParent(t *testing.T) {
 	var buf bytes.Buffer
 	parent := New(TestOutput(&buf))

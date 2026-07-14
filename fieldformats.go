@@ -4,6 +4,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/field/hyperlink"
+	"github.com/gechr/clog/internal/core"
 )
 
 // FieldFormats holds all field-formatting configuration for a [Logger].
@@ -19,14 +20,19 @@ type FieldFormats struct {
 	// Duration gradient stops. 0 disables the gradient.
 	DurationGradientMax time.Duration
 	// DurationMinimum hides duration fields below this duration.
-	// The default is [time.Second]; 0 shows all values.
+	// The default is 0, which shows all values.
 	DurationMinimum time.Duration
 	// DurationPrecision is the decimal precision for duration display
-	// (0 = "3s", 1 = "3.2s").
+	// (0 = "3s", 1 = "3.2s"). Ignored when a duration scale applies.
 	DurationPrecision int
 	// DurationRound is the rounding granularity for duration values.
-	// The default is [time.Second]; 0 disables rounding.
+	// The default is [time.Second]; 0 disables rounding. Ignored when a
+	// duration scale applies.
 	DurationRound time.Duration
+	// DurationScale overrides TimeScale for duration fields. nil inherits
+	// TimeScale; a non-nil empty scale uses DurationRound and
+	// DurationPrecision instead.
+	DurationScale TimeScale
 	// ElapsedFormat overrides the formatter for elapsed-time fields.
 	// nil means DurationFormat, then the built-in format.
 	ElapsedFormat func(time.Duration) string
@@ -37,11 +43,20 @@ type FieldFormats struct {
 	// The default is [time.Second]; 0 shows all values.
 	ElapsedMinimum time.Duration
 	// ElapsedPrecision is the decimal precision for elapsed display
-	// (0 = "3s", 1 = "3.2s").
+	// (0 = "3s", 1 = "3.2s"). Ignored when an elapsed scale applies.
 	ElapsedPrecision int
 	// ElapsedRound is the rounding granularity for elapsed values.
-	// The default is [time.Second]; 0 disables rounding.
+	// The default is [time.Second]; 0 disables rounding. Ignored when an
+	// elapsed scale applies.
 	ElapsedRound time.Duration
+	// ElapsedScale overrides TimeScale for elapsed and deadline fields. nil
+	// inherits TimeScale; a non-nil empty scale uses ElapsedRound and
+	// ElapsedPrecision instead. The default is an empty scale so live fields
+	// keep a stable whole-second width.
+	ElapsedScale TimeScale
+	// TimeScale is the shared magnitude-keyed rounding and precision scale for
+	// time fields. DurationScale and ElapsedScale can override its inheritance.
+	TimeScale TimeScale
 
 	// HyperlinkEnabled controls whether hyperlinks are rendered at all.
 	HyperlinkEnabled bool
@@ -96,23 +111,137 @@ type FieldFormats struct {
 	NumberCompactFallback NumberFormat
 }
 
+const (
+	defaultTimeScaleDecimalMaximum = 10 * time.Second
+	defaultTimeScaleDecimalRound   = 100 * time.Millisecond
+)
+
 // DefaultFieldFormats returns the default field-format configuration:
-// hyperlinks enabled, duration and elapsed both rounded to whole seconds and
-// hidden below one second, case-insensitive quantity units, plain numbers
-// with a "," group separator and a 1000 compact minimum, and built-in
-// formatters.
+// durations shown at millisecond resolution below one second, at up to one
+// decimal place below ten seconds, and at whole-second resolution thereafter;
+// live elapsed and deadline fields kept at stable whole-second resolution;
+// hyperlinks enabled; case-insensitive quantity units; plain numbers with a
+// "," group separator and a 1000 compact minimum; and built-in formatters.
 func DefaultFieldFormats() FieldFormats {
 	return FieldFormats{
-		DurationMinimum:         time.Second,
+		DurationMinimum:         0,
 		DurationRound:           time.Second,
 		ElapsedMinimum:          time.Second,
 		ElapsedRound:            time.Second,
+		ElapsedScale:            TimeScale{},
 		HyperlinkEnabled:        true,
 		NumberCompactFallback:   NumberGrouped,
 		NumberCompactMinimum:    1000, //nolint:mnd // default compact threshold
 		NumberGroupSeparator:    ",",
 		QuantityUnitsIgnoreCase: true,
+		TimeScale: TimeScale{
+			{Below: time.Second, Round: time.Millisecond},
+			{
+				Below:     defaultTimeScaleDecimalMaximum,
+				Precision: 1,
+				Round:     defaultTimeScaleDecimalRound,
+				Trim:      true,
+			},
+			{Round: time.Second},
+		},
 	}
+}
+
+// TimeScale maps time-field magnitudes to rounding granularity and decimal
+// precision. Steps must be ordered by ascending Below. The first step whose
+// exclusive Below bound exceeds the absolute value applies; a zero Below is a
+// catch-all and should be last.
+//
+//	clog.TimeScale{
+//		{Below: time.Second, Round: time.Millisecond},
+//		{Below: 10 * time.Second, Precision: 1, Round: 100 * time.Millisecond, Trim: true},
+//		{Round: time.Second},
+//	}
+type TimeScale = core.TimeScale
+
+// TimeScaleStep is one magnitude bracket of a [TimeScale].
+type TimeScaleStep = core.TimeScaleStep
+
+// resolveScale resolves a field-specific scale through the shared TimeScale.
+// nil inherits; a non-nil empty scale deliberately falls back to scalars.
+func (f *FieldFormats) resolveScale(d time.Duration, specific TimeScale) (TimeScaleStep, bool) {
+	if specific != nil {
+		return specific.Resolve(d)
+	}
+	return f.TimeScale.Resolve(d)
+}
+
+// durationRound resolves the rounding granularity for a raw duration value: a
+// per-field override wins, then the DurationScale bracket, then DurationRound.
+func (f *FieldFormats) durationRound(
+	raw time.Duration,
+	override *time.Duration,
+	scale TimeScale,
+) time.Duration {
+	if override != nil {
+		return *override
+	}
+	if scale != nil {
+		if step, ok := scale.Resolve(raw); ok {
+			return step.Round
+		}
+		return f.DurationRound
+	}
+	if step, ok := f.resolveScale(raw, f.DurationScale); ok {
+		return step.Round
+	}
+	return f.DurationRound
+}
+
+// durationDisplay resolves display settings for a duration value.
+func (f *FieldFormats) durationDisplay(d time.Duration, scale TimeScale) (int, bool) {
+	if scale != nil {
+		if step, ok := scale.Resolve(d); ok {
+			return step.Precision, step.Trim
+		}
+		return f.DurationPrecision, false
+	}
+	if step, ok := f.resolveScale(d, f.DurationScale); ok {
+		return step.Precision, step.Trim
+	}
+	return f.DurationPrecision, false
+}
+
+// elapsedRound mirrors [FieldFormats.durationRound] for elapsed and deadline
+// fields, drawing on ElapsedScale then ElapsedRound.
+func (f *FieldFormats) elapsedRound(
+	raw time.Duration,
+	override *time.Duration,
+	scale TimeScale,
+) time.Duration {
+	if override != nil {
+		return *override
+	}
+	if scale != nil {
+		if step, ok := scale.Resolve(raw); ok {
+			return step.Round
+		}
+		return f.ElapsedRound
+	}
+	if step, ok := f.resolveScale(raw, f.ElapsedScale); ok {
+		return step.Round
+	}
+	return f.ElapsedRound
+}
+
+// elapsedDisplay mirrors [FieldFormats.durationDisplay] for elapsed and
+// deadline fields.
+func (f *FieldFormats) elapsedDisplay(d time.Duration, scale TimeScale) (int, bool) {
+	if scale != nil {
+		if step, ok := scale.Resolve(d); ok {
+			return step.Precision, step.Trim
+		}
+		return f.ElapsedPrecision, false
+	}
+	if step, ok := f.resolveScale(d, f.ElapsedScale); ok {
+		return step.Precision, step.Trim
+	}
+	return f.ElapsedPrecision, false
 }
 
 // defaultFieldFormats is the shared immutable default used when a

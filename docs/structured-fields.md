@@ -83,7 +83,7 @@ clog.SetSliceBrackets('|', '|')    // |a, b, c| - same char for open and close
 
 ## Duration Formatting
 
-By default, `Duration` fields are hidden below `DurationMinimum` (`time.Second`), rounded to `DurationRound` (`time.Second`), and formatted with `DurationPrecision` (`0` decimal places, e.g. `3s`) - the same defaults as [`Elapsed`](elapsed.md#elapsed-configuration) fields. Durations >= 1m use composite format (e.g. `1m30s`, `2h15m`). Set the `DurationFormat` field of [`FieldFormats`](configuration.md#field-formats) to apply a custom formatter per-logger instead:
+By default, `Duration` fields use the shared `TimeScale`: values below one second render in milliseconds (`450ms`), values below ten seconds render with up to one decimal place (`1.5s`, but `1s` rather than `1.0s`), and larger values round to whole seconds (`12s`). `DurationMinimum` defaults to `0`, so sub-second values remain visible. Durations >= 1m use composite format (e.g. `1m30s`, `2h15m`). See [`FieldFormats`](configuration.md#field-formats) for custom scales, scalar round/precision mode, and inheritance. Set `DurationFormat` to apply a custom formatter per logger instead:
 
 ```go
 f := clog.DefaultFieldFormats()
@@ -94,7 +94,7 @@ clog.Info().Duration("took", time.Since(start)).Msg("done")
 // INF ℹ️ done took=2.3s
 ```
 
-`DurationFormat` also applies as a fallback for [`Elapsed`](elapsed.md) fields. See [Elapsed Configuration](elapsed.md#elapsed-configuration) for details.
+`DurationFormat` also applies as a fallback for [`Elapsed`](elapsed.md) fields. Duration slices continue to use `time.Duration.String()` per element and do not apply `TimeScale`. See [Elapsed Configuration](elapsed.md#elapsed-configuration) for details.
 
 ## Duration Gradient
 

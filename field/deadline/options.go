@@ -11,6 +11,9 @@ import (
 // Deadline is the value type for countdown deadline fields.
 type Deadline = core.DeadlineField
 
+// TimeScale is a magnitude-keyed rounding and precision scale.
+type TimeScale = core.TimeScale
+
 // Option configures how a deadline field is rendered.
 type Option func(*Deadline)
 
@@ -43,6 +46,15 @@ func WithGradientMode(mode style.GradientMode) Option {
 func WithRound(round time.Duration) Option {
 	return func(d *Deadline) {
 		d.Round = &round
+	}
+}
+
+// WithScale returns an [Option] that overrides the logger's elapsed scale for
+// this deadline field. An empty scale uses the logger's scalar elapsed
+// settings.
+func WithScale(scale TimeScale) Option {
+	return func(d *Deadline) {
+		d.Scale = scale
 	}
 }
 

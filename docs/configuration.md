@@ -82,34 +82,52 @@ To change a single option without the read-modify-write dance, each field has a 
 
 `SetTimeGradientMax(max)` is a shorthand that sets both `DurationGradientMax` and `ElapsedGradientMax` at once, since duration and elapsed fields usually share a gradient ceiling.
 
-| Field                     | Type                         | Default          | Description                                                                                   |
-| ------------------------- | ---------------------------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`)  |
-| `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                                |
-| `DurationMinimum`         | `time.Duration`              | `time.Second`    | Hide duration fields below this duration (`0` shows all values)                               |
-| `DurationPrecision`       | `int`                        | `0`              | Decimal places for duration display (`0` = `3s`, `1` = `3.2s`)                                |
-| `DurationRound`           | `time.Duration`              | `time.Second`    | Rounding granularity for duration values (`0` disables rounding)                              |
-| `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                    |
-| `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                         |
-| `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                                |
-| `ElapsedPrecision`        | `int`                        | `0`              | Decimal places for elapsed display (`0` = `3s`, `1` = `3.2s`)                                 |
-| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Rounding granularity for elapsed values (`0` disables rounding)                               |
-| `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                        |
-| `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                    |
-| `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                           |
-| `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                           |
-| `HyperlinkLineFormat`     | `string`                     | `""`             | URL format for file+line hyperlinks                                                           |
-| `HyperlinkPathFormat`     | `string`                     | `""`             | Generic fallback URL format for any path                                                      |
-| `PercentFormat`           | `func(float64) string`       | `nil` (built-in) | Custom formatter for `Percent` fields (receives the display value, already scaled to 0–100)   |
-| `PercentMaximum`          | `float64`                    | `0` (= `1.0`)    | Percent input maximum (`0` means `1.0` = fractions 0–1; set `100` for 0–100 input)            |
-| `PercentPrecision`        | `int`                        | `0`              | Decimal places for `Percent` display (`0` = `75%`, `1` = `75.0%`)                             |
-| `PercentReverseGradient`  | `bool`                       | `false`          | Reverse the percent gradient (green=0%, red=100%)                                             |
-| `NumberFormat`            | `NumberFormat`               | `NumberPlain`    | How integers and both halves of fractions render (`plain`, `grouped`, `compact`)              |
-| `FractionFormat`          | `*NumberFormat`              | `nil` (inherit)  | Overrides `NumberFormat` for fraction fields only (`nil` inherits `NumberFormat`)             |
-| `NumberGroupSeparator`    | `string`                     | `","`            | Digit-group separator for `NumberGrouped` (e.g. `1,234,567`)                                  |
-| `NumberCompactMinimum`    | `int64`                      | `1000`           | Smallest magnitude `NumberCompact` abbreviates; values below it use the fallback              |
-| `NumberCompactFallback`   | `NumberFormat`               | `NumberGrouped`  | How `NumberCompact` renders sub-minimum values (`NumberGrouped` or `NumberPlain`)             |
-| `QuantityUnitsIgnoreCase` | `bool`                       | `true`           | Case-insensitive quantity unit matching                                                       |
+Time fields can select rounding and decimal precision by magnitude with `TimeScale`. The default shared scale renders values below one second in milliseconds, values below ten seconds with up to one decimal place, and larger values as whole seconds. `DurationScale == nil` inherits that shared scale. Live `Elapsed` and `Deadline` fields default to a non-nil empty `ElapsedScale`, which selects the stable-width scalar settings (`ElapsedRound = time.Second`, `ElapsedPrecision = 0`) instead of changing width as a timer crosses scale brackets.
+
+```go
+f := clog.DefaultFieldFormats()
+f.TimeScale = clog.TimeScale{
+  {Below: time.Second, Round: time.Millisecond},
+  {Below: 10 * time.Second, Precision: 1, Round: 100 * time.Millisecond, Trim: true},
+  {Round: time.Second},
+}
+f.ElapsedScale = nil // opt live elapsed/deadline fields into the shared scale
+logger.SetFieldFormats(f)
+```
+
+`DurationScale` and `ElapsedScale` have three states: `nil` inherits `TimeScale`, a non-empty scale overrides it, and a non-nil empty scale uses the corresponding scalar `Round`/`Precision` fields. `SetDurationRound`, `SetDurationPrecision`, `SetElapsedRound`, and `SetElapsedPrecision` automatically select scalar mode. `SetTimeScale` installs one shared scale and clears both field-specific overrides. A scale step's `Below` is an exclusive upper bound, zero is the catch-all, and `Trim` removes trailing fractional zeroes (for example, `1.0s` becomes `1s`).
+
+| Field                     | Type                         | Default          | Description                                                                                  |
+| ------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
+| `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`) |
+| `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                               |
+| `DurationMinimum`         | `time.Duration`              | `0`              | Hide duration fields below this duration (`0` shows all values)                              |
+| `DurationPrecision`       | `int`                        | `0`              | Scalar decimal places when no duration scale applies (`0` = `3s`, `1` = `3.2s`)              |
+| `DurationRound`           | `time.Duration`              | `time.Second`    | Scalar rounding when no duration scale applies (`0` disables rounding)                       |
+| `DurationScale`           | `TimeScale`                  | `nil` (inherit)  | Duration-specific scale; nil inherits `TimeScale`, empty selects scalar settings             |
+| `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                   |
+| `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                        |
+| `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                               |
+| `ElapsedPrecision`        | `int`                        | `0`              | Scalar decimal places when no elapsed scale applies (`0` = `3s`, `1` = `3.2s`)               |
+| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Scalar rounding when no elapsed scale applies (`0` disables rounding)                        |
+| `ElapsedScale`            | `TimeScale`                  | empty (scalars)  | Elapsed/deadline-specific scale; nil inherits `TimeScale`, empty selects scalar settings     |
+| `TimeScale`               | `TimeScale`                  | three brackets   | Shared magnitude-keyed rounding and precision scale                                          |
+| `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                       |
+| `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                   |
+| `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                          |
+| `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                          |
+| `HyperlinkLineFormat`     | `string`                     | `""`             | URL format for file+line hyperlinks                                                          |
+| `HyperlinkPathFormat`     | `string`                     | `""`             | Generic fallback URL format for any path                                                     |
+| `PercentFormat`           | `func(float64) string`       | `nil` (built-in) | Custom formatter for `Percent` fields (receives the display value, already scaled to 0–100)  |
+| `PercentMaximum`          | `float64`                    | `0` (= `1.0`)    | Percent input maximum (`0` means `1.0` = fractions 0–1; set `100` for 0–100 input)           |
+| `PercentPrecision`        | `int`                        | `0`              | Decimal places for `Percent` display (`0` = `75%`, `1` = `75.0%`)                            |
+| `PercentReverseGradient`  | `bool`                       | `false`          | Reverse the percent gradient (green=0%, red=100%)                                            |
+| `NumberFormat`            | `NumberFormat`               | `NumberPlain`    | How integers and both halves of fractions render (`plain`, `grouped`, `compact`)             |
+| `FractionFormat`          | `*NumberFormat`              | `nil` (inherit)  | Overrides `NumberFormat` for fraction fields only (`nil` inherits `NumberFormat`)            |
+| `NumberGroupSeparator`    | `string`                     | `","`            | Digit-group separator for `NumberGrouped` (e.g. `1,234,567`)                                 |
+| `NumberCompactMinimum`    | `int64`                      | `1000`           | Smallest magnitude `NumberCompact` abbreviates; values below it use the fallback             |
+| `NumberCompactFallback`   | `NumberFormat`               | `NumberGrouped`  | How `NumberCompact` renders sub-minimum values (`NumberGrouped` or `NumberPlain`)            |
+| `QuantityUnitsIgnoreCase` | `bool`                       | `true`           | Case-insensitive quantity unit matching                                                      |
 
 Hyperlink format fields accept either a full format string with `{path}`/`{line}`/`{column}` placeholders, or a named preset (e.g. `"vscode"`), which is expanded when `SetFieldFormats` is called. See [Hyperlinks](hyperlinks.md) for details.
 

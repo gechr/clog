@@ -74,9 +74,9 @@ e.Msg("drained")
 
 ## Deadline Configuration
 
-Deadline fields share the elapsed display settings from [`FieldFormats`](configuration.md#field-formats): `ElapsedFormat` (custom formatter, falling back to `DurationFormat`), `ElapsedPrecision` (decimal places), and `ElapsedRound` (rounding granularity). Two deliberate differences from `Elapsed`:
+Deadline fields inherit the elapsed display settings from [`FieldFormats`](configuration.md#field-formats): `ElapsedFormat` (custom formatter, falling back to `DurationFormat`), `ElapsedScale` (which can inherit the shared `TimeScale`), `ElapsedPrecision`, and `ElapsedRound`. There is deliberately no separate deadline scale. Two other differences from `Elapsed`:
 
-- Rounding uses the **ceiling**, not nearest: remaining time in `(0, ElapsedRound]` displays as one full step, so a countdown from `15s` steps `15s, 14s, ... 1s` and shows `0s` only when truly expired.
+- Rounding uses the **ceiling**, not nearest: remaining time displays as one full selected scale/rounding step, so the default countdown from `15s` steps `15s, 14s, ... 1s` and shows `0s` only when truly expired.
 - `ElapsedMinimum` never hides a deadline field - hiding a countdown as it approaches expiry would defeat its purpose.
 
 ### Gradient

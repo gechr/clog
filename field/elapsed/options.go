@@ -11,6 +11,9 @@ import (
 // Elapsed is the value type for elapsed-time fields.
 type Elapsed = core.ElapsedField
 
+// TimeScale is a magnitude-keyed rounding and precision scale.
+type TimeScale = core.TimeScale
+
 // Option configures how an elapsed-time field is rendered.
 type Option func(*Elapsed)
 
@@ -61,6 +64,14 @@ func WithMinimum(minimum time.Duration) Option {
 func WithRound(round time.Duration) Option {
 	return func(e *Elapsed) {
 		e.Round = &round
+	}
+}
+
+// WithScale returns an [Option] that overrides the logger's elapsed scale for
+// this field. An empty scale uses the logger's scalar elapsed settings.
+func WithScale(scale TimeScale) Option {
+	return func(e *Elapsed) {
+		e.Scale = scale
 	}
 }
 

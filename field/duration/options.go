@@ -11,6 +11,9 @@ import (
 // Duration is the value type for duration fields.
 type Duration = core.DurationField
 
+// TimeScale is a magnitude-keyed rounding and precision scale.
+type TimeScale = core.TimeScale
+
 // Option configures how a duration field is rendered.
 type Option func(*Duration)
 
@@ -56,6 +59,14 @@ func WithMinimum(minimum time.Duration) Option {
 func WithRound(round time.Duration) Option {
 	return func(d *Duration) {
 		d.Round = &round
+	}
+}
+
+// WithScale returns an [Option] that overrides the logger's duration scale for
+// this field. An empty scale uses the logger's scalar duration settings.
+func WithScale(scale TimeScale) Option {
+	return func(d *Duration) {
+		d.Scale = scale
 	}
 }
 
