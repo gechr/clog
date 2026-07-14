@@ -359,6 +359,28 @@ func (l *Logger) SetAnimationInterval(d time.Duration) {
 	l.animationInterval = d
 }
 
+// SetSuppressEchoDuringAnimations controls whether the terminal's local echo
+// is disabled while animations (spinners, bars, pulse, shimmer) are live on
+// the logger's output. While an animation block is on screen, characters
+// typed by the user are echoed by the terminal into the block, corrupting
+// its row accounting and leaving stale frames behind in the scrollback.
+// When enabled, echo is turned off when the first animation starts and
+// restored when the last one finishes (and while the live block is
+// suspended). Only echo is affected: line editing, Ctrl-C, and job control
+// keep working. The default is off.
+//
+// The setting applies to the logger's current [Output] and has no effect on
+// non-TTY writers; call it again after [Logger.SetOutput],
+// [Logger.SetOutputWriter], or [Logger.SetColorMode], which replace the
+// output. A crash while animations are live can leave the terminal with echo
+// disabled (the same exposure as the hidden cursor); `stty echo` or a shell
+// prompt that resets terminal modes recovers it.
+func (l *Logger) SetSuppressEchoDuringAnimations(suppress bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.output.SetSuppressEchoDuringAnimations(suppress)
+}
+
 // SetColorMode sets the color mode by recreating the logger's [Output]
 // with the given mode.
 func (l *Logger) SetColorMode(mode ColorMode) {

@@ -10,6 +10,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestOutputSetSuppressEchoDuringAnimationsNonTTYNoop(t *testing.T) {
+	var buf bytes.Buffer
+	o := TestOutput(&buf)
+
+	// A non-TTY writer has no terminal to control: neither enabling nor
+	// disabling may create a live region as a side effect.
+	o.SetSuppressEchoDuringAnimations(true)
+	assert.Nil(t, o.region.Load())
+	o.SetSuppressEchoDuringAnimations(false)
+	assert.Nil(t, o.region.Load())
+}
+
 func TestStderr(t *testing.T) {
 	out := Stderr(ColorNever)
 

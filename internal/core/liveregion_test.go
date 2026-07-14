@@ -421,6 +421,100 @@ func TestLiveRegionSuspendCursorBehavior(t *testing.T) {
 	})
 }
 
+// stubEcho is an idempotent [EchoController] that records transitions, so a
+// redundant Suppress/Restore (which the contract allows) never skews counts.
+type stubEcho struct {
+	suppressed    bool
+	suppressCalls int
+	restoreCalls  int
+}
+
+func (s *stubEcho) Suppress() {
+	if s.suppressed {
+		return
+	}
+	s.suppressed = true
+	s.suppressCalls++
+}
+
+func (s *stubEcho) Restore() {
+	if !s.suppressed {
+		return
+	}
+	s.suppressed = false
+	s.restoreCalls++
+}
+
+func TestLiveRegionEchoSuppressedWhileLive(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+	echo := &stubEcho{}
+
+	// Installing on an idle region touches nothing.
+	r.SetEchoController(echo)
+	assert.False(t, echo.suppressed)
+
+	// First slot suppresses; last unregistration restores.
+	id := r.Register(staticSlot("spinning"), neverTick)
+	assert.True(t, echo.suppressed)
+	assert.Equal(t, 1, echo.suppressCalls)
+
+	r.Unregister(id)
+	assert.False(t, echo.suppressed)
+	assert.Equal(t, 1, echo.restoreCalls)
+}
+
+func TestLiveRegionEchoAcrossSuspendResume(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+	echo := &stubEcho{}
+	r.SetEchoController(echo)
+
+	id := r.Register(staticSlot("spinning"), neverTick)
+	assert.True(t, echo.suppressed)
+
+	// Suspension releases the terminal, so echo comes back for the duration.
+	r.Suspend(false)
+	assert.False(t, echo.suppressed)
+
+	r.Resume()
+	assert.True(t, echo.suppressed)
+	assert.Equal(t, 2, echo.suppressCalls)
+
+	// Unregistering while suspended must also end restored.
+	r.Suspend(false)
+	r.Unregister(id)
+	assert.False(t, echo.suppressed)
+	assert.Equal(t, 2, echo.restoreCalls)
+}
+
+func TestLiveRegionSetEchoControllerWhileLive(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	// Installing mid-animation takes effect immediately.
+	id := r.Register(staticSlot("spinning"), neverTick)
+	echo := &stubEcho{}
+	r.SetEchoController(echo)
+	assert.True(t, echo.suppressed)
+
+	// Swapping controllers restores the old one before the new suppresses.
+	replacement := &stubEcho{}
+	r.SetEchoController(replacement)
+	assert.False(t, echo.suppressed)
+	assert.Equal(t, 1, echo.restoreCalls)
+	assert.True(t, replacement.suppressed)
+
+	// Removing the controller mid-animation must not strand echo off.
+	r.SetEchoController(nil)
+	assert.False(t, replacement.suppressed)
+	assert.Equal(t, 1, replacement.restoreCalls)
+
+	// The rest of the lifecycle runs without a controller.
+	r.Unregister(id)
+	assert.False(t, r.Active())
+}
+
 func TestLiveRegionResumeRepaintsSuspendedRegion(t *testing.T) {
 	var buf bytes.Buffer
 	r := newTestRegion(&buf)

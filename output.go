@@ -121,6 +121,24 @@ func (o *Output) LiveRegion() *core.LiveRegion {
 	return o.region.Load()
 }
 
+// SetSuppressEchoDuringAnimations controls whether the terminal's local echo
+// is disabled while animations are live on this output. See
+// [Logger.SetSuppressEchoDuringAnimations]. No-op when the writer is not a
+// terminal.
+func (o *Output) SetSuppressEchoDuringAnimations(suppress bool) {
+	if !o.isTTY || o.fd < 0 {
+		return
+	}
+	if !suppress {
+		// Nothing to remove if no animation ever ran on this output.
+		if r := o.region.Load(); r != nil {
+			r.SetEchoController(nil)
+		}
+		return
+	}
+	o.LiveRegion().SetEchoController(newEchoController(o.fd))
+}
+
 // WriteLine writes a fully formatted log line (or multi-line payload ending
 // in a newline) to the underlying writer. While animations are live on this
 // output, the write is routed through the [core.LiveRegion] so the animation

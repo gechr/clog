@@ -24,6 +24,17 @@ type liveSlot struct {
 	tick   time.Duration
 }
 
+// EchoController toggles the terminal's local echo while a live block is on
+// screen. Characters typed by the user are otherwise echoed by the terminal
+// into the block, which corrupts the region's row accounting and leaves stale
+// frames behind in the scrollback. Implementations must be idempotent: a
+// Suppress while already suppressed and a Restore while already restored are
+// no-ops. Both methods are only ever invoked under the region lock.
+type EchoController interface {
+	Suppress()
+	Restore()
+}
+
 // LiveRegion coordinates a single repaintable block of animation lines with
 // regular log writes on the same terminal. All concurrent animations on one
 // output - standalone spinners and bars as single-line slots, whole groups as
@@ -50,6 +61,11 @@ type LiveRegion struct {
 	lastWidth int      // terminal width at last paint
 	suspended bool
 
+	// echo, when non-nil, has the terminal's local echo suppressed while the
+	// block is live and restored whenever the terminal is released (last
+	// unregistration and Suspend), mirroring cursor hide/show exactly.
+	echo EchoController
+
 	// wake nudges the render loop to recompute its tick rate after the slot
 	// set changes; buffered so Register/Unregister never block on it.
 	wake chan struct{}
@@ -66,6 +82,38 @@ func NewLiveRegion(out io.Writer, width func() int) *LiveRegion {
 		out:   out,
 		width: width,
 		wake:  make(chan struct{}, 1),
+	}
+}
+
+// SetEchoController installs (or, with nil, removes) the controller that
+// suppresses terminal echo while the block is live. A change takes effect
+// immediately: the previous controller is restored and, when slots are
+// already live, the new one suppresses straight away - so toggling
+// mid-animation never strands the terminal with echo disabled.
+func (r *LiveRegion) SetEchoController(c EchoController) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if r.echo != nil {
+		r.echo.Restore()
+	}
+	r.echo = c
+	if c != nil && len(r.slots) > 0 && !r.suspended {
+		c.Suppress()
+	}
+}
+
+// suppressEchoLocked and restoreEchoLocked forward to the installed
+// [EchoController], if any. Callers must hold r.mu.
+func (r *LiveRegion) suppressEchoLocked() {
+	if r.echo != nil {
+		r.echo.Suppress()
+	}
+}
+
+func (r *LiveRegion) restoreEchoLocked() {
+	if r.echo != nil {
+		r.echo.Restore()
 	}
 }
 
@@ -89,9 +137,12 @@ func (r *LiveRegion) Register(render func(now time.Time) string, tick time.Durat
 	r.slots = append(r.slots, liveSlot{id: id, render: render, tick: tick})
 
 	if len(r.slots) == 1 && !r.suspended {
-		// First slot: take over the region. The cursor stays hidden until
-		// the last slot unregisters so per-frame repaints don't flicker it.
+		// First slot: take over the region. The cursor stays hidden (and
+		// terminal echo stays suppressed) until the last slot unregisters so
+		// per-frame repaints don't flicker, and typed characters can't push
+		// the block's rows out of alignment.
 		writeString(r.out, xansi.HideCursor)
+		r.suppressEchoLocked()
 		stop := make(chan struct{})
 		r.stop = stop
 		go r.loop(stop)
@@ -126,6 +177,8 @@ func (r *LiveRegion) Unregister(id uint64) {
 			r.lastWidth = 0
 			r.rows = 0
 			writeString(r.out, xansi.ShowCursor)
+			// Suspend already restored echo; a repeat is an idempotent no-op.
+			r.restoreEchoLocked()
 		}
 		return
 	}
@@ -136,6 +189,7 @@ func (r *LiveRegion) Unregister(id uint64) {
 
 	if len(r.slots) == 0 {
 		writeString(r.out, xansi.ShowCursor)
+		r.restoreEchoLocked()
 		if r.stop != nil {
 			close(r.stop)
 		}
@@ -178,6 +232,10 @@ func (r *LiveRegion) Suspend(showCursor bool) {
 	if showCursor {
 		writeString(r.out, xansi.ShowCursor)
 	}
+	// The terminal is released for the suspended period, so echo comes back
+	// unconditionally - a suspension usually means someone else (a prompt, a
+	// subprocess) needs the terminal in its normal state.
+	r.restoreEchoLocked()
 	r.lastLines = nil
 	r.lastWidth = 0
 	r.suspended = true
@@ -200,6 +258,7 @@ func (r *LiveRegion) Resume() {
 
 	r.suspended = false
 	writeString(r.out, xansi.HideCursor)
+	r.suppressEchoLocked()
 	stop := make(chan struct{})
 	r.stop = stop
 	go r.loop(stop)

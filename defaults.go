@@ -72,6 +72,12 @@ func SetVerbose(verbose bool) {
 // SetAnimationInterval sets the minimum animation refresh interval on the [Default] logger.
 func SetAnimationInterval(d time.Duration) { Default.SetAnimationInterval(d) }
 
+// SetSuppressEchoDuringAnimations controls terminal echo suppression while
+// animations are live on the [Default] logger.
+func SetSuppressEchoDuringAnimations(suppress bool) {
+	Default.SetSuppressEchoDuringAnimations(suppress)
+}
+
 // SetColorMode sets the color mode on the [Default] logger by recreating
 // its [Output] with the given mode.
 func SetColorMode(mode ColorMode) {
