@@ -135,6 +135,7 @@ type Logger struct {
 	printThemePair     *theme.Pair   // light/dark source for auto-detection; nil = built-in default pair
 	printThemeDirty    bool          // printer styles need (re)building from the detected background
 	styleOverride      styleOverride // theme-derived styles the user supplied explicitly
+	suppressEcho       bool          // suppress terminal echo while animations are live
 	symbol             *string       // nil = use default emoji for level
 	symbols            LabelMap
 	timeFormat         string
@@ -369,15 +370,16 @@ func (l *Logger) SetAnimationInterval(d time.Duration) {
 // suspended). Only echo is affected: line editing, Ctrl-C, and job control
 // keep working. The default is off.
 //
-// The setting applies to the logger's current [Output] and has no effect on
-// non-TTY writers; call it again after [Logger.SetOutput],
-// [Logger.SetOutputWriter], or [Logger.SetColorMode], which replace the
-// output. A crash while animations are live can leave the terminal with echo
-// disabled (the same exposure as the hidden cursor); `stty echo` or a shell
-// prompt that resets terminal modes recovers it.
+// The setting sticks to the logger: it is re-applied whenever the output is
+// replaced ([Logger.SetOutput], [Logger.SetOutputWriter],
+// [Logger.SetColorMode]) and has no effect on non-TTY writers. A crash while
+// animations are live can leave the terminal with echo disabled (the same
+// exposure as the hidden cursor); `stty echo` or a shell prompt that resets
+// terminal modes recovers it.
 func (l *Logger) SetSuppressEchoDuringAnimations(suppress bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	l.suppressEcho = suppress
 	l.output.SetSuppressEchoDuringAnimations(suppress)
 }
 
@@ -388,6 +390,7 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 	defer l.mu.Unlock()
 	w := l.output.Writer()
 	l.output = NewOutput(w, mode)
+	l.output.SetSuppressEchoDuringAnimations(l.suppressEcho)
 }
 
 // SetExitFunc sets the function called by Fatal-level events.
@@ -623,9 +626,10 @@ func (l *Logger) SetYAMLIndentSequence(indent bool) {
 	l.yamlIndentSequence = &indent
 }
 
-// SetOutput sets the output. The logger's hyperlink formats are pushed to
-// the new output so [Output.PathLink] and [Output.Hyperlink] keep honouring
-// the logger's [FieldFormats].
+// SetOutput sets the output. Logger-held output state is pushed to the new
+// output: hyperlink formats, so [Output.PathLink] and [Output.Hyperlink] keep
+// honouring the logger's [FieldFormats], and the echo-suppression setting
+// from [Logger.SetSuppressEchoDuringAnimations].
 func (l *Logger) SetOutput(out *Output) {
 	if f := l.fieldFormats.Load(); f != nil {
 		out.setHyperlinks(f.hyperlinkConfig())
@@ -633,6 +637,7 @@ func (l *Logger) SetOutput(out *Output) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.output = out
+	l.output.SetSuppressEchoDuringAnimations(l.suppressEcho)
 }
 
 // SetOutputWriter sets the output writer with [ColorAuto].

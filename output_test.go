@@ -22,6 +22,41 @@ func TestOutputSetSuppressEchoDuringAnimationsNonTTYNoop(t *testing.T) {
 	assert.Nil(t, o.region.Load())
 }
 
+// fakeTTYOutput fabricates a TTY-flagged Output over a plain buffer so the
+// echo-controller wiring can be exercised without a real terminal (the
+// controller's ioctls no-op on the non-terminal fd).
+func fakeTTYOutput(t *testing.T, buf *bytes.Buffer) *Output {
+	t.Helper()
+	f, err := os.CreateTemp(t.TempDir(), "fake-tty")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = f.Close() })
+
+	o := TestOutput(buf)
+	o.isTTY = true
+	o.fd = int(f.Fd())
+	return o
+}
+
+func TestLoggerSuppressEchoSurvivesOutputReplacement(t *testing.T) {
+	var buf bytes.Buffer
+	l := New(fakeTTYOutput(t, &buf))
+
+	// Enabling installs a controller (and thus a region) on the current output.
+	l.SetSuppressEchoDuringAnimations(true)
+	require.NotNil(t, l.output.region.Load())
+
+	// The setting sticks to the logger: a replacement output gets it too.
+	replacement := fakeTTYOutput(t, &buf)
+	l.SetOutput(replacement)
+	assert.NotNil(t, replacement.region.Load())
+
+	// With the setting off, a replacement output is left untouched.
+	l.SetSuppressEchoDuringAnimations(false)
+	untouched := fakeTTYOutput(t, &buf)
+	l.SetOutput(untouched)
+	assert.Nil(t, untouched.region.Load())
+}
+
 func TestStderr(t *testing.T) {
 	out := Stderr(ColorNever)
 
