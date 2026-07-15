@@ -44,6 +44,22 @@ func TestPathLinkDefault(t *testing.T) {
 	assert.Equal(t, want, got)
 }
 
+func TestPathLinkTextDefault(t *testing.T) {
+	// Swap the whole Default logger: init() may have applied ambient
+	// CLOG_HYPERLINK_* env vars to its FieldFormats.
+	origDefault := Default
+	defer func() { Default = origDefault }()
+
+	Default = New(NewOutput(io.Discard, ColorAlways))
+
+	// Visible label differs from the linked path: the URL targets the full
+	// path while the label shows an abbreviated form.
+	got := PathLinkText("~/bin/foo", "/home/user/bin/foo", 0)
+	want := "\x1b]8;;file:///home/user/bin/foo\x1b\\~/bin/foo\x1b]8;;\x1b\\"
+
+	assert.Equal(t, want, got)
+}
+
 func TestOutputHyperlinkAlways(t *testing.T) {
 	output := NewOutput(io.Discard, ColorAlways)
 	got := output.Hyperlink("https://example.com", "text")
@@ -109,6 +125,32 @@ func TestOutputPathLinkDefault(t *testing.T) {
 	want := "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:42\x1b]8;;\x1b\\"
 
 	assert.Equal(t, want, got)
+}
+
+func TestOutputPathLinkText(t *testing.T) {
+	output := NewOutput(io.Discard, ColorAlways)
+
+	// Label is used verbatim; the URL still resolves from the full path.
+	got := output.PathLinkText("~/bin/foo", "/home/user/bin/foo", 0, 0)
+	want := "\x1b]8;;file:///home/user/bin/foo\x1b\\~/bin/foo\x1b]8;;\x1b\\"
+
+	assert.Equal(t, want, got)
+}
+
+func TestOutputPathLinkTextNever(t *testing.T) {
+	output := NewOutput(io.Discard, ColorNever)
+
+	// With colors off, only the label is emitted - no path, no OSC 8.
+	got := output.PathLinkText("~/bin/foo", "/home/user/bin/foo", 42, 0)
+
+	assert.Equal(t, "~/bin/foo", got)
+}
+
+func TestOutputPathLinkTextDisabled(t *testing.T) {
+	output := linkOutput(hyperlink.Config{Enabled: false})
+	got := output.PathLinkText("~/bin/foo", "/home/user/bin/foo", 42, 0)
+
+	assert.Equal(t, "~/bin/foo", got)
 }
 
 func TestOutputPathLinkRelativePath(t *testing.T) {

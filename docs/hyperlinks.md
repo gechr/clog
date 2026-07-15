@@ -5,6 +5,7 @@ Render clickable terminal hyperlinks using OSC 8 escape sequences:
 ```go
 // Typed field methods (recommended)
 clog.Info().Path("dir", "src/").Msg("Directory")
+clog.Info().PathText("bin", "~/bin/foo", "/home/user/bin/foo").Msg("Label differs from target")
 clog.Info().Line("file", "config.yaml", 42).Msg("File with line")
 clog.Info().Column("loc", "main.go", 42, 10).Msg("File with line and column")
 clog.Info().URL("docs", "https://example.com/docs").Msg("See docs")
@@ -18,9 +19,19 @@ clog.Info().Links("repos", []clog.Link{
 }).Msg("Repositories")
 
 // Standalone functions (for use with Str)
-link := clog.PathLink("config.yaml", 42)               // file path with line number
-link := clog.PathLink("src/", 0)                       // directory (no line number)
-link := clog.Hyperlink("https://example.com", "docs")  // arbitrary URL
+link := clog.PathLink("config.yaml", 42)                        // file path with line number
+link := clog.PathLink("src/", 0)                                // directory (no line number)
+link := clog.PathLinkText("~/bin/foo", "/home/user/bin/foo", 0) // custom label, links to full path
+link := clog.Hyperlink("https://example.com", "docs")           // arbitrary URL
+```
+
+## Custom link labels
+
+`PathText` (and the standalone `PathLinkText`) render a visible label that differs from the link target, so you can show an abbreviated or home-contracted path while still linking to its full location:
+
+```go
+// Display ~/bin/foo, but the hyperlink resolves to /home/user/bin/foo.
+clog.Warn().PathText("path", "~/bin/foo", "/home/user/bin/foo").Msg("Shadowing binary on $PATH")
 ```
 
 ## IDE Integration

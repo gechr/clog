@@ -170,6 +170,19 @@ func (c *Context) Path(key, path string) *Context {
 	return c
 }
 
+// PathText adds a file path field as a clickable terminal hyperlink whose
+// visible label is text rather than path. The link still targets path, so a
+// caller can show an abbreviated or home-contracted path (e.g. ~/bin/foo)
+// while linking to its full location. Respects the logger's [ColorMode]
+// setting.
+func (c *Context) PathText(key, text, path string) *Context {
+	c.Fields = append(
+		c.Fields,
+		Field{Key: key, Value: c.logger.Output().pathLinkText(text, path, 0, 0)},
+	)
+	return c
+}
+
 // Paths adds a string slice field where each element is a path hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (c *Context) Paths(key string, paths []string) *Context {

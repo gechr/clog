@@ -45,6 +45,7 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `Links`      | `Links(key string, links []Link)`                          | Clickable URL hyperlink slice                                                       |
 | `MsgFunc`    | `MsgFunc(createMsg func() string)`                         | Finalise with lazily-computed message; fn skipped on nil events                     |
 | `Path`       | `Path(key, path string)`                                   | Clickable file/directory hyperlink                                                  |
+| `PathText`   | `PathText(key, text, path string)`                         | Clickable hyperlink with a custom label (text) that links to path                   |
 | `Percent`    | `Percent(key string, val float64, opts ...percent.Option)` | Percentage with gradient color; accepts [percent.Option] values                     |
 | `Quantities` | `Quantities(key string, vals []string)`                    | Quantity slice field                                                                |
 | `Quantity`   | `Quantity(key, val string)`                                | Quantity field (e.g. `"10GB"`)                                                      |

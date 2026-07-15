@@ -671,6 +671,28 @@ func (e *Event) Path(key, path string) *Event {
 	return e
 }
 
+// PathText adds a file path field as a clickable terminal hyperlink whose
+// visible label is text rather than path. The link still targets path, so a
+// caller can show an abbreviated or home-contracted path (e.g. ~/bin/foo)
+// while linking to its full location. Respects the logger's [ColorMode]
+// setting.
+func (e *Event) PathText(key, text, path string) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := Default.Output()
+	if e.logger != nil {
+		output = e.logger.Output()
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: output.pathLinkText(text, path, 0, 0)},
+	)
+	return e
+}
+
 // Paths adds a string slice field where each element is a path hyperlink.
 // Respects the logger's [ColorMode] setting.
 func (e *Event) Paths(key string, paths []string) *Event {
