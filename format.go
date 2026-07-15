@@ -457,37 +457,16 @@ func formatDurationValue(d time.Duration, precision int) string {
 // optionally removes trailing fractional zeroes.
 func formatDurationValueOptions(d time.Duration, precision int, trim bool) string {
 	if d < 0 {
-		d = -d
-	}
-
-	if s, ok := formatCompositeDuration(d); ok {
-		return s
-	}
-
-	// Single unit with fixed precision and optional trailing-zero trimming.
-	type unit struct {
-		suffix string
-		div    time.Duration
-	}
-
-	units := [...]unit{
-		{"s", time.Second},
-		{"ms", time.Millisecond},
-		{"µs", time.Microsecond},
-		{"ns", time.Nanosecond},
-	}
-
-	for _, u := range units {
-		if d >= u.div {
-			val := float64(d) / float64(u.div)
-			formatted := strconv.FormatFloat(val, 'f', precision, 64)
-			if trim && strings.Contains(formatted, ".") {
-				formatted = strings.TrimRight(strings.TrimRight(formatted, "0"), ".")
-			}
-			return formatted + u.suffix
+		if d == math.MinInt64 {
+			d = math.MaxInt64
+		} else {
+			d = -d
 		}
 	}
-	return "0s"
+	return human.FormatDuration(d, human.DurationFormatOptions{
+		Precision:         precision,
+		TrimTrailingZeros: trim,
+	})
 }
 
 // ceilDuration rounds d up to the next multiple of r. Non-positive durations
