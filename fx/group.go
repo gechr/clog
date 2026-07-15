@@ -30,6 +30,12 @@ type Group struct {
 	ctx context.Context //nolint:containedctx // Group shares a single ctx with all child goroutines
 	mu  sync.Mutex
 
+	liveMu     sync.Mutex
+	liveRegion *core.LiveRegion
+	liveSlot   uint64
+	liveWake   chan struct{}
+	suspended  bool
+
 	clearOnCancel    bool
 	fieldAlignment   FieldAlignment
 	footer           *groupStatus
@@ -53,7 +59,10 @@ type Group struct {
 // with [GroupOption] values; animations in a group share a common epoch
 // unless [WithoutSyncAnimations] is given.
 func NewGroup(ctx context.Context, log Logger, opts ...GroupOption) *Group {
-	g := &Group{ctx: ctx, log: log, syncAnimations: true}
+	g := &Group{
+		ctx: ctx, log: log, syncAnimations: true,
+		liveWake: make(chan struct{}, 1),
+	}
 	for _, opt := range opts {
 		opt(g)
 	}
@@ -200,43 +209,90 @@ func (g *Group) Wait() *GroupResult {
 	return result
 }
 
-// Suspend temporarily releases the terminal used by the group's live renderer.
-// It stops live repaints and clears the current live block so another
-// interactive process can own the terminal. By default it preserves the
-// current cursor visibility; use [WithShowCursor] to show the cursor while the
-// terminal is released. It is safe to call repeatedly and is a no-op for
-// inactive groups or outputs without live-region support.
+// Suspend temporarily removes this group's block from its shared live region
+// so another interactive owner can use the terminal. Other animation slots
+// remain live, including slots registered after the suspension begins. By
+// default it preserves the current cursor visibility; use [WithShowCursor] to
+// show the cursor while the group is hidden. Suspension is remembered before
+// the group's first frame, so a concurrently starting group cannot race past
+// it. It is safe to call repeatedly.
 func (g *Group) Suspend(opts ...SuspendOption) {
-	if g == nil || g.log == nil {
+	if g == nil {
 		return
 	}
-	p, ok := g.log.Output().(liveRegionProvider)
-	if !ok {
+	cfg := suspendOptions{}
+	for _, opt := range opts {
+		opt(&cfg)
+	}
+
+	g.liveMu.Lock()
+	g.suspended = true
+	region := g.liveRegion
+	id := g.liveSlot
+	g.liveSlot = 0
+	if id != 0 && region != nil {
+		region.UnregisterWithCursor(id, cfg.showCursor)
+	}
+	g.liveMu.Unlock()
+}
+
+// Resume restores a group block previously hidden with [Group.Suspend]. The
+// render loop is woken so the latest group frame is registered and painted
+// immediately. It is safe to call repeatedly and is a no-op when the group is
+// not suspended.
+func (g *Group) Resume() {
+	if g == nil {
 		return
 	}
-	if region := p.LiveRegion(); region != nil {
-		cfg := suspendOptions{}
-		for _, opt := range opts {
-			opt(&cfg)
-		}
-		region.Suspend(cfg.showCursor)
+	g.liveMu.Lock()
+	if !g.suspended {
+		g.liveMu.Unlock()
+		return
+	}
+	g.suspended = false
+	g.liveMu.Unlock()
+
+	select {
+	case g.liveWake <- struct{}{}:
+	default:
 	}
 }
 
-// Resume restores a group live renderer previously released with [Group.Suspend].
-// It repaints the current live block and restarts live repaints. It is safe to
-// call repeatedly and is a no-op when the group is not suspended.
-func (g *Group) Resume() {
-	if g == nil || g.log == nil {
+// registerLiveSlot registers the group's current block unless the group is
+// suspended. The group lock spans registration so Suspend cannot miss a slot
+// that is being created concurrently.
+func (g *Group) registerLiveSlot(
+	region *core.LiveRegion,
+	render func(time.Time) string,
+	tick time.Duration,
+) {
+	g.liveMu.Lock()
+	defer g.liveMu.Unlock()
+	if g.suspended {
 		return
 	}
-	p, ok := g.log.Output().(liveRegionProvider)
-	if !ok {
+	if g.liveSlot != 0 {
 		return
 	}
-	if region := p.LiveRegion(); region != nil {
-		region.Resume()
+	g.liveRegion = region
+	g.liveSlot = region.Register(render, tick)
+}
+
+func (g *Group) hasLiveSlot() bool {
+	g.liveMu.Lock()
+	defer g.liveMu.Unlock()
+	return g.liveSlot != 0
+}
+
+func (g *Group) unregisterLiveSlot(region *core.LiveRegion) {
+	g.liveMu.Lock()
+	defer g.liveMu.Unlock()
+	id := g.liveSlot
+	g.liveSlot = 0
+	if id != 0 {
+		region.Unregister(id)
 	}
+	g.liveRegion = nil
 }
 
 func (g *Group) acquireSlot(ctx context.Context) error {

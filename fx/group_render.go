@@ -1800,18 +1800,16 @@ func runGroupLoopRegion(
 	empty := ""
 	block.Store(&empty)
 
-	registered := false
-	var slotID uint64
+	render := func(time.Time) string {
+		return *block.Load()
+	}
 	// Physical rows of the last accepted frame, mirroring the legacy
 	// renderer's renderedRows for the viewport-fit check. With other slots
 	// live this undercounts the full block, which only makes the check more
 	// conservative about painting near the viewport bottom.
 	rows := 0
 	unregister := func() {
-		if registered {
-			region.Unregister(slotID)
-			registered = false
-		}
+		st.g.unregisterLiveSlot(region)
 	}
 
 	ticker := time.NewTicker(tickRate)
@@ -1833,6 +1831,10 @@ func runGroupLoopRegion(
 			}
 			st.failPending(ctx)
 			return ctx.Err()
+		case <-st.g.liveWake:
+			if *block.Load() != "" {
+				st.g.registerLiveSlot(region, render, tickRate)
+			}
 		case <-ticker.C:
 			now := time.Now()
 			lines, width, ok := st.composeFrame(now)
@@ -1846,7 +1848,7 @@ func runGroupLoopRegion(
 			joined := strings.Join(lines, nl)
 			block.Store(&joined)
 			rows = frameRows
-			if !registered {
+			if !st.g.hasLiveSlot() {
 				if len(lines) == 0 {
 					continue
 				}
@@ -1854,10 +1856,7 @@ func runGroupLoopRegion(
 				// group's first frame. Registration is deferred until a
 				// non-empty frame exists so an idle group (render delay, all
 				// tasks delayed) doesn't hide the cursor or hold a slot.
-				slotID = region.Register(func(time.Time) string {
-					return *block.Load()
-				}, tickRate)
-				registered = true
+				st.g.registerLiveSlot(region, render, tickRate)
 				continue
 			}
 			// Identical frames are deduped inside the region, so this only

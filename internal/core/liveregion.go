@@ -161,6 +161,15 @@ func (r *LiveRegion) Register(render func(now time.Time) string, tick time.Durat
 // the cursor again, leaving the cursor at the block's former top row so
 // subsequent log lines land where the block used to start.
 func (r *LiveRegion) Unregister(id uint64) {
+	r.UnregisterWithCursor(id, true)
+}
+
+// UnregisterWithCursor removes the slot with the given id and controls
+// whether the cursor is shown when that slot was the last visible owner of
+// the terminal. It is used by temporarily hidden animation owners that need
+// to preserve the cursor state across a pause. Ordinary animation completion
+// should use [LiveRegion.Unregister].
+func (r *LiveRegion) UnregisterWithCursor(id uint64, showCursor bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -176,7 +185,9 @@ func (r *LiveRegion) Unregister(id uint64) {
 			r.lastLines = nil
 			r.lastWidth = 0
 			r.rows = 0
-			writeString(r.out, xansi.ShowCursor)
+			if showCursor {
+				writeString(r.out, xansi.ShowCursor)
+			}
 			// Suspend already restored echo; a repeat is an idempotent no-op.
 			r.restoreEchoLocked()
 		}
@@ -188,7 +199,9 @@ func (r *LiveRegion) Unregister(id uint64) {
 	r.paintLocked(time.Now())
 
 	if len(r.slots) == 0 {
-		writeString(r.out, xansi.ShowCursor)
+		if showCursor {
+			writeString(r.out, xansi.ShowCursor)
+		}
 		r.restoreEchoLocked()
 		if r.stop != nil {
 			close(r.stop)

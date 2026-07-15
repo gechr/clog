@@ -42,6 +42,122 @@ func TestGroupConcurrentRun(t *testing.T) {
 	assert.Contains(t, out, "two done")
 }
 
+func TestGroupSuspendAllowsDelayedStandaloneAnimation(t *testing.T) {
+	var buf regionBuffer
+	logger, out := newRegionTestLogger(&buf)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	suspend := make(chan struct{})
+	suspended := make(chan struct{})
+	resume := make(chan struct{})
+	resumed := make(chan struct{})
+	finishGroup := make(chan struct{})
+
+	g := logger.Group(context.Background())
+	g.Add(logger.Spinner("group")).Run(func(context.Context) error {
+		<-suspend
+		g.Suspend(fx.WithShowCursor(true))
+		close(suspended)
+		<-resume
+		g.Resume()
+		close(resumed)
+		<-finishGroup
+		return nil
+	})
+
+	groupDone := make(chan struct{})
+	go func() {
+		defer close(groupDone)
+		g.Wait()
+	}()
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), "group")
+	}, 2*time.Second, time.Millisecond)
+
+	close(suspend)
+	<-suspended
+
+	releaseStandalone := make(chan struct{})
+	standaloneDone := make(chan struct{})
+	go func() {
+		defer close(standaloneDone)
+		_ = logger.Spinner("foreground").
+			After(10*time.Millisecond).
+			Wait(context.Background(), func(context.Context) error {
+				<-releaseStandalone
+				return nil
+			}).Silent()
+	}()
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), "foreground")
+	}, 2*time.Second, time.Millisecond)
+
+	close(resume)
+	<-resumed
+	stacked := xansi.ClearLine + "foreground\n" + xansi.ClearLine + "group"
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), stacked)
+	}, 2*time.Second, time.Millisecond)
+
+	close(releaseStandalone)
+	<-standaloneDone
+	close(finishGroup)
+	<-groupDone
+	assert.False(t, out.LiveRegion().Active())
+}
+
+func TestGroupSuspendBeforeFirstFrame(t *testing.T) {
+	var buf regionBuffer
+	logger, out := newRegionTestLogger(&buf)
+	logger.SetAnimationInterval(time.Millisecond)
+
+	g := logger.Group(context.Background())
+	g.Suspend(fx.WithShowCursor(true))
+
+	finishGroup := make(chan struct{})
+	g.Add(logger.Spinner("group")).Run(func(context.Context) error {
+		<-finishGroup
+		return nil
+	})
+	groupDone := make(chan struct{})
+	go func() {
+		defer close(groupDone)
+		g.Wait()
+	}()
+
+	releaseStandalone := make(chan struct{})
+	standaloneDone := make(chan struct{})
+	go func() {
+		defer close(standaloneDone)
+		_ = logger.Spinner("foreground").Wait(
+			context.Background(),
+			func(context.Context) error {
+				<-releaseStandalone
+				return nil
+			},
+		).Silent()
+	}()
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), "foreground")
+	}, 2*time.Second, time.Millisecond)
+
+	beforeResume := buf.String()
+	time.Sleep(20 * time.Millisecond)
+	assert.NotContains(t, strings.TrimPrefix(buf.String(), beforeResume), "group")
+
+	g.Resume()
+	stacked := xansi.ClearLine + "foreground\n" + xansi.ClearLine + "group"
+	require.Eventually(t, func() bool {
+		return strings.Contains(buf.String(), stacked)
+	}, 2*time.Second, time.Millisecond)
+
+	close(releaseStandalone)
+	<-standaloneDone
+	close(finishGroup)
+	<-groupDone
+	assert.False(t, out.LiveRegion().Active())
+}
+
 func TestGroupProgress(t *testing.T) {
 	var buf bytes.Buffer
 	logger := New(TestOutput(&buf))

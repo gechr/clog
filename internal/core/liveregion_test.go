@@ -76,6 +76,18 @@ func TestLiveRegionRegisterUnregisterLifecycle(t *testing.T) {
 	assert.Equal(t, repaint(1)+xansi.ShowCursor, buf.String())
 }
 
+func TestLiveRegionUnregisterCanPreserveCursor(t *testing.T) {
+	var buf bytes.Buffer
+	r := newTestRegion(&buf)
+
+	id := r.Register(staticSlot("spinning"), neverTick)
+	buf.Reset()
+	r.UnregisterWithCursor(id, false)
+
+	assert.False(t, r.Active())
+	assert.Equal(t, repaint(1), buf.String())
+}
+
 func TestLiveRegionWriteLinesPlainWhenInactive(t *testing.T) {
 	var buf bytes.Buffer
 	r := newTestRegion(&buf)
