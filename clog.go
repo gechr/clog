@@ -120,6 +120,7 @@ type Logger struct {
 	output             *Output
 	parts              []Part
 	printIndent        string // indent string for Printer output; "" = use default ("  ")
+	promptMarker       string // leading marker prepended to every prompt; "" = none
 	quoteClose         rune   // 0 means same as quoteOpen (or default)
 	quoteMode          Quote
 	quoteOpen          rune // 0 means default ('"' via strconv.Quote)
@@ -663,6 +664,16 @@ func (l *Logger) SetInput(r io.Reader) {
 		return
 	}
 	l.input = newInputSource(r)
+}
+
+// SetPromptMarker sets a leading marker prepended to every prompt rendered by
+// [Logger.Input], [Logger.Password], and their context variants. The marker
+// is rendered with the [style.Config.Prompt] style, so it can carry its own
+// color independent of the prompt message. Pass "" to disable.
+func (l *Logger) SetPromptMarker(marker string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.promptMarker = marker
 }
 
 // SetParts sets the order in which parts appear in log output.

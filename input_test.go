@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 
+	"charm.land/lipgloss/v2"
+	"github.com/gechr/clog/style"
 	xansi "github.com/gechr/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -96,6 +98,61 @@ func TestPackageLevelPasswordUsesDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "value", got)
+}
+
+func TestInputPromptMarkerPrepended(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("hello\n"))
+	l.SetPromptMarker("❯ ")
+
+	got, err := l.Input("Name: ")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(t, "❯ Name: ", out.String())
+}
+
+func TestInputPromptMarkerStyled(t *testing.T) {
+	var out bytes.Buffer
+	l := New(NewOutput(&out, ColorAlways))
+	l.SetInput(strings.NewReader("hello\n"))
+	markerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	l.SetStyles(&style.Config{Prompt: &markerStyle})
+	l.SetPromptMarker("❯ ")
+
+	got, err := l.Input("Name: ")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(t, markerStyle.Render("❯ ")+"Name: ", out.String())
+}
+
+func TestInputPromptMarkerColorDisabledDropsStyle(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out)) // ColorNever
+	l.SetInput(strings.NewReader("hello\n"))
+	markerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("5"))
+	l.SetStyles(&style.Config{Prompt: &markerStyle})
+	l.SetPromptMarker("❯ ")
+
+	got, err := l.Input("Name: ")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(t, "❯ Name: ", out.String())
+}
+
+func TestInputPromptMarkerEmptyByDefault(t *testing.T) {
+	var out bytes.Buffer
+	l := New(TestOutput(&out))
+	l.SetInput(strings.NewReader("hello\n"))
+
+	got, err := l.Input("Name: ")
+
+	require.NoError(t, err)
+	assert.Equal(t, "hello", got)
+	assert.Equal(t, "Name: ", out.String())
 }
 
 func TestReadLineCookedTrimsCRLF(t *testing.T) {

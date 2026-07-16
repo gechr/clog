@@ -160,6 +160,10 @@ type Config struct {
 	Messages LevelMap
 	// Gradient stops for Percent fields (default: red -> yellow -> green).
 	PercentGradient []ColorStop
+	// Style for a prompt's leading marker, rendered via [Logger.PromptStyle]
+	// [nil = plain text]. Independent of Message so a prompt's marker (e.g.
+	// "❯") can carry its own color without affecting the prompt text.
+	Prompt *lipgloss.Style
 	// Quantity unit -> thresholds (evaluated high->low).
 	QuantityThresholds ThresholdMap
 	// Unit string -> style override (e.g. "km" -> green).

@@ -241,6 +241,10 @@ func SetOmitZero(omit bool) { Default.SetOmitZero(omit) }
 // SetInput sets the reader used by [Input] and [Password] on the [Default] logger.
 func SetInput(r io.Reader) { Default.SetInput(r) }
 
+// SetPromptMarker sets the leading prompt marker on the [Default] logger; see
+// [Logger.SetPromptMarker].
+func SetPromptMarker(marker string) { Default.SetPromptMarker(marker) }
+
 // SetOutput sets the output on the [Default] logger.
 func SetOutput(out *Output) { Default.SetOutput(out) }
 

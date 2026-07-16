@@ -182,6 +182,7 @@ func (l *Logger) InputContext(
 		cfg.fields(ev)
 		prompt = l.renderPrompt(prompt, ev.fields)
 	}
+	prompt = l.styledPromptMarker() + prompt
 
 	return readInput(ctx, src, w, prompt, cfg, out.IsTTY())
 }
@@ -225,6 +226,23 @@ func Password(prompt string, opts ...InputOption) (string, error) {
 // using the [Default] logger.
 func PasswordContext(ctx context.Context, prompt string, opts ...InputOption) (string, error) {
 	return Default.PasswordContext(ctx, prompt, opts...)
+}
+
+// styledPromptMarker returns the configured prompt marker (see
+// [Logger.SetPromptMarker]) rendered with the [style.Config.Prompt] style, or
+// the empty string when no marker is set. Colors are dropped when the logger's
+// output has them disabled.
+func (l *Logger) styledPromptMarker() string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.promptMarker == "" {
+		return ""
+	}
+	if l.colorsDisabled() || l.styles.Prompt == nil {
+		return l.promptMarker
+	}
+	return l.styles.Prompt.Render(l.promptMarker)
 }
 
 // renderPrompt renders a prompt line from a message and fields using the

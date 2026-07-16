@@ -119,6 +119,7 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 | `Levels`                 | `map[Level]Style`        | `LevelStyleMap` | per-level bold colors        |
 | `Messages`               | `map[Level]Style`        | `LevelStyleMap` | `style.DefaultMessages()`    |
 | `PercentGradient`        | `[]style.ColorStop`      |                 | red → yellow → green         |
+| `Prompt`                 | `Style`                  |                 | `nil`                        |
 | `QuantityThresholds`     | `map[string][]Threshold` | `ThresholdMap`  | `{}`                         |
 | `QuantityUnits`          | `map[string]Style`       | `StyleMap`      | `{}`                         |
 | `Separator`              | `Style`                  |                 | faint                        |
@@ -170,6 +171,7 @@ See [Printer](printer.md) for per-format token style tables.
 | `Levels`                 | Per-level label style (e.g. "INF", "ERR"), nil to disable                                                     |
 | `Messages`               | Per-level message text style, nil to disable                                                                  |
 | `PercentGradient`        | Gradient color stops for `Percent` fields                                                                     |
+| `Prompt`                 | Style for the prompt marker set via `SetPromptMarker` (see [Input](input.md)), nil to disable                 |
 | `QuantityThresholds`     | Quantity unit -> magnitude-based style thresholds                                                             |
 | `QuantityUnits`          | Quantity unit string -> style override                                                                        |
 | `Separator`              | Style for the separator between key and value                                                                 |

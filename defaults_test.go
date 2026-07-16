@@ -99,6 +99,7 @@ func defaultWrapperFuncs() map[string]any {
 		"SetOutputWriter":                 SetOutputWriter,
 		"SetParts":                        SetParts,
 		"SetPrintIndent":                  SetPrintIndent,
+		"SetPromptMarker":                 SetPromptMarker,
 		"SetQuote":                        SetQuote,
 		"SetQuoteChars":                   SetQuoteChars,
 		"SetReportTimestamp":              SetReportTimestamp,

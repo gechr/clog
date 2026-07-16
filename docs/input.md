@@ -36,6 +36,24 @@ name, err := clog.Input("Name: ", clog.WithClearOnDone())
 
 Clearing only applies when the logger's output is a terminal. Redirected output keeps the prompt text and never receives cursor-control escape sequences.
 
+## Prompt marker
+
+`SetPromptMarker` sets a leading marker prepended to every prompt, so all prompts on a logger share one visual identity without threading the marker through each call:
+
+```go
+clog.SetPromptMarker("❯ ")
+name, err := clog.Input("Name: ") // "❯ Name: "
+```
+
+The marker is rendered with the `Prompt` style (see [Styles](styles.md)), letting it carry its own color independent of the prompt message:
+
+```go
+markerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("#FF69B4"))
+clog.SetStyles(&style.Config{Prompt: &markerStyle})
+```
+
+Pass `""` to disable the marker. It is dropped, along with all other colors, when the logger's output has color disabled.
+
 ## Testing
 
 `SetInput` overrides the reader `Input`/`Password` read from, so prompts can be driven in tests without a real terminal:
