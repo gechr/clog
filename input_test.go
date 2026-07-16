@@ -24,7 +24,7 @@ func TestInputCookedReadsLine(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, "Name: ", out.String())
+	assert.Equal(t, "\n  Name: ", out.String())
 }
 
 func TestInputCookedTrimsCRLF(t *testing.T) {
@@ -69,7 +69,7 @@ func TestPasswordCookedReadsLine(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hunter2", got)
-	assert.Equal(t, "Password: ", out.String())
+	assert.Equal(t, "\n  Password: ", out.String())
 }
 
 func TestPackageLevelInputUsesDefault(t *testing.T) {
@@ -110,7 +110,7 @@ func TestInputPromptMarkerPrepended(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, "❯ Name: ", out.String())
+	assert.Equal(t, "\n  ❯ Name: ", out.String())
 }
 
 func TestInputPromptMarkerStyled(t *testing.T) {
@@ -125,7 +125,7 @@ func TestInputPromptMarkerStyled(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, markerStyle.Render("❯ ")+"Name: ", out.String())
+	assert.Equal(t, "\n  "+markerStyle.Render("❯ ")+"Name: ", out.String())
 }
 
 func TestInputPromptMarkerColorDisabledDropsStyle(t *testing.T) {
@@ -140,7 +140,7 @@ func TestInputPromptMarkerColorDisabledDropsStyle(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, "❯ Name: ", out.String())
+	assert.Equal(t, "\n  ❯ Name: ", out.String())
 }
 
 func TestInputPromptMarkerEmptyByDefault(t *testing.T) {
@@ -152,7 +152,7 @@ func TestInputPromptMarkerEmptyByDefault(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, "Name: ", out.String())
+	assert.Equal(t, "\n  Name: ", out.String())
 }
 
 func TestReadLineCookedTrimsCRLF(t *testing.T) {
@@ -227,7 +227,8 @@ func TestInputClearOnSuccessClearsTTYPrompt(t *testing.T) {
 	assert.Equal(t, "hello", got)
 	assert.Equal(
 		t,
-		"Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine,
+		"\n  Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+
+			xansi.CursorUp(1)+xansi.ClearLine,
 		buf.String(),
 	)
 }
@@ -243,7 +244,12 @@ func TestInputClearOnErrorClearsTTYPrompt(t *testing.T) {
 
 	require.ErrorIs(t, err, io.EOF)
 	assert.Empty(t, got)
-	assert.Equal(t, "Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine, buf.String())
+	assert.Equal(
+		t,
+		"\n  Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+
+			xansi.CursorUp(1)+xansi.ClearLine,
+		buf.String(),
+	)
 }
 
 func TestInputClearOnDoneCoversSuccessAndError(t *testing.T) {
@@ -260,7 +266,8 @@ func TestInputClearOnDoneCoversSuccessAndError(t *testing.T) {
 		assert.Equal(t, "hello", got)
 		assert.Equal(
 			t,
-			"Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine,
+			"\n  Name: "+xansi.CursorUp(1)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+
+				xansi.CursorUp(1)+xansi.ClearLine,
 			buf.String(),
 		)
 	})
@@ -276,7 +283,12 @@ func TestInputClearOnDoneCoversSuccessAndError(t *testing.T) {
 
 		require.ErrorIs(t, err, io.EOF)
 		assert.Empty(t, got)
-		assert.Equal(t, "Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine, buf.String())
+		assert.Equal(
+			t,
+			"\n  Name: "+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+
+				xansi.CursorUp(1)+xansi.ClearLine,
+			buf.String(),
+		)
 	})
 }
 
@@ -289,7 +301,7 @@ func TestInputClearIgnoredForNonTTYOutput(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
-	assert.Equal(t, "Name: ", out.String())
+	assert.Equal(t, "\n  Name: ", out.String())
 }
 
 func TestInputContextCancelledWhileBlocked(t *testing.T) {
@@ -354,7 +366,7 @@ func TestInputWithFieldsRendersPrompt(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hunter2", got)
-	assert.Equal(t, "Enter passphrase user=alice attempts=3: ", out.String())
+	assert.Equal(t, "\n  Enter passphrase user=alice attempts=3: ", out.String())
 }
 
 func TestInputWithFieldsEmptyFields(t *testing.T) {
@@ -366,7 +378,7 @@ func TestInputWithFieldsEmptyFields(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "x", got)
-	assert.Equal(t, "Name: ", out.String())
+	assert.Equal(t, "\n  Name: ", out.String())
 }
 
 func TestPasswordRequireHiddenFailsOnNonTerminal(t *testing.T) {

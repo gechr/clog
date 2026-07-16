@@ -182,7 +182,7 @@ func (l *Logger) InputContext(
 		cfg.fields(ev)
 		prompt = l.renderPrompt(prompt, ev.fields)
 	}
-	prompt = l.styledPromptMarker() + prompt
+	prompt = nl + "  " + l.styledPromptMarker() + prompt
 
 	return readInput(ctx, src, w, prompt, cfg, out.IsTTY())
 }
@@ -363,6 +363,9 @@ func clearInputLine(w io.Writer, lineAdvanced bool) {
 		writeString(w, xansi.CursorUp(1))
 	}
 	writeString(w, xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine)
+	// The prompt is preceded by a blank spacer line; walk back onto it so
+	// the cursor ends up where it was before the prompt was written.
+	writeString(w, xansi.CursorUp(1)+xansi.ClearLine)
 }
 
 // readPassword reads without echo from the terminal fd, honouring ctx: on
