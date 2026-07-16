@@ -361,6 +361,7 @@ func (t *groupTask) newUpdate() *Update {
 		levelPtr:          t.levelPtr,
 		symbolOverridePtr: &t.symbolOverride,
 		symbolPtr:         t.symbolPtr,
+		elapsed:           func() time.Duration { return t.duration(time.Now()) },
 	}
 	if b.mode == AnimationBar {
 		update.progressPtr = b.barProgressPtr

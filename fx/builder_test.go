@@ -242,3 +242,58 @@ func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 		},
 	}, out)
 }
+
+func TestResolveDynamicFieldsUpdateDeadline(t *testing.T) {
+	// No builder-level deadline key: the update-scoped countdown must still
+	// resolve, keyed by nothing but its value type.
+	b := NewBuilder(BuilderConfig{})
+
+	fields := []core.Field{
+		{Key: "url", Value: "https://example.com"},
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining:  10 * time.Second,
+				From:       15 * time.Second, // attached 5s into the task
+				OmitOnDone: true,
+			},
+		},
+	}
+
+	out := b.ResolveDynamicFields(fields, 8*time.Second)
+
+	assert.Equal(t, []core.Field{
+		{Key: "url", Value: "https://example.com"},
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining:  7 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, out)
+}
+
+func TestResolveDynamicFieldsUpdateDeadlineClampsAtZero(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+
+	fields := []core.Field{
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining:  10 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}
+
+	out := b.ResolveDynamicFields(fields, 20*time.Second)
+
+	assert.Equal(t, core.DeadlineField{
+		Remaining:  0,
+		From:       15 * time.Second,
+		OmitOnDone: true,
+	}, out[0].Value)
+}

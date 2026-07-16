@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
+	"github.com/gechr/clog/field/deadline"
 	"github.com/gechr/clog/internal/core"
 )
 
@@ -22,11 +24,12 @@ type Update struct {
 	core.FieldBuilder[Update]
 
 	base              []core.Field
+	elapsed           func() time.Duration // task elapsed time, for anchoring update-scoped deadlines; nil-safe
 	fieldsPtr         *atomic.Pointer[[]core.Field]
+	levelPtr          *atomic.Int64 // overridden level; nil when not updatable
 	msgPtr            *atomic.Pointer[string]
 	msgText           string
 	progressPtr       *atomic.Int64           // bar mode: current progress value; nil for non-bar modes
-	levelPtr          *atomic.Int64           // overridden level; nil when not updatable
 	symbolOverridePtr *atomic.Bool            // when set to true, disables animated spinner in favour of static symbol
 	symbolPtr         *atomic.Pointer[string] // symbol icon; nil when not updatable
 	totalPtr          *atomic.Int64           // bar mode: total progress value; nil for non-bar modes
@@ -123,6 +126,33 @@ func (p *Update) Msg(msg string) *Update {
 // Msgf sets the animation's displayed message with formatting.
 func (p *Update) Msgf(format string, args ...any) *Update {
 	return p.Msg(fmt.Sprintf(format, args...))
+}
+
+// Deadline adds an auto-updating countdown field that displays the time
+// remaining until from has elapsed, clamped at 0. Unlike [Builder.Deadline],
+// whose countdown is anchored to the animation's start, the countdown is
+// anchored to the moment this method is called - so a deadline can be scoped
+// to one phase of a task and attached only when that phase begins. Like any
+// other update field, it lasts until a later [Update.Send] omits it.
+// Coloring runs against the logger's elapsed gradient by consumed time; use
+// options from the [deadline] package to override rendering for this field.
+// The field is omitted from the done row by default
+// (deadline.WithOmitOnDone). On a non-animated (non-TTY) line the field
+// renders statically as the full window.
+func (p *Update) Deadline(
+	key string,
+	from time.Duration,
+	opts ...deadline.Option,
+) *Update {
+	f := core.DeadlineField{From: from, Remaining: from, OmitOnDone: true}
+	deadline.Apply(&f, opts...)
+	if p.elapsed != nil {
+		// The renderer computes Remaining = From - taskElapsed, so folding
+		// the elapsed-so-far into From anchors the countdown at now.
+		f.From += p.elapsed()
+	}
+	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
+	return p
 }
 
 // Send applies the accumulated message and field changes to the animation atomically.

@@ -674,7 +674,8 @@ func renderTaskFields(
 	current, total int,
 ) string {
 	b := gt.builder
-	if xstrings.AnyNonEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
+	if xstrings.AnyNonEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) ||
+		hasDeadlineField(*fieldsPtr) {
 		resolved := resolveDynamicFields(*fieldsPtr, b, dur, current, total)
 		gt.cachedFieldsStr = strings.TrimLeft(gt.cfg.FormatFields(resolved), " ")
 	} else if fieldsPtr != gt.cachedFieldsPtr {
@@ -716,6 +717,13 @@ func resolveDynamicFields(
 			out[i].Value = f
 		case b.barPercentKey:
 			out[i].Value = core.Percent{Value: pct}
+		default:
+			// An update-scoped countdown ([Update.Deadline]) carries its
+			// anchor in the field value itself rather than a builder key.
+			if f, ok := out[i].Value.(core.DeadlineField); ok {
+				f.Remaining = max(f.From-dur, 0)
+				out[i].Value = f
+			}
 		}
 	}
 
@@ -1420,6 +1428,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			fieldsPtr: fieldsPtr,
 			base:      b.Fields,
 			symbolPtr: symbolPtr,
+			elapsed:   func() time.Duration { return gt.duration(time.Now()) },
 		}
 		u.InitSelf(u)
 		return gt, u

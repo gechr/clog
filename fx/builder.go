@@ -339,7 +339,8 @@ func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
 
 // ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
 func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
-	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
+	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) &&
+		!hasDeadlineField(fields) {
 		return fields
 	}
 
@@ -357,6 +358,13 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 			out[i].Value = f
 		case b.barPercentKey:
 			out[i].Value = b.BarPercentValue()
+		default:
+			// An update-scoped countdown ([Update.Deadline]) carries its
+			// anchor in the field value itself rather than a builder key.
+			if f, ok := out[i].Value.(core.DeadlineField); ok {
+				f.Remaining = max(f.From-dur, 0)
+				out[i].Value = f
+			}
 		}
 	}
 	if b.elapsedOverride.Trailing && b.elapsedKey != "" {
@@ -372,6 +380,18 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 // then removes fields marked OmitOnDone.
 func (b *Builder) ResolveDoneFields(fields []core.Field, dur time.Duration) []core.Field {
 	return omitOnDoneFields(b.ResolveDynamicFields(fields, dur))
+}
+
+// hasDeadlineField reports whether any field carries a countdown value - an
+// update-scoped deadline ([Update.Deadline]) animates without a builder key,
+// so the render paths must resolve dynamic fields whenever one is present.
+func hasDeadlineField(fields []core.Field) bool {
+	for _, f := range fields {
+		if _, ok := f.Value.(core.DeadlineField); ok {
+			return true
+		}
+	}
+	return false
 }
 
 func omitOnDoneFields(fields []core.Field) []core.Field {
@@ -494,6 +514,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	levelPtr.Store(int64(level.Unset))
 	symbolPtr.Store(&sym)
 
+	startTime := time.Now()
 	update := &Update{
 		msgText:   b.message,
 		msgPtr:    &msgPtr,
@@ -501,6 +522,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 		base:      b.Fields,
 		levelPtr:  &levelPtr,
 		symbolPtr: &symbolPtr,
+		elapsed:   func() time.Duration { return time.Since(startTime) },
 	}
 	if b.mode == AnimationBar {
 		update.progressPtr = b.barProgressPtr
@@ -511,8 +533,6 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	wrapped := func(ctx context.Context) error {
 		return task(ctx, update)
 	}
-
-	startTime := time.Now()
 	l := b.log
 	err := runAnimation(ctx, b, wrapped, &msgPtr, &fieldsPtr, &levelPtr, &symbolPtr, startTime)
 

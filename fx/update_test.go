@@ -3,7 +3,9 @@ package fx
 import (
 	"sync/atomic"
 	"testing"
+	"time"
 
+	"github.com/gechr/clog/field/deadline"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 	"github.com/stretchr/testify/assert"
@@ -164,4 +166,89 @@ func TestUpdateMessage(t *testing.T) {
 
 	u.Msg("step 1").Send()
 	assert.Equal(t, "step 1", u.Message())
+}
+
+func TestUpdateDeadlineAnchorsAtCall(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{
+		msgPtr:    &msgAtom,
+		fieldsPtr: &fieldsAtom,
+		elapsed:   func() time.Duration { return 5 * time.Second },
+	}
+	u.InitSelf(u)
+
+	result := u.Deadline("wait", 10*time.Second)
+	assert.Equal(t, u, result) // fluent return
+	u.Send()
+
+	// The task is 5s in when the deadline is attached, so the anchor folds
+	// that into From: Remaining = From - taskElapsed counts 10s from now.
+	assert.Equal(t, []core.Field{
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining:  10 * time.Second,
+				From:       15 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, *fieldsAtom.Load())
+
+	// A later Send without the field clears the countdown - the deadline is
+	// scoped to the phase that sent it.
+	u.Msg("next phase").Send()
+	assert.Empty(t, *fieldsAtom.Load())
+}
+
+func TestUpdateDeadlineNilElapsed(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{msgPtr: &msgAtom, fieldsPtr: &fieldsAtom}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.Deadline("wait", 10*time.Second).Send()
+	})
+	assert.Equal(t, []core.Field{
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining:  10 * time.Second,
+				From:       10 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, *fieldsAtom.Load())
+}
+
+func TestUpdateDeadlineOptions(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{
+		msgPtr:    &msgAtom,
+		fieldsPtr: &fieldsAtom,
+		elapsed:   func() time.Duration { return 0 },
+	}
+	u.InitSelf(u)
+
+	u.Deadline("wait", 10*time.Second, deadline.WithOmitOnDone(false)).Send()
+	assert.Equal(t, []core.Field{
+		{
+			Key: "wait",
+			Value: core.DeadlineField{
+				Remaining: 10 * time.Second,
+				From:      10 * time.Second,
+			},
+		},
+	}, *fieldsAtom.Load())
 }
