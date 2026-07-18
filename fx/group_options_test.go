@@ -2,9 +2,11 @@ package fx
 
 import (
 	"context"
+	"strconv"
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,6 +93,25 @@ func TestGroupClearOnCancelOption(t *testing.T) {
 	g := NewGroup(context.Background(), nil, WithClearOnCancel())
 
 	assert.True(t, g.clearOnCancel)
+}
+
+func TestGroupOverflowIndicatorOption(t *testing.T) {
+	g := NewGroup(context.Background(), nil)
+	assert.False(t, g.overflowIndicator, "indicator is disabled by default")
+
+	g = NewGroup(context.Background(), nil, WithOverflowIndicator())
+	assert.True(t, g.overflowIndicator)
+	assert.Nil(t, g.overflowFunc)
+	assert.Nil(t, g.overflowStyle)
+
+	style := new(lipgloss.NewStyle().Faint(true))
+	g = NewGroup(context.Background(), nil, WithOverflowIndicator(
+		WithOverflowText(func(hidden int) string { return strconv.Itoa(hidden) }),
+		WithOverflowStyle(style),
+	))
+	assert.True(t, g.overflowIndicator)
+	assert.NotNil(t, g.overflowFunc)
+	assert.Same(t, style, g.overflowStyle)
 }
 
 func TestGroupSyncAnimationsDefaultAndOptOut(t *testing.T) {

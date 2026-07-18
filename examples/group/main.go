@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
+	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/bar/widget"
 )
@@ -68,5 +70,24 @@ func main() {
 		})
 	if err := g.Wait().Symbol("✅").Msg("All tasks complete"); err != nil {
 		clog.Fatal().Err(err).Msg("group demo failed")
+	}
+
+	// Overflow indicator: the block is capped at 4 lines, so the hidden
+	// tasks are counted by a trailing dim "… N more" line.
+	og := clog.Group(context.Background(),
+		fx.WithMaxLines(4),
+		fx.WithOverflowIndicator(
+			fx.WithOverflowStyle(new(lipgloss.NewStyle().Faint(true))),
+		),
+	)
+	for i := range 8 {
+		og.Add(clog.Spinner(fmt.Sprintf("Replicating shard %d", i+1)).Elapsed("elapsed")).
+			Run(func(_ context.Context) error {
+				time.Sleep(time.Duration(i+1) * 500 * time.Millisecond)
+				return nil
+			})
+	}
+	if err := og.Wait().Symbol("✅").Msg("All shards replicated"); err != nil {
+		clog.Fatal().Err(err).Msg("overflow demo failed")
 	}
 }

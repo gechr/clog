@@ -3,6 +3,7 @@ package fx
 import (
 	"time"
 
+	"charm.land/lipgloss/v2"
 	xmath "github.com/gechr/x/math"
 )
 
@@ -122,6 +123,52 @@ func WithHideDone() GroupOption {
 func WithClearOnCancel() GroupOption {
 	return func(g *Group) {
 		g.clearOnCancel = true
+	}
+}
+
+// OverflowIndicatorFunc formats the overflow indicator's message for the
+// number of tasks hidden by the row budget.
+type OverflowIndicatorFunc func(hidden int) string
+
+// OverflowOption configures the overflow indicator line enabled by
+// [WithOverflowIndicator].
+type OverflowOption func(*overflowSettings)
+
+type overflowSettings struct {
+	format OverflowIndicatorFunc
+	style  *lipgloss.Style
+}
+
+// WithOverflowText sets the formatter for the indicator's message text.
+// The default renders "N more".
+func WithOverflowText(fn OverflowIndicatorFunc) OverflowOption {
+	return func(o *overflowSettings) {
+		o.format = fn
+	}
+}
+
+// WithOverflowStyle sets the style applied to the indicator's message text
+// (e.g. dim via Faint), taking precedence over the level message style.
+func WithOverflowStyle(s *lipgloss.Style) OverflowOption {
+	return func(o *overflowSettings) {
+		o.style = s
+	}
+}
+
+// WithOverflowIndicator appends an "… N more" line to the task block when the
+// terminal height (or [WithMaxLines] / [WithMaxHeightPercent]) leaves some
+// tasks unrendered. Without this option hidden tasks are dropped silently.
+// The message text and style are configurable via [WithOverflowText] and
+// [WithOverflowStyle].
+func WithOverflowIndicator(opts ...OverflowOption) GroupOption {
+	return func(g *Group) {
+		var o overflowSettings
+		for _, opt := range opts {
+			opt(&o)
+		}
+		g.overflowIndicator = true
+		g.overflowFunc = o.format
+		g.overflowStyle = o.style
 	}
 }
 

@@ -36,21 +36,24 @@ type Group struct {
 	liveWake   chan struct{}
 	suspended  bool
 
-	clearOnCancel    bool
-	fieldAlignment   FieldAlignment
-	footer           *groupStatus
-	header           *groupStatus
-	hideDone         bool
-	log              Logger
-	maxLines         int
-	maxHeightPercent float64
-	monotonic        bool
-	parallelism      int
-	renderDelay      time.Duration
-	syncAnimations   bool
-	tasks            []*groupTask
-	transientFooter  bool
-	transientHeader  bool
+	clearOnCancel     bool
+	fieldAlignment    FieldAlignment
+	footer            *groupStatus
+	header            *groupStatus
+	hideDone          bool
+	log               Logger
+	maxLines          int
+	maxHeightPercent  float64
+	monotonic         bool
+	overflowFunc      OverflowIndicatorFunc
+	overflowIndicator bool
+	overflowStyle     *lipgloss.Style
+	parallelism       int
+	renderDelay       time.Duration
+	syncAnimations    bool
+	tasks             []*groupTask
+	transientFooter   bool
+	transientHeader   bool
 
 	sem chan struct{}
 }

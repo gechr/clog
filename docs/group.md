@@ -105,6 +105,7 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `fx.WithMaxHeightPercent(pct)`   | Cap the group block to a percentage of terminal height       |
 | `fx.WithMaxLines(n)`             | Cap the number of visible lines in the group render block    |
 | `fx.WithMonotonic()`             | Clamp grouped bars and percent to the highest shown fraction |
+| `fx.WithOverflowIndicator(...)`  | Append an `… N more` line when the height cap hides tasks    |
 | `fx.WithParallelism(n)`          | Limit how many group tasks may execute concurrently          |
 | `fx.WithoutSyncAnimations()`     | Let each task animate from its own start time (sync default) |
 | `g.Add(builder)`                 | Register an animation builder, returns `*GroupEntry`         |
@@ -121,6 +122,17 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 `WithMaxHeightPercent(percent)` caps the group block to a fraction of the terminal height (e.g. `0.5` for half). Clamped to (0, 1]. When both `WithMaxLines` and `WithMaxHeightPercent` are set, the smaller wins.
 
 `WithMaxLines(n)` caps the visible lines in the group block. When set, this takes precedence over the automatic terminal height cap. Header and footer lines count towards this limit. Values less than or equal to zero are ignored.
+
+When the terminal height (or an explicit cap) leaves some tasks unrendered, they are dropped silently by default. `WithOverflowIndicator()` instead appends an `… N more` overflow indicator line counting the hidden tasks, styled like a status line through the group's logger. The indicator consumes one row of the budget and only renders when at least one task row remains above it. Tasks hidden by `WithHideDone` are not counted - only tasks that would render if there were room. The message text and style are configurable via sub-options:
+
+```go
+g := clog.Group(ctx, fx.WithMaxLines(4), fx.WithOverflowIndicator(
+  fx.WithOverflowText(func(hidden int) string {
+    return fmt.Sprintf("and %d more…", hidden)
+  }),
+  fx.WithOverflowStyle(new(lipgloss.NewStyle().Faint(true))),
+))
+```
 
 `WithMonotonic()` clamps the rendered bar fill, percentage text, and widget values to the highest fraction seen so far. It does not change the underlying task progress values.
 

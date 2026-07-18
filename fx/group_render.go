@@ -1213,45 +1213,6 @@ func allTaskIndexes(n int) []int {
 	return indexes
 }
 
-func buildGroupFrameLines(
-	headerGT, footerGT *renderTask,
-	gts []*renderTask,
-	visible []int,
-	effectiveDone []bool,
-	now time.Time,
-	layout *groupRenderLayout,
-	showHeader, showFooter bool,
-) ([]string, int, int, int) {
-	lineCap := len(visible)
-	if showHeader {
-		lineCap++
-	}
-	if showFooter {
-		lineCap++
-	}
-	lines := make([]string, 0, lineCap)
-
-	headerLineCount := 0
-	if showHeader {
-		lines = append(lines, renderTaskLine(headerGT, false, now, layout))
-		headerLineCount = 1
-	}
-
-	taskLineCount := 0
-	for _, taskIndex := range visible {
-		lines = append(lines, renderTaskLine(gts[taskIndex], effectiveDone[taskIndex], now, layout))
-		taskLineCount++
-	}
-
-	footerLineCount := 0
-	if showFooter {
-		lines = append(lines, renderTaskLine(footerGT, false, now, layout))
-		footerLineCount = 1
-	}
-
-	return lines, headerLineCount, taskLineCount, footerLineCount
-}
-
 // groupHeightCap returns the maximum number of physical terminal rows the
 // rendered block may occupy. The caller is responsible for measuring rendered
 // lines via frameRows / groupFrameRows and trimming content that would push
@@ -1498,12 +1459,18 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		blockTopRow = row
 	}
 
+	var overflowGT *renderTask
+	if g.overflowIndicator {
+		overflowGT = newOverflowTask(g, gts, syncEpoch)
+	}
+
 	st := &groupLoopState{
 		g:             g,
 		gts:           gts,
 		fxTasks:       fxTasks,
 		headerGT:      headerGT,
 		footerGT:      footerGT,
+		overflowGT:    overflowGT,
 		headerUpdate:  headerUpdate,
 		footerUpdate:  footerUpdate,
 		output:        output,
@@ -1597,6 +1564,7 @@ type groupLoopState struct {
 	fxTasks       []*groupTask
 	headerGT      *renderTask
 	footerGT      *renderTask
+	overflowGT    *renderTask
 	headerUpdate  *Update
 	footerUpdate  *Update
 	output        RenderOutput
@@ -1622,14 +1590,14 @@ func (st *groupLoopState) failPending(ctx context.Context) {
 }
 
 // composeFrame advances the group by one render tick - draining completions,
-// invoking the header/footer callbacks, selecting visible tasks, and capping
-// the block to its physical-row budget - and returns the frame's rendered
-// lines together with the terminal width they were laid out against. The
-// boolean is false while the configured render delay is still pending,
-// meaning the caller should keep whatever frame is currently on screen.
+// invoking the header/footer callbacks, planning the frame against its
+// physical-row budget, and rendering the planned lines - and returns the
+// frame's rendered lines together with the terminal width they were laid out
+// against. The boolean is false while the configured render delay is still
+// pending, meaning the caller should keep whatever frame is currently on
+// screen.
 func (st *groupLoopState) composeFrame(now time.Time) ([]string, int, bool) {
 	g := st.g
-	gts := st.gts
 	output := st.output
 
 	// Refresh terminal dimensions every tick so the layout is
@@ -1639,150 +1607,62 @@ func (st *groupLoopState) composeFrame(now time.Time) ([]string, int, bool) {
 	// tick is cheaper than emitting a line wider than the viewport.
 	output.RefreshWidth()
 	output.RefreshHeight()
-	st.remaining = drainGroupCompletions(st.fxTasks, gts, st.done, st.justCompleted, st.remaining)
+	st.remaining = drainGroupCompletions(
+		st.fxTasks,
+		st.gts,
+		st.done,
+		st.justCompleted,
+		st.remaining,
+	)
 	effectiveDone := effectiveGroupDone(st.done, st.justCompleted)
 	// Snapshot per-task atomics once per tick so measure and render
 	// observe the same values. Must run after drainGroupCompletions,
 	// which forces just-completed bars to 100%, and before
 	// measureGroupRenderLayout consumes them.
-	snapshotFrameValues(gts)
+	snapshotFrameValues(st.gts)
 	if g.renderDelay > 0 && now.Sub(st.renderStart) < g.renderDelay {
 		return nil, 0, false
 	}
-	doneCount := len(gts) - st.remaining
-	totalCount := len(gts)
-	headerCandidate := false
-	footerCandidate := false
-	if st.headerGT != nil {
-		g.header.callback(doneCount, totalCount, st.headerUpdate)
-		if msg := *st.headerGT.msgPtr.Load(); msg != "" {
-			headerCandidate = true
-		}
-	}
-	if st.footerGT != nil {
-		g.footer.callback(doneCount, totalCount, st.footerUpdate)
-		if msg := *st.footerGT.msgPtr.Load(); msg != "" {
-			footerCandidate = true
-		}
-	}
 
-	candidateStatusLines := 0
-	if headerCandidate {
-		candidateStatusLines++
-	}
-	if footerCandidate {
-		candidateStatusLines++
-	}
-	maxLines := groupHeightCap(output.Height(), st.blockTopRow, len(gts)+candidateStatusLines)
-	if g.maxHeightPercent > 0 {
-		if pctLines := int(
-			float64(output.Height()) * g.maxHeightPercent,
-		); pctLines > 0 &&
-			pctLines < maxLines {
-			maxLines = pctLines
-		}
-	}
-	if g.maxLines > 0 && g.maxLines < maxLines {
-		maxLines = g.maxLines
-	}
-	// Cap visible tasks to terminal height so cursor-up
-	// escapes never need to reach scrolled-off lines.
-	// Prioritise active (in-progress) tasks over done or
-	// pending ones when space is limited.
-	visible := visibleTaskIndexes(gts, effectiveDone, g.hideDone, now)
-	persistentStatusLines := 0
-	if headerCandidate && !g.transientHeader {
-		persistentStatusLines++
-	}
-	if footerCandidate && !g.transientFooter {
-		persistentStatusLines++
-	}
-	maxTasks := max(0, maxLines-persistentStatusLines)
-	if len(visible) > maxTasks {
-		visible = prioritiseActive(visible, gts, st.done, maxTasks)
-	}
-	showHeader := headerCandidate && (!g.transientHeader || len(visible) > 0)
-	showFooter := footerCandidate && (!g.transientFooter || len(visible) > 0)
-	statusLines := 0
-	if showHeader {
-		statusLines++
-	}
-	if showFooter {
-		statusLines++
-	}
-	if len(visible) > 0 && maxLines-statusLines <= 0 {
-		if showFooter && g.transientFooter {
-			showFooter = false
-			statusLines--
-		}
-		if showHeader && g.transientHeader && maxLines-statusLines <= 0 {
-			showHeader = false
-			statusLines--
-		}
-	}
-	maxTasks = max(0, maxLines-statusLines)
-	if len(visible) > maxTasks {
-		visible = prioritiseActive(visible, gts, st.done, maxTasks)
-	}
-	if len(visible) == 0 {
-		if g.transientHeader {
-			showHeader = false
-		}
-		if g.transientFooter {
-			showFooter = false
-		}
-	}
-	layout := measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
-	lines, headerLineCount, taskLineCount, footerLineCount := buildGroupFrameLines(
-		st.headerGT,
-		st.footerGT,
-		gts,
-		visible,
-		effectiveDone,
-		now,
-		layout,
-		showHeader,
-		showFooter,
-	)
+	headerCandidate, footerCandidate := st.updateStatusLines()
+	plan := planGroupFrame(groupFramePlanInput{
+		g:               g,
+		gts:             st.gts,
+		candidates:      visibleTaskIndexes(st.gts, effectiveDone, g.hideDone, now),
+		done:            st.done,
+		headerCandidate: headerCandidate,
+		footerCandidate: footerCandidate,
+		termHeight:      output.Height(),
+		blockTopRow:     st.blockTopRow,
+	})
+
 	width := output.Width()
-	// Physical-row cap: maxLines is a physical-row budget (terminal
-	// rows after wrap). Drop the lowest-priority task lines from the
-	// tail until the rendered block fits. Header and footer are
-	// preserved when possible because they were already accounted for
-	// when computing maxTasks above.
-	physRows := groupFrameRows(lines, width)
-	for physRows > maxLines && taskLineCount > 0 {
-		visible = visible[:taskLineCount-1]
-		layout = measureGroupRenderLayoutForIndexes(g, gts, effectiveDone, visible, now)
-		lines, headerLineCount, taskLineCount, footerLineCount = buildGroupFrameLines(
-			st.headerGT,
-			st.footerGT,
-			gts,
-			visible,
-			effectiveDone,
-			now,
-			layout,
-			showHeader,
-			showFooter,
-		)
-		physRows = groupFrameRows(lines, width)
-	}
-	// If we couldn't fit any tasks, transient header/footer should
-	// drop too so we don't render a status-only block.
-	if taskLineCount == 0 {
-		if footerLineCount == 1 && g.transientFooter {
-			lines = lines[:len(lines)-1]
-		}
-		if headerLineCount == 1 && g.transientHeader {
-			lines = lines[1:]
-		}
-	}
+	lines := st.renderPlannedFrame(plan, effectiveDone, now, width)
 	// Nothing to draw this tick (e.g. every task is level-disabled): skip the
 	// repaint entirely rather than hiding the cursor over an empty block.
 	if len(lines) == 0 {
 		return nil, width, false
 	}
 	return lines, width, true
+}
+
+// updateStatusLines invokes the header/footer callbacks with the group's
+// progress and reports which of the two has a non-empty message this tick.
+func (st *groupLoopState) updateStatusLines() (bool, bool) {
+	g := st.g
+	doneCount := len(st.gts) - st.remaining
+	totalCount := len(st.gts)
+	headerCandidate := false
+	footerCandidate := false
+	if st.headerGT != nil {
+		g.header.callback(doneCount, totalCount, st.headerUpdate)
+		headerCandidate = *st.headerGT.msgPtr.Load() != ""
+	}
+	if st.footerGT != nil {
+		g.footer.callback(doneCount, totalCount, st.footerUpdate)
+		footerCandidate = *st.footerGT.msgPtr.Load() != ""
+	}
+	return headerCandidate, footerCandidate
 }
 
 // runGroupLoopRegion runs the group render loop with the group's block as one
