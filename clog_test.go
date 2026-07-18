@@ -629,7 +629,9 @@ func TestLogFormattedOutputWithTimestamp(t *testing.T) {
 
 	got := buf.String()
 
+	//nolint:gocritic // output contains a nondeterministic timestamp
 	assert.Contains(t, got, "INF")
+	//nolint:gocritic // output contains a nondeterministic timestamp
 	assert.Contains(t, got, "hello")
 	assert.True(t, strings.HasSuffix(got, nl))
 	// Timestamp format "HH:MM:SS.mmm" = 12 chars, plus trailing space.
@@ -922,6 +924,7 @@ func TestLogFormattedOutputColoredWithTimestamp(t *testing.T) {
 
 	got := buf.String()
 
+	//nolint:gocritic // output contains a nondeterministic timestamp
 	assert.Contains(t, got, "hello")
 }
 
@@ -967,9 +970,7 @@ func TestLogEmptyMessageNoDoubleSpace(t *testing.T) {
 
 	got := buf.String()
 
-	// Should not have double space between symbol and field.
-	assert.NotContains(t, got, "  status")
-	// Should contain the field directly after the symbol.
+	// The field renders directly after the symbol with no double space.
 	assert.Equal(t, "INF ℹ️ status=ok\n", got)
 }
 
@@ -2118,7 +2119,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 
 		l.Info().Msg("test")
 
-		assert.NotContains(t, buf.String(), "took=")
+		assert.Equal(t, "INF ℹ️ test\n", buf.String())
 	})
 
 	t.Run("above_threshold_shown", func(t *testing.T) {

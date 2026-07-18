@@ -2,10 +2,12 @@ package clog
 
 import (
 	"io"
+	"path/filepath"
 	"testing"
 
 	"github.com/gechr/clog/field/hyperlink"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // linkOutput returns a ColorAlways output configured with the given
@@ -159,9 +161,11 @@ func TestOutputPathLinkRelativePath(t *testing.T) {
 	// Relative path should be resolved to absolute in the URL.
 	got := output.PathLink("test.go", 0, 0)
 
-	assert.Contains(t, got, "\x1b]8;;file:///")
-	// Display text should be the relative path.
-	assert.Contains(t, got, "\x1b\\test.go\x1b]8;;\x1b\\")
+	abs, err := filepath.Abs("test.go")
+	require.NoError(t, err)
+	// The URL targets the resolved absolute path; the visible label stays
+	// the relative path.
+	assert.Equal(t, "\x1b]8;;file://"+abs+"\x1b\\test.go\x1b]8;;\x1b\\", got)
 }
 
 func TestOutputPathLinkDirectory(t *testing.T) {

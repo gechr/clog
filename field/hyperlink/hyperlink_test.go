@@ -60,7 +60,7 @@ func TestPresetCaseInsensitive(t *testing.T) {
 
 func TestPresetUnknown(t *testing.T) {
 	_, err := hyperlink.Preset("notepad")
-	assert.ErrorContains(t, err, `unknown hyperlink preset "notepad"`)
+	assert.Equal(t, `clog: unknown hyperlink preset "notepad"`, err.Error())
 }
 
 func TestExpand(t *testing.T) {

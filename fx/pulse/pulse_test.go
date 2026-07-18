@@ -31,8 +31,11 @@ func TestPulseTextSpacesUnstyled(t *testing.T) {
 
 	got := pulse.Text("a b c", 0.5, stops)
 
-	// Spaces themselves should not contain ANSI escapes.
-	assert.Contains(t, got, " ")
+	assert.Equal(
+		t,
+		"\x1b[38;2;209;255;224ma\x1b[m \x1b[38;2;209;255;224mb\x1b[m \x1b[38;2;209;255;224mc\x1b[m",
+		got,
+	)
 }
 
 func TestPulseTextContainsANSI(t *testing.T) {
@@ -40,7 +43,7 @@ func TestPulseTextContainsANSI(t *testing.T) {
 
 	got := pulse.Text("hello", 0.5, stops)
 
-	assert.Contains(t, got, "\x1b", "output should contain ANSI escape sequences")
+	assert.Equal(t, "\x1b[38;2;209;255;224mhello\x1b[m", got)
 }
 
 func TestPulseTextDifferentPhases(t *testing.T) {
@@ -74,8 +77,7 @@ func TestPulseTextSingleChar(t *testing.T) {
 
 	got := pulse.Text("x", 0.5, stops)
 
-	assert.Contains(t, got, "x")
-	assert.Contains(t, got, "\x1b")
+	assert.Equal(t, "\x1b[38;2;209;255;224mx\x1b[m", got)
 }
 
 func TestPulseTextUnicode(t *testing.T) {
@@ -83,7 +85,7 @@ func TestPulseTextUnicode(t *testing.T) {
 
 	got := pulse.Text("héllo wörld", 0.5, stops)
 
-	assert.Contains(t, got, "\x1b")
+	assert.Equal(t, "\x1b[38;2;209;255;224mhéllo\x1b[m \x1b[38;2;209;255;224mwörld\x1b[m", got)
 }
 
 func TestPulseTextCached(t *testing.T) {

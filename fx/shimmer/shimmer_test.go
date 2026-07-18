@@ -1,7 +1,6 @@
 package shimmer_test
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/gechr/clog/fx/shimmer"
@@ -44,13 +43,11 @@ func TestShimmerTextSpacesUnstyled(t *testing.T) {
 
 	got := shimmer.Text("a b c", 0, shimmer.Right, lut, nil)
 
-	// Split on spaces - spaces themselves should not contain ANSI escapes.
-	parts := strings.SplitAfter(got, " ")
-	for _, p := range parts {
-		if p == " " {
-			assert.NotContains(t, p, "\x1b", "spaces should not contain ANSI escapes")
-		}
-	}
+	assert.Equal(
+		t,
+		"\x1b[38;2;255;179;179ma\x1b[m \x1b[38;2;144;251;211mb\x1b[m \x1b[38;2;232;185;248mc\x1b[m",
+		got,
+	)
 }
 
 func TestShimmerTextContainsANSI(t *testing.T) {
@@ -58,7 +55,11 @@ func TestShimmerTextContainsANSI(t *testing.T) {
 
 	got := shimmer.Text("hello", 0, shimmer.Right, lut, nil)
 
-	assert.Contains(t, got, "\x1b", "output should contain ANSI escape sequences")
+	assert.Equal(
+		t,
+		"\x1b[38;2;255;179;179mh\x1b[m\x1b[38;2;229;224;148me\x1b[m\x1b[38;2;144;251;211ml\x1b[m\x1b[38;2;144;222;253ml\x1b[m\x1b[38;2;232;185;248mo\x1b[m",
+		got,
+	)
 }
 
 func TestShimmerTextDifferentPhases(t *testing.T) {
@@ -74,9 +75,16 @@ func TestShimmerTextAllDirectionsProduce(t *testing.T) {
 	lut := shimmer.BuildLUT(shimmer.DefaultGradient())
 	text := "hello world"
 
-	for _, dir := range []shimmer.Direction{shimmer.Right, shimmer.Left, shimmer.MiddleIn, shimmer.MiddleOut, shimmer.BounceIn, shimmer.BounceOut} {
+	for dir, want := range map[shimmer.Direction]string{
+		shimmer.Right:     "\x1b[38;2;214;192;254mh\x1b[m\x1b[38;2;242;181;241me\x1b[m\x1b[38;2;255;176;211ml\x1b[m\x1b[38;2;255;182;174ml\x1b[m\x1b[38;2;247;204;151mo\x1b[m \x1b[38;2;196;246;172mw\x1b[m\x1b[38;2;151;252;206mo\x1b[m\x1b[38;2;122;242;233mr\x1b[m\x1b[38;2;133;229;249ml\x1b[m\x1b[38;2;171;208;255md\x1b[m",
+		shimmer.Left:      "\x1b[38;2;214;235;156mh\x1b[m\x1b[38;2;177;255;192me\x1b[m\x1b[38;2;132;248;220ml\x1b[m\x1b[38;2;122;237;240ml\x1b[m\x1b[38;2;150;219;254mo\x1b[m \x1b[38;2;232;185;248mw\x1b[m\x1b[38;2;252;177;227mo\x1b[m\x1b[38;2;255;177;192mr\x1b[m\x1b[38;2;253;192;161ml\x1b[m\x1b[38;2;238;216;147md\x1b[m",
+		shimmer.MiddleIn:  "\x1b[38;2;214;235;156mh\x1b[m\x1b[38;2;253;192;161me\x1b[m\x1b[38;2;252;177;227ml\x1b[m\x1b[38;2;192;199;255ml\x1b[m\x1b[38;2;122;237;240mo\x1b[m \x1b[38;2;177;255;192mw\x1b[m\x1b[38;2;122;237;240mo\x1b[m\x1b[38;2;192;199;255mr\x1b[m\x1b[38;2;252;177;227ml\x1b[m\x1b[38;2;253;192;161md\x1b[m",
+		shimmer.MiddleOut: "\x1b[38;2;214;235;156mh\x1b[m\x1b[38;2;132;248;220me\x1b[m\x1b[38;2;150;219;254ml\x1b[m\x1b[38;2;232;185;248ml\x1b[m\x1b[38;2;255;177;192mo\x1b[m \x1b[38;2;238;216;147mw\x1b[m\x1b[38;2;255;177;192mo\x1b[m\x1b[38;2;232;185;248mr\x1b[m\x1b[38;2;150;219;254ml\x1b[m\x1b[38;2;132;248;220md\x1b[m",
+		shimmer.BounceIn:  "\x1b[38;2;159;253;201mh\x1b[m\x1b[38;2;229;224;148me\x1b[m\x1b[38;2;255;179;179ml\x1b[m\x1b[38;2;242;181;241ml\x1b[m\x1b[38;2;164;212;255mo\x1b[m \x1b[38;2;124;244;229mw\x1b[m\x1b[38;2;164;212;255mo\x1b[m\x1b[38;2;242;181;241mr\x1b[m\x1b[38;2;255;179;179ml\x1b[m\x1b[38;2;229;224;148md\x1b[m",
+		shimmer.BounceOut: "\x1b[38;2;159;253;201mh\x1b[m\x1b[38;2;133;229;249me\x1b[m\x1b[38;2;207;194;255ml\x1b[m\x1b[38;2;255;176;217ml\x1b[m\x1b[38;2;250;200;154mo\x1b[m \x1b[38;2;202;242;166mw\x1b[m\x1b[38;2;250;200;154mo\x1b[m\x1b[38;2;255;176;217mr\x1b[m\x1b[38;2;207;194;255ml\x1b[m\x1b[38;2;133;229;249md\x1b[m",
+	} {
 		got := shimmer.Text(text, 0.25, dir, lut, nil)
-		assert.Contains(t, got, "\x1b", "direction %d should produce styled output", dir)
+		assert.Equal(t, want, got, "direction %d", dir)
 	}
 }
 
@@ -145,8 +153,11 @@ func TestShimmerTextMiddleInSymmetric(t *testing.T) {
 	text := "abcdefgh"
 	got := shimmer.Text(text, 0, shimmer.MiddleIn, lut, nil)
 
-	// Output should contain styled characters.
-	assert.Contains(t, got, "\x1b")
+	assert.Equal(
+		t,
+		"\x1b[38;2;255;0;0ma\x1b[m\x1b[38;2;239;0;206mb\x1b[m\x1b[38;2;51;0;255mc\x1b[m\x1b[38;2;242;0;199md\x1b[m\x1b[38;2;255;0;0me\x1b[m\x1b[38;2;242;0;199mf\x1b[m\x1b[38;2;51;0;255mg\x1b[m\x1b[38;2;239;0;206mh\x1b[m",
+		got,
+	)
 
 	// MiddleIn should produce different output than shimmer.Right.
 	gotRight := shimmer.Text(text, 0, shimmer.Right, lut, nil)
@@ -159,8 +170,7 @@ func TestShimmerTextSingleChar(t *testing.T) {
 
 	got := shimmer.Text("x", 0, shimmer.Right, lut, nil)
 
-	assert.Contains(t, got, "x")
-	assert.Contains(t, got, "\x1b")
+	assert.Equal(t, "\x1b[38;2;255;179;179mx\x1b[m", got)
 }
 
 func TestShimmerTextUnicode(t *testing.T) {
@@ -168,8 +178,11 @@ func TestShimmerTextUnicode(t *testing.T) {
 
 	got := shimmer.Text("héllo wörld", 0, shimmer.Right, lut, nil)
 
-	// Should handle multi-byte runes without panicking.
-	assert.Contains(t, got, "\x1b")
+	assert.Equal(
+		t,
+		"\x1b[38;2;255;179;179mh\x1b[m\x1b[38;2;252;196;157mé\x1b[m\x1b[38;2;234;220;147ml\x1b[m\x1b[38;2;202;242;166ml\x1b[m\x1b[38;2;168;254;197mo\x1b[m \x1b[38;2;128;232;246mw\x1b[m\x1b[38;2;164;212;255mö\x1b[m\x1b[38;2;200;197;255mr\x1b[m\x1b[38;2;237;183;245ml\x1b[m\x1b[38;2;255;176;217md\x1b[m",
+		got,
+	)
 }
 
 func TestBuildShimmerStyleLUT(t *testing.T) {

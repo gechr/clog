@@ -2373,7 +2373,9 @@ func TestStyleFractionSeparatorOverride(t *testing.T) {
 	styles.FieldFractionSeparator = &sep
 	got := styleFraction("7/10", core.Fraction{Current: 7, Total: 10}, styles, false)
 	// Explicit separator style wins over the dimmed-gradient default.
-	assert.Contains(t, got, "\x1b[38;2;255;0;0m/\x1b[m")
+	assert.Equal(t,
+		"\x1b[38;2;202;255;0m7\x1b[m\x1b[38;2;255;0;0m/\x1b[m\x1b[38;2;202;255;0m10\x1b[m",
+		got)
 }
 
 func TestStyleFractionNoGradient(t *testing.T) {

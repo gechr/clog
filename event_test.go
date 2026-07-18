@@ -415,7 +415,6 @@ func TestEventErrSendUsesErrorAsMessage(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, "ERR ❌ connection refused\n", got)
-	assert.NotContains(t, got, "error=")
 }
 
 func TestEventErrMsgAddsErrorField(t *testing.T) {
@@ -443,7 +442,6 @@ func TestEventErrSendPreservesFields(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, "ERR ❌ connection refused host=db1\n", got)
-	assert.NotContains(t, got, "error=")
 }
 
 func TestEventJSON(t *testing.T) {
@@ -463,7 +461,6 @@ func TestEventJSONAppearsUnquotedInOutput(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, "INF ℹ️ done resp={\"detail\":\"ok\"}\n", got)
-	assert.NotContains(t, got, `resp="{`)
 }
 
 func TestEventJSONMarshalError(t *testing.T) {
@@ -498,7 +495,6 @@ func TestEventRawJSONAppearsUnquotedInOutput(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, "INF ℹ️ request failed error={\"detail\":\"something went wrong\"}\n", got)
-	assert.NotContains(t, got, `error="{`)
 }
 
 func TestEventRawJSONHighlighted(t *testing.T) {
@@ -535,7 +531,6 @@ func TestEventRawJSONUnquoted(t *testing.T) {
 	got := buf.String()
 	// JSON content is present and unquoted
 	assert.Equal(t, "INF ℹ️ ok data={\"key\":\"val\",\"n\":1,\"ok\":true,\"x\":null}\n", got)
-	assert.NotContains(t, got, `data="{`, "JSON should not be quoted")
 }
 
 func TestHighlightJSONNullDistinctFromBool(t *testing.T) {
@@ -740,7 +735,7 @@ func TestHighlightJSONSpacingNone(t *testing.T) {
 	styles := &style.JSON{}
 	result := json.Highlight(`{"a":1,"b":2}`, styles)
 
-	assert.NotContains(t, result, " ")
+	assert.Equal(t, `{"a":1,"b":2}`, result)
 }
 
 func TestHighlightJSONWithSpacingMethod(t *testing.T) {
@@ -936,8 +931,8 @@ func TestEventLineColorAlways(t *testing.T) {
 	require.True(t, ok)
 	// ColorAlways produces OSC 8 hyperlink sequences.
 	assert.Equal(t, "file", e.fields[0].Key)
-	assert.Contains(t, val, "\x1b]8;;")
-	assert.Contains(t, val, "main.go:10")
+	assert.Contains(t, val, "\x1b]8;;")   //nolint:gocritic // non-portable absolute path in URL
+	assert.Contains(t, val, "main.go:10") //nolint:gocritic // non-portable absolute path in URL
 }
 
 func TestEventLineColorNever(t *testing.T) {

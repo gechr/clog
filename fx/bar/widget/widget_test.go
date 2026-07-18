@@ -271,8 +271,7 @@ func TestWidgetPercentWithProgressGradient(t *testing.T) {
 
 	t.Run("zero_progress_is_styled", func(t *testing.T) {
 		got := w(bar.State{Current: 0, Total: 100})
-		// The "0%" portion should contain ANSI escape codes from the gradient.
-		assert.Contains(t, got, "0%")
+		assert.Equal(t, "  \x1b[38;2;255;0;0m0%\x1b[m", got)
 		assert.Positive(t, lipgloss.Width(got))
 		// Visible width should match the unstyled padded width ("  0%" = 4 chars).
 		assert.Equal(t, 4, lipgloss.Width(got))
@@ -280,7 +279,7 @@ func TestWidgetPercentWithProgressGradient(t *testing.T) {
 
 	t.Run("full_progress_is_styled", func(t *testing.T) {
 		got := w(bar.State{Current: 100, Total: 100})
-		assert.Contains(t, got, "100%")
+		assert.Equal(t, "\x1b[38;2;0;255;0m100%\x1b[m", got)
 		assert.Equal(t, 4, lipgloss.Width(got))
 	})
 

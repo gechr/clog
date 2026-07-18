@@ -371,7 +371,6 @@ func TestAppendRepaint(t *testing.T) {
 			xansi.DisableSyncOutput
 		assert.Equal(t, want, got)
 		assert.Equal(t, 2, rows)
-		assert.NotContains(t, got, xansi.EraseScreenBelow)
 	})
 
 	t.Run("shrinking block erases below the park row", func(t *testing.T) {
@@ -733,7 +732,7 @@ func TestGroupBarLayoutAlignedCapsToTerminalWidth(t *testing.T) {
 	line := formatGroupBar(layout, "short", "", "", bar.PlaceAligned, 20)
 
 	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
-	assert.Contains(t, line, "BAR")
+	assert.Equal(t, "short           BAR", line)
 }
 
 func TestGroupBarLayoutAlignedTruncatesOutlierParts(t *testing.T) {
@@ -744,8 +743,8 @@ func TestGroupBarLayoutAlignedTruncatesOutlierParts(t *testing.T) {
 	line := formatGroupBar(layout, parts, "", "", bar.PlaceAligned, 20)
 
 	assert.LessOrEqual(t, xansi.StringWidth(line), 19)
-	assert.Contains(t, line, "BAR")
-	assert.Contains(t, line, bar.DefaultTruncationMarker)
+	//nolint:dupword // repeated "long" is truncated test data, not a typo
+	assert.Equal(t, "long long long… BAR", line)
 	assert.NotEqual(t, parts+" BAR", line)
 }
 
@@ -775,8 +774,7 @@ func TestGroupBarLayoutAlignedTruncatesProgressWithoutMarker(t *testing.T) {
 	)
 
 	assert.LessOrEqual(t, xansi.StringWidth(line), 7)
-	assert.NotContains(t, line, "94")
-	assert.NotContains(t, line, "~~~")
+	assert.Equal(t, "BARBARB", line)
 	assert.NotEmpty(t, line)
 }
 
@@ -892,8 +890,7 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	captureTaskConfig(gt)
 
 	line := renderTaskLine(gt, false, time.Now(), nil)
-	assert.Contains(t, line, "queued")
-	assert.NotContains(t, line, "│")
+	assert.Equal(t, "INF ⏳ queued stage=queued", line)
 }
 
 func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {

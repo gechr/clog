@@ -106,7 +106,7 @@ func TestGroupOverflowIndicatorOption(t *testing.T) {
 
 	style := new(lipgloss.NewStyle().Faint(true))
 	g = NewGroup(context.Background(), nil, WithOverflowIndicator(
-		WithOverflowText(func(hidden int) string { return strconv.Itoa(hidden) }),
+		WithOverflowText(strconv.Itoa),
 		WithOverflowStyle(style),
 	))
 	assert.True(t, g.overflowIndicator)

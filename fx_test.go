@@ -339,10 +339,19 @@ func TestStandaloneAnimationDisplacesLogLines(t *testing.T) {
 		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
 		"inside\n" +
 		xansi.EnableSyncOutput + xansi.ClearLine + "loading"
-	assert.Contains(t, got, displaced)
-	// On completion the block is erased, the cursor restored, and the
-	// completion message printed as a plain line.
-	assert.Contains(t, got, xansi.ShowCursor+"spin done\n")
+	// The block is painted, displaced by the log line, then on completion
+	// the block is erased, the cursor restored, and the completion message
+	// printed as a plain line.
+	want := xansi.HideCursor +
+		xansi.EnableSyncOutput + xansi.ClearLine + "loading\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		displaced + "\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.DisableSyncOutput + xansi.EnableSyncOutput +
+		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.ShowCursor + "spin done\n"
+	assert.Equal(t, want, got)
 }
 
 func TestConcurrentStandaloneAnimationsStackInOneBlock(t *testing.T) {
@@ -388,6 +397,7 @@ func TestConcurrentStandaloneAnimationsStackInOneBlock(t *testing.T) {
 
 	// Both slots unregistered: the block is gone and the cursor restored.
 	assert.False(t, out.LiveRegion().Active())
+	//nolint:gocritic // nondeterministic concurrent-teardown output
 	assert.Contains(t, buf.String(), xansi.ShowCursor)
 }
 
@@ -425,10 +435,20 @@ func TestGroupAnimationDisplacesLogLines(t *testing.T) {
 		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
 		"inside\n" +
 		xansi.EnableSyncOutput + xansi.ClearLine + "grouped"
-	assert.Contains(t, got, displaced)
+	// The block is painted, displaced by the log line, then on completion
+	// the block is erased and the cursor restored.
+	want := xansi.HideCursor +
+		xansi.EnableSyncOutput + xansi.ClearLine + "grouped\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		displaced + "\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.DisableSyncOutput + xansi.EnableSyncOutput +
+		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.ShowCursor
+	assert.Equal(t, want, got)
 	// Group finished: the block is gone and the cursor restored.
 	assert.False(t, out.LiveRegion().Active())
-	assert.Contains(t, got, xansi.ShowCursor)
 }
 
 func TestTaskConfigFormatFieldsOmitEmpty(t *testing.T) {

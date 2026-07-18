@@ -418,5 +418,4 @@ func TestContextDictNil(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, "INF ℹ️ test\n", got)
-	assert.NotContains(t, got, "key")
 }

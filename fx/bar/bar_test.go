@@ -472,12 +472,6 @@ func TestRenderBarWithoutProgressGradient(t *testing.T) {
 
 	result := bar.Render(50, 100, s, 0)
 	assert.Equal(t, "[█████     ]", result)
-	assert.NotContains(
-		t,
-		result,
-		"\x1b[",
-		"bar without ProgressGradient should not contain ANSI escapes",
-	)
 }
 
 func TestDefaultBarGradient(t *testing.T) {

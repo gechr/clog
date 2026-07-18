@@ -79,7 +79,6 @@ func TestDividerCustomChar(t *testing.T) {
 
 	got := buf.String()
 	assert.Equal(t, strings.Repeat("═", defaultDividerWidth)+nl, got)
-	assert.NotContains(t, got, "─")
 }
 
 func TestDividerCustomCharWithTitle(t *testing.T) {

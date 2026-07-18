@@ -134,8 +134,19 @@ func TestRunGroupLoopRegionCoexistsWithStandaloneSlot(t *testing.T) {
 
 	// Group done: its rows leave the block and the standalone slot repaints
 	// alone over the three former rows.
-	assert.Contains(t, buf.String(),
-		xansi.CursorUp(3)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+"standalone")
+	// The full stream: hide the cursor, paint the standalone slot, join it with
+	// the group's stacked block, then repaint the standalone alone once the
+	// group's rows leave.
+	full := xansi.HideCursor +
+		xansi.EnableSyncOutput + xansi.ClearLine + "standalone\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.EnableSyncOutput + xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) +
+		stacked + "\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.EnableSyncOutput + xansi.CursorUp(3) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.ClearLine + "standalone\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput
+	assert.Equal(t, full, buf.String())
 	assert.True(t, out.region.Active())
 
 	out.region.Unregister(standalone)
@@ -166,7 +177,15 @@ func TestRunGroupLoopRegionLogLinesDisplaceBlock(t *testing.T) {
 		xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
 		"log line\n" +
 		xansi.EnableSyncOutput + xansi.ClearLine + "INF ⏳ alpha"
-	assert.Contains(t, buf.String(), displaced)
+	// The full stream: hide the cursor, paint the block's initial frame, then
+	// the synchronized log-line displacement and repaint.
+	full := xansi.HideCursor +
+		xansi.EnableSyncOutput + xansi.ClearLine + "INF ⏳ alpha\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		displaced + "\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow +
+		xansi.DisableSyncOutput + xansi.DisableSyncOutput
+	assert.Equal(t, full, buf.String())
 
 	close(release)
 	require.NoError(t, <-loopDone)
@@ -208,14 +227,31 @@ func TestRunGroupLoopRegionTwoConcurrentGroups(t *testing.T) {
 	// Finishing the first group removes its rows; the second keeps rendering.
 	close(releaseA)
 	require.NoError(t, <-doneA)
-	assert.Contains(t, buf.String(),
-		xansi.CursorUp(3)+xansi.CursorHorizontalAbsolute(1)+xansi.ClearLine+"INF ⏳ b-one")
+	// The full stream so far: group A's initial block, group B joining it as a
+	// stacked block, then b-one repainting alone once group A's rows leave.
+	throughGroupADone := xansi.HideCursor +
+		xansi.EnableSyncOutput +
+		xansi.ClearLine + "INF ⏳ a-one\n" +
+		xansi.ClearLine + "INF ⏳ a-two\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.EnableSyncOutput + xansi.CursorUp(2) + xansi.CursorHorizontalAbsolute(1) +
+		stacked + "\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.EnableSyncOutput + xansi.CursorUp(3) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.ClearLine + "INF ⏳ b-one\n" +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput
+	assert.Equal(t, throughGroupADone, buf.String())
 	assert.True(t, out.region.Active())
 
 	close(releaseB)
 	require.NoError(t, <-doneB)
 	assert.False(t, out.region.Active())
-	assert.Contains(t, buf.String(), xansi.ShowCursor)
+	// Group B done: its final row leaves and the cursor is restored.
+	full := throughGroupADone +
+		xansi.EnableSyncOutput + xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+		xansi.ShowCursor
+	assert.Equal(t, full, buf.String())
 }
 
 // runScriptedGroup runs a group of gated tasks to completion on log, waiting
@@ -320,8 +356,18 @@ func TestRunGroupLoopRegionMatchesLegacyByteStreamWhenAlone(t *testing.T) {
 			strings.TrimSuffix(legacy, legacyTail),
 			strings.TrimSuffix(region, regionTail),
 		)
-		// Both paths paint the forced 100% frame before the block is erased.
-		assert.Contains(t, region, "[==========]")
+		// The full region stream: the 40% frame, the forced 100% final flash,
+		// then the block erase and cursor restore.
+		pad := strings.Repeat(" ", 50)
+		line40 := "INF ⏳ fetch" + pad + "[====------]  40%"
+		line100 := "INF ⏳ fetch" + pad + "[==========] 100%"
+		wantRegion := xansi.HideCursor +
+			xansi.EnableSyncOutput + xansi.ClearLine + line40 + "\n" +
+			xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
+			xansi.EnableSyncOutput + xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) +
+			xansi.ClearLine + line100 + "\n" + xansi.DisableSyncOutput +
+			regionTail
+		assert.Equal(t, wantRegion, region)
 	})
 }
 

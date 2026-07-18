@@ -38,8 +38,7 @@ func TestGroupConcurrentRun(t *testing.T) {
 	require.NoError(t, r2.Msg("two done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "one done")
-	assert.Contains(t, out, "two done")
+	assert.Equal(t, "INF ⏳ task one\nINF ⏳ task two\nINF ℹ️ one done\nINF ℹ️ two done\n", out)
 }
 
 func TestGroupSuspendAllowsDelayedStandaloneAnimation(t *testing.T) {
@@ -143,7 +142,7 @@ func TestGroupSuspendBeforeFirstFrame(t *testing.T) {
 
 	beforeResume := buf.String()
 	time.Sleep(20 * time.Millisecond)
-	assert.NotContains(t, strings.TrimPrefix(buf.String(), beforeResume), "group")
+	assert.Empty(t, strings.TrimPrefix(buf.String(), beforeResume))
 
 	g.Resume()
 	stacked := xansi.ClearLine + "foreground\n" + xansi.ClearLine + "group"
@@ -204,9 +203,12 @@ func TestGroupMixedAnimations(t *testing.T) {
 	require.NoError(t, r3.Msg("pulse done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "spin done")
-	assert.Contains(t, out, "bar done")
-	assert.Contains(t, out, "pulse done")
+	assert.Equal(
+		t,
+		"INF ⏳ spinning\nINF ⏳ barring\nINF ⏳ pulsing\n"+
+			"INF ℹ️ spin done\nINF ℹ️ bar done\nINF ℹ️ pulse done\n",
+		out,
+	)
 }
 
 func TestGroupRenderDelaySkipsShortLivedTTYGroup(t *testing.T) {
@@ -261,7 +263,7 @@ func TestGroupTransientHeaderHidesWhenNoTaskRowsVisible(t *testing.T) {
 		})
 	g.Wait()
 
-	assert.NotContains(t, buf.String(), "header")
+	assert.Empty(t, buf.String())
 }
 
 func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
@@ -332,7 +334,7 @@ func TestGroupErrorCollection(t *testing.T) {
 
 	out := buf.String()
 	// The error case should log at error level.
-	assert.Contains(t, out, "task failed")
+	assert.Equal(t, "INF ⏳ succeeder\nINF ⏳ failer\nINF ℹ️ succeeder\nERR ❌ task failed\n", out)
 }
 
 func TestGroupContextCancel(t *testing.T) {
@@ -403,9 +405,6 @@ func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
 
 	out := buf.String()
 	assert.Equal(t, "INF ⏳ downloading file=release.tar.gz\n", out)
-	// Dynamic fields should be stripped in non-TTY output.
-	assert.NotContains(t, out, "progress=")
-	assert.NotContains(t, out, "elapsed=")
 
 	require.NoError(t, r.Msg("done"))
 }
@@ -473,7 +472,7 @@ func TestGroupTaskResultElapsed(t *testing.T) {
 	require.NoError(t, r.Msg("done"))
 
 	out := buf.String()
-	assert.Contains(t, out, "elapsed=")
+	assert.Equal(t, "INF ⏳ timed\nINF ℹ️ done elapsed=0s\n", out)
 }
 
 func TestGroupUpdate(t *testing.T) {
@@ -577,7 +576,7 @@ func TestGroupResultError(t *testing.T) {
 	require.ErrorIs(t, err, testErr)
 
 	out := buf.String()
-	assert.Contains(t, out, "boom")
+	assert.Equal(t, "INF ⏳ ok\nINF ⏳ fail\nERR ❌ boom\n", out)
 }
 
 func TestGroupResultSilent(t *testing.T) {
@@ -757,7 +756,9 @@ func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 
 	require.NoError(t, <-result)
 	got := buf.String()
+	//nolint:gocritic // timing-dependent frame count; full animation output is not deterministic
 	assert.Contains(t, got, xansi.CursorUp(5)+xansi.CursorHorizontalAbsolute(1))
+	//nolint:gocritic // timing-dependent frame count; full animation output is not deterministic
 	assert.NotContains(t, got, xansi.CursorUp(2)+xansi.CursorHorizontalAbsolute(1))
 }
 
@@ -802,6 +803,7 @@ func TestGroupAdvancementUsesLineFeed(t *testing.T) {
 
 	require.NoError(t, <-result)
 	got := buf.String()
+	//nolint:gocritic // timing-dependent frame count; full animation output is not deterministic
 	assert.NotContains(
 		t,
 		got,
@@ -863,6 +865,7 @@ func TestGroupFrameSynchronizationAndSkip(t *testing.T) {
 	assert.LessOrEqual(t, syncCount, 5,
 		"identical frames must be skipped, not rewritten every tick")
 
+	//nolint:gocritic // timing-dependent frame count; full animation output is not deterministic
 	assert.NotContains(
 		t,
 		got,
@@ -913,6 +916,7 @@ func TestAnimationFrameSynchronizationAndSkip(t *testing.T) {
 
 	// The completion erase is its own synchronized frame: the live region
 	// paints a zero-line frame over the previous one-row block.
+	//nolint:gocritic // timing-dependent frame count; full animation output is not deterministic
 	assert.Contains(
 		t,
 		got,
