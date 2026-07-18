@@ -28,7 +28,10 @@ func TestIndentTwoLevelsChained(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Indent().Logger()
+	sub := l.With().
+		Indent().
+		Indent().
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️     hello\n", buf.String())
@@ -357,7 +360,10 @@ func TestIndentWithContextFields(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Str("ctx", "field").Logger()
+	sub := l.With().
+		Indent().
+		Str("ctx", "field").
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️   hello ctx=field\n", buf.String())
@@ -367,7 +373,10 @@ func TestIndentWithBothFieldTypes(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Str("ctx", "one").Logger()
+	sub := l.With().
+		Indent().
+		Str("ctx", "one").
+		Logger()
 	sub.Info().Str("event", "two").Msg("hello")
 
 	assert.Equal(t, "INF ℹ️   hello ctx=one event=two\n", buf.String())
@@ -381,7 +390,10 @@ func TestIndentWithCustomSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Symbol(">>>").Logger()
+	sub := l.With().
+		Indent().
+		Symbol(">>>").
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF >>>   hello\n", buf.String())
@@ -514,7 +526,10 @@ func TestIndentAndDepthMixed(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Depth(2).Logger() // 1 + 2 = 3
+	sub := l.With().
+		Indent().
+		Depth(2).
+		Logger() // 1 + 2 = 3
 	sub.Info().Msg("hello")
 
 	// 3 levels × 2 spaces = 6 spaces.
@@ -818,7 +833,10 @@ func TestDedentReducesDepth(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 	// Start at depth 2, dedent once → depth 1.
-	sub := l.With().Indent().Indent().Logger()
+	sub := l.With().
+		Indent().
+		Indent().
+		Logger()
 	back := sub.With().Dedent().Logger()
 	back.Info().Msg("hello")
 
@@ -830,7 +848,10 @@ func TestDedentToZero(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 	// Indent then immediately dedent → back to zero.
-	sub := l.With().Indent().Dedent().Logger()
+	sub := l.With().
+		Indent().
+		Dedent().
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️ hello\n", buf.String())
@@ -852,7 +873,11 @@ func TestDedentChained(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 	// Depth(3) then Dedent twice → depth 1.
-	sub := l.With().Depth(3).Dedent().Dedent().Logger()
+	sub := l.With().
+		Depth(3).
+		Dedent().
+		Dedent().
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️   hello\n", buf.String())

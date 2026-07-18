@@ -53,7 +53,10 @@ func TestTreeTwoLevelsMiddleMiddle(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeMiddle).Tree(TreeMiddle).Logger()
+	sub := l.With().
+		Tree(TreeMiddle).
+		Tree(TreeMiddle).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// Parent is middle → "│   ", child is middle → "├── ".
@@ -64,7 +67,10 @@ func TestTreeTwoLevelsMiddleLast(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeMiddle).Tree(TreeLast).Logger()
+	sub := l.With().
+		Tree(TreeMiddle).
+		Tree(TreeLast).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// Parent is middle → "│   ", child is last → "└── ".
@@ -75,7 +81,10 @@ func TestTreeTwoLevelsLastLast(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeLast).Tree(TreeLast).Logger()
+	sub := l.With().
+		Tree(TreeLast).
+		Tree(TreeLast).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// Parent is last → "    ", child is last → "└── ".
@@ -86,7 +95,10 @@ func TestTreeTwoLevelsLastMiddle(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeLast).Tree(TreeMiddle).Logger()
+	sub := l.With().
+		Tree(TreeLast).
+		Tree(TreeMiddle).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// Parent is last → "    ", child is middle → "├── ".
@@ -97,7 +109,11 @@ func TestTreeThreeLevels(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeMiddle).Tree(TreeLast).Tree(TreeMiddle).Logger()
+	sub := l.With().
+		Tree(TreeMiddle).
+		Tree(TreeLast).
+		Tree(TreeMiddle).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// Ancestor 0 (middle) → "│   ", ancestor 1 (last) → "    ", leaf (middle) → "├── ".
@@ -164,7 +180,10 @@ func TestTreeWithIndent(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Tree(TreeMiddle).Logger()
+	sub := l.With().
+		Indent().
+		Tree(TreeMiddle).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// 2 spaces (indent) + "├── " (tree) + message.
@@ -175,7 +194,11 @@ func TestTreeWithIndentTwoLevels(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Indent().Tree(TreeMiddle).Tree(TreeLast).Logger()
+	sub := l.With().
+		Indent().
+		Tree(TreeMiddle).
+		Tree(TreeLast).
+		Logger()
 	sub.Info().Msg("hello")
 
 	// 2 spaces (indent) + "│   " (tree ancestor) + "└── " (tree leaf).
@@ -229,7 +252,10 @@ func TestTreeCustomCharsContinuation(t *testing.T) {
 		Blank:    "   ",
 	})
 
-	sub := l.With().Tree(TreeFirst).Tree(TreeLast).Logger()
+	sub := l.With().
+		Tree(TreeFirst).
+		Tree(TreeLast).
+		Logger()
 	sub.Info().Msg("nested")
 
 	// First parent → Continue "│  ", last leaf → "└─ ".
@@ -308,7 +334,10 @@ func TestTreeHandler(t *testing.T) {
 		got = e
 	}))
 
-	sub := l.With().Tree(TreeMiddle).Tree(TreeLast).Logger()
+	sub := l.With().
+		Tree(TreeMiddle).
+		Tree(TreeLast).
+		Logger()
 	sub.Info().Msg("test")
 
 	assert.Equal(t, []TreePos{TreeMiddle, TreeLast}, got.Tree)
@@ -381,7 +410,10 @@ func TestTreeWithContextFields(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeLast).Str("ctx", "field").Logger()
+	sub := l.With().
+		Tree(TreeLast).
+		Str("ctx", "field").
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF ℹ️ └── hello ctx=field\n", buf.String())
@@ -395,7 +427,10 @@ func TestTreeWithCustomSymbol(t *testing.T) {
 	var buf bytes.Buffer
 
 	l := New(TestOutput(&buf))
-	sub := l.With().Tree(TreeMiddle).Symbol(">>>").Logger()
+	sub := l.With().
+		Tree(TreeMiddle).
+		Symbol(">>>").
+		Logger()
 	sub.Info().Msg("hello")
 
 	assert.Equal(t, "INF >>> ├── hello\n", buf.String())

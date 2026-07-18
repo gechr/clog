@@ -49,7 +49,11 @@ func BenchmarkLogContext(b *testing.B) {
 	b.ReportAllocs()
 
 	l := New(NewOutput(io.Discard, ColorNever))
-	sub := l.With().Str("app", "bench").Int("pid", 1234).Bool("debug", false).Logger()
+	sub := l.With().
+		Str("app", "bench").
+		Int("pid", 1234).
+		Bool("debug", false).
+		Logger()
 
 	for b.Loop() {
 		sub.Info().Str("action", "test").Msg("context log")

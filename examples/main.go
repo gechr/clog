@@ -475,12 +475,18 @@ func main() {
 	clog.Warn().Symbol("🐌").Str("query", "SELECT *").Msg("Slow query")
 	// --- Sub-loggers ---
 	header("Sub-loggers")
-	auth := clog.With().Str("component", "auth").Symbol("🔒").Logger()
+	auth := clog.With().
+		Str("component", "auth").
+		Symbol("🔒").
+		Logger()
 	auth.Info().Str("user", "alice").Msg("Login successful")
 	auth.Warn().Str("user", "bob").Str("reason", "bad password").Msg("Login failed")
 	auth.Debug().Str("token", "eyJ...").Msg("Token issued")
 
-	db := clog.With().Str("component", "db").Str("host", "postgres:5432").Logger()
+	db := clog.With().
+		Str("component", "db").
+		Str("host", "postgres:5432").
+		Logger()
 	db.Info().Msg("Connected")
 	db.Debug().Duration("latency", 2*time.Millisecond).Msg("Query executed")
 	// --- Level alignment ---
