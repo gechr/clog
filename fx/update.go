@@ -134,7 +134,7 @@ func (p *Update) Msgf(format string, args ...any) *Update {
 // anchored to the moment this method is called - so a deadline can be scoped
 // to one phase of a task and attached only when that phase begins. Like any
 // other update field, it lasts until a later [Update.Send] omits it.
-// Coloring runs against the logger's elapsed gradient by consumed time; use
+// Coloring runs against the logger's deadline gradient by consumed time; use
 // options from the [deadline] package to override rendering for this field.
 // The field is omitted from the done row by default
 // (deadline.WithOmitOnDone). On a non-animated (non-TTY) line the field

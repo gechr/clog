@@ -17,7 +17,7 @@ type TimeScale = core.TimeScale
 // Option configures how a deadline field is rendered.
 type Option func(*Deadline)
 
-// WithGradient returns an [Option] that overrides the logger's elapsed
+// WithGradient returns an [Option] that overrides the logger's deadline
 // gradient color stops for this field. The gradient runs from the first stop
 // on a fresh deadline to the last stop at expiry.
 //
@@ -32,7 +32,7 @@ func WithGradient(stops ...style.ColorStop) Option {
 	}
 }
 
-// WithGradientMode returns an [Option] that overrides the logger's elapsed
+// WithGradientMode returns an [Option] that overrides the logger's deadline
 // gradient transition mode ([style.GradientFade] or [style.GradientStep])
 // for this field.
 func WithGradientMode(mode style.GradientMode) Option {

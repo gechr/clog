@@ -283,7 +283,7 @@ func (b *Builder) Elapsed(key string, opts ...elapsed.Option) *Builder {
 
 // Deadline enables an auto-updating countdown field that displays the time
 // remaining until from has elapsed, clamped at 0. Coloring runs against the
-// logger's elapsed gradient by consumed time, so a fresh deadline starts at
+// logger's deadline gradient by consumed time, so a fresh deadline starts at
 // the gradient's first stop (green) and an expiring one ends at the last
 // (red). Use options from the [deadline] package (e.g. [deadline.WithGradient])
 // to override the gradient settings for this builder's deadline field only.

@@ -890,6 +890,7 @@ func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
 	if !l.styleOverride.gradient {
 		l.styles.DurationGradient = style.ElapsedGradientFor(t.Background)
 		l.styles.ElapsedGradient = style.ElapsedGradientFor(t.Background)
+		l.styles.DeadlineGradient = style.ElapsedGradientFor(t.Background)
 		l.styles.PercentGradient = style.PercentGradientFor(t.Background)
 	}
 }
@@ -954,6 +955,8 @@ func customGradient(s *style.Config) bool {
 	case s.DurationGradient != nil && !slices.Equal(s.DurationGradient, elapsedDefault):
 		return true
 	case s.ElapsedGradient != nil && !slices.Equal(s.ElapsedGradient, elapsedDefault):
+		return true
+	case s.DeadlineGradient != nil && !slices.Equal(s.DeadlineGradient, elapsedDefault):
 		return true
 	case s.PercentGradient != nil && !slices.Equal(s.PercentGradient, percentDefault):
 		return true

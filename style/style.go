@@ -98,6 +98,11 @@ type Config struct {
 	// as part of the styled span so the message keeps the visible width the
 	// caller wrote (pre-aligned content stays aligned).
 	BacktickMode BacktickMode
+	// Gradient stops for Deadline fields (default: green -> yellow -> red).
+	// Active only when the field has a positive From; overrides FieldElapsedNumber/FieldElapsedUnit.
+	DeadlineGradient []ColorStop
+	// How deadline gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
+	DeadlineGradientMode GradientMode
 	// Style for divider line characters (see [clog.DividerBuilder]) [nil = plain text]
 	DividerLine *lipgloss.Style
 	// Style for divider title text [nil = plain text]

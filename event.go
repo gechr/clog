@@ -1145,7 +1145,7 @@ func (e *Event) Elapsed(key string, opts ...elapsed.Option) *Event {
 //
 // The key parameter is the field name (e.g. "timeout"). The field uses the
 // same formatting and styling as [fx.Builder.Deadline]: it is colored by the
-// consumed time against the logger's elapsed gradient, so a fresh deadline
+// consumed time against the logger's deadline gradient, so a fresh deadline
 // uses the gradient's first stop (green) and an expiring one the last (red).
 // Use options from the [deadline] package (e.g. [deadline.WithGradient]) to
 // override the gradient settings for this field only:

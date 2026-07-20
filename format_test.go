@@ -3516,7 +3516,7 @@ func TestStyleDeadlineGradient(t *testing.T) {
 
 	t.Run("inactive_nil_stops", func(t *testing.T) {
 		styles := DefaultStyles()
-		styles.ElapsedGradient = nil
+		styles.DeadlineGradient = nil
 
 		val := core.DeadlineField{Remaining: 5 * time.Second, From: 30 * time.Second}
 		got := styleDeadline("5s", val, styles)

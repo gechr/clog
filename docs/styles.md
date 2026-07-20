@@ -94,6 +94,8 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 | ------------------------ | ------------------------ | --------------- | ---------------------------- |
 | `Backtick`               | `Style`                  |                 | pink                         |
 | `BacktickMode`           | `style.BacktickMode`     |                 | `style.BacktickStrip`        |
+| `DeadlineGradient`       | `[]style.ColorStop`      |                 | green → yellow → red         |
+| `DeadlineGradientMode`   | `style.GradientMode`     |                 | `style.GradientFade`         |
 | `DurationGradient`       | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `DurationGradientMode`   | `style.GradientMode`     |                 | `style.GradientFade`         |
 | `DurationThresholds`     | `map[string][]Threshold` | `ThresholdMap`  | `{}`                         |
@@ -146,6 +148,8 @@ See [Printer](printer.md) for per-format token style tables.
 | ------------------------ | ------------------------------------------------------------------------------------------------------------- |
 | `Backtick`               | Style for text inside backtick pairs in messages and string field values, nil to disable                      |
 | `BacktickMode`           | Backtick delimiters: `BacktickStrip` drops them, `BacktickKeep` keeps them (width-stable)                     |
+| `DeadlineGradient`       | Gradient color stops for `Deadline` fields; active when the field's `From` > 0 (max is the countdown window)  |
+| `DeadlineGradientMode`   | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                                |
 | `DurationGradient`       | Gradient color stops for `Duration` fields; active when `FieldFormats.DurationGradientMax` > 0                |
 | `DurationGradientMode`   | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                                |
 | `DurationThresholds`     | Duration unit -> magnitude-based style thresholds                                                             |
@@ -307,7 +311,7 @@ clog.SetFieldFormats(f)
 
 When active, the gradient overrides `FieldElapsedNumber` / `FieldElapsedUnit` and colors the entire formatted string. When the max is 0 (the default) or `ElapsedGradient` stops are nil, the existing number/unit split styling is used.
 
-Use `style.DefaultElapsedGradient()` to get the default green → yellow → red gradient stops used for `Elapsed` fields (same stops as `DurationGradient` by default).
+Use `style.DefaultElapsedGradient()` to get the default green → yellow → red gradient stops used for `Elapsed` fields (the same stops back `DurationGradient` and `DeadlineGradient` by default).
 
 ### Per-Field Overrides
 
@@ -368,7 +372,7 @@ The `duration` package mirrors this for `Duration` fields: `duration.WithGradien
 
 ### Gradient Mode
 
-Both `DurationGradientMode` and `ElapsedGradientMode` control how colors transition between stops:
+`DurationGradientMode`, `ElapsedGradientMode`, and `DeadlineGradientMode` all control how colors transition between stops:
 
 | Mode                 | Description                                  |
 | -------------------- | -------------------------------------------- |

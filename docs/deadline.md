@@ -81,7 +81,7 @@ Deadline fields inherit the elapsed display settings from [`FieldFormats`](confi
 
 ### Gradient
 
-The gradient position is the consumed fraction `(from - remaining) / from`, so `from` is always the gradient maximum - there is no `GradientMax` knob. The stops default to the logger's `ElapsedGradient` (green → yellow → red); override per field with options from the `deadline` package:
+The gradient position is the consumed fraction `(from - remaining) / from`, so `from` is always the gradient maximum - there is no `GradientMax` knob. The stops default to the logger's `DeadlineGradient` (green → yellow → red); override per field with options from the `deadline` package:
 
 ```go
 import "github.com/gechr/clog/field/deadline"

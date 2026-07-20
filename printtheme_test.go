@@ -105,6 +105,7 @@ func TestSetStylesDefaultPassthroughStillAdapts(t *testing.T) {
 	require.Equal(t, style.BacktickFor(theme.BackgroundLight), l.styles.Backtick)
 	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.ElapsedGradient)
 	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.DurationGradient)
+	require.Equal(t, style.ElapsedGradientFor(theme.BackgroundLight), l.styles.DeadlineGradient)
 	require.Equal(t, style.PercentGradientFor(theme.BackgroundLight), l.styles.PercentGradient)
 	require.Equal(t, style.NewJSON(theme.Light()), l.styles.JSON)
 }

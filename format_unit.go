@@ -197,7 +197,7 @@ func styleElapsedGradient(
 }
 
 // styleDeadline renders a countdown string. When the deadline gradient is
-// active ([style.Config.ElapsedGradient] non-empty and From > 0), the entire
+// active ([style.Config.DeadlineGradient] non-empty and From > 0), the entire
 // string is colored by interpolating the gradient based on the consumed time
 // (From - Remaining) / From, so a fresh deadline uses the first stop and an
 // expiring one the last. Otherwise it falls back to the number/unit split
@@ -249,7 +249,7 @@ func styleDeadlineGradient(
 		return ""
 	}
 
-	stops := styles.ElapsedGradient
+	stops := styles.DeadlineGradient
 	if len(df.Gradient) > 0 {
 		stops = df.Gradient
 	}
@@ -261,7 +261,7 @@ func styleDeadlineGradient(
 		return ""
 	}
 
-	mode := styles.ElapsedGradientMode
+	mode := styles.DeadlineGradientMode
 	if df.GradientMode != nil {
 		mode = *df.GradientMode
 	}
