@@ -35,6 +35,10 @@ func Default() *Config {
 		FieldQuantityUnit: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
+		FieldQuote: &QuoteStyle{
+			Style:   lipgloss.NewStyle().Faint(true),
+			Inherit: true,
+		},
 		FieldString: new(lipgloss.NewStyle()),
 		FieldTime: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta

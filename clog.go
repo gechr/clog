@@ -170,6 +170,7 @@ func New(output *Output) *Logger {
 		symbols:           DefaultSymbols(),
 		separatorText:     "=",
 		sliceSep:          ", ",
+		smartQuotes:       true,
 		styles:            DefaultStyles(),
 		printThemeDirty:   true,
 		timeFormat:        "15:04:05.000",
@@ -704,6 +705,8 @@ func (l *Logger) SetSymbols(symbols LabelMap) {
 // values that contain spaces or special characters (e.g. '[' and ']', or
 // '«' and '»'). Pass the same rune twice for symmetric quoting. The default
 // (zero values) uses Go-style double-quoted strings via [strconv.Quote].
+// Setting a non-zero openChar overrides [Logger.SetSmartQuotes], even when
+// smart quoting is enabled.
 func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -730,7 +733,7 @@ var defaultSmartQuoteChars = []QuotePair{{Open: '"'}, {Open: '\''}, {Open: '`'}}
 // [Logger.SetSmartQuoteChars]) whose delimiters do not occur in the value, so
 // no escaping is needed; it falls back to Go-style escaped quoting only when
 // no pair fits (or the value contains backslashes or non-printable runes).
-// Smart quoting takes precedence over [Logger.SetQuoteChars].
+// [Logger.SetQuoteChars] takes precedence over smart quoting when set explicitly.
 func (l *Logger) SetSmartQuotes(enabled bool) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -749,10 +752,11 @@ func (l *Logger) SetSmartQuoteChars(pairs ...QuotePair) {
 }
 
 // smartQuotePairs returns the active smart-quote preference list: nil when
-// smart quoting is disabled, the configured pairs when set, or
+// smart quoting is disabled, when [Logger.SetQuoteChars] has been set
+// explicitly (which takes precedence), the configured pairs when set, or
 // [defaultSmartQuoteChars] otherwise. Callers must hold l.mu.
 func (l *Logger) smartQuotePairs() []QuotePair {
-	if !l.smartQuotes {
+	if !l.smartQuotes || l.quoteOpen != 0 {
 		return nil
 	}
 	if len(l.smartQuoteChars) > 0 {
