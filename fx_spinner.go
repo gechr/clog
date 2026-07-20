@@ -8,7 +8,7 @@ import (
 // Spinner creates a new [fx.Builder] using the [Default] logger with a
 // rotating spinner animation.
 func Spinner(msg string, opts ...spinner.Option) *fx.Builder {
-	return Default.Spinner(msg, opts...)
+	return Default().Spinner(msg, opts...)
 }
 
 // Spinner creates a new [fx.Builder] with a rotating spinner animation.

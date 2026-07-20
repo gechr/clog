@@ -25,10 +25,10 @@ clog.Ctx(ctx).Info().Msg("Handling request")
 // INF ℹ️ Handling request request_id=abc-123
 ```
 
-`Ctx` returns `clog.Default` when the context is `nil` or contains no logger, so it is always safe to call.
+`Ctx` returns `clog.Default()` when the context is `nil` or contains no logger, so it is always safe to call.
 
-A package-level `WithContext` convenience stores `clog.Default`:
+A package-level `WithContext` convenience stores `clog.Default()`:
 
 ```go
-ctx := clog.WithContext(ctx) // stores clog.Default
+ctx := clog.WithContext(ctx) // stores clog.Default()
 ```

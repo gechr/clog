@@ -72,8 +72,24 @@ const ErrorKey = core.ErrorKey
 // Nil is the string representation used for nil values.
 const Nil = core.Nil
 
-// Default is the default logger instance.
-var Default = New(Stdout(ColorAuto))
+var defaultLogger = func() *atomic.Pointer[Logger] {
+	p := new(atomic.Pointer[Logger])
+	p.Store(New(Stdout(ColorAuto)))
+	return p
+}()
+
+// Default returns the default [Logger] used by the package-level functions.
+func Default() *Logger { return defaultLogger.Load() }
+
+// SetDefault sets the default [Logger] used by the package-level functions.
+// It panics if logger is nil.
+func SetDefault(logger *Logger) {
+	if logger == nil {
+		panic("clog: nil Logger")
+	}
+
+	defaultLogger.Store(logger)
+}
 
 // styleOverride records which theme-derived styles the user supplied
 // explicitly via [Logger.SetStyles]. Each set flag is excluded from
@@ -280,55 +296,55 @@ func (l *Logger) LogFields(level Level, ts time.Time, msg string, fields []Field
 
 // Log returns a new [Event] at the given level from the [Default] logger.
 // Use this for custom levels registered with [RegisterLevel].
-func Log(level Level) *Event { return Default.Log(level) }
+func Log(level Level) *Event { return Default().Log(level) }
 
 // Trace returns a new trace-level [Event] from the [Default] logger.
-func Trace() *Event { return Default.Trace() }
+func Trace() *Event { return Default().Trace() }
 
 // Debug returns a new debug-level [Event] from the [Default] logger.
-func Debug() *Event { return Default.Debug() }
+func Debug() *Event { return Default().Debug() }
 
 // Info returns a new info-level [Event] from the [Default] logger.
-func Info() *Event { return Default.Info() }
+func Info() *Event { return Default().Info() }
 
 // Hint returns a new hint-level [Event] from the [Default] logger.
-func Hint() *Event { return Default.Hint() }
+func Hint() *Event { return Default().Hint() }
 
 // Dry returns a new dry-level [Event] from the [Default] logger.
-func Dry() *Event { return Default.Dry() }
+func Dry() *Event { return Default().Dry() }
 
 // Warn returns a new warn-level [Event] from the [Default] logger.
-func Warn() *Event { return Default.Warn() }
+func Warn() *Event { return Default().Warn() }
 
 // Error returns a new error-level [Event] from the [Default] logger.
-func Error() *Event { return Default.Error() }
+func Error() *Event { return Default().Error() }
 
 // Fatal returns a new fatal-level [Event] from the [Default] logger.
-func Fatal() *Event { return Default.Fatal() }
+func Fatal() *Event { return Default().Fatal() }
 
 // With returns a [Context] for building a sub-logger from the [Default] logger.
-func With() *Context { return Default.With() }
+func With() *Context { return Default().With() }
 
 // WithContext stores the [Default] logger in ctx.
 func WithContext(ctx context.Context) context.Context {
-	return Default.WithContext(ctx)
+	return Default().WithContext(ctx)
 }
 
 // Ctx retrieves the logger from ctx. Returns [Default] if ctx is nil
 // or contains no logger.
 func Ctx(ctx context.Context) *Logger {
 	if ctx == nil {
-		return Default
+		return Default()
 	}
 	if l, ok := ctx.Value(ctxKey{}).(*Logger); ok {
 		return l
 	}
-	return Default
+	return Default()
 }
 
 // Dict returns a new detached [Event] for use as a nested dictionary field.
 // The event uses the [Default] logger's output for hyperlink/color resolution.
-func Dict() *Event { return Default.Dict() }
+func Dict() *Event { return Default().Dict() }
 
 // Dict returns a new detached [Event] for use as a nested dictionary field.
 // The event uses the logger's output for hyperlink/color resolution.
@@ -336,14 +352,14 @@ func (l *Logger) Dict() *Event { return &Event{logger: l, dict: true} }
 
 // Divider returns a new [DividerBuilder] for rendering a horizontal rule
 // using the [Default] logger.
-func Divider() *DividerBuilder { return Default.Divider() }
+func Divider() *DividerBuilder { return Default().Divider() }
 
 // Print returns a new [Printer] for writing styled output from the [Default] logger.
-func Print() *Printer { return Default.Print() }
+func Print() *Printer { return Default().Print() }
 
 // GetLevel returns the current log level of the [Default] logger.
 func GetLevel() Level {
-	return Default.Level()
+	return Default().Level()
 }
 
 // IsVerbose returns true if verbose/debug mode is enabled on the [Default] logger.
@@ -1020,18 +1036,19 @@ func RegisterLevel(lvl Level, cfg LevelConfig) {
 	customLevelsMu.Unlock()
 
 	// Update the Default logger.
-	Default.mu.Lock()
-	Default.labels[lvl] = cfg.Label
-	Default.symbols[lvl] = cfg.Symbol
-	Default.labelWidth = computeLabelWidth(Default.labels)
-	Default.recomputePaddedLabels()
+	logger := Default()
+	logger.mu.Lock()
+	logger.labels[lvl] = cfg.Label
+	logger.symbols[lvl] = cfg.Symbol
+	logger.labelWidth = computeLabelWidth(logger.labels)
+	logger.recomputePaddedLabels()
 	if cfg.Style != nil {
-		if Default.styles.Levels == nil {
-			Default.styles.Levels = make(style.LevelMap)
+		if logger.styles.Levels == nil {
+			logger.styles.Levels = make(style.LevelMap)
 		}
-		Default.styles.Levels[lvl] = cfg.Style
+		logger.styles.Levels[lvl] = cfg.Style
 	}
-	Default.mu.Unlock()
+	logger.mu.Unlock()
 }
 
 // ParseLevel maps a level name string to a [Level] value.

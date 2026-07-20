@@ -125,7 +125,7 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 		column = 1
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -151,7 +151,7 @@ func (e *Event) Columns(key string, items []Column) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -466,7 +466,7 @@ func (e *Event) Line(key, path string, line int) *Event {
 		return e.Path(key, path)
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -493,7 +493,7 @@ func (e *Event) Lines(key string, items []Line) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -518,7 +518,7 @@ func (e *Event) Link(key, url, text string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -536,7 +536,7 @@ func (e *Event) Links(key string, links []Link) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -634,7 +634,7 @@ func (e *Event) fieldFormats() *FieldFormats {
 	if e.logger != nil {
 		return e.logger.loadFieldFormats()
 	}
-	return Default.loadFieldFormats()
+	return Default().loadFieldFormats()
 }
 
 func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event {
@@ -659,7 +659,7 @@ func (e *Event) Path(key, path string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -681,7 +681,7 @@ func (e *Event) PathText(key, text, path string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -700,7 +700,7 @@ func (e *Event) Paths(key string, paths []string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -1048,7 +1048,7 @@ func (e *Event) URL(key, url string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}
@@ -1067,7 +1067,7 @@ func (e *Event) URLs(key string, urls []string) *Event {
 		return e
 	}
 
-	output := Default.Output()
+	output := Default().Output()
 	if e.logger != nil {
 		output = e.logger.Output()
 	}

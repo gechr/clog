@@ -142,12 +142,12 @@ func TestHooksInheritedBySubLogger(t *testing.T) {
 }
 
 func TestDefaultLoggerAddHook(t *testing.T) {
-	old := Default
-	defer func() { Default = old }()
+	old := Default()
+	defer func() { SetDefault(old) }()
 
 	var buf bytes.Buffer
-	Default = NewWriter(&buf)
-	Default.SetLevel(LevelInfo)
+	SetDefault(NewWriter(&buf))
+	Default().SetLevel(LevelInfo)
 
 	var called bool
 	AddHook(HookBeforeWrite, func() { called = true })
@@ -159,12 +159,12 @@ func TestDefaultLoggerAddHook(t *testing.T) {
 }
 
 func TestDefaultLoggerClearHooks(t *testing.T) {
-	old := Default
-	defer func() { Default = old }()
+	old := Default()
+	defer func() { SetDefault(old) }()
 
 	var buf bytes.Buffer
-	Default = NewWriter(&buf)
-	Default.SetLevel(LevelInfo)
+	SetDefault(NewWriter(&buf))
+	Default().SetLevel(LevelInfo)
 
 	var called bool
 	AddHook(HookBeforeWrite, func() { called = true })

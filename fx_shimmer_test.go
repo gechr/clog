@@ -77,12 +77,12 @@ func TestShimmerBuilderSymbolDefault(t *testing.T) {
 }
 
 func TestShimmerDefaultSymbolInOutput(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 
 	result := Shimmer("loading").Wait(context.Background(), func(_ context.Context) error {
 		return nil
@@ -93,12 +93,12 @@ func TestShimmerDefaultSymbolInOutput(t *testing.T) {
 }
 
 func TestShimmerCustomSymbolInOutput(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 
 	result := Shimmer(
 		"loading",

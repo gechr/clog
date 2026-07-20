@@ -12,7 +12,7 @@ import (
 // Use [shimmer.WithGradient], [shimmer.WithDirection], and [shimmer.WithSpeed]
 // to customise the animation.
 func Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
-	return Default.Shimmer(msg, opts...)
+	return Default().Shimmer(msg, opts...)
 }
 
 // Shimmer creates a new [fx.Builder] with an animated gradient shimmer on the message text.

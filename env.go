@@ -67,14 +67,14 @@ func loadLogLevelFromEnv() {
 		return
 	}
 
-	Default.SetLevel(parsed)
+	Default().SetLevel(parsed)
 	if parsed <= LevelDebug {
-		Default.SetReportTimestamp(true)
+		Default().SetReportTimestamp(true)
 	}
 }
 
 func loadHyperlinkFormatsFromEnv() {
-	f := Default.FieldFormats()
+	f := Default().FieldFormats()
 	changed := false
 
 	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
@@ -117,7 +117,7 @@ func loadHyperlinkFormatsFromEnv() {
 	}
 
 	if changed {
-		Default.SetFieldFormats(f)
+		Default().SetFieldFormats(f)
 	}
 }
 
@@ -136,7 +136,7 @@ func loadThemeFromEnv() {
 		return
 	}
 	if pair != nil {
-		Default.SetTheme(pair)
+		Default().SetTheme(pair)
 	}
 }
 

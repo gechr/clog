@@ -526,12 +526,12 @@ func TestGroupTaskTree(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPackageLevelSetTreeChars(t *testing.T) {
-	orig := Default
-	defer func() { Default = orig }()
+	orig := Default()
+	defer func() { SetDefault(orig) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 	SetTreeChars(TreeChars{
 		First:    "F ",
 		Middle:   "M ",

@@ -6,14 +6,14 @@ import "github.com/gechr/clog/field/hyperlink"
 // using the [Default] logger's output and hyperlink configuration.
 // Returns plain text when colors or hyperlinks are disabled.
 func Hyperlink(url, text string) string {
-	return Default.Output().Hyperlink(url, text)
+	return Default().Output().Hyperlink(url, text)
 }
 
 // PathLink creates a clickable terminal hyperlink for a file path, using
 // the [Default] logger's output and hyperlink configuration.
 // The line parameter is optional - pass 0 to omit line numbers.
 func PathLink(path string, line int) string {
-	return Default.Output().PathLink(path, line, 0)
+	return Default().Output().PathLink(path, line, 0)
 }
 
 // PathLinkText is like [PathLink] but renders text as the visible link label
@@ -22,7 +22,7 @@ func PathLink(path string, line int) string {
 // while linking to its full location. The line parameter is optional - pass 0
 // to omit it from the resolved URL.
 func PathLinkText(text, path string, line int) string {
-	return Default.Output().PathLinkText(text, path, line, 0)
+	return Default().Output().PathLinkText(text, path, line, 0)
 }
 
 // Hyperlink wraps text in an OSC 8 terminal hyperlink, using the Output's

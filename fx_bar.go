@@ -11,7 +11,7 @@ import (
 // determinate progress bar animation.
 // total is the maximum progress value. Use [Update.SetProgress] to update progress.
 func Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
-	return Default.Bar(msg, total, opts...)
+	return Default().Bar(msg, total, opts...)
 }
 
 // Bar creates a new [fx.Builder] with a determinate progress bar animation.

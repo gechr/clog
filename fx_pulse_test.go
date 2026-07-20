@@ -65,12 +65,12 @@ func TestPulseSpeedNegativeFallsBackToDefault(t *testing.T) {
 }
 
 func TestPulseDefaultSymbolInOutput(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 
 	result := Pulse("loading").Wait(context.Background(), func(_ context.Context) error {
 		return nil
@@ -81,12 +81,12 @@ func TestPulseDefaultSymbolInOutput(t *testing.T) {
 }
 
 func TestPulseCustomSymbolInOutput(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 
 	result := Pulse(
 		"loading",

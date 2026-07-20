@@ -84,12 +84,12 @@ func TestColorsDisabledAutoNonTTY(t *testing.T) {
 }
 
 func TestColorsDisabledPackageLevel(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = New(NewOutput(io.Discard, ColorAlways))
+	SetDefault(New(NewOutput(io.Discard, ColorAlways)))
 	assert.False(t, ColorsDisabled())
 
-	Default = New(NewOutput(io.Discard, ColorNever))
+	SetDefault(New(NewOutput(io.Discard, ColorNever)))
 	assert.True(t, ColorsDisabled())
 }

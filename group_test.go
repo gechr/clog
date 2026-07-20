@@ -497,9 +497,9 @@ func TestGroupUpdate(t *testing.T) {
 }
 
 func TestGroupDefaultLogger(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-	Default = NewWriter(io.Discard)
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
+	SetDefault(NewWriter(io.Discard))
 
 	g := Group(context.Background())
 	r := g.Add(Spinner("default")).

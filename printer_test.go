@@ -371,11 +371,11 @@ func TestPrinterRawHCLEmpty(t *testing.T) {
 }
 
 func TestPrinterPackageLevel(t *testing.T) {
-	old := Default
+	old := Default()
 	l, buf := newTestPrinter()
-	Default = l
+	SetDefault(l)
 
-	defer func() { Default = old }()
+	defer func() { SetDefault(old) }()
 
 	Print().RawJSON([]byte(`{"ok":true}`))
 

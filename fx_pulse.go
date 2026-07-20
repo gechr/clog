@@ -11,7 +11,7 @@ import (
 // With no options, the default pulse gradient and speed are used.
 // Use [pulse.WithGradient] and [pulse.WithSpeed] to customise the animation.
 func Pulse(msg string, opts ...pulse.Option) *fx.Builder {
-	return Default.Pulse(msg, opts...)
+	return Default().Pulse(msg, opts...)
 }
 
 // Pulse creates a new [fx.Builder] with an animated color pulse on the message text.

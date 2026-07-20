@@ -144,58 +144,58 @@ func TestSetStylesPerStyleOverrideIsGranular(t *testing.T) {
 }
 
 func TestLoadThemeFromEnvExplicit(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 	saveEnvPrefix(t)
 	resetThemePrefix(t)
 
-	Default = New(NewOutput(&bytes.Buffer{}, ColorAlways))
+	SetDefault(New(NewOutput(&bytes.Buffer{}, ColorAlways)))
 	t.Setenv("CLOG_THEME", "monokai")
 	// The pair vars are present but the explicit theme must win.
 	t.Setenv("CLOG_THEME_LIGHT", "light")
 	t.Setenv("CLOG_THEME_DARK", "dark")
 
 	loadThemeFromEnv()
-	resolved(t, Default)
+	resolved(t, Default())
 
 	// The explicit theme is wrapped via theme.Single, so both backgrounds
 	// render Monokai.
-	require.False(t, Default.printThemeDirty)
-	require.NotNil(t, Default.printThemePair)
-	require.Equal(t, style.NewJSON(theme.Monokai()), Default.styles.JSON)
+	require.False(t, Default().printThemeDirty)
+	require.NotNil(t, Default().printThemePair)
+	require.Equal(t, style.NewJSON(theme.Monokai()), Default().styles.JSON)
 }
 
 func TestLoadThemeFromEnvPair(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 	saveEnvPrefix(t)
 	resetThemePrefix(t)
 
-	Default = New(NewOutput(&bytes.Buffer{}, ColorAlways))
+	SetDefault(New(NewOutput(&bytes.Buffer{}, ColorAlways)))
 	t.Setenv("CLOG_THEME_LIGHT", "catppuccin-latte")
 	t.Setenv("CLOG_THEME_DARK", "dracula")
 
 	loadThemeFromEnv()
 
-	require.True(t, Default.printThemeDirty)
-	require.NotNil(t, Default.printThemePair)
-	require.Equal(t, theme.CatppuccinLatte().Name(), Default.printThemePair.Light.Name())
-	require.Equal(t, theme.Dracula().Name(), Default.printThemePair.Dark.Name())
+	require.True(t, Default().printThemeDirty)
+	require.NotNil(t, Default().printThemePair)
+	require.Equal(t, theme.CatppuccinLatte().Name(), Default().printThemePair.Light.Name())
+	require.Equal(t, theme.Dracula().Name(), Default().printThemePair.Dark.Name())
 }
 
 func TestLoadThemeFromEnvUnsetLeavesDefault(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 	saveEnvPrefix(t)
 	resetThemePrefix(t)
 
-	Default = New(NewOutput(&bytes.Buffer{}, ColorAlways))
-	Default.SetTheme(theme.Single(theme.Monokai()))
-	resolved(t, Default)
+	SetDefault(New(NewOutput(&bytes.Buffer{}, ColorAlways)))
+	Default().SetTheme(theme.Single(theme.Monokai()))
+	resolved(t, Default())
 
 	loadThemeFromEnv()
 
 	// No theme env vars set: the explicitly chosen theme is left intact.
-	require.False(t, Default.printThemeDirty)
-	require.Equal(t, style.NewJSON(theme.Monokai()), Default.styles.JSON)
+	require.False(t, Default().printThemeDirty)
+	require.Equal(t, style.NewJSON(theme.Monokai()), Default().styles.JSON)
 }

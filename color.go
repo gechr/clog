@@ -58,5 +58,5 @@ func (m *ColorMode) UnmarshalText(text []byte) error {
 
 // ColorsDisabled returns true if colors are disabled on the [Default] logger.
 func ColorsDisabled() bool {
-	return Default.Output().ColorsDisabled()
+	return Default().Output().ColorsDisabled()
 }

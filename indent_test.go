@@ -754,12 +754,12 @@ func TestSpinnerIndentWithPrefixes(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPackageLevelSetIndent(t *testing.T) {
-	orig := Default
-	defer func() { Default = orig }()
+	orig := Default()
+	defer func() { SetDefault(orig) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 	SetIndent(1)
 	Info().Msg("hello")
 
@@ -767,12 +767,12 @@ func TestPackageLevelSetIndent(t *testing.T) {
 }
 
 func TestPackageLevelSetIndentWidth(t *testing.T) {
-	orig := Default
-	defer func() { Default = orig }()
+	orig := Default()
+	defer func() { SetDefault(orig) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 	SetIndentWidth(4)
 	SetIndent(1)
 	Info().Msg("hello")
@@ -781,12 +781,12 @@ func TestPackageLevelSetIndentWidth(t *testing.T) {
 }
 
 func TestPackageLevelSetIndentPrefixes(t *testing.T) {
-	orig := Default
-	defer func() { Default = orig }()
+	orig := Default()
+	defer func() { SetDefault(orig) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 	SetIndentPrefixes([]string{"|"})
 	SetIndent(1)
 	Info().Msg("hello")
@@ -795,12 +795,12 @@ func TestPackageLevelSetIndentPrefixes(t *testing.T) {
 }
 
 func TestPackageLevelSetIndentPrefixSeparator(t *testing.T) {
-	orig := Default
-	defer func() { Default = orig }()
+	orig := Default()
+	defer func() { SetDefault(orig) }()
 
 	var buf bytes.Buffer
 
-	Default = New(TestOutput(&buf))
+	SetDefault(New(TestOutput(&buf)))
 	SetIndentPrefixes([]string{"|"})
 	SetIndentPrefixSeparator("->")
 	SetIndent(1)

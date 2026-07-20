@@ -58,34 +58,34 @@ func TestGetEnvNoPrefix(t *testing.T) {
 }
 
 func TestSetEnvPrefix(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 	t.Setenv("MYAPP_LOG_LEVEL", "debug")
 	t.Setenv("CLOG_LOG_LEVEL", "")
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, LevelDebug, Default.level)
-	assert.True(t, Default.reportTimestamp)
+	assert.Equal(t, LevelDebug, Default().level)
+	assert.True(t, Default().reportTimestamp)
 }
 
 func TestSetEnvPrefixFallbackToClog(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 	t.Setenv("MYAPP_LOG_LEVEL", "")
 	t.Setenv("CLOG_LOG_LEVEL", "warn")
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, LevelWarn, Default.level)
+	assert.Equal(t, LevelWarn, Default().level)
 }
 
 func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
@@ -97,8 +97,8 @@ func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
 }
 
 func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
@@ -114,24 +114,24 @@ func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
 		{"newline", "warn\n", LevelWarn},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
-			Default = NewWriter(io.Discard)
+			SetDefault(NewWriter(io.Discard))
 			t.Setenv("CLOG_LOG_LEVEL", tt.value)
 			env.SetPrefix("")
 
 			loadLogLevelFromEnv()
 
-			assert.Equal(t, tt.want, Default.level)
+			assert.Equal(t, tt.want, Default().level)
 		})
 	}
 }
 
 func TestEnvLoadAllFromEnvReChecksNoColor(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 
 	// Start with NO_COLOR unset.
 	t.Setenv("NO_COLOR", "")
@@ -146,12 +146,12 @@ func TestEnvLoadAllFromEnvReChecksNoColor(t *testing.T) {
 }
 
 func TestEnvHyperlinkPresetApplied(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 	t.Setenv("CLOG_HYPERLINK_FORMAT", "vscode")
 	// Individual format vars override the preset.
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "custom://{path}")
@@ -159,19 +159,19 @@ func TestEnvHyperlinkPresetApplied(t *testing.T) {
 
 	loadHyperlinkFormatsFromEnv()
 
-	formats := Default.FieldFormats()
+	formats := Default().FieldFormats()
 	assert.Equal(t, "custom://{path}", formats.HyperlinkPathFormat)
 	assert.Equal(t, "vscode://file{path}:{line}", formats.HyperlinkLineFormat)
 	assert.Equal(t, "vscode://file{path}:{line}:{column}", formats.HyperlinkColumnFormat)
 }
 
 func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
 	saveEnvPrefix(t)
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 	t.Setenv("MYAPP_HYPERLINK_PATH_FORMAT", "vscode://file{path}")
 	t.Setenv("MYAPP_HYPERLINK_LINE_FORMAT", "vscode://file{path}:{line}")
 	t.Setenv("CLOG_HYPERLINK_PATH_FORMAT", "")
@@ -179,7 +179,7 @@ func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	formats := Default.FieldFormats()
+	formats := Default().FieldFormats()
 	assert.Equal(t, "vscode://file{path}", formats.HyperlinkPathFormat)
 	assert.Equal(t, "vscode://file{path}:{line}", formats.HyperlinkLineFormat)
 

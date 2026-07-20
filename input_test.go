@@ -73,12 +73,12 @@ func TestPasswordCookedReadsLine(t *testing.T) {
 }
 
 func TestPackageLevelInputUsesDefault(t *testing.T) {
-	orig := Default
-	t.Cleanup(func() { Default = orig })
+	orig := Default()
+	t.Cleanup(func() { SetDefault(orig) })
 
 	var out bytes.Buffer
-	Default = New(TestOutput(&out))
-	Default.SetInput(strings.NewReader("value\n"))
+	SetDefault(New(TestOutput(&out)))
+	Default().SetInput(strings.NewReader("value\n"))
 
 	got, err := Input("Prompt: ")
 
@@ -87,12 +87,12 @@ func TestPackageLevelInputUsesDefault(t *testing.T) {
 }
 
 func TestPackageLevelPasswordUsesDefault(t *testing.T) {
-	orig := Default
-	t.Cleanup(func() { Default = orig })
+	orig := Default()
+	t.Cleanup(func() { SetDefault(orig) })
 
 	var out bytes.Buffer
-	Default = New(TestOutput(&out))
-	Default.SetInput(strings.NewReader("value\n"))
+	SetDefault(New(TestOutput(&out)))
+	Default().SetInput(strings.NewReader("value\n"))
 
 	got, err := Password("Prompt: ")
 

@@ -154,10 +154,10 @@ func TestDividerCustomWidthWithTitle(t *testing.T) {
 
 func TestDividerPackageLevel(t *testing.T) {
 	var buf bytes.Buffer
-	old := Default
-	Default = New(TestOutput(&buf))
+	old := Default()
+	SetDefault(New(TestOutput(&buf)))
 
-	defer func() { Default = old }()
+	defer func() { SetDefault(old) }()
 
 	Divider().Send()
 

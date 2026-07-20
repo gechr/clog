@@ -22,10 +22,10 @@ func TestAfterSetsDelay(t *testing.T) {
 }
 
 func TestAfterTaskFinishesBeforeDelay(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 
 	start := time.Now()
 	result := Spinner("loading").
@@ -41,10 +41,10 @@ func TestAfterTaskFinishesBeforeDelay(t *testing.T) {
 }
 
 func TestAfterTaskFinishesAfterDelay(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 
 	result := Spinner("loading").
 		After(10*time.Millisecond).
@@ -58,10 +58,10 @@ func TestAfterTaskFinishesAfterDelay(t *testing.T) {
 }
 
 func TestAfterTaskErrorBeforeDelay(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 
 	testErr := assert.AnError
 	result := Spinner("loading").
@@ -74,10 +74,10 @@ func TestAfterTaskErrorBeforeDelay(t *testing.T) {
 }
 
 func TestAfterContextCancelledDuringDelay(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = NewWriter(io.Discard)
+	SetDefault(NewWriter(io.Discard))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	go func() {

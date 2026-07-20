@@ -208,24 +208,24 @@ func (l *Logger) PasswordContext(
 
 // Input prompts and reads a line using the [Default] logger.
 func Input(prompt string, opts ...InputOption) (string, error) {
-	return Default.Input(prompt, opts...)
+	return Default().Input(prompt, opts...)
 }
 
 // InputContext prompts and reads a line with cancellation using the
 // [Default] logger.
 func InputContext(ctx context.Context, prompt string, opts ...InputOption) (string, error) {
-	return Default.InputContext(ctx, prompt, opts...)
+	return Default().InputContext(ctx, prompt, opts...)
 }
 
 // Password prompts and reads a line without echo using the [Default] logger.
 func Password(prompt string, opts ...InputOption) (string, error) {
-	return Default.Password(prompt, opts...)
+	return Default().Password(prompt, opts...)
 }
 
 // PasswordContext prompts and reads a line without echo, with cancellation,
 // using the [Default] logger.
 func PasswordContext(ctx context.Context, prompt string, opts ...InputOption) (string, error) {
-	return Default.PasswordContext(ctx, prompt, opts...)
+	return Default().PasswordContext(ctx, prompt, opts...)
 }
 
 // styledPromptMarker returns the configured prompt marker (see

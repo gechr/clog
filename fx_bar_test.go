@@ -54,9 +54,9 @@ func TestBarBuilderTotalClamp(t *testing.T) {
 }
 
 func TestBarProgressSharedWithUpdate(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-	Default = NewWriter(io.Discard)
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
+	SetDefault(NewWriter(io.Discard))
 
 	var capturedProgress int
 	_ = Bar("Downloading", 100).
@@ -72,9 +72,9 @@ func TestBarProgressSharedWithUpdate(t *testing.T) {
 }
 
 func TestBarWait(t *testing.T) {
-	origDefault := Default
-	defer func() { Default = origDefault }()
-	Default = NewWriter(io.Discard)
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
+	SetDefault(NewWriter(io.Discard))
 
 	err := Bar("test", 10).
 		Wait(context.Background(), func(_ context.Context) error {

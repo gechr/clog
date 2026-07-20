@@ -5,7 +5,7 @@ Use `sloghandler.New` to create a [`slog.Handler`](https://pkg.go.dev/log/slog#H
 ```go
 import "github.com/gechr/clog/sloghandler"
 
-h := sloghandler.New(clog.Default, nil)
+h := sloghandler.New(clog.Default(), nil)
 logger := slog.New(h)
 
 logger.Info("request handled", "method", "GET", "status", 200)
@@ -15,7 +15,7 @@ logger.Info("request handled", "method", "GET", "status", 200)
 ## Options
 
 ```go
-h := sloghandler.New(clog.Default, &sloghandler.Options{
+h := sloghandler.New(clog.Default(), &sloghandler.Options{
   AddSource: true,           // include source file:line in each entry
   Level:     slog.LevelWarn, // override minimum level (nil = use logger's level)
 })
@@ -41,7 +41,7 @@ Records mapped to `LevelFatal` are logged but do **not** call `os.Exit` - only c
 ```go
 import "github.com/gechr/clog/sloghandler"
 
-h := sloghandler.New(clog.Default, nil)
+h := sloghandler.New(clog.Default(), nil)
 logger := slog.New(h).WithGroup("req")
 
 logger.Info("handled", "method", "GET", "status", 200)

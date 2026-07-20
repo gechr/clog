@@ -16,6 +16,15 @@ clog.Configure(&clog.Config{
 clog.SetVerbose(true)
 ```
 
+Use `Default()` when an API needs the package logger itself. To replace it, construct a logger and call `SetDefault`:
+
+```go
+logger := clog.New(clog.Stderr(clog.ColorAuto))
+clog.SetDefault(logger)
+
+clog.Default().Info().Msg("Using the replacement logger")
+```
+
 ## Output
 
 Each `Logger` writes to an `*Output`, which bundles an `io.Writer` with its terminal capabilities (TTY detection, width, color profile):

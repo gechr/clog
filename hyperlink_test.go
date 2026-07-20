@@ -21,10 +21,10 @@ func linkOutput(c hyperlink.Config) *Output {
 func TestHyperlinkDefault(t *testing.T) {
 	// Swap the whole Default logger: init() may have applied ambient
 	// CLOG_HYPERLINK_* env vars to its FieldFormats.
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = New(NewOutput(io.Discard, ColorAlways))
+	SetDefault(New(NewOutput(io.Discard, ColorAlways)))
 
 	got := Hyperlink("https://example.com", "click")
 	want := "\x1b]8;;https://example.com\x1b\\click\x1b]8;;\x1b\\"
@@ -35,10 +35,10 @@ func TestHyperlinkDefault(t *testing.T) {
 func TestPathLinkDefault(t *testing.T) {
 	// Swap the whole Default logger: init() may have applied ambient
 	// CLOG_HYPERLINK_* env vars to its FieldFormats.
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = New(NewOutput(io.Discard, ColorAlways))
+	SetDefault(New(NewOutput(io.Discard, ColorAlways)))
 
 	got := PathLink("/tmp/test.go", 42)
 	want := "\x1b]8;;file:///tmp/test.go\x1b\\/tmp/test.go:42\x1b]8;;\x1b\\"
@@ -49,10 +49,10 @@ func TestPathLinkDefault(t *testing.T) {
 func TestPathLinkTextDefault(t *testing.T) {
 	// Swap the whole Default logger: init() may have applied ambient
 	// CLOG_HYPERLINK_* env vars to its FieldFormats.
-	origDefault := Default
-	defer func() { Default = origDefault }()
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
 
-	Default = New(NewOutput(io.Discard, ColorAlways))
+	SetDefault(New(NewOutput(io.Discard, ColorAlways)))
 
 	// Visible label differs from the linked path: the URL targets the full
 	// path while the label shows an abbreviated form.
