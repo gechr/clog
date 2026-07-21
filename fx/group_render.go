@@ -691,43 +691,16 @@ func resolveDynamicFields(
 	dur time.Duration,
 	current, total int,
 ) []core.Field {
-	out := make([]core.Field, len(fields))
-	copy(out, fields)
-
 	if total <= 0 {
 		total = 1
 	}
 	current = max(current, 0)
 
 	pctMax := b.percentMaximum()
-	pct := float64(current) / float64(total) * pctMax
-	if pct > pctMax {
-		pct = pctMax
-	}
-
-	for i := range out {
-		switch out[i].Key {
-		case b.deadlineKey:
-			f := b.deadlineOverride
-			f.Remaining = max(f.From-dur, 0)
-			out[i].Value = f
-		case b.elapsedKey:
-			f := b.elapsedOverride
-			f.Value = dur
-			out[i].Value = f
-		case b.barPercentKey:
-			out[i].Value = core.Percent{Value: pct}
-		default:
-			// An update-scoped countdown ([Update.Deadline]) carries its
-			// anchor in the field value itself rather than a builder key.
-			if f, ok := out[i].Value.(core.DeadlineField); ok {
-				f.Remaining = max(f.From-dur, 0)
-				out[i].Value = f
-			}
-		}
-	}
-
-	return out
+	pct := min(float64(current)/float64(total)*pctMax, pctMax)
+	return b.resolveFieldsWith(fields, dur, func() core.Percent {
+		return core.Percent{Value: pct}
+	})
 }
 
 // renderTaskTimestamp returns the styled timestamp string for a task.
@@ -1487,7 +1460,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	// the group coordinates with standalone animations, other groups, and
 	// log lines on the same output instead of repainting over them. Outputs
 	// without the capability (external Output implementations and test
-	// stubs) keep the legacy direct renderer below.
+	// stubs) keep the direct renderer below.
 	if p, ok := output.(liveRegionProvider); ok {
 		if region := p.LiveRegion(); region != nil {
 			return runGroupLoopRegion(ctx, st, region, tickRate)
@@ -1555,7 +1528,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 	return nil
 }
 
-// groupLoopState bundles the per-tick state shared by the legacy and
+// groupLoopState bundles the per-tick state shared by the direct and
 // live-region group render paths so both drive the exact same frame
 // composition.
 type groupLoopState struct {
@@ -1674,11 +1647,11 @@ func (st *groupLoopState) updateStatusLines() (bool, bool) {
 // state (completion draining, header/footer callbacks) and can query the
 // terminal cursor position, none of which may run under the region mutex
 // without stalling log displacement from other goroutines. So the heavy work
-// stays on this goroutine - the same ticker cadence as the legacy renderer -
+// stays on this goroutine - the same ticker cadence as the direct renderer -
 // and each accepted frame is published for the closure to hand back as a
 // cheap pointer load. Frames the region repaints between group ticks are
 // therefore identical and deduped away, keeping the byte stream equal to the
-// legacy renderer's when the group runs alone.
+// direct renderer's when the group runs alone.
 func runGroupLoopRegion(
 	ctx context.Context,
 	st *groupLoopState,
@@ -1692,7 +1665,7 @@ func runGroupLoopRegion(
 	render := func(time.Time) string {
 		return *block.Load()
 	}
-	// Physical rows of the last accepted frame, mirroring the legacy
+	// Physical rows of the last accepted frame, mirroring the direct
 	// renderer's renderedRows for the viewport-fit check. With other slots
 	// live this undercounts the full block, which only makes the check more
 	// conservative about painting near the viewport bottom.
@@ -1713,7 +1686,7 @@ func runGroupLoopRegion(
 			unregister()
 			if !st.g.clearOnCancel && last != "" {
 				// Preserve the in-progress block as scrollback, mirroring the
-				// legacy renderer which leaves the last frame on screen. The
+				// direct renderer which leaves the last frame on screen. The
 				// frozen frame is written as regular displaced lines so it
 				// lands above any animations still live in the region.
 				region.WriteLines(last + nl)

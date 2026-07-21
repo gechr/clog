@@ -336,13 +336,15 @@ func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
 	return out
 }
 
-// ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
-func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
-	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) &&
-		!hasDeadlineField(fields) {
-		return fields
-	}
-
+// resolveFieldsWith clones fields and injects deadline/elapsed values plus a
+// percent value produced by pct (only invoked when a field matches the
+// builder's percent key). It is the shared core of
+// [Builder.ResolveDynamicFields] and the group render loop's resolver.
+func (b *Builder) resolveFieldsWith(
+	fields []core.Field,
+	dur time.Duration,
+	pct func() core.Percent,
+) []core.Field {
 	out := make([]core.Field, len(fields))
 	copy(out, fields)
 	for i := range out {
@@ -356,7 +358,7 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 			f.Value = dur
 			out[i].Value = f
 		case b.barPercentKey:
-			out[i].Value = b.BarPercentValue()
+			out[i].Value = pct()
 		default:
 			// An update-scoped countdown ([Update.Deadline]) carries its
 			// anchor in the field value itself rather than a builder key.
@@ -366,6 +368,17 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 			}
 		}
 	}
+	return out
+}
+
+// ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
+func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
+	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) &&
+		!hasDeadlineField(fields) {
+		return fields
+	}
+
+	out := b.resolveFieldsWith(fields, dur, b.BarPercentValue)
 	if b.elapsedOverride.Trailing && b.elapsedKey != "" {
 		out = moveFieldLast(out, b.elapsedKey)
 	}
