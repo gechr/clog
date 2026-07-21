@@ -144,25 +144,38 @@ func (p *Printer) YAML(v any) {
 	p.RawYAML(buf.Bytes())
 }
 
-// RawYAML writes pre-serialized YAML bytes with syntax highlighting.
-// Token colors are inherited from the logger's YAML configuration.
-func (p *Printer) RawYAML(data []byte) {
+// rawHighlight locks the logger, highlights data with the logger's styles of
+// type T (nil when colors are disabled), ensures a trailing newline, and
+// writes the result between the write hooks. It is the shared body of
+// [Printer.RawYAML], [Printer.RawTOML], and [Printer.RawHCL].
+func rawHighlight[T any](
+	p *Printer,
+	data []byte,
+	styleFor func(*style.Config) *T,
+	highlight func(string, *T) string,
+) {
 	l := p.logger
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	var styles *style.YAML
+	var styles *T
 	if !l.colorsDisabled() {
-		styles = l.styles.YAML
+		styles = styleFor(l.styles)
 	}
 
-	highlighted := yaml.Highlight(string(data), styles)
+	highlighted := highlight(string(data), styles)
 	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
 		highlighted += nl
 	}
 	l.runHooks(HookBeforeWrite)
 	l.output.WriteLine(highlighted)
 	l.runHooks(HookAfterWrite)
+}
+
+// RawYAML writes pre-serialized YAML bytes with syntax highlighting.
+// Token colors are inherited from the logger's YAML configuration.
+func (p *Printer) RawYAML(data []byte) {
+	rawHighlight(p, data, func(c *style.Config) *style.YAML { return c.YAML }, yaml.Highlight)
 }
 
 // TOML marshals v to TOML and writes syntax-highlighted output.
@@ -179,43 +192,13 @@ func (p *Printer) TOML(v any) {
 // RawTOML writes pre-serialized TOML bytes with syntax highlighting.
 // Token colors are inherited from the logger's TOML configuration.
 func (p *Printer) RawTOML(data []byte) {
-	l := p.logger
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	var styles *style.TOML
-	if !l.colorsDisabled() {
-		styles = l.styles.TOML
-	}
-
-	highlighted := toml.Highlight(string(data), styles)
-	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
-		highlighted += nl
-	}
-	l.runHooks(HookBeforeWrite)
-	l.output.WriteLine(highlighted)
-	l.runHooks(HookAfterWrite)
+	rawHighlight(p, data, func(c *style.Config) *style.TOML { return c.TOML }, toml.Highlight)
 }
 
 // RawHCL writes pre-serialized HCL bytes with syntax highlighting.
 // Token colors are inherited from the logger's HCL configuration.
 func (p *Printer) RawHCL(data []byte) {
-	l := p.logger
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	var styles *style.HCL
-	if !l.colorsDisabled() {
-		styles = l.styles.HCL
-	}
-
-	highlighted := hcl.Highlight(string(data), styles)
-	if len(highlighted) == 0 || highlighted[len(highlighted)-1] != '\n' {
-		highlighted += nl
-	}
-	l.runHooks(HookBeforeWrite)
-	l.output.WriteLine(highlighted)
-	l.runHooks(HookAfterWrite)
+	rawHighlight(p, data, func(c *style.Config) *style.HCL { return c.HCL }, hcl.Highlight)
 }
 
 // copyPointerFields copies all pointer fields from src to dst, leaving
