@@ -185,7 +185,7 @@ func (o *Output) file() *os.File {
 }
 
 // Width returns the terminal width, or 0 for non-TTY writers.
-// The value is lazily detected and cached; call [Output.RefreshWidth]
+// The value is lazily detected and cached; call [Output.RefreshSize]
 // to re-detect.
 func (o *Output) Width() int {
 	o.sizeMu.Lock()
@@ -195,7 +195,7 @@ func (o *Output) Width() int {
 }
 
 // Height returns the terminal height, or 0 for non-TTY writers.
-// The value is lazily detected and cached; call [Output.RefreshHeight]
+// The value is lazily detected and cached; call [Output.RefreshSize]
 // to re-detect.
 func (o *Output) Height() int {
 	o.sizeMu.Lock()
@@ -234,13 +234,9 @@ func (o *Output) refreshSize() {
 	}
 }
 
-// RefreshWidth re-queries the terminal size and updates the cached
+// RefreshSize re-queries the terminal size and updates the cached
 // dimensions. See [Output.refreshSize].
-func (o *Output) RefreshWidth() { o.refreshSize() }
-
-// RefreshHeight re-queries the terminal size and updates the cached
-// dimensions. See [Output.refreshSize].
-func (o *Output) RefreshHeight() { o.refreshSize() }
+func (o *Output) RefreshSize() { o.refreshSize() }
 
 // ListenResize starts a background goroutine that refreshes the cached
 // terminal width and height on SIGWINCH. Call the returned stop function

@@ -46,8 +46,7 @@ func (o *stubOutput) PathLink(path string, _, _ int) string { return path }
 func (o *stubOutput) Hyperlink(_, text string) string       { return text }
 func (o *stubOutput) CursorPosition() (int, bool)           { return o.cursorRow, o.cursorOK }
 func (o *stubOutput) ListenResize() func()                  { return func() {} }
-func (o *stubOutput) RefreshWidth()                         {}
-func (o *stubOutput) RefreshHeight()                        {}
+func (o *stubOutput) RefreshSize()                          {}
 
 // stubLogger is a minimal Logger implementation whose TaskConfig mirrors a
 // colorless root logger with default parts and an "INF" level label.

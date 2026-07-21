@@ -50,8 +50,9 @@ type RenderOutput interface {
 	// ListenResize starts refreshing cached dimensions on terminal resize.
 	// Call the returned stop function to release the listener.
 	ListenResize() (stop func())
-	RefreshWidth()
-	RefreshHeight()
+	// RefreshSize re-queries the terminal size and updates the cached
+	// dimensions.
+	RefreshSize()
 }
 
 // TaskConfig is an immutable snapshot of logger settings captured under the

@@ -103,13 +103,13 @@ func TestWidth(t *testing.T) {
 	})
 }
 
-func TestRefreshWidth(t *testing.T) {
+func TestRefreshSize(t *testing.T) {
 	var buf bytes.Buffer
 
 	out := TestOutput(&buf)
 
 	w1 := out.Width()
-	out.RefreshWidth()
+	out.RefreshSize()
 	w2 := out.Width()
 
 	// For non-TTY, both should be 0.

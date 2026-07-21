@@ -1484,8 +1484,7 @@ func (st *groupLoopState) composeFrame(now time.Time) ([]string, int, bool) {
 	// value. SIGWINCH delivery can be coalesced or one-frame-lagged
 	// under script(1), tmux pane resize, etc.; an extra ioctl per
 	// tick is cheaper than emitting a line wider than the viewport.
-	output.RefreshWidth()
-	output.RefreshHeight()
+	output.RefreshSize()
 	st.remaining = drainGroupCompletions(
 		st.fxTasks,
 		st.gts,
