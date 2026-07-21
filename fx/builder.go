@@ -87,9 +87,6 @@ func (b *Builder) BarProgress() (int64, int64, bool) {
 	return b.cfg.BarProgress.Load(), b.cfg.BarTotal.Load(), true
 }
 
-// DeadlineFieldKey returns the dynamic countdown field key, if enabled.
-func (b *Builder) DeadlineFieldKey() string { return b.deadlineKey }
-
 // Delay returns the delay before the animation becomes visible.
 func (b *Builder) Delay() time.Duration { return b.delayDur }
 
