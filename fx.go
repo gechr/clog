@@ -107,23 +107,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		TimeFormat:      l.timeFormat,
 		TimeLocation:    l.timeLocation,
 	}
-	fieldOpts := formatFieldsOpts{
-		fieldSort:       l.fieldSort,
-		fieldStyleLevel: l.fieldStyleLevel,
-		formats:         l.loadFieldFormats(),
-		level:           level,
-		noColor:         noColor,
-		quoteOpen:       l.quoteOpen,
-		quoteClose:      l.quoteClose,
-		quoteMode:       l.quoteMode,
-		quoteSmart:      l.smartQuotePairs(),
-		separatorText:   l.separatorText,
-		sliceClose:      l.sliceClose,
-		sliceOpen:       l.sliceOpen,
-		sliceSep:        l.sliceSep,
-		styles:          l.styles,
-		timeFormat:      l.fieldTimeFormat,
-	}
+	fieldOpts := l.fieldOpts(level, l.fieldSort, noColor)
 	l.mu.Unlock()
 
 	// Styled level symbol for the builder's own level.

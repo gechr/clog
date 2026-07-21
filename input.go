@@ -262,23 +262,10 @@ func (l *Logger) renderPrompt(msg string, fields []Field) string {
 	} else {
 		b.WriteString(l.styles.BacktickMode.Render(msg, l.styles.Message, l.styles.Backtick))
 	}
-	rendered := strings.TrimLeft(formatFields(fields, formatFieldsOpts{
-		fieldSort:       l.fieldSort,
-		fieldStyleLevel: l.fieldStyleLevel,
-		formats:         l.loadFieldFormats(),
-		level:           LevelInfo,
-		noColor:         noColor,
-		quoteOpen:       l.quoteOpen,
-		quoteClose:      l.quoteClose,
-		quoteMode:       l.quoteMode,
-		quoteSmart:      l.smartQuotePairs(),
-		separatorText:   l.separatorText,
-		sliceClose:      l.sliceClose,
-		sliceOpen:       l.sliceOpen,
-		sliceSep:        l.sliceSep,
-		styles:          l.styles,
-		timeFormat:      l.fieldTimeFormat,
-	}), " ")
+	rendered := strings.TrimLeft(
+		formatFields(fields, l.fieldOpts(LevelInfo, l.fieldSort, noColor)),
+		" ",
+	)
 	if rendered != "" {
 		b.WriteString(" ")
 		b.WriteString(rendered)

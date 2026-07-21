@@ -1156,6 +1156,28 @@ func (l *Logger) recomputePaddedLabels() {
 	l.labelsPadded = m
 }
 
+// fieldOpts snapshots the logger's field-formatting configuration for a
+// single render. Callers must hold l.mu.
+func (l *Logger) fieldOpts(level Level, sort Sort, noColor bool) formatFieldsOpts {
+	return formatFieldsOpts{
+		fieldSort:       sort,
+		fieldStyleLevel: l.fieldStyleLevel,
+		formats:         l.loadFieldFormats(),
+		level:           level,
+		noColor:         noColor,
+		quoteOpen:       l.quoteOpen,
+		quoteClose:      l.quoteClose,
+		quoteMode:       l.quoteMode,
+		quoteSmart:      l.smartQuotePairs(),
+		separatorText:   l.separatorText,
+		sliceClose:      l.sliceClose,
+		sliceOpen:       l.sliceOpen,
+		sliceSep:        l.sliceSep,
+		styles:          l.styles,
+		timeFormat:      l.fieldTimeFormat,
+	}
+}
+
 // log writes a log entry using either the custom handler or the built-in pretty formatter.
 func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
@@ -1308,23 +1330,10 @@ func (l *Logger) log(e *Event, msg string) {
 				s = l.indentation() + s
 			}
 		case PartFields:
-			s = strings.TrimLeft(formatFields(allFields, formatFieldsOpts{
-				fieldSort:       fieldSort,
-				fieldStyleLevel: l.fieldStyleLevel,
-				formats:         l.loadFieldFormats(),
-				level:           e.level,
-				noColor:         noColor,
-				quoteOpen:       l.quoteOpen,
-				quoteClose:      l.quoteClose,
-				quoteMode:       l.quoteMode,
-				quoteSmart:      l.smartQuotePairs(),
-				separatorText:   l.separatorText,
-				sliceClose:      l.sliceClose,
-				sliceOpen:       l.sliceOpen,
-				sliceSep:        l.sliceSep,
-				styles:          l.styles,
-				timeFormat:      l.fieldTimeFormat,
-			}), " ")
+			s = strings.TrimLeft(
+				formatFields(allFields, l.fieldOpts(e.level, fieldSort, noColor)),
+				" ",
+			)
 		}
 
 		if s != "" {
