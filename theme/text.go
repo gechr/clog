@@ -3,6 +3,8 @@ package theme
 import (
 	"fmt"
 	"strings"
+
+	xslices "github.com/gechr/x/slices"
 )
 
 const (
@@ -16,27 +18,26 @@ const (
 	themeNameMonokai             = "monokai"
 )
 
-const (
-	themeKeyDark                = "dark"
-	themeKeyLight               = "light"
-	themeKeyCatppuccinFrappe    = "catppuccinfrappe"
-	themeKeyCatppuccinLatte     = "catppuccinlatte"
-	themeKeyCatppuccinMacchiato = "catppuccinmacchiato"
-	themeKeyCatppuccinMocha     = "catppuccinmocha"
-	themeKeyDracula             = "dracula"
-	themeKeyMonokai             = "monokai"
-)
-
-var validThemeNames = []string{
-	themeNameDark,
-	themeNameLight,
-	themeNameCatppuccinFrappe,
-	themeNameCatppuccinLatte,
-	themeNameCatppuccinMacchiato,
-	themeNameCatppuccinMocha,
-	themeNameDracula,
-	themeNameMonokai,
+// preset pairs a built-in theme's name with its constructor.
+type preset struct {
+	name string
+	make func() *Theme
 }
+
+// presets lists the built-in themes in the order shown by error messages.
+// Adding a theme is one entry here (plus its themeName* constant).
+var presets = []preset{
+	{themeNameDark, Dark},
+	{themeNameLight, Light},
+	{themeNameCatppuccinFrappe, CatppuccinFrappe},
+	{themeNameCatppuccinLatte, CatppuccinLatte},
+	{themeNameCatppuccinMacchiato, CatppuccinMacchiato},
+	{themeNameCatppuccinMocha, CatppuccinMocha},
+	{themeNameDracula, Dracula},
+	{themeNameMonokai, Monokai},
+}
+
+var validThemeNames = xslices.Map(presets, func(p preset) string { return p.name })
 
 func normalizePresetName(name string) string {
 	name = strings.TrimSpace(strings.ToLower(name))
@@ -70,25 +71,12 @@ func (t *Theme) UnmarshalText(text []byte) error {
 		return fmt.Errorf("cannot unmarshal theme into nil receiver")
 	}
 
-	switch normalizePresetName(string(text)) {
-	case themeKeyDark:
-		*t = *Dark()
-	case themeKeyLight:
-		*t = *Light()
-	case themeKeyMonokai:
-		*t = *Monokai()
-	case themeKeyCatppuccinLatte:
-		*t = *CatppuccinLatte()
-	case themeKeyCatppuccinFrappe:
-		*t = *CatppuccinFrappe()
-	case themeKeyCatppuccinMacchiato:
-		*t = *CatppuccinMacchiato()
-	case themeKeyCatppuccinMocha:
-		*t = *CatppuccinMocha()
-	case themeKeyDracula:
-		*t = *Dracula()
-	default:
-		return fmt.Errorf("unknown theme %q (valid: %s)", text, strings.Join(validThemeNames, ", "))
+	key := normalizePresetName(string(text))
+	for _, p := range presets {
+		if normalizePresetName(p.name) == key {
+			*t = *p.make()
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("unknown theme %q (valid: %s)", text, strings.Join(validThemeNames, ", "))
 }

@@ -16,9 +16,7 @@ const (
 )
 
 func (b Background) String() string {
-	switch b {
-	case BackgroundUnspecified:
-		return "unspecified"
+	switch b { //nolint:exhaustive // BackgroundUnspecified handled by default
 	case BackgroundLight:
 		return "light"
 	case BackgroundDark:
