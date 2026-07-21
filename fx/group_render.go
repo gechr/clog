@@ -126,6 +126,16 @@ func (gt *renderTask) resolveLevel() (core.Level, string) {
 	return lvl, gt.cfg.StyleLevel(lvl)
 }
 
+// doneLineParts returns the styled level symbol, done symbol, and indented
+// message for a completed task's frozen line, honoring any level override
+// set via [Update.SetLevel].
+func (gt *renderTask) doneLineParts() (string, string, string) {
+	renderLevel, levelSymbol := gt.resolveLevel()
+	doneSymbol := gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), renderLevel)
+	msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), renderLevel)
+	return levelSymbol, doneSymbol, msg
+}
+
 type barWidgetState struct {
 	elapsed  time.Duration
 	rate     float64
@@ -712,15 +722,8 @@ func measureTaskFieldStart(
 	tsStr := renderTaskTimestamp(gt, now)
 
 	if isDone {
-		renderLevel, levelSymbol := gt.resolveLevel()
-		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), renderLevel)
-		return lipgloss.Width(gt.line(
-			tsStr,
-			levelSymbol,
-			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), renderLevel),
-			msg,
-			"",
-		))
+		levelSymbol, doneSymbol, msg := gt.doneLineParts()
+		return lipgloss.Width(gt.line(tsStr, levelSymbol, doneSymbol, msg, ""))
 	}
 
 	msg, char := renderTaskMessageSymbol(gt, now)
@@ -745,10 +748,7 @@ func renderTaskLine(gt *renderTask, isDone bool, now time.Time, layout *groupRen
 
 	if isDone {
 		// Show the frozen final line with the level's default symbol.
-		// If SetLevel was called, use the overridden level for styling.
-		renderLevel, levelSymbol := gt.resolveLevel()
-		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), renderLevel)
-		doneSymbol := gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), renderLevel)
+		levelSymbol, doneSymbol, msg := gt.doneLineParts()
 		msg = alignMessageForFields(
 			gt.cfg.Order,
 			gt.cfg.ReportTimestamp,
@@ -1109,15 +1109,9 @@ func measureGroupRenderLayoutForIndexes(
 			continue
 		}
 		tsStr := renderTaskTimestamp(gt, now)
-		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.cfg.Level)
+		levelSymbol, doneSymbol, msg := gt.doneLineParts()
 		fieldsStr := renderTaskFields(gt, gt.fieldsSnapshot(), gt.duration(now), 0, 0)
-		parts := gt.line(
-			tsStr,
-			gt.cfg.LevelSymbol,
-			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.builder.cfg.Level),
-			msg,
-			fieldsStr,
-		)
+		parts := gt.line(tsStr, levelSymbol, doneSymbol, msg, fieldsStr)
 		layout.bar.aligned.maxParts = max(layout.bar.aligned.maxParts, lipgloss.Width(parts))
 	}
 
