@@ -24,14 +24,6 @@ const (
 	BacktickKeep
 )
 
-// RenderBackticks styles s for display: text inside a matched pair of backticks
-// is rendered with code and the delimiters removed, while the surrounding text
-// is rendered with base. A nil style renders its text unstyled. Equivalent to
-// [BacktickStrip.Render].
-func RenderBackticks(s string, base, code *lipgloss.Style) string {
-	return BacktickStrip.Render(s, base, code)
-}
-
 // Render styles s for display: text inside a matched pair of backticks is
 // rendered with code, while the surrounding text is rendered with base. The
 // delimiters are dropped under [BacktickStrip] (and [BacktickUnset]) or kept
