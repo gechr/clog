@@ -548,10 +548,13 @@ func resetBarWidgetState(gt *renderTask) {
 // pointers from b and capturing its render config.
 func newSyntheticTask(b *Builder, syncEpoch time.Time) *renderTask {
 	msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
+	levelPtr := &atomic.Int64{}
+	levelPtr.Store(int64(level.Unset))
 	gt := &renderTask{
 		groupTask: &groupTask{
 			builder:   b,
 			fieldsPtr: fieldsPtr,
+			levelPtr:  levelPtr,
 			msgPtr:    msgPtr,
 			symbolPtr: symbolPtr,
 		},
@@ -1298,12 +1301,13 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		gt.startedAt.Store(time.Now().UnixNano())
 
 		u := &Update{
-			msgText:   b.cfg.Message,
-			msgPtr:    gt.msgPtr,
-			fieldsPtr: gt.fieldsPtr,
 			base:      b.Fields,
-			symbolPtr: gt.symbolPtr,
 			elapsed:   func() time.Duration { return gt.duration(time.Now()) },
+			fieldsPtr: gt.fieldsPtr,
+			levelPtr:  gt.levelPtr,
+			msgPtr:    gt.msgPtr,
+			msgText:   b.cfg.Message,
+			symbolPtr: gt.symbolPtr,
 		}
 		u.InitSelf(u)
 		return gt, u

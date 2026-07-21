@@ -1134,3 +1134,17 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	converged := renderTaskLine(gt, false, convergedAt, convergedLayout)
 	assert.Equal(t, "INF ⏳ task [=========-]", converged)
 }
+
+// A status line's Update must honor SetLevel like a task row's: the synthetic
+// task carries its own level override slot, initialized to unset so the
+// builder's level applies until a callback overrides it.
+func TestNewSyntheticTaskWiresLevelOverride(t *testing.T) {
+	b := testSpinner(newStubLogger(), "status")
+	gt := newSyntheticTask(b, time.Now())
+
+	assert.NotNil(t, gt.levelPtr)
+	assert.Equal(t, b.cfg.Level, gt.effectiveLevel())
+
+	gt.levelPtr.Store(int64(level.Warn))
+	assert.Equal(t, level.Warn, gt.effectiveLevel())
+}
