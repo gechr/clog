@@ -63,6 +63,16 @@ func Highlight(s string, styles *style.TOML) string {
 	return buf.String()
 }
 
+// emitSpaces copies leading spaces and tabs at i verbatim into buf, returning
+// the index of the first non-blank byte.
+func emitSpaces(data []byte, i, n int, buf *strings.Builder) int {
+	for i < n && (data[i] == ' ' || data[i] == '\t') {
+		buf.WriteByte(data[i])
+		i++
+	}
+	return i
+}
+
 // highlightTableHeader highlights [table] or [[array]] headers.
 func highlightTableHeader(data []byte, i, n int, buf *strings.Builder, styles *style.TOML) int {
 	arrayTable := i+1 < n && data[i+1] == '['
@@ -90,10 +100,7 @@ func highlightTableHeader(data []byte, i, n int, buf *strings.Builder, styles *s
 	printer.EmitStyled(buf, string(data[start:j]), styles.TableKey)
 
 	// Emit any trailing comment on the same line.
-	for j < n && (data[j] == ' ' || data[j] == '\t') {
-		buf.WriteByte(data[j])
-		j++
-	}
+	j = emitSpaces(data, j, n, buf)
 	if j < n && data[j] == '#' {
 		end := scanToEOL(data, j)
 		printer.EmitStyled(buf, string(data[j:end]), styles.Comment)
@@ -111,20 +118,14 @@ func highlightKeyValue(data []byte, i, n int, buf *strings.Builder, styles *styl
 	printer.EmitStyled(buf, string(data[keyStart:i]), styles.Key)
 
 	// Emit whitespace and '='.
-	for i < n && (data[i] == ' ' || data[i] == '\t') {
-		buf.WriteByte(data[i])
-		i++
-	}
+	i = emitSpaces(data, i, n, buf)
 	if i < n && data[i] == '=' {
 		printer.EmitStyled(buf, "=", styles.Punctuation)
 		i++
 	}
 
 	// Emit whitespace after '='.
-	for i < n && (data[i] == ' ' || data[i] == '\t') {
-		buf.WriteByte(data[i])
-		i++
-	}
+	i = emitSpaces(data, i, n, buf)
 
 	// Highlight value.
 	return highlightValue(data, i, n, buf, styles)
@@ -188,10 +189,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 	}
 
 	// Trailing whitespace + inline comment.
-	for i < n && (data[i] == ' ' || data[i] == '\t') {
-		buf.WriteByte(data[i])
-		i++
-	}
+	i = emitSpaces(data, i, n, buf)
 	if i < n && data[i] == '#' {
 		end := scanToEOL(data, i)
 		printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
@@ -242,10 +240,7 @@ func highlightInlineTable(data []byte, i, n int, buf *strings.Builder, styles *s
 	i++ // skip '{'
 
 	for i < n {
-		for i < n && (data[i] == ' ' || data[i] == '\t') {
-			buf.WriteByte(data[i])
-			i++
-		}
+		i = emitSpaces(data, i, n, buf)
 		if i >= n {
 			break
 		}
