@@ -7,11 +7,15 @@ type Option func(*Config)
 
 // Apply returns a copy of [DefaultConfig] with all opts applied in order.
 func Apply(opts ...Option) Config {
-	s := DefaultConfig()
+	return ApplyTo(DefaultConfig(), opts...)
+}
+
+// ApplyTo returns a copy of base with all opts applied in order.
+func ApplyTo(base Config, opts ...Option) Config {
 	for _, o := range opts {
-		o(&s)
+		o(&base)
 	}
-	return s
+	return base
 }
 
 // WithBoomerang enables ping-pong playback so the animation smoothly
