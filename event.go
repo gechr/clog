@@ -119,6 +119,11 @@ func (e *Event) output() *Output {
 	return e.logger.Output()
 }
 
+// fieldFormats returns the owning logger's field-format snapshot.
+func (e *Event) fieldFormats() *FieldFormats {
+	return e.logger.loadFieldFormats()
+}
+
 func (e *Event) Column(key, path string, line, column int) *Event {
 	if e == nil {
 		return e
@@ -616,16 +621,6 @@ func (e *Event) Fraction(key string, current, total int, opts ...fraction.Option
 // Use [percent.WithMaximum] to override the input range for this field:
 //
 //	e.Percent("progress", 75, percent.WithMaximum(100))
-//
-// fieldFormats returns the owning logger's field-format snapshot,
-// falling back to the [Default] logger.
-func (e *Event) fieldFormats() *FieldFormats {
-	if e.logger != nil {
-		return e.logger.loadFieldFormats()
-	}
-	return Default().loadFieldFormats()
-}
-
 func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event {
 	if e == nil {
 		return e
