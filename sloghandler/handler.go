@@ -7,7 +7,6 @@ import (
 	"log/slog"
 	"runtime"
 	"slices"
-	"strings"
 
 	"github.com/gechr/clog"
 )
@@ -24,9 +23,9 @@ type Options struct {
 type Handler struct {
 	logger *clog.Logger
 
-	attrs  []clog.Field // preset fields from WithAttrs (immutable after creation)
-	groups []string     // group prefix stack from WithGroup (immutable after creation)
-	opts   Options
+	attrs       []clog.Field // preset fields from WithAttrs (immutable after creation)
+	groupPrefix string       // dot-terminated key prefix from WithGroup (immutable after creation)
+	opts        Options
 }
 
 // New creates a [slog.Handler] that routes [slog.Record] entries
@@ -68,7 +67,7 @@ func (h *Handler) Handle(_ context.Context, r slog.Record) error {
 	}
 
 	// Convert record attrs.
-	prefix := h.groupPrefix()
+	prefix := h.groupPrefix
 	r.Attrs(func(a slog.Attr) bool {
 		h.appendAttr(&fields, prefix, a)
 		return true
@@ -85,16 +84,15 @@ func (h *Handler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 
 	fields := slices.Clone(h.attrs)
-	prefix := h.groupPrefix()
 	for _, a := range attrs {
-		h.appendAttr(&fields, prefix, a)
+		h.appendAttr(&fields, h.groupPrefix, a)
 	}
 
 	return &Handler{
-		logger: h.logger,
-		attrs:  fields,
-		groups: slices.Clone(h.groups),
-		opts:   h.opts,
+		logger:      h.logger,
+		attrs:       fields,
+		groupPrefix: h.groupPrefix,
+		opts:        h.opts,
 	}
 }
 
@@ -105,19 +103,11 @@ func (h *Handler) WithGroup(name string) slog.Handler {
 	}
 
 	return &Handler{
-		logger: h.logger,
-		attrs:  slices.Clone(h.attrs),
-		groups: append(slices.Clone(h.groups), name),
-		opts:   h.opts,
+		logger:      h.logger,
+		attrs:       slices.Clone(h.attrs),
+		groupPrefix: h.groupPrefix + name + ".",
+		opts:        h.opts,
 	}
-}
-
-// groupPrefix returns the dot-joined group prefix, or "" if no groups are set.
-func (h *Handler) groupPrefix() string {
-	if len(h.groups) == 0 {
-		return ""
-	}
-	return strings.Join(h.groups, ".") + "."
 }
 
 // appendAttr converts a slog.Attr and appends the resulting field(s) to dst.
