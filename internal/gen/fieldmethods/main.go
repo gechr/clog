@@ -1,9 +1,11 @@
 // Command fieldmethods generates the field-appending methods shared by
 // clog's *Event (event_fields.go) and core's FieldBuilder[T]
-// (internal/core/field_builder_methods.go) from the single spec table below.
-// The two method sets stay in sync by construction; methods whose semantics
-// genuinely diverge between the two receivers (Duration, Err, Fraction,
-// Percent, When) remain hand-written in event.go and field_builder.go.
+// (internal/core/field_builder_methods.go) from the methods spec table below,
+// plus the output-dependent hyperlink and Dict methods shared by *Event and
+// *Context (context_fields.go) from the outputMethods table. The method sets
+// stay in sync by construction; methods whose semantics genuinely diverge
+// between receivers (Duration, Err, Fraction, Percent, When) remain
+// hand-written in event.go and field_builder.go.
 package main
 
 import (
@@ -17,8 +19,9 @@ import (
 
 // method describes one shared field-appending method. Body templates use the
 // placeholders $fields (the destination slice), $self (the chain return
-// value), and $core (the qualifier for core symbols: "core." in clog, ""
-// in core itself).
+// value), $core (the qualifier for core symbols: "core." in clog, "" in core
+// itself), and $output (the logger output accessor). Docs use $Recv for
+// receiver-qualified cross-references.
 type method struct {
 	name     string
 	params   string
@@ -362,17 +365,210 @@ return $self`,
 	},
 }
 
-// target describes one generated file: its package, receiver shape, and the
-// placeholder substitutions applied to body templates.
+// outputMethods are the hyperlink and Dict methods shared by *Event
+// (event_fields.go) and *Context (context_fields.go). They need the logger's
+// output and so cannot live on core's FieldBuilder.
+var outputMethods = []method{
+	{
+		name:   "Column",
+		params: "key, path string, line, column int",
+		doc: `Column adds a file path field with a line and column number as a clickable terminal hyperlink.
+Respects the logger's [ColorMode] setting.`,
+		body: `if line < 1 {
+	line = 1
+}
+
+if column < 1 {
+	column = 1
+}
+
+$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.pathLink(path, line, column)},
+)
+return $self`,
+	},
+	{
+		name:   "Columns",
+		params: "key string, items []Column",
+		doc: `Columns adds a string slice field where each element is a path:line:column
+hyperlink. Respects the logger's [ColorMode] setting.`,
+		body: `output := $output
+vals := make([]string, len(items))
+for i, item := range items {
+	line, column := item.Line, item.Column
+	if line < 1 {
+		line = 1
+	}
+	if column < 1 {
+		column = 1
+	}
+	vals[i] = output.pathLink(item.Path, line, column)
+}
+$fields = append($fields, Field{Key: key, Value: vals})
+return $self`,
+	},
+	{
+		name:   "Dict",
+		params: "key string, dict *Event",
+		doc: `Dict adds a group of fields under a key prefix using dot notation.
+Build the nested fields using [Dict] to create a field-only Event:
+
+	logger := clog.With().Dict("db", clog.Dict().
+	    Str("host", "localhost").
+	    Int("port", 5432),
+	).Logger()`,
+		eventDoc: `Dict adds a group of fields under a key prefix using dot notation.
+Build the nested fields using [Dict] to create a field-only Event:
+
+	clog.Info().Dict("request", clog.Dict().
+	    Str("method", "GET").
+	    Int("status", 200),
+	).Msg("handled")
+	// Output: INF ℹ️ handled request.method=GET request.status=200`,
+		body: `if dict == nil {
+	return $self
+}
+
+for _, f := range dict.fields {
+	$fields = append($fields, Field{Key: key + "." + f.Key, Value: f.Value})
+}
+return $self`,
+	},
+	{
+		name:   "Line",
+		params: "key, path string, line int",
+		doc: `Line adds a file path field with a line number as a clickable terminal hyperlink.
+Respects the logger's [ColorMode] setting. If line < 1, the line number is
+omitted and the field is rendered as a plain path hyperlink (equivalent to
+[$Recv.Path]).`,
+		body: `if line < 1 {
+	return $self.Path(key, path)
+}
+
+$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.pathLink(path, line, 0)},
+)
+return $self`,
+	},
+	{
+		name:   "Lines",
+		params: "key string, items []Line",
+		doc: `Lines adds a string slice field where each element is a path:line
+hyperlink. If an item's Line < 1, that element is rendered as a plain path
+hyperlink (equivalent to [$Recv.Path]). Respects the logger's [ColorMode]
+setting.`,
+		body: `output := $output
+vals := make([]string, len(items))
+for i, item := range items {
+	vals[i] = output.pathLink(item.Path, item.Line, 0)
+}
+$fields = append($fields, Field{Key: key, Value: vals})
+return $self`,
+	},
+	{
+		name:   "Link",
+		params: "key, url, text string",
+		doc: `Link adds a field as a clickable terminal hyperlink with custom URL and display text.
+Respects the logger's [ColorMode] setting.`,
+		body: `$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.hyperlink(url, text)},
+)
+return $self`,
+	},
+	{
+		name:   "Links",
+		params: "key string, links []Link",
+		doc:    `Links adds a string slice field where each element is a hyperlink.`,
+		body: `output := $output
+vals := make([]string, len(links))
+for i, l := range links {
+	vals[i] = output.hyperlink(l.URL, l.Text)
+}
+$fields = append($fields, Field{Key: key, Value: vals})
+return $self`,
+	},
+	{
+		name:   "Path",
+		params: "key, path string",
+		doc: `Path adds a file path field as a clickable terminal hyperlink.
+Respects the logger's [ColorMode] setting.`,
+		body: `$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.pathLink(path, 0, 0)},
+)
+return $self`,
+	},
+	{
+		name:   "Paths",
+		params: "key string, paths []string",
+		doc: `Paths adds a string slice field where each element is a path hyperlink.
+Respects the logger's [ColorMode] setting.`,
+		body: `output := $output
+vals := make([]string, len(paths))
+for i, p := range paths {
+	vals[i] = output.pathLink(p, 0, 0)
+}
+$fields = append($fields, Field{Key: key, Value: vals})
+return $self`,
+	},
+	{
+		name:   "PathText",
+		params: "key, text, path string",
+		doc: `PathText adds a file path field as a clickable terminal hyperlink whose
+visible label is text rather than path. The link still targets path, so a
+caller can show an abbreviated or home-contracted path (e.g. ~/bin/foo)
+while linking to its full location. Respects the logger's [ColorMode]
+setting.`,
+		body: `$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.pathLinkText(text, path, 0, 0)},
+)
+return $self`,
+	},
+	{
+		name:   "URL",
+		params: "key, url string",
+		doc: `URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+Respects the logger's [ColorMode] setting.`,
+		body: `$fields = append(
+	$fields,
+	Field{Key: key, Value: $output.hyperlink(url, url)},
+)
+return $self`,
+	},
+	{
+		name:   "URLs",
+		params: "key string, urls []string",
+		doc: `URLs adds a string slice field where each element is a hyperlink
+with the URL as the display text.`,
+		body: `output := $output
+vals := make([]string, len(urls))
+for i, u := range urls {
+	vals[i] = output.hyperlink(u, u)
+}
+$fields = append($fields, Field{Key: key, Value: vals})
+return $self`,
+	},
+}
+
+// target describes one generated file: its package, receiver shape, the
+// placeholder substitutions applied to body templates, and the method tables
+// rendered into it.
 type target struct {
-	path    string
-	header  string
-	recv    string // method receiver
-	ret     string // method return type
-	fields  string // $fields substitution
-	self    string // $self substitution
-	core    string // $core substitution
-	guarded bool   // prepend the Event nil-receiver guard
+	path     string
+	header   string
+	recv     string     // method receiver
+	ret      string     // method return type
+	fields   string     // $fields substitution
+	self     string     // $self substitution
+	core     string     // $core substitution
+	output   string     // $output substitution (logger output accessor)
+	recvName string     // $Recv doc substitution
+	guarded  bool       // prepend the Event nil-receiver guard
+	tables   [][]method // method tables rendered into this file, in order
 }
 
 var targets = []target{
@@ -392,12 +588,15 @@ import (
 	"github.com/gechr/clog/internal/core"
 )
 `,
-		recv:    "e *Event",
-		ret:     "*Event",
-		fields:  "e.fields",
-		self:    "e",
-		core:    "core.",
-		guarded: true,
+		recv:     "e *Event",
+		ret:      "*Event",
+		fields:   "e.fields",
+		self:     "e",
+		core:     "core.",
+		output:   "e.output()",
+		recvName: "Event",
+		guarded:  true,
+		tables:   [][]method{methods, outputMethods},
 	},
 	{
 		path: "internal/core/field_builder_methods.go",
@@ -413,11 +612,27 @@ import (
 	"time"
 )
 `,
-		recv:   "fb *FieldBuilder[T]",
-		ret:    "*T",
-		fields: "fb.Fields",
-		self:   "fb.Self",
-		core:   "",
+		recv:     "fb *FieldBuilder[T]",
+		ret:      "*T",
+		fields:   "fb.Fields",
+		self:     "fb.Self",
+		core:     "",
+		recvName: "FieldBuilder",
+		tables:   [][]method{methods},
+	},
+	{
+		path: "context_fields.go",
+		header: `// Code generated by internal/gen/fieldmethods; DO NOT EDIT.
+
+package clog
+`,
+		recv:     "c *Context",
+		ret:      "*Context",
+		fields:   "c.Fields",
+		self:     "c",
+		output:   "c.logger.Output()",
+		recvName: "Context",
+		tables:   [][]method{outputMethods},
 	},
 }
 
@@ -426,6 +641,7 @@ func render(t target, m method) string {
 	if t.guarded && m.eventDoc != "" {
 		doc = m.eventDoc
 	}
+	doc = strings.ReplaceAll(doc, "$Recv", t.recvName)
 
 	body := m.body
 	if body == "" {
@@ -438,12 +654,20 @@ func render(t target, m method) string {
 		"$fields", t.fields,
 		"$self", t.self,
 		"$core", t.core,
+		"$output", t.output,
 	).Replace(body)
 
 	var b strings.Builder
 	b.WriteString("\n")
 	for line := range strings.SplitSeq(doc, "\n") {
-		fmt.Fprintf(&b, "// %s\n", line)
+		switch {
+		case line == "":
+			b.WriteString("//\n")
+		case strings.HasPrefix(line, "\t"):
+			fmt.Fprintf(&b, "//%s\n", line)
+		default:
+			fmt.Fprintf(&b, "// %s\n", line)
+		}
 	}
 	fmt.Fprintf(&b, "func (%s) %s(%s) %s {\n", t.recv, m.name, m.params, t.ret)
 	if t.guarded {
@@ -464,8 +688,10 @@ func main() {
 	for _, t := range targets {
 		var b bytes.Buffer
 		b.WriteString(t.header)
-		for _, m := range methods {
-			b.WriteString(render(t, m))
+		for _, table := range t.tables {
+			for _, m := range table {
+				b.WriteString(render(t, m))
+			}
 		}
 
 		formatted, err := format.Source(b.Bytes())

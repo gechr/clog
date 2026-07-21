@@ -506,3 +506,215 @@ func (e *Event) Uints64(key string, vals []uint64) *Event {
 	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
+
+// Column adds a file path field with a line and column number as a clickable terminal hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Column(key, path string, line, column int) *Event {
+	if e == nil {
+		return e
+	}
+
+	if line < 1 {
+		line = 1
+	}
+
+	if column < 1 {
+		column = 1
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().pathLink(path, line, column)},
+	)
+	return e
+}
+
+// Columns adds a string slice field where each element is a path:line:column
+// hyperlink. Respects the logger's [ColorMode] setting.
+func (e *Event) Columns(key string, items []Column) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := e.output()
+	vals := make([]string, len(items))
+	for i, item := range items {
+		line, column := item.Line, item.Column
+		if line < 1 {
+			line = 1
+		}
+		if column < 1 {
+			column = 1
+		}
+		vals[i] = output.pathLink(item.Path, line, column)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Dict adds a group of fields under a key prefix using dot notation.
+// Build the nested fields using [Dict] to create a field-only Event:
+//
+//	clog.Info().Dict("request", clog.Dict().
+//	    Str("method", "GET").
+//	    Int("status", 200),
+//	).Msg("handled")
+//	// Output: INF ℹ️ handled request.method=GET request.status=200
+func (e *Event) Dict(key string, dict *Event) *Event {
+	if e == nil {
+		return e
+	}
+
+	if dict == nil {
+		return e
+	}
+
+	for _, f := range dict.fields {
+		e.fields = append(e.fields, Field{Key: key + "." + f.Key, Value: f.Value})
+	}
+	return e
+}
+
+// Line adds a file path field with a line number as a clickable terminal hyperlink.
+// Respects the logger's [ColorMode] setting. If line < 1, the line number is
+// omitted and the field is rendered as a plain path hyperlink (equivalent to
+// [Event.Path]).
+func (e *Event) Line(key, path string, line int) *Event {
+	if e == nil {
+		return e
+	}
+
+	if line < 1 {
+		return e.Path(key, path)
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().pathLink(path, line, 0)},
+	)
+	return e
+}
+
+// Lines adds a string slice field where each element is a path:line
+// hyperlink. If an item's Line < 1, that element is rendered as a plain path
+// hyperlink (equivalent to [Event.Path]). Respects the logger's [ColorMode]
+// setting.
+func (e *Event) Lines(key string, items []Line) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := e.output()
+	vals := make([]string, len(items))
+	for i, item := range items {
+		vals[i] = output.pathLink(item.Path, item.Line, 0)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Link adds a field as a clickable terminal hyperlink with custom URL and display text.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Link(key, url, text string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().hyperlink(url, text)},
+	)
+	return e
+}
+
+// Links adds a string slice field where each element is a hyperlink.
+func (e *Event) Links(key string, links []Link) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := e.output()
+	vals := make([]string, len(links))
+	for i, l := range links {
+		vals[i] = output.hyperlink(l.URL, l.Text)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// Path adds a file path field as a clickable terminal hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Path(key, path string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().pathLink(path, 0, 0)},
+	)
+	return e
+}
+
+// Paths adds a string slice field where each element is a path hyperlink.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) Paths(key string, paths []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := e.output()
+	vals := make([]string, len(paths))
+	for i, p := range paths {
+		vals[i] = output.pathLink(p, 0, 0)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}
+
+// PathText adds a file path field as a clickable terminal hyperlink whose
+// visible label is text rather than path. The link still targets path, so a
+// caller can show an abbreviated or home-contracted path (e.g. ~/bin/foo)
+// while linking to its full location. Respects the logger's [ColorMode]
+// setting.
+func (e *Event) PathText(key, text, path string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().pathLinkText(text, path, 0, 0)},
+	)
+	return e
+}
+
+// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
+// Respects the logger's [ColorMode] setting.
+func (e *Event) URL(key, url string) *Event {
+	if e == nil {
+		return e
+	}
+
+	e.fields = append(
+		e.fields,
+		Field{Key: key, Value: e.output().hyperlink(url, url)},
+	)
+	return e
+}
+
+// URLs adds a string slice field where each element is a hyperlink
+// with the URL as the display text.
+func (e *Event) URLs(key string, urls []string) *Event {
+	if e == nil {
+		return e
+	}
+
+	output := e.output()
+	vals := make([]string, len(urls))
+	for i, u := range urls {
+		vals[i] = output.hyperlink(u, u)
+	}
+	e.fields = append(e.fields, Field{Key: key, Value: vals})
+	return e
+}

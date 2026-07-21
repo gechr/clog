@@ -56,54 +56,6 @@ func (e *Event) fieldFormats() *FieldFormats {
 	return e.logger.loadFieldFormats()
 }
 
-// Column adds a file path field with a line and column number as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) Column(key, path string, line, column int) *Event {
-	if e == nil {
-		return e
-	}
-
-	if line < 1 {
-		line = 1
-	}
-
-	if column < 1 {
-		column = 1
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.pathLink(path, line, column)},
-	)
-	return e
-}
-
-// Columns adds a string slice field where each element is a path:line:column
-// hyperlink. Respects the logger's [ColorMode] setting.
-func (e *Event) Columns(key string, items []Column) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	vals := make([]string, len(items))
-	for i, item := range items {
-		line, column := item.Line, item.Column
-		if line < 1 {
-			line = 1
-		}
-		if column < 1 {
-			column = 1
-		}
-		vals[i] = output.pathLink(item.Path, line, column)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
 // Column represents a file path with a line and column number for use with [Event.Columns].
 type Column struct {
 	Path   string
@@ -138,25 +90,6 @@ func (e *Event) Deadline(key string, from time.Duration, opts ...deadline.Option
 	f := core.DeadlineField{From: from}
 	deadline.Apply(&f, opts...)
 	e.fields = append(e.fields, Field{Key: key, Value: f})
-	return e
-}
-
-// Dict adds a group of fields under a key prefix using dot notation.
-// Build the nested fields using [Dict] to create a field-only Event:
-//
-//	clog.Info().Dict("request", clog.Dict().
-//	    Str("method", "GET").
-//	    Int("status", 200),
-//	).Msg("handled")
-//	// Output: INF ℹ️ handled request.method=GET request.status=200
-func (e *Event) Dict(key string, dict *Event) *Event {
-	if e == nil || dict == nil {
-		return e
-	}
-
-	for _, f := range dict.fields {
-		e.fields = append(e.fields, Field{Key: key + "." + f.Key, Value: f.Value})
-	}
 	return e
 }
 
@@ -270,82 +203,10 @@ func (e *Event) Func(fn func(*Event)) *Event {
 	return e
 }
 
-// Line adds a file path field with a line number as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting. If line < 1, the line number is
-// omitted and the field is rendered as a plain path hyperlink (equivalent to
-// [Event.Path]).
-func (e *Event) Line(key, path string, line int) *Event {
-	if e == nil {
-		return e
-	}
-
-	if line < 1 {
-		return e.Path(key, path)
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.pathLink(path, line, 0)},
-	)
-	return e
-}
-
-// Lines adds a string slice field where each element is a path:line
-// hyperlink. If an item's Line < 1, that element is rendered as a plain path
-// hyperlink (equivalent to [Event.Path]). Respects the logger's [ColorMode]
-// setting.
-func (e *Event) Lines(key string, items []Line) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	vals := make([]string, len(items))
-	for i, item := range items {
-		vals[i] = output.pathLink(item.Path, item.Line, 0)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
 // Line represents a file path with a line number for use with [Event.Lines].
 type Line struct {
 	Path string
 	Line int
-}
-
-// Link adds a single hyperlink field.
-func (e *Event) Link(key, url, text string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.hyperlink(url, text)},
-	)
-	return e
-}
-
-// Links adds a string slice field where each element is a hyperlink.
-func (e *Event) Links(key string, links []Link) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	vals := make([]string, len(links))
-	for i, l := range links {
-		vals[i] = output.hyperlink(l.URL, l.Text)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
 }
 
 // Link represents a hyperlink with a URL and display text.
@@ -454,58 +315,6 @@ func (e *Event) Parts(parts ...Part) *Event {
 	return e
 }
 
-// Path adds a file path field as a clickable terminal hyperlink.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) Path(key, path string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.pathLink(path, 0, 0)},
-	)
-	return e
-}
-
-// Paths adds a string slice field where each element is a path hyperlink.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) Paths(key string, paths []string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	vals := make([]string, len(paths))
-	for i, p := range paths {
-		vals[i] = output.pathLink(p, 0, 0)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
-	return e
-}
-
-// PathText adds a file path field as a clickable terminal hyperlink whose
-// visible label is text rather than path. The link still targets path, so a
-// caller can show an abbreviated or home-contracted path (e.g. ~/bin/foo)
-// while linking to its full location. Respects the logger's [ColorMode]
-// setting.
-func (e *Event) PathText(key, text, path string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.pathLinkText(text, path, 0, 0)},
-	)
-	return e
-}
-
 // Percent adds a percentage field with gradient color styling.
 // Values are clamped to [0, Maximum] (default maximum is 1, so 0.75 → "75%").
 // The color is interpolated from the [style.Config.PercentGradient] stops
@@ -570,39 +379,6 @@ func (e *Event) Symbol(symbol string) *Event {
 	}
 
 	e.symbol = new(symbol)
-	return e
-}
-
-// URL adds a field as a clickable terminal hyperlink where the URL is also the display text.
-// Respects the logger's [ColorMode] setting.
-func (e *Event) URL(key, url string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	e.fields = append(
-		e.fields,
-		Field{Key: key, Value: output.hyperlink(url, url)},
-	)
-	return e
-}
-
-// URLs adds a string slice field where each element is a hyperlink
-// with the URL as the display text.
-func (e *Event) URLs(key string, urls []string) *Event {
-	if e == nil {
-		return e
-	}
-
-	output := e.output()
-
-	vals := make([]string, len(urls))
-	for i, u := range urls {
-		vals[i] = output.hyperlink(u, u)
-	}
-	e.fields = append(e.fields, Field{Key: key, Value: vals})
 	return e
 }
 

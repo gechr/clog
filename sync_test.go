@@ -13,9 +13,7 @@ func TestEventFieldBuilderMethodSync(t *testing.T) {
 	// These are either finalizers, event lifecycle methods, or methods
 	// that require logger/output state not available in FieldBuilder.
 	eventOnly := map[string]bool{
-		"Column":       true, // needs logger output
 		"Deadline":     true, // event lifecycle
-		"Dict":         true, // takes *Event
 		"Discard":      true, // event lifecycle
 		"Disabled":     true, // event lifecycle
 		"Elapsed":      true, // event lifecycle
@@ -23,8 +21,6 @@ func TestEventFieldBuilderMethodSync(t *testing.T) {
 		"Err":          true, // event lifecycle (different signature)
 		"ExitCode":     true, // event lifecycle (Fatal exit code)
 		"Func":         true, // takes func(*Event)
-		"Line":         true, // needs logger output
-		"Link":         true, // needs logger output
 		"MessageStyle": true, // event-only override
 		"Msg":          true, // finalizer
 		"Msgf":         true, // finalizer
@@ -32,11 +28,9 @@ func TestEventFieldBuilderMethodSync(t *testing.T) {
 		"OmitEmpty":    true, // event-only override
 		"OmitZero":     true, // event-only override
 		"Parts":        true, // event-only override
-		"Path":         true, // needs logger output
 		"Send":         true, // finalizer
 		"Sort":         true, // event-only override
 		"Symbol":       true, // event-only override
-		"URL":          true, // needs logger output
 	}
 
 	// FieldBuilder-only methods that are NOT expected on Event.
