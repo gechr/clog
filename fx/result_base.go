@@ -20,6 +20,37 @@ type resultBase[T any] struct {
 	SymbolStr    *string
 }
 
+// send logs a success or error event, drawing the level, style, and part
+// configuration from the base. fields, successMsg, and err vary per caller.
+func (b *resultBase[T]) send(fields []core.Field, successMsg string, err error) {
+	var lvl core.Level
+	var msg string
+	var errField error
+
+	switch {
+	case err == nil:
+		lvl = b.SuccessLevel
+		msg = successMsg
+	case b.ErrorMsg != nil:
+		lvl = b.LevelError
+		msg = *b.ErrorMsg
+		errField = err
+	default:
+		lvl = b.LevelError
+		msg = err.Error()
+	}
+
+	b.Log.Done(DoneEvent{
+		Level:    lvl,
+		Fields:   fields,
+		MsgStyle: b.MsgStyle,
+		Parts:    b.PartOverride,
+		Symbol:   b.SymbolStr,
+		Msg:      msg,
+		Err:      errField,
+	})
+}
+
 // OnErrorLevel sets the log level for the error case.
 func (b *resultBase[T]) OnErrorLevel(lvl core.Level) *T {
 	b.LevelError = lvl

@@ -65,18 +65,7 @@ func (w *WaitResult) Send() error {
 		return w.TaskErr
 	}
 
-	sendResult(
-		w.Log,
-		w.Fields,
-		w.PartOverride,
-		w.SymbolStr,
-		w.MsgStyle,
-		w.SuccessLevel,
-		w.LevelError,
-		w.SuccessMsg,
-		w.ErrorMsg,
-		w.TaskErr,
-	)
+	w.send(w.Fields, w.SuccessMsg, w.TaskErr)
 	return w.TaskErr
 }
 

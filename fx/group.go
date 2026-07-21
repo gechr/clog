@@ -469,18 +469,7 @@ func (r *TaskResult) Send() error {
 		finalFields = core.MergeFields(finalFields, r.Fields)
 	}
 
-	sendResult(
-		r.Log,
-		finalFields,
-		r.PartOverride,
-		r.SymbolStr,
-		r.MsgStyle,
-		r.SuccessLevel,
-		r.LevelError,
-		msg,
-		r.ErrorMsg,
-		err,
-	)
+	r.send(finalFields, msg, err)
 	return err
 }
 
@@ -510,18 +499,7 @@ func (r *GroupResult) Msg(msg string) error {
 // Send finalises the result.
 func (r *GroupResult) Send() error {
 	err := r.joinErrors()
-	sendResult(
-		r.Log,
-		r.Fields,
-		r.PartOverride,
-		r.SymbolStr,
-		r.MsgStyle,
-		r.SuccessLevel,
-		r.LevelError,
-		r.SuccessMsg,
-		r.ErrorMsg,
-		err,
-	)
+	r.send(r.Fields, r.SuccessMsg, err)
 	return err
 }
 
@@ -538,45 +516,4 @@ func (r *GroupResult) joinErrors() error {
 		}
 	}
 	return errors.Join(errs...)
-}
-
-// sendResult logs a success or error event.
-func sendResult(
-	l Logger,
-	fields []core.Field,
-	parts *[]core.Part,
-	symbol *string,
-	msgStyle *lipgloss.Style,
-	successLevel, errorLevel core.Level,
-	successMsg string,
-	errorMsg *string,
-	err error,
-) {
-	var lvl core.Level
-	var msg string
-	var errField error
-
-	switch {
-	case err == nil:
-		lvl = successLevel
-		msg = successMsg
-	case errorMsg != nil:
-		lvl = errorLevel
-		msg = *errorMsg
-		errField = err
-	default:
-		lvl = errorLevel
-		msg = err.Error()
-	}
-
-	evt := DoneEvent{
-		Level:    lvl,
-		Fields:   fields,
-		MsgStyle: msgStyle,
-		Parts:    parts,
-		Symbol:   symbol,
-		Msg:      msg,
-		Err:      errField,
-	}
-	l.Done(evt)
 }
