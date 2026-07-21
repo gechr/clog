@@ -26,6 +26,7 @@
   - [Indentation](indent.md)
   - [Tree](tree.md)
   - [Dividers](dividers.md)
+  - [Wrapping](wrap.md)
 
 - [Animations]()
   - [Spinner](spinner.md)
