@@ -3,7 +3,6 @@ package clog
 import (
 	"bytes"
 	"errors"
-	"math"
 	"strconv"
 	"strings"
 	"testing"
@@ -2279,33 +2278,6 @@ func TestStyleValueBoolMatchesTyped(t *testing.T) {
 	// Should fall through to FieldString styling.
 	got = styleValue("true", "true", "ok", kindString, styles, &defaultFieldFormats)
 	assert.Equal(t, strStyle.Render("true"), got)
-}
-
-func TestClampPercent(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(-10, 1), 0)
-	assert.InDelta(t, 0.0, core.ClampPercent(0, 1), 0)
-	assert.InDelta(t, 0.5, core.ClampPercent(0.5, 1), 0)
-	assert.InDelta(t, 1.0, core.ClampPercent(1, 1), 0)
-	assert.InDelta(t, 1.0, core.ClampPercent(2, 1), 0)
-}
-
-func TestClampPercentMaximum100(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(-10, 100), 0)
-	assert.InDelta(t, 50.0, core.ClampPercent(50, 100), 0)
-	assert.InDelta(t, 100.0, core.ClampPercent(100, 100), 0)
-	assert.InDelta(t, 100.0, core.ClampPercent(200, 100), 0)
-}
-
-func TestClampPercentNaN(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(math.NaN(), 1), 0)
-}
-
-func TestClampPercentPositionInf(t *testing.T) {
-	assert.InDelta(t, 1.0, core.ClampPercent(math.Inf(1), 1), 0)
-}
-
-func TestClampPercentNegInf(t *testing.T) {
-	assert.InDelta(t, 0.0, core.ClampPercent(math.Inf(-1), 1), 0)
 }
 
 func TestInterpolateGradientEmpty(t *testing.T) {

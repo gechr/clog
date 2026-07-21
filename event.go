@@ -628,8 +628,9 @@ func (e *Event) Percent(key string, val float64, opts ...percent.Option) *Event 
 
 	p := core.Percent{Value: val}
 	percent.Apply(&p, opts...)
-	p.Value = core.ClampPercent(
+	p.Value = xmath.Clamp(
 		p.Value,
+		0,
 		percent.EffectiveMaximum(p, e.fieldFormats().PercentMaximum),
 	)
 	e.fields = append(e.fields, Field{Key: key, Value: p})
