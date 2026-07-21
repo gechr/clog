@@ -31,6 +31,17 @@ type SegmentStyle struct {
 	Unit   *lipgloss.Style // Style for the unit segment (nil = keep default).
 }
 
+// Or returns s with any nil segment filled from fallback.
+func (s SegmentStyle) Or(fallback SegmentStyle) SegmentStyle {
+	if s.Number == nil {
+		s.Number = fallback.Number
+	}
+	if s.Unit == nil {
+		s.Unit = fallback.Unit
+	}
+	return s
+}
+
 // Threshold defines a style override when a quantity's numeric value
 // meets or exceeds the given threshold. Thresholds are evaluated in descending
 // order - the first match wins.

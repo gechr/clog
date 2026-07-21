@@ -167,20 +167,11 @@ func styleElapsed(
 // split path, falling back to the duration styles when the elapsed-specific
 // ones are unset.
 func styleElapsedNumberUnit(s string, styles *style.Config) string {
-	numStyle := styles.FieldElapsed.Number
-	if numStyle == nil {
-		numStyle = styles.FieldDuration.Number
-	}
-
-	unitStyle := styles.FieldElapsed.Unit
-	if unitStyle == nil {
-		unitStyle = styles.FieldDuration.Unit
-	}
-
+	seg := styles.FieldElapsed.Or(styles.FieldDuration)
 	return styleNumberUnit(
 		s,
-		numStyle,
-		unitStyle,
+		seg.Number,
+		seg.Unit,
 		styles.DurationUnits,
 		styles.DurationThresholds,
 		true,
