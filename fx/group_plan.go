@@ -2,10 +2,8 @@ package fx
 
 import (
 	"strconv"
-	"sync/atomic"
 	"time"
 
-	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 )
 
@@ -264,24 +262,8 @@ func newOverflowTask(g *Group, gts []*renderTask, syncEpoch time.Time) *renderTa
 	if g.overflowStyle != nil {
 		b.MessageStyle(g.overflowStyle)
 	}
-	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
-	symbolPtr := &atomic.Pointer[string]{}
-	empty := ""
-	msgPtr.Store(&empty)
-	fieldsPtr.Store(&b.Fields)
+	gt := newSyntheticTask(b, syncEpoch)
 	sym := overflowSymbol
-	symbolPtr.Store(&sym)
-
-	gt := &renderTask{
-		groupTask: &groupTask{
-			builder:   b,
-			fieldsPtr: fieldsPtr,
-			msgPtr:    msgPtr,
-			symbolPtr: symbolPtr,
-		},
-		syncEpoch: syncEpoch,
-	}
-	captureTaskConfig(gt)
+	gt.symbolPtr.Store(&sym)
 	return gt
 }

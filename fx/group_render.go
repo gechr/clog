@@ -542,6 +542,24 @@ func resetBarWidgetState(gt *renderTask) {
 // captureTaskConfig snapshots the builder's logger settings via
 // [Logger.TaskConfig] and pre-computes gt.tickRate and mode-specific
 // resources (shimmer LUTs, spinner frame guards).
+// newSyntheticTask builds a renderTask for a line rendered outside the
+// group's task list (status lines, the overflow indicator), seeding its
+// pointers from b and capturing its render config.
+func newSyntheticTask(b *Builder, syncEpoch time.Time) *renderTask {
+	msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
+	gt := &renderTask{
+		groupTask: &groupTask{
+			builder:   b,
+			fieldsPtr: fieldsPtr,
+			msgPtr:    msgPtr,
+			symbolPtr: symbolPtr,
+		},
+		syncEpoch: syncEpoch,
+	}
+	captureTaskConfig(gt)
+	return gt
+}
+
 func captureTaskConfig(gt *renderTask) {
 	b := gt.builder
 	gt.cfg = b.cfg.Logger.TaskConfig(b)
@@ -1273,26 +1291,15 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		if b.cfg.Logger == nil {
 			b.cfg.Logger = g.log
 		}
-		msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
-
-		gt := &renderTask{
-			groupTask: &groupTask{
-				builder:   b,
-				fieldsPtr: fieldsPtr,
-				msgPtr:    msgPtr,
-				symbolPtr: symbolPtr,
-			},
-			syncEpoch: syncEpoch,
-		}
+		gt := newSyntheticTask(b, syncEpoch)
 		gt.startedAt.Store(time.Now().UnixNano())
-		captureTaskConfig(gt)
 
 		u := &Update{
 			msgText:   b.cfg.Message,
-			msgPtr:    msgPtr,
-			fieldsPtr: fieldsPtr,
+			msgPtr:    gt.msgPtr,
+			fieldsPtr: gt.fieldsPtr,
 			base:      b.Fields,
-			symbolPtr: symbolPtr,
+			symbolPtr: gt.symbolPtr,
 			elapsed:   func() time.Duration { return gt.duration(time.Now()) },
 		}
 		u.InitSelf(u)
