@@ -91,7 +91,7 @@ e := clog.Info().Deadline("timeout", 15*time.Second,
     style.ColorStop{Position: 0, Color: blue},
     style.ColorStop{Position: 1, Color: magenta},
   ),
-  deadline.WithGradientMode(style.GradientModeStep),
+  deadline.WithGradientMode(style.GradientStep),
 )
 waitForConfirmation()
 e.Msg("confirmed")

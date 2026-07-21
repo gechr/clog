@@ -99,7 +99,7 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 | `DurationGradient`       | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `DurationGradientMode`   | `style.GradientMode`     |                 | `style.GradientFade`         |
 | `DurationThresholds`     | `map[string][]Threshold` | `ThresholdMap`  | `{}`                         |
-| `DurationUnits`          | `map[string]Style`       | `StyleMap`      | `{}`                         |
+| `DurationUnits`          | `map[string]Style`       | `Map`           | `{}`                         |
 | `ElapsedGradient`        | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `ElapsedGradientMode`    | `style.GradientMode`     |                 | `style.GradientFade`         |
 | `FieldDuration`          | `SegmentStyle`           |                 | magenta number and unit      |
@@ -113,18 +113,18 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 | `FieldString`            | `Style`                  |                 | white                        |
 | `FieldTime`              | `Style`                  |                 | magenta                      |
 | `KeyDefault`             | `Style`                  |                 | blue                         |
-| `Keys`                   | `map[string]Style`       | `StyleMap`      | `{}`                         |
+| `Keys`                   | `map[string]Style`       | `Map`           | `{}`                         |
 | `KeyValues`              | `map[string]KeyValue`    | `KeyValueMap`   | `{}`                         |
-| `Levels`                 | `map[Level]Style`        | `LevelStyleMap` | per-level bold colors        |
-| `Messages`               | `map[Level]Style`        | `LevelStyleMap` | `style.DefaultMessages()`    |
+| `Levels`                 | `map[Level]Style`        | `LevelMap`      | per-level bold colors        |
+| `Messages`               | `map[Level]Style`        | `LevelMap`      | `style.DefaultMessages()`    |
 | `PercentGradient`        | `[]style.ColorStop`      |                 | red → yellow → green         |
 | `Prompt`                 | `Style`                  |                 | `nil`                        |
 | `QuantityThresholds`     | `map[string][]Threshold` | `ThresholdMap`  | `{}`                         |
-| `QuantityUnits`          | `map[string]Style`       | `StyleMap`      | `{}`                         |
+| `QuantityUnits`          | `map[string]Style`       | `Map`           | `{}`                         |
 | `Separator`              | `Style`                  |                 | faint                        |
-| `Symbols`                | `map[Level]Style`        | `LevelStyleMap` | `{}`                         |
+| `Symbols`                | `map[Level]Style`        | `LevelMap`      | `{}`                         |
 | `Timestamp`              | `Style`                  |                 | faint                        |
-| `Values`                 | `map[any]Style`          | `ValueStyleMap` | `style.DefaultValues()`      |
+| `Values`                 | `map[any]Style`          | `ValueMap`      | `style.DefaultValues()`      |
 
 ### Syntax Highlighting
 

@@ -107,10 +107,15 @@ Any mix of animation types works: spinners, bars, pulses, and shimmers can all r
 | `fx.WithMonotonic()`             | Clamp grouped bars and percent to the highest shown fraction |
 | `fx.WithOverflowIndicator(...)`  | Append an `… N more` line when the height cap hides tasks    |
 | `fx.WithParallelism(n)`          | Limit how many group tasks may execute concurrently          |
+| `fx.WithRenderDelay(d)`          | Suppress group rendering until `d` has elapsed               |
+| `fx.WithTransientFooter()`       | Hide the footer when no task rows are visible                |
+| `fx.WithTransientHeader()`       | Hide the header when no task rows are visible                |
 | `fx.WithoutSyncAnimations()`     | Let each task animate from its own start time (sync default) |
 | `g.Add(builder)`                 | Register an animation builder, returns `*GroupEntry`         |
 | `entry.Run(task)`                | Start a `TaskFunc`, returns `*TaskResult`                    |
 | `entry.Progress(task)`           | Start an `UpdateFunc`, returns `*TaskResult`                 |
+| `g.Suspend(opts...)`             | Hide the live block and release the terminal                 |
+| `g.Resume()`                     | Restore a suspended group block                              |
 | `g.Wait()`                       | Block until all tasks complete, returns `*GroupResult`       |
 
 `FieldAlignmentMessage` applies when `PartFields` comes immediately after `PartMessage` in the part order, which is the default layout.
@@ -138,9 +143,23 @@ g := clog.Group(ctx, fx.WithMaxLines(4), fx.WithOverflowIndicator(
 
 `WithParallelism(n)` removes the limit when `n <= 0`.
 
+`WithRenderDelay(d)` suppresses group rendering until `d` has elapsed. If all tasks finish before the delay, the group produces no live-render output.
+
+`WithTransientHeader()` / `WithTransientFooter()` hide the header or footer line while no task rows are visible.
+
 Animation sync (the default) records a shared epoch when the render loop starts. Spinner frame indices, pulse sine phase, and shimmer scroll phase are all derived from this epoch instead of each task's individual start time, so animations stay in lockstep. Elapsed-time fields remain per-task and freeze at each task's finish time, so a completed line reports the task's actual runtime while its siblings continue. `WithoutSyncAnimations()` disables this and lets each task animate from its own start time.
 
 `GroupResult` and `TaskResult` support the same chaining as `WaitResult`: `.Msg()`, `.Parts()`, `.Symbol()`, `.Send()`, `.Err()`, `.Silent()`, `.OnErrorLevel()`, `.OnErrorMessage()`, `.OnSuccessLevel()`, `.OnSuccessMessage()`, and all field methods (`.Str()`, `.Int()`, etc.).
+
+## Suspending the Group
+
+`g.Suspend()` hides the live block and releases the terminal - useful before prompting for input or shelling out to another program. `g.Resume()` restores the block and repaints the latest frame immediately; both are safe to call repeatedly. By default the cursor keeps its current visibility while suspended; pass `fx.WithShowCursor(true)` to show it:
+
+```go
+g.Suspend(fx.WithShowCursor(true))
+name, err := clog.Input("Name")
+g.Resume()
+```
 
 ## Per-Event Parts Override
 
