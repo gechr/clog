@@ -133,21 +133,21 @@ func ElapsedGradientFor(bg theme.Background) []ColorStop {
 
 // PercentGradientFor returns the red -> yellow -> green gradient used for
 // [Config.PercentGradient], with stops chosen for readable contrast against bg.
-// It mirrors [ElapsedGradientFor] with the stop order reversed.
+// It is [ElapsedGradientFor] with the stop order reversed.
 func PercentGradientFor(bg theme.Background) []ColorStop {
-	start, middle, end := 0.0, 0.5, 1.0
-	if bg == theme.BackgroundLight {
-		return []ColorStop{
-			{Position: start, Color: hex("#cf222e")},  // red
-			{Position: middle, Color: hex("#b8860b")}, // amber
-			{Position: end, Color: hex("#1a7f37")},    // green
-		}
+	return reversedStops(ElapsedGradientFor(bg))
+}
+
+// reversedStops returns stops with the color order reversed and each position
+// mirrored around the midpoint, turning a low -> high gradient into its
+// high -> low counterpart.
+func reversedStops(stops []ColorStop) []ColorStop {
+	out := make([]ColorStop, len(stops))
+	for i, s := range stops {
+		s.Position = 1 - s.Position
+		out[len(stops)-1-i] = s
 	}
-	return []ColorStop{
-		{Position: start, Color: colorful.Color{R: 1, G: 0, B: 0}},  // red
-		{Position: middle, Color: colorful.Color{R: 1, G: 1, B: 0}}, // yellow
-		{Position: end, Color: colorful.Color{R: 0, G: 1, B: 0}},    // green
-	}
+	return out
 }
 
 // hex parses a "#rrggbb" color, panicking on malformed input. Intended only for
