@@ -137,14 +137,8 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		// Honor the logger's omit settings so task rows match regular log
 		// lines. Dynamic fields (elapsed/percent) are already resolved or
 		// stripped by the time render loops call this.
-		if omitZero {
-			fields = slices.DeleteFunc(slices.Clone(fields), func(f core.Field) bool {
-				return isZeroValue(f.Value)
-			})
-		} else if omitEmpty {
-			fields = slices.DeleteFunc(slices.Clone(fields), func(f core.Field) bool {
-				return isEmptyValue(f.Value)
-			})
+		if omitZero || omitEmpty {
+			fields = applyOmit(slices.Clone(fields), omitZero, omitEmpty)
 		}
 		return formatFields(fields, fieldOpts)
 	}

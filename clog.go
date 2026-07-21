@@ -1191,15 +1191,7 @@ func (l *Logger) log(e *Event, msg string) {
 		allFields = slices.Concat(l.fields, e.fields)
 	}
 
-	if omitZero {
-		allFields = slices.DeleteFunc(allFields, func(f Field) bool {
-			return isZeroValue(f.Value)
-		})
-	} else if omitEmpty {
-		allFields = slices.DeleteFunc(allFields, func(f Field) bool {
-			return isEmptyValue(f.Value)
-		})
-	}
+	allFields = applyOmit(allFields, omitZero, omitEmpty)
 
 	symbol := l.resolveSymbol(e)
 
@@ -1342,6 +1334,24 @@ func (l *Logger) log(e *Event, msg string) {
 	l.runHooks(HookBeforeWrite)
 	l.output.WriteLine(line + nl)
 	l.runHooks(HookAfterWrite)
+}
+
+// applyOmit filters fields per the omit settings; omitZero is a superset of
+// omitEmpty. The slice is filtered in place - callers whose slice shares a
+// backing array must clone first.
+func applyOmit(fields []Field, omitZero, omitEmpty bool) []Field {
+	switch {
+	case omitZero:
+		return slices.DeleteFunc(fields, func(f Field) bool {
+			return isZeroValue(f.Value)
+		})
+	case omitEmpty:
+		return slices.DeleteFunc(fields, func(f Field) bool {
+			return isEmptyValue(f.Value)
+		})
+	default:
+		return fields
+	}
 }
 
 // runHooks executes all hooks registered at the given point. Must be called with l.mu held.
