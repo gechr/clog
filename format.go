@@ -400,27 +400,6 @@ func formatValue(
 	}
 }
 
-// formatETA formats a duration as a compact ETA string, always rounded to
-// whole seconds. Uses the same composite format as [formatElapsed]:
-//   - >= 1h: "1h2m"
-//   - >= 1m: "2m30s"
-//   - < 1m: "5s", minimum "1s" (never "0s")
-func formatETA(d time.Duration) string {
-	if d < 0 {
-		d = -d
-	}
-
-	// Round to whole seconds.
-	d = d.Round(time.Second)
-
-	if s, ok := formatCompositeDuration(d); ok {
-		return s
-	}
-
-	s := max(int(d/time.Second), 1)
-	return strconv.Itoa(s) + "s"
-}
-
 // formatDurationValueOptions formats a duration for display, shared by
 // Elapsed and Duration fields. For durations >= 1 hour it uses composite
 // "XhYm" format (omitting Ym when Y=0). For durations >= 1 minute it uses
@@ -451,30 +430,6 @@ func ceilDuration(d, r time.Duration) time.Duration {
 		d += r - rem
 	}
 	return d
-}
-
-func formatCompositeDuration(d time.Duration) (string, bool) {
-	if d >= time.Hour {
-		h := int(d / time.Hour)
-		remainder := d - time.Duration(h)*time.Hour
-		m := int(remainder / time.Minute)
-		if m == 0 {
-			return strconv.Itoa(h) + "h", true
-		}
-		return strconv.Itoa(h) + "h" + strconv.Itoa(m) + "m", true
-	}
-
-	if d >= time.Minute {
-		m := int(d / time.Minute)
-		remainder := d - time.Duration(m)*time.Minute
-		s := int(remainder / time.Second)
-		if s == 0 {
-			return strconv.Itoa(m) + "m", true
-		}
-		return strconv.Itoa(m) + "m" + strconv.Itoa(s) + "s", true
-	}
-
-	return "", false
 }
 
 func percentFraction(p core.Percent, maximum float64) float64 {
