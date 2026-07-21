@@ -361,7 +361,7 @@ func TestFormatValueElapsed(t *testing.T) {
 
 	// Precision 1 → one decimal place, no trimming.
 	f := DefaultFieldFormats()
-	f.ElapsedPrecision = 1
+	f.ElapsedScale = TimeScale{{Precision: 1}}
 	got, kind = formatValue(
 		core.ElapsedField{Value: 3200 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -391,7 +391,7 @@ func TestFormatValueElapsedPrecision(t *testing.T) {
 	assert.Equal(t, kindElapsed, kind)
 
 	f := DefaultFieldFormats()
-	f.ElapsedPrecision = 2
+	f.ElapsedScale = TimeScale{{Precision: 2}}
 	got, kind = formatValue(
 		core.ElapsedField{Value: 3210 * time.Millisecond},
 		sliceFormat{open: "[", close: "]", sep: ", "},
@@ -2720,7 +2720,7 @@ func TestDurationFormatFuncFallbackForElapsed(t *testing.T) {
 		return "dur:" + d.Truncate(time.Second).String()
 	}
 	f.ElapsedMinimum = 0
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 
 	opts := formatFieldsOpts{noColor: true, formats: &f}
 
@@ -2736,7 +2736,7 @@ func TestDurationFormatFuncElapsedSpecificOverrides(t *testing.T) {
 	f.DurationFormat = func(d time.Duration) string { return "dur:" + d.String() }
 	f.ElapsedFormat = func(d time.Duration) string { return "ela:" + d.String() }
 	f.ElapsedMinimum = 0
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 
 	opts := formatFieldsOpts{noColor: true, formats: &f}
 
@@ -2762,7 +2762,7 @@ func TestElapsedFormatFunc(t *testing.T) {
 		return d.Truncate(time.Second).String()
 	}
 	f.ElapsedMinimum = 0
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2885,8 +2885,7 @@ func TestLookupValueStyle(t *testing.T) {
 func TestElapsedMinimum(t *testing.T) {
 	f := DefaultFieldFormats()
 	f.ElapsedMinimum = time.Second
-	f.ElapsedRound = 0
-	f.ElapsedPrecision = 0
+	f.ElapsedScale = TimeScale{}
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2904,7 +2903,7 @@ func TestElapsedMinimum(t *testing.T) {
 func TestElapsedMinimumZeroDisabled(t *testing.T) {
 	f := DefaultFieldFormats()
 	f.ElapsedMinimum = 0
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2920,9 +2919,8 @@ func TestElapsedMinimumZeroDisabled(t *testing.T) {
 
 func TestElapsedRound(t *testing.T) {
 	f := DefaultFieldFormats()
-	f.ElapsedRound = time.Second
+	f.ElapsedScale = TimeScale{{Round: time.Second}}
 	f.ElapsedMinimum = 0
-	f.ElapsedPrecision = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2938,9 +2936,8 @@ func TestElapsedRound(t *testing.T) {
 
 func TestElapsedRoundPerFieldOverride(t *testing.T) {
 	f := DefaultFieldFormats()
-	f.ElapsedRound = time.Second
+	f.ElapsedScale = TimeScale{{Round: time.Second}}
 	f.ElapsedMinimum = 0
-	f.ElapsedPrecision = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2960,9 +2957,8 @@ func TestElapsedRoundPerFieldOverride(t *testing.T) {
 
 func TestDurationRoundPerFieldOverride(t *testing.T) {
 	f := DefaultFieldFormats()
-	f.DurationRound = time.Second
+	f.DurationScale = TimeScale{{Round: time.Second}}
 	f.DurationMinimum = 0
-	f.DurationPrecision = 0
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -2982,8 +2978,7 @@ func TestDurationRoundPerFieldOverride(t *testing.T) {
 
 func TestDeadlineRoundPerFieldOverride(t *testing.T) {
 	f := DefaultFieldFormats()
-	f.ElapsedRound = time.Second
-	f.ElapsedPrecision = 0
+	f.ElapsedScale = TimeScale{{Round: time.Second}}
 
 	opts := formatFieldsOpts{
 		noColor: true,
@@ -3383,7 +3378,7 @@ func TestFormatValueDeadline(t *testing.T) {
 
 	// Precision 1 → one decimal place, no trimming.
 	f := DefaultFieldFormats()
-	f.ElapsedPrecision = 1
+	f.ElapsedScale = TimeScale{{Precision: 1}}
 	got, kind = formatValue(
 		core.DeadlineField{Remaining: 3200 * time.Millisecond, From: 15 * time.Second},
 		sliceFormat{open: "[", close: "]", sep: ", "},

@@ -2110,7 +2110,7 @@ func TestFieldFormatsElapsedFormat(t *testing.T) {
 	}
 	// Disable minimum so elapsed is always shown.
 	f.ElapsedMinimum = 0
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 	l.SetFieldFormats(f)
 
 	// Directly inject an elapsed field via the logger's fields.
@@ -2130,7 +2130,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l := New(TestOutput(&buf))
 		f := DefaultFieldFormats()
 		f.ElapsedMinimum = 2 * time.Second
-		f.ElapsedRound = 0
+		f.ElapsedScale = TimeScale{}
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
@@ -2148,7 +2148,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l := New(TestOutput(&buf))
 		f := DefaultFieldFormats()
 		f.ElapsedMinimum = 1 * time.Second
-		f.ElapsedRound = 0
+		f.ElapsedScale = TimeScale{}
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
@@ -2166,7 +2166,7 @@ func TestFieldFormatsElapsedMinimum(t *testing.T) {
 		l := New(TestOutput(&buf))
 		f := DefaultFieldFormats()
 		f.ElapsedMinimum = 0
-		f.ElapsedRound = 0
+		f.ElapsedScale = TimeScale{}
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
@@ -2185,9 +2185,8 @@ func TestFieldFormatsElapsedPrecision(t *testing.T) {
 
 		l := New(TestOutput(&buf))
 		f := DefaultFieldFormats()
-		f.ElapsedPrecision = 0
+		f.ElapsedScale = TimeScale{}
 		f.ElapsedMinimum = 0
-		f.ElapsedRound = 0
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
@@ -2204,9 +2203,8 @@ func TestFieldFormatsElapsedPrecision(t *testing.T) {
 
 		l := New(TestOutput(&buf))
 		f := DefaultFieldFormats()
-		f.ElapsedPrecision = 1
+		f.ElapsedScale = TimeScale{{Precision: 1}}
 		f.ElapsedMinimum = 0
-		f.ElapsedRound = 0
 		l.SetFieldFormats(f)
 
 		l.mu.Lock()
@@ -2224,9 +2222,8 @@ func TestFieldFormatsElapsedRound(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 	f := DefaultFieldFormats()
-	f.ElapsedRound = time.Second
+	f.ElapsedScale = TimeScale{{Round: time.Second}}
 	f.ElapsedMinimum = 0
-	f.ElapsedPrecision = 0
 	l.SetFieldFormats(f)
 
 	l.mu.Lock()

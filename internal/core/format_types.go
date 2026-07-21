@@ -19,7 +19,7 @@ type QuantityField string
 // elapsed-time styling. GradientMax, Gradient, and GradientMode override the
 // logger's elapsed gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.ElapsedMinimum] threshold and
-// Round the logger's [FieldFormats.ElapsedRound] granularity for this field
+// Round the logger's scale-resolved rounding granularity for this field
 // when non-nil. Scale overrides the logger's elapsed scale when non-nil.
 // OmitOnDone removes the field from fx.Builder done
 // rows while leaving the live animation field visible. Trailing
@@ -43,7 +43,7 @@ type ElapsedField struct {
 // implicit gradient maximum of From, so a fresh deadline uses the gradient's
 // first stop and an expired one uses the last. Gradient and GradientMode
 // override the logger's elapsed gradient settings for this field when
-// non-nil/non-empty. Round overrides the logger's [FieldFormats.ElapsedRound]
+// non-nil/non-empty. Round overrides the logger's scale-resolved rounding
 // granularity for this field when non-nil. Scale overrides the logger's
 // elapsed scale when non-nil.
 // OmitOnDone removes the field from fx.Builder done rows while leaving
@@ -65,7 +65,7 @@ type DeadlineField struct {
 // duration styling. GradientMax, Gradient, and GradientMode override the
 // logger's duration gradient settings for this field when non-nil/non-empty.
 // Minimum overrides the logger's [FieldFormats.DurationMinimum] threshold and
-// Round the logger's [FieldFormats.DurationRound] granularity for this field
+// Round the logger's scale-resolved rounding granularity for this field
 // when non-nil. Scale overrides the logger's duration scale when non-nil.
 // OmitOnDone removes the field from fx.Builder done
 // rows while leaving the live animation field visible.
@@ -82,7 +82,7 @@ type DurationField struct {
 
 // TimeScale maps a duration's magnitude to display settings. A nil scale
 // inherits its parent scale; a non-nil empty scale disables scale inheritance
-// and falls back to the corresponding scalar precision and rounding settings.
+// and resolves nothing (no rounding, whole-unit display).
 type TimeScale []TimeScaleStep
 
 // TimeScaleStep is one bracket of a [TimeScale]. Below is an exclusive upper

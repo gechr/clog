@@ -22,16 +22,9 @@ type FieldFormats struct {
 	// DurationMinimum hides duration fields below this duration.
 	// The default is 0, which shows all values.
 	DurationMinimum time.Duration
-	// DurationPrecision is the decimal precision for duration display
-	// (0 = "3s", 1 = "3.2s"). Ignored when a duration scale applies.
-	DurationPrecision int
-	// DurationRound is the rounding granularity for duration values.
-	// The default is [time.Second]; 0 disables rounding. Ignored when a
-	// duration scale applies.
-	DurationRound time.Duration
 	// DurationScale overrides TimeScale for duration fields. nil inherits
-	// TimeScale; a non-nil empty scale uses DurationRound and
-	// DurationPrecision instead.
+	// TimeScale; a non-nil empty scale disables rounding and decimal
+	// display.
 	DurationScale TimeScale
 	// ElapsedFormat overrides the formatter for elapsed-time fields.
 	// nil means DurationFormat, then the built-in format.
@@ -42,17 +35,10 @@ type FieldFormats struct {
 	// ElapsedMinimum hides elapsed fields below this duration.
 	// The default is [time.Second]; 0 shows all values.
 	ElapsedMinimum time.Duration
-	// ElapsedPrecision is the decimal precision for elapsed display
-	// (0 = "3s", 1 = "3.2s"). Ignored when an elapsed scale applies.
-	ElapsedPrecision int
-	// ElapsedRound is the rounding granularity for elapsed values.
-	// The default is [time.Second]; 0 disables rounding. Ignored when an
-	// elapsed scale applies.
-	ElapsedRound time.Duration
 	// ElapsedScale overrides TimeScale for elapsed and deadline fields. nil
-	// inherits TimeScale; a non-nil empty scale uses ElapsedRound and
-	// ElapsedPrecision instead. The default is an empty scale so live fields
-	// keep a stable whole-second width.
+	// inherits TimeScale; a non-nil empty scale disables rounding and
+	// decimal display. The default is a whole-second scale so live fields
+	// keep a stable width.
 	ElapsedScale TimeScale
 	// TimeScale is the shared magnitude-keyed rounding and precision scale for
 	// time fields. DurationScale and ElapsedScale can override its inheritance.
@@ -125,10 +111,8 @@ const (
 func DefaultFieldFormats() FieldFormats {
 	return FieldFormats{
 		DurationMinimum:         0,
-		DurationRound:           time.Second,
 		ElapsedMinimum:          time.Second,
-		ElapsedRound:            time.Second,
-		ElapsedScale:            TimeScale{},
+		ElapsedScale:            TimeScale{{Round: time.Second}},
 		HyperlinkEnabled:        true,
 		NumberCompactFallback:   NumberGrouped,
 		NumberCompactMinimum:    1000, //nolint:mnd // default compact threshold
@@ -162,89 +146,79 @@ type TimeScale = core.TimeScale
 // TimeScaleStep is one magnitude bracket of a [TimeScale].
 type TimeScaleStep = core.TimeScaleStep
 
-// resolveScale resolves a field-specific scale through the shared TimeScale.
-// nil inherits; a non-nil empty scale deliberately falls back to scalars.
-func (f *FieldFormats) resolveScale(d time.Duration, specific TimeScale) (TimeScaleStep, bool) {
-	if specific != nil {
-		return specific.Resolve(d)
+// resolveScale resolves the per-call scale, then the field-specific scale,
+// then the shared TimeScale. A non-nil scale stops the fallback chain even
+// when empty, so an empty scale deliberately resolves nothing.
+func (f *FieldFormats) resolveScale(
+	d time.Duration,
+	scale, fieldScale TimeScale,
+) (TimeScaleStep, bool) {
+	switch {
+	case scale != nil:
+		return scale.Resolve(d)
+	case fieldScale != nil:
+		return fieldScale.Resolve(d)
+	default:
+		return f.TimeScale.Resolve(d)
 	}
-	return f.TimeScale.Resolve(d)
 }
 
 // resolveRound resolves the rounding granularity for a raw duration value: a
-// per-field override wins, then the per-call scale bracket, then the
-// field-specific scale (falling back to the shared TimeScale), then the
-// scalar fallback.
+// per-field override wins, then the resolved scale bracket. 0 (no rounding)
+// when nothing resolves.
 func (f *FieldFormats) resolveRound(
 	raw time.Duration,
 	override *time.Duration,
 	scale, fieldScale TimeScale,
-	scalar time.Duration,
 ) time.Duration {
 	if override != nil {
 		return *override
 	}
-	if scale != nil {
-		if step, ok := scale.Resolve(raw); ok {
-			return step.Round
-		}
-		return scalar
-	}
-	if step, ok := f.resolveScale(raw, fieldScale); ok {
+	if step, ok := f.resolveScale(raw, scale, fieldScale); ok {
 		return step.Round
 	}
-	return scalar
+	return 0
 }
 
 // resolveDisplay resolves the precision and trim settings for a duration
-// value: the per-call scale bracket wins, then the field-specific scale
-// (falling back to the shared TimeScale), then the scalar precision.
-func (f *FieldFormats) resolveDisplay(
-	d time.Duration,
-	scale, fieldScale TimeScale,
-	scalarPrecision int,
-) (int, bool) {
-	if scale != nil {
-		if step, ok := scale.Resolve(d); ok {
-			return step.Precision, step.Trim
-		}
-		return scalarPrecision, false
-	}
-	if step, ok := f.resolveScale(d, fieldScale); ok {
+// value from the resolved scale bracket. Plain whole-unit display when
+// nothing resolves.
+func (f *FieldFormats) resolveDisplay(d time.Duration, scale, fieldScale TimeScale) (int, bool) {
+	if step, ok := f.resolveScale(d, scale, fieldScale); ok {
 		return step.Precision, step.Trim
 	}
-	return scalarPrecision, false
+	return 0, false
 }
 
 // durationRound resolves the rounding granularity for a raw duration value: a
-// per-field override wins, then the DurationScale bracket, then DurationRound.
+// per-field override wins, then the duration scale bracket.
 func (f *FieldFormats) durationRound(
 	raw time.Duration,
 	override *time.Duration,
 	scale TimeScale,
 ) time.Duration {
-	return f.resolveRound(raw, override, scale, f.DurationScale, f.DurationRound)
+	return f.resolveRound(raw, override, scale, f.DurationScale)
 }
 
 // durationDisplay resolves display settings for a duration value.
 func (f *FieldFormats) durationDisplay(d time.Duration, scale TimeScale) (int, bool) {
-	return f.resolveDisplay(d, scale, f.DurationScale, f.DurationPrecision)
+	return f.resolveDisplay(d, scale, f.DurationScale)
 }
 
 // elapsedRound mirrors [FieldFormats.durationRound] for elapsed and deadline
-// fields, drawing on ElapsedScale then ElapsedRound.
+// fields, drawing on ElapsedScale.
 func (f *FieldFormats) elapsedRound(
 	raw time.Duration,
 	override *time.Duration,
 	scale TimeScale,
 ) time.Duration {
-	return f.resolveRound(raw, override, scale, f.ElapsedScale, f.ElapsedRound)
+	return f.resolveRound(raw, override, scale, f.ElapsedScale)
 }
 
 // elapsedDisplay mirrors [FieldFormats.durationDisplay] for elapsed and
 // deadline fields.
 func (f *FieldFormats) elapsedDisplay(d time.Duration, scale TimeScale) (int, bool) {
-	return f.resolveDisplay(d, scale, f.ElapsedScale, f.ElapsedPrecision)
+	return f.resolveDisplay(d, scale, f.ElapsedScale)
 }
 
 // defaultFieldFormats is the shared immutable default used when a

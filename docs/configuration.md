@@ -91,7 +91,7 @@ To change a single option without the read-modify-write dance, each field has a 
 
 `SetTimeGradientMax(max)` is a shorthand that sets both `DurationGradientMax` and `ElapsedGradientMax` at once, since duration and elapsed fields usually share a gradient ceiling.
 
-Time fields can select rounding and decimal precision by magnitude with `TimeScale`. The default shared scale renders values below one second in milliseconds, values below ten seconds with up to one decimal place, and larger values as whole seconds. `DurationScale == nil` inherits that shared scale. Live `Elapsed` and `Deadline` fields default to a non-nil empty `ElapsedScale`, which selects the stable-width scalar settings (`ElapsedRound = time.Second`, `ElapsedPrecision = 0`) instead of changing width as a timer crosses scale brackets.
+Time fields select rounding and decimal precision by magnitude with `TimeScale`. The default shared scale renders values below one second in milliseconds, values below ten seconds with up to one decimal place, and larger values as whole seconds. `DurationScale == nil` inherits that shared scale. Live `Elapsed` and `Deadline` fields default to a single-step whole-second `ElapsedScale` (`clog.TimeScale{{Round: time.Second}}`) so their width stays stable instead of changing as a timer crosses scale brackets.
 
 ```go
 f := clog.DefaultFieldFormats()
@@ -104,22 +104,18 @@ f.ElapsedScale = nil // opt live elapsed/deadline fields into the shared scale
 logger.SetFieldFormats(f)
 ```
 
-`DurationScale` and `ElapsedScale` have three states: `nil` inherits `TimeScale`, a non-empty scale overrides it, and a non-nil empty scale uses the corresponding scalar `Round`/`Precision` fields. `SetDurationRound`, `SetDurationPrecision`, `SetElapsedRound`, and `SetElapsedPrecision` automatically select scalar mode. `SetTimeScale` installs one shared scale and clears both field-specific overrides. A scale step's `Below` is an exclusive upper bound, zero is the catch-all, and `Trim` removes trailing fractional zeroes (for example, `1.0s` becomes `1s`).
+`DurationScale` and `ElapsedScale` have three states: `nil` inherits `TimeScale`, a non-empty scale overrides it, and a non-nil empty scale disables rounding and decimal display entirely. `SetTimeScale` installs one shared scale and clears both field-specific overrides. A scale step's `Below` is an exclusive upper bound, zero is the catch-all, and `Trim` removes trailing fractional zeroes (for example, `1.0s` becomes `1s`).
 
 | Field                     | Type                         | Default          | Description                                                                                  |
 | ------------------------- | ---------------------------- | ---------------- | -------------------------------------------------------------------------------------------- |
 | `DurationFormat`          | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for `Duration` fields (also used for elapsed when `ElapsedFormat` is `nil`) |
 | `DurationGradientMax`     | `time.Duration`              | `0` (disabled)   | Max duration for the `Duration` field gradient                                               |
 | `DurationMinimum`         | `time.Duration`              | `0`              | Hide duration fields below this duration (`0` shows all values)                              |
-| `DurationPrecision`       | `int`                        | `0`              | Scalar decimal places when no duration scale applies (`0` = `3s`, `1` = `3.2s`)              |
-| `DurationRound`           | `time.Duration`              | `time.Second`    | Scalar rounding when no duration scale applies (`0` disables rounding)                       |
-| `DurationScale`           | `TimeScale`                  | `nil` (inherit)  | Duration-specific scale; nil inherits `TimeScale`, empty selects scalar settings             |
+| `DurationScale`           | `TimeScale`                  | `nil` (inherit)  | Duration-specific scale; nil inherits `TimeScale`, empty disables rounding                   |
 | `ElapsedFormat`           | `func(time.Duration) string` | `nil` (built-in) | Custom formatter for elapsed fields (takes priority over `DurationFormat`)                   |
 | `ElapsedGradientMax`      | `time.Duration`              | `0` (disabled)   | Max duration for the elapsed gradient                                                        |
 | `ElapsedMinimum`          | `time.Duration`              | `time.Second`    | Hide elapsed fields below this duration (`0` shows all values)                               |
-| `ElapsedPrecision`        | `int`                        | `0`              | Scalar decimal places when no elapsed scale applies (`0` = `3s`, `1` = `3.2s`)               |
-| `ElapsedRound`            | `time.Duration`              | `time.Second`    | Scalar rounding when no elapsed scale applies (`0` disables rounding)                        |
-| `ElapsedScale`            | `TimeScale`                  | empty (scalars)  | Elapsed/deadline-specific scale; nil inherits `TimeScale`, empty selects scalar settings     |
+| `ElapsedScale`            | `TimeScale`                  | whole seconds    | Elapsed/deadline-specific scale; nil inherits `TimeScale`, empty disables rounding           |
 | `TimeScale`               | `TimeScale`                  | three brackets   | Shared magnitude-keyed rounding and precision scale                                          |
 | `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                       |
 | `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                   |

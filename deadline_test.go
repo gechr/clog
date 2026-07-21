@@ -75,7 +75,7 @@ func TestFieldFormatsDeadlineRoundCeils(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 	f := DefaultFieldFormats()
-	f.ElapsedRound = time.Second
+	f.ElapsedScale = TimeScale{{Round: time.Second}}
 	l.SetFieldFormats(f)
 
 	// 14.2s remaining rounds UP to 15s - a running countdown never shows a
@@ -98,7 +98,7 @@ func TestFieldFormatsDeadlineIgnoresMinimum(t *testing.T) {
 	l := New(TestOutput(&buf))
 	f := DefaultFieldFormats()
 	f.ElapsedMinimum = 2 * time.Second
-	f.ElapsedRound = 0
+	f.ElapsedScale = TimeScale{}
 	l.SetFieldFormats(f)
 
 	// A deadline below the elapsed minimum stays visible - hiding a countdown

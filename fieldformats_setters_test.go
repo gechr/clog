@@ -40,25 +40,6 @@ func TestSetHyperlinkLineFormatExpandsPreset(t *testing.T) {
 	assert.Empty(t, f.HyperlinkFileFormat, "file format must be untouched")
 }
 
-func TestSetElapsedPrecision(t *testing.T) {
-	l := NewWriter(io.Discard)
-	l.SetElapsedPrecision(1)
-	f := l.FieldFormats()
-	assert.Equal(t, 1, f.ElapsedPrecision)
-	assert.NotNil(t, f.ElapsedScale)
-	assert.Empty(t, f.ElapsedScale)
-}
-
-func TestSetDurationRoundSelectsScalarSettings(t *testing.T) {
-	l := NewWriter(io.Discard)
-	l.SetDurationRound(10 * time.Millisecond)
-
-	f := l.FieldFormats()
-	assert.Equal(t, 10*time.Millisecond, f.DurationRound)
-	assert.NotNil(t, f.DurationScale)
-	assert.Empty(t, f.DurationScale)
-}
-
 func TestSetTimeScaleClearsFieldOverrides(t *testing.T) {
 	l := NewWriter(io.Discard)
 	l.SetDurationScale(TimeScale{{Round: time.Minute}})

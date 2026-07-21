@@ -26,7 +26,7 @@ TAPE_NAMES   := banner spinner pulse shimmer shimmer-directions bar bar-styles g
 TAPE_TARGETS := $(addprefix tape-,$(TAPE_NAMES))
 
 .PHONY: all
-all: fmt lint test
+all: gen fmt lint test
 
 .PHONY: banner
 banner:

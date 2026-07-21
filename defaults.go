@@ -102,12 +102,6 @@ func SetDurationGradientMax(maximum time.Duration) { Default().SetDurationGradie
 // SetDurationMinimum sets the minimum duration shown on the [Default] logger.
 func SetDurationMinimum(minimum time.Duration) { Default().SetDurationMinimum(minimum) }
 
-// SetDurationPrecision sets the duration display precision on the [Default] logger.
-func SetDurationPrecision(precision int) { Default().SetDurationPrecision(precision) }
-
-// SetDurationRound sets the duration rounding granularity on the [Default] logger.
-func SetDurationRound(round time.Duration) { Default().SetDurationRound(round) }
-
 // SetDurationScale sets the duration rounding/precision scale on the [Default] logger.
 func SetDurationScale(scale TimeScale) { Default().SetDurationScale(scale) }
 
@@ -119,12 +113,6 @@ func SetElapsedGradientMax(maximum time.Duration) { Default().SetElapsedGradient
 
 // SetElapsedMinimum sets the minimum elapsed duration shown on the [Default] logger.
 func SetElapsedMinimum(minimum time.Duration) { Default().SetElapsedMinimum(minimum) }
-
-// SetElapsedPrecision sets the elapsed display precision on the [Default] logger.
-func SetElapsedPrecision(precision int) { Default().SetElapsedPrecision(precision) }
-
-// SetElapsedRound sets the elapsed rounding granularity on the [Default] logger.
-func SetElapsedRound(round time.Duration) { Default().SetElapsedRound(round) }
 
 // SetElapsedScale sets the elapsed and deadline rounding/precision scale on the [Default] logger.
 func SetElapsedScale(scale TimeScale) { Default().SetElapsedScale(scale) }

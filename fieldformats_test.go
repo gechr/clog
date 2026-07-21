@@ -59,8 +59,7 @@ func TestDefaultFieldFormatsTimeScales(t *testing.T) {
 	assert.Zero(t, f.DurationMinimum)
 	assert.Len(t, f.TimeScale, 3)
 	assert.Nil(t, f.DurationScale)
-	assert.NotNil(t, f.ElapsedScale)
-	assert.Empty(t, f.ElapsedScale)
+	assert.Equal(t, TimeScale{{Round: time.Second}}, f.ElapsedScale)
 }
 
 func TestFieldFormatsSubLoggerInheritsParent(t *testing.T) {

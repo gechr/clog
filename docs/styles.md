@@ -353,10 +353,10 @@ clog.Info().
   Msg("batch complete")
 ```
 
-`elapsed.WithRound(d)` overrides `ElapsedRound` for that field only - the field's value is rounded at granularity `d` instead of the logger's, and `0` disables rounding for the field:
+`elapsed.WithRound(d)` overrides the logger's scale-resolved rounding for that field only - the field's value is rounded at granularity `d` instead, and `0` disables rounding for the field:
 
 ```go
-clog.SetElapsedRound(time.Second) // logger default: round to whole seconds
+// Logger default: live elapsed fields round to whole seconds.
 
 clog.Info().
   Elapsed("elapsed").                                            // rounds to 1s
