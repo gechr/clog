@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gechr/clog/internal/core"
-	xansi "github.com/gechr/x/ansi"
 )
 
 const nl = "\n"
@@ -20,10 +19,23 @@ func writeString(w io.Writer, s string) {
 
 // liveRegionProvider is the optional capability probed for on the task's
 // [RenderOutput]. The root clog Output implements it; external Output
-// implementations (and test stubs) that don't are served by the direct
-// in-place render loop below, so the interface contracts stay unchanged.
+// implementations (and test stubs) that don't get a private region wrapping
+// their writer, so the interface contracts stay unchanged.
 type liveRegionProvider interface {
 	LiveRegion() *core.LiveRegion
+}
+
+// liveRegionFor returns the output's shared [core.LiveRegion] when it
+// provides one, or a private region wrapping the output's writer otherwise.
+// A private region coordinates the animations of a single run; only the
+// shared region additionally displaces log lines written on the same output.
+func liveRegionFor(output RenderOutput) *core.LiveRegion {
+	if p, ok := output.(liveRegionProvider); ok {
+		if region := p.LiveRegion(); region != nil {
+			return region
+		}
+	}
+	return core.NewLiveRegion(output.Writer(), output.Width)
 }
 
 // runAnimation runs the render loop for a single animation, blocking until
@@ -113,93 +125,21 @@ func runAnimation(
 		}
 	}
 
-	// Live-region path: when the output exposes a shared LiveRegion, register
-	// this animation as one slot of the region's stacked block. The region
-	// owns the render cadence and cursor visibility, coordinates concurrent
-	// standalone animations, and lets log lines displace the block instead of
-	// being overpainted by the next frame.
-	if p, ok := gt.cfg.Output.(liveRegionProvider); ok {
-		if region := p.LiveRegion(); region != nil {
-			return runAnimationRegion(ctx, b, gt, done, region)
-		}
-	}
-
-	// Direct path: this animation owns the terminal and repaints in place.
-	// Hide cursor during animation.
-	writeString(gt.cfg.Out, xansi.HideCursor)
-	defer writeString(gt.cfg.Out, xansi.ShowCursor)
-
-	ticker := time.NewTicker(gt.tickRate)
-	defer ticker.Stop()
-
-	var frameBuf strings.Builder
-	rendered := false
-	prevLineCount := 1
-	lastLine := ""
-	lastWidth := 0
-
-	// prevRows returns the physical row count of the block currently on
-	// screen: zero before the first frame is rendered.
-	prevRows := func() int {
-		if rendered {
-			return prevLineCount
-		}
-		return 0
-	}
-
-	for {
-		select {
-		case err := <-done:
-			// For bar animations, render one final frame so 100% is visible
-			// before the line is cleared and replaced with the completion message.
-			if b.mode == AnimationBar && err == nil {
-				resetBarWidgetState(gt)
-				line := renderTaskLine(gt, false, time.Now(), nil)
-				frameBuf.Reset()
-				prevLineCount = appendRepaint(
-					&frameBuf, []string{line}, prevRows(), gt.cfg.Output.Width(),
-				)
-				writeString(gt.cfg.Out, frameBuf.String())
-				rendered = true
-			}
-			if rendered {
-				writeString(gt.cfg.Out, syncFrame(
-					xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow,
-				))
-			} else {
-				writeString(gt.cfg.Out, xansi.ClearLine)
-			}
-			return err
-		case now := <-ticker.C:
-			line := renderTaskLine(gt, false, now, nil)
-			width := gt.cfg.Output.Width()
-			// Skip identical frames: nothing on screen would change, so a
-			// write would be wasted bandwidth.
-			if rendered && line == lastLine && width == lastWidth {
-				continue
-			}
-			frameBuf.Reset()
-			prevLineCount = appendRepaint(&frameBuf, []string{line}, prevRows(), width)
-			writeString(gt.cfg.Out, frameBuf.String())
-			rendered = true
-			lastLine = line
-			lastWidth = width
-		case <-ctx.Done():
-			// Preserve the in-progress line as scrollback.
-			writeString(gt.cfg.Out, nl)
-			return ctx.Err()
-		}
-	}
+	// Register this animation as one slot of the region's stacked block. The
+	// region owns the render cadence and cursor visibility, coordinates
+	// concurrent standalone animations, and (on a shared region) lets log
+	// lines displace the block instead of being overpainted by the next frame.
+	return runAnimationRegion(ctx, b, gt, done, liveRegionFor(gt.cfg.Output))
 }
 
 // runAnimationRegion runs a single animation as one slot of the output's
-// shared [core.LiveRegion], blocking until the task completes or the context
-// is cancelled. The region's render loop calls the slot's render closure
+// [core.LiveRegion], blocking until the task completes or the context is
+// cancelled. The region's render loop calls the slot's render closure
 // under the region lock, so this goroutine must not call renderTaskLine while
 // the slot is registered (the closure mutates per-tick caches on gt).
-// Done and cancel semantics mirror the direct render loop: a successful bar shows a
-// final 100% frame before the line is erased, and the completion message is
-// printed by the caller through the logger, landing cleanly via displacement.
+// On success a bar shows a final 100% frame before the line is erased, and
+// the completion message is printed by the caller through the logger,
+// landing cleanly via displacement.
 func runAnimationRegion(
 	ctx context.Context,
 	b *Builder,

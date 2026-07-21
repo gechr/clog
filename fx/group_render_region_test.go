@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gechr/clog/fx/bar"
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
@@ -257,120 +256,6 @@ func TestRunGroupLoopRegionTwoConcurrentGroups(t *testing.T) {
 // runScriptedGroup runs a group of gated tasks to completion on log, waiting
 // for waitFor to appear in buf before releasing the tasks, and returns the
 // full byte stream the run produced.
-func runScriptedGroup(
-	t *testing.T,
-	log Logger,
-	buf *lockedWriter,
-	waitFor string,
-	builders ...*Builder,
-) string {
-	t.Helper()
-
-	release := make(chan struct{})
-	g := NewGroup(context.Background(), log)
-	for _, b := range builders {
-		g.Add(b).Run(gateTask(release))
-	}
-
-	loopDone := make(chan error, 1)
-	go func() { loopDone <- runGroupLoop(context.Background(), g) }()
-
-	require.Eventually(t, func() bool {
-		return strings.Contains(buf.String(), waitFor)
-	}, 2*time.Second, time.Millisecond)
-	close(release)
-	require.NoError(t, <-loopDone)
-	return buf.String()
-}
-
-func TestRunGroupLoopRegionMatchesLegacyByteStreamWhenAlone(t *testing.T) {
-	// The legacy renderer ends by erasing the block bottom-up (clearing the
-	// park row first); the region erases it as a zero-line repaint from the
-	// top. Both leave the screen blank with the cursor on the block's former
-	// top row, so parity is asserted on everything before the erase.
-	tails := func(rows int) (string, string) {
-		var lt strings.Builder
-		eraseBlockSync(&lt, rows)
-		var rt strings.Builder
-		appendRepaint(&rt, nil, rows, 80)
-		return lt.String() + xansi.ShowCursor, rt.String() + xansi.ShowCursor
-	}
-
-	run := func(t *testing.T, region bool, builders func(log Logger) []*Builder) string {
-		t.Helper()
-		var buf lockedWriter
-		var log Logger
-		if region {
-			log, _ = newRegionStubLogger(&buf)
-		} else {
-			log = &stubLogger{out: &stubOutput{
-				cursorOK:  true,
-				cursorRow: 1,
-				height:    24,
-				tty:       true,
-				w:         &buf,
-				width:     80,
-			}}
-		}
-		return runScriptedGroup(t, log, &buf, "INF", builders(log)...)
-	}
-
-	t.Run("static tasks", func(t *testing.T) {
-		builders := func(log Logger) []*Builder {
-			return []*Builder{testStaticTask(log, "alpha"), testStaticTask(log, "beta")}
-		}
-		legacy := run(t, false, builders)
-		region := run(t, true, builders)
-
-		legacyTail, regionTail := tails(2)
-		require.True(t, strings.HasSuffix(legacy, legacyTail))
-		require.True(t, strings.HasSuffix(region, regionTail))
-		assert.Equal(t,
-			strings.TrimSuffix(legacy, legacyTail),
-			strings.TrimSuffix(region, regionTail),
-		)
-	})
-
-	t.Run("bar final frame", func(t *testing.T) {
-		style := bar.Config{
-			CapLeft:   "[",
-			CapRight:  "]",
-			CharEmpty: '-',
-			CharFill:  '=',
-			Separator: " ",
-			Smoothing: bar.SmoothNone,
-			Width:     10,
-		}
-		builders := func(log Logger) []*Builder {
-			b := testBar(log, "fetch", 10, bar.WithConfig(style))
-			b.barProgressPtr.Store(4)
-			return []*Builder{b}
-		}
-		legacy := run(t, false, builders)
-		region := run(t, true, builders)
-
-		legacyTail, regionTail := tails(1)
-		require.True(t, strings.HasSuffix(legacy, legacyTail))
-		require.True(t, strings.HasSuffix(region, regionTail))
-		assert.Equal(t,
-			strings.TrimSuffix(legacy, legacyTail),
-			strings.TrimSuffix(region, regionTail),
-		)
-		// The full region stream: the 40% frame, the forced 100% final flash,
-		// then the block erase and cursor restore.
-		pad := strings.Repeat(" ", 50)
-		line40 := "INF ⏳ fetch" + pad + "[====------]  40%"
-		line100 := "INF ⏳ fetch" + pad + "[==========] 100%"
-		wantRegion := xansi.HideCursor +
-			xansi.EnableSyncOutput + xansi.ClearLine + line40 + "\n" +
-			xansi.CursorHorizontalAbsolute(1) + xansi.EraseScreenBelow + xansi.DisableSyncOutput +
-			xansi.EnableSyncOutput + xansi.CursorUp(1) + xansi.CursorHorizontalAbsolute(1) +
-			xansi.ClearLine + line100 + "\n" + xansi.DisableSyncOutput +
-			regionTail
-		assert.Equal(t, wantRegion, region)
-	})
-}
-
 func TestRunGroupLoopRegionCancel(t *testing.T) {
 	t.Run("preserves block as scrollback by default", func(t *testing.T) {
 		var buf lockedWriter

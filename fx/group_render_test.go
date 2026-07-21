@@ -323,30 +323,12 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 	})
 }
 
-func TestClearBlock(t *testing.T) {
-	var buf strings.Builder
-	clearBlock(&buf, 0)
-	assert.Empty(t, buf.String())
-
-	buf.Reset()
-	clearBlock(&buf, 1)
-	out := buf.String()
-	// Single line: no initial move-up, clear one line, then move up 1.
-	assert.Equal(t, "\x1b[2K\r\n\x1b[A", out)
-
-	buf.Reset()
-	clearBlock(&buf, 2)
-	out = buf.String()
-	// Two lines: move up 1 (not 2), clear both, then move up 2.
-	assert.Equal(t, "\x1b[A\x1b[2K\r\n\x1b[2K\r\n\x1b[2A", out)
-}
-
 func TestAppendRepaint(t *testing.T) {
 	const width = 10
 
 	repaint := func(lines []string, prevRows, w int) (string, int) {
 		var buf strings.Builder
-		rows := appendRepaint(&buf, lines, prevRows, w)
+		rows := core.AppendRepaint(&buf, lines, prevRows, w)
 		return buf.String(), rows
 	}
 
@@ -431,22 +413,6 @@ func TestAppendRepaint(t *testing.T) {
 		assert.Equal(t, want, got)
 		assert.Equal(t, 1, rows)
 	})
-}
-
-func TestEraseBlockSync(t *testing.T) {
-	var buf strings.Builder
-	eraseBlockSync(&buf, 0)
-	assert.Empty(t, buf.String())
-
-	buf.Reset()
-	eraseBlockSync(&buf, 2)
-	// Clear the park line, step onto the block's last line, then the
-	// clearBlock sequence, all inside one synchronized-output frame.
-	want := xansi.EnableSyncOutput +
-		xansi.ClearLine + xansi.CursorUp(1) +
-		xansi.CursorUp(1) + xansi.ClearLine + nl + xansi.ClearLine + nl + xansi.CursorUp(2) +
-		xansi.DisableSyncOutput
-	assert.Equal(t, want, buf.String())
 }
 
 func TestPrioritiseActiveZeroLimit(t *testing.T) {

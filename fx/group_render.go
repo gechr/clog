@@ -2,7 +2,6 @@ package fx
 
 import (
 	"context"
-	"io"
 	"math"
 	"slices"
 	"strings"
@@ -1422,7 +1421,6 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		tickRate = min(tickRate, gt.tickRate)
 	}
 
-	out := gts[0].cfg.Out
 	output := gts[0].cfg.Output
 	stopResize := output.ListenResize()
 	defer stopResize()
@@ -1454,83 +1452,15 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		remaining:     len(gts),
 	}
 
-	// Live-region path: when the output exposes a shared LiveRegion, the
-	// group's block becomes one multi-line slot of the region's stacked
+	// The group's block becomes one multi-line slot of the region's stacked
 	// block. The region owns cursor visibility and the writer discipline, so
 	// the group coordinates with standalone animations, other groups, and
-	// log lines on the same output instead of repainting over them. Outputs
-	// without the capability (external Output implementations and test
-	// stubs) keep the direct renderer below.
-	if p, ok := output.(liveRegionProvider); ok {
-		if region := p.LiveRegion(); region != nil {
-			return runGroupLoopRegion(ctx, st, region, tickRate)
-		}
-	}
-
-	ticker := time.NewTicker(tickRate)
-	defer ticker.Stop()
-
-	renderedRows := 0
-	hasRendered := false
-	var lastLines []string
-	lastWidth := 0
-	var frameBuf strings.Builder
-	cursorHidden := false
-	defer func() {
-		if cursorHidden {
-			writeString(out, xansi.ShowCursor)
-		}
-	}()
-	hideCursor := func() {
-		if cursorHidden {
-			return
-		}
-		writeString(out, xansi.HideCursor)
-		cursorHidden = true
-	}
-
-	for st.remaining > 0 {
-		select {
-		case <-ctx.Done():
-			if g.clearOnCancel {
-				eraseBlockSync(out, renderedRows)
-			} else {
-				preserveBlock(out, renderedRows)
-			}
-			st.failPending(ctx)
-			return ctx.Err()
-		case <-ticker.C:
-			lines, width, ok := st.composeFrame(time.Now())
-			if !ok {
-				continue
-			}
-			frameRows := groupFrameRows(lines, width)
-			if !groupFrameFitsViewport(output, renderedRows, frameRows) {
-				continue
-			}
-			// Skip identical frames: nothing on screen would change, so a
-			// write would be wasted bandwidth. The cursor is already parked
-			// one line below the block from the previous frame.
-			if hasRendered && width == lastWidth && slices.Equal(lines, lastLines) {
-				continue
-			}
-			frameBuf.Reset()
-			renderedRows = appendRepaint(&frameBuf, lines, renderedRows, width)
-			hideCursor()
-			writeString(out, frameBuf.String())
-			hasRendered = true
-			lastLines = lines
-			lastWidth = width
-		}
-	}
-
-	eraseBlockSync(out, renderedRows)
-	return nil
+	// (on a shared region) log lines on the same output instead of repainting
+	// over them.
+	return runGroupLoopRegion(ctx, st, liveRegionFor(output), tickRate)
 }
 
-// groupLoopState bundles the per-tick state shared by the direct and
-// live-region group render paths so both drive the exact same frame
-// composition.
+// groupLoopState bundles the per-tick state of the group render loop.
 type groupLoopState struct {
 	g             *Group
 	gts           []*renderTask
@@ -1647,11 +1577,10 @@ func (st *groupLoopState) updateStatusLines() (bool, bool) {
 // state (completion draining, header/footer callbacks) and can query the
 // terminal cursor position, none of which may run under the region mutex
 // without stalling log displacement from other goroutines. So the heavy work
-// stays on this goroutine - the same ticker cadence as the direct renderer -
-// and each accepted frame is published for the closure to hand back as a
-// cheap pointer load. Frames the region repaints between group ticks are
-// therefore identical and deduped away, keeping the byte stream equal to the
-// direct renderer's when the group runs alone.
+// stays on this goroutine's own ticker cadence, and each accepted frame is
+// published for the closure to hand back as a cheap pointer load. Frames the
+// region repaints between group ticks are therefore identical and deduped
+// away.
 func runGroupLoopRegion(
 	ctx context.Context,
 	st *groupLoopState,
@@ -1665,10 +1594,10 @@ func runGroupLoopRegion(
 	render := func(time.Time) string {
 		return *block.Load()
 	}
-	// Physical rows of the last accepted frame, mirroring the direct
-	// renderer's renderedRows for the viewport-fit check. With other slots
-	// live this undercounts the full block, which only makes the check more
-	// conservative about painting near the viewport bottom.
+	// Physical rows of the last accepted frame, used for the viewport-fit
+	// check. With other slots live this undercounts the full block, which
+	// only makes the check more conservative about painting near the
+	// viewport bottom.
 	rows := 0
 	unregister := func() {
 		st.g.unregisterLiveSlot(region)
@@ -1685,10 +1614,10 @@ func runGroupLoopRegion(
 			// and erases the group's rows from the block.
 			unregister()
 			if !st.g.clearOnCancel && last != "" {
-				// Preserve the in-progress block as scrollback, mirroring the
-				// direct renderer which leaves the last frame on screen. The
-				// frozen frame is written as regular displaced lines so it
-				// lands above any animations still live in the region.
+				// Preserve the in-progress block as scrollback - the last
+				// frame stays on screen. The frozen frame is written as
+				// regular displaced lines so it lands above any animations
+				// still live in the region.
 				region.WriteLines(last + nl)
 			}
 			st.failPending(ctx)
@@ -1729,72 +1658,4 @@ func runGroupLoopRegion(
 
 	unregister()
 	return nil
-}
-
-// syncFrame brackets s with DEC 2026 synchronized-output markers so
-// supporting terminals apply the whole sequence atomically (no tearing);
-// terminals without support ignore the markers. Delegates to [core.SyncFrame]
-// so the live-region renderer shares the exact same framing.
-func syncFrame(s string) string {
-	return core.SyncFrame(s)
-}
-
-// appendRepaint appends an overwrite-in-place repaint of lines over the
-// previously rendered block of prevRows physical rows, bracketed by DEC 2026
-// synchronized-output markers. Delegates to [core.AppendRepaint] so the
-// live-region renderer shares the exact same repaint sequence; see there for
-// the line-by-line erase rationale. Returns the physical row count of the
-// new frame.
-func appendRepaint(buf *strings.Builder, lines []string, prevRows, width int) int {
-	return core.AppendRepaint(buf, lines, prevRows, width)
-}
-
-// eraseBlockSync erases a rendered block of n physical rows as a single
-// synchronized-output frame. The cursor is expected to be one line below the
-// block (after the park newline written each frame); the park line is
-// cleared first because it may hold terminal-echoed characters (e.g. ^C
-// from SIGINT). The cursor ends up back on the block's first row.
-func eraseBlockSync(out io.Writer, n int) {
-	if n == 0 {
-		return
-	}
-	var buf strings.Builder
-	buf.WriteString(xansi.ClearLine + xansi.CursorUp(1))
-	appendClearBlock(&buf, n)
-	writeString(out, syncFrame(buf.String()))
-}
-
-// preserveBlock moves the cursor past the rendered block without erasing it.
-// The cursor is expected to be one line below the block (after the trailing
-// newline written each tick). A single newline is written to move past any
-// terminal-echoed characters (e.g. ^C from SIGINT).
-func preserveBlock(out io.Writer, n int) {
-	if n > 0 {
-		writeString(out, nl)
-	}
-}
-
-// clearBlock erases n lines starting from the current cursor line and
-// repositions the cursor back to the first cleared line. The cursor is
-// expected to be on the last line of the block (no trailing newline).
-func clearBlock(out io.Writer, n int) {
-	if n == 0 {
-		return
-	}
-	var buf strings.Builder
-	appendClearBlock(&buf, n)
-	writeString(out, buf.String())
-}
-
-// appendClearBlock appends the escape sequence that erases n lines starting
-// from the current cursor line and repositions the cursor back to the first
-// cleared line.
-func appendClearBlock(buf *strings.Builder, n int) {
-	if n > 1 {
-		buf.WriteString(xansi.CursorUp(n - 1))
-	}
-	for range n {
-		buf.WriteString(xansi.ClearLine + nl)
-	}
-	buf.WriteString(xansi.CursorUp(n))
 }
