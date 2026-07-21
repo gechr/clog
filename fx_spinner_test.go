@@ -265,8 +265,7 @@ func TestSpinnerBuilderParts(t *testing.T) {
 }
 
 func TestSpinnerPartsThreadsToWaitResult(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	// Override: only show message on the spinner + completion.
 	result := l.Spinner("loading").
@@ -283,8 +282,7 @@ func TestSpinnerPartsThreadsToWaitResult(t *testing.T) {
 }
 
 func TestWaitResultPartsOverride(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	// Builder does NOT set parts, but WaitResult overrides.
 	result := l.Spinner("loading").
@@ -298,8 +296,7 @@ func TestWaitResultPartsOverride(t *testing.T) {
 }
 
 func TestWaitResultPartsNilUsesLoggerDefault(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	l.SetParts(PartMessage)
 
 	result := l.Spinner("loading").

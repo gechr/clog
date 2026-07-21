@@ -1,7 +1,6 @@
 package clog
 
 import (
-	"bytes"
 	"errors"
 	"math"
 	"testing"
@@ -289,16 +288,14 @@ func TestFieldBuilderTimeDiff(t *testing.T) {
 }
 
 func TestEventDiscard(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, _ := newTestLogger()
 	e := l.Info().Str("a", "b").Discard()
 	assert.Nil(t, e)
 	e.Msg("should not panic") // nil-safe
 }
 
 func TestEventEnabledDisabled(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, _ := newTestLogger()
 	e := l.Info()
 	assert.True(t, e.Enabled())
 	assert.False(t, e.Disabled())
@@ -309,8 +306,7 @@ func TestEventEnabledDisabled(t *testing.T) {
 }
 
 func TestEventMsgFunc(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, _ := newTestLogger()
 	called := false
 	l.Info().MsgFunc(func() string {
 		called = true
@@ -349,8 +345,7 @@ func TestEventNarrowTypesNilSafe(t *testing.T) {
 }
 
 func TestEventTimeDiff(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	start := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := time.Date(2025, 1, 1, 0, 0, 5, 0, time.UTC)
 

@@ -8,13 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func newTestPrinter() (*Logger, *bytes.Buffer) {
-	var buf bytes.Buffer
-	return New(TestOutput(&buf)), &buf
-}
-
 func TestPrinterRawJSON(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().RawJSON([]byte(`{"status":"ok","count":42}`))
 
@@ -27,7 +22,7 @@ func TestPrinterRawJSON(t *testing.T) {
 }
 
 func TestPrinterRawJSONFlatMode(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().Mode(JSONFlat).RawJSON([]byte(`{
   "name": "alice",
@@ -40,19 +35,19 @@ func TestPrinterRawJSONFlatMode(t *testing.T) {
 }
 
 func TestPrinterRawJSONEmpty(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawJSON([]byte{})
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawJSONNil(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawJSON(nil)
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterJSON(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().JSON(map[string]int{"a": 1})
 
@@ -64,7 +59,7 @@ func TestPrinterJSON(t *testing.T) {
 }
 
 func TestPrinterJSONFlat(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().Mode(JSONFlat).JSON(map[string]int{"a": 1})
 
@@ -73,13 +68,13 @@ func TestPrinterJSONFlat(t *testing.T) {
 }
 
 func TestPrinterJSONMarshalError(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().JSON(make(chan int))
 	assert.Equal(t, "json: unsupported type: chan int\n", buf.String())
 }
 
 func TestPrinterRawJSONHooks(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	_ = buf
 
 	var hookOrder []string
@@ -92,7 +87,7 @@ func TestPrinterRawJSONHooks(t *testing.T) {
 }
 
 func TestPrinterGlobalModeDefault(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().RawJSON([]byte(`{"a":1}`))
 
@@ -104,7 +99,7 @@ func TestPrinterGlobalModeDefault(t *testing.T) {
 }
 
 func TestPrinterGlobalModeInline(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetJSONPrintMode(JSONFlat)
 
 	l.Print().RawJSON([]byte(`{"a":1}`))
@@ -114,7 +109,7 @@ func TestPrinterGlobalModeInline(t *testing.T) {
 }
 
 func TestPrinterGlobalModeOverrideToInline(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().Mode(JSONFlat).RawJSON([]byte(`{"a":1}`))
 
@@ -123,7 +118,7 @@ func TestPrinterGlobalModeOverrideToInline(t *testing.T) {
 }
 
 func TestPrinterGlobalModeOverrideToMultiline(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetJSONPrintMode(JSONFlat)
 
 	l.Print().Mode(JSONPretty).RawJSON([]byte(`{"a":1}`))
@@ -136,7 +131,7 @@ func TestPrinterGlobalModeOverrideToMultiline(t *testing.T) {
 }
 
 func TestPrinterJSONPreserve(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	// Badly indented but valid JSON - preserve mode keeps it as-is.
 	input := "{\n\"a\": 1,\n\"b\": 2\n}"
@@ -146,7 +141,7 @@ func TestPrinterJSONPreserve(t *testing.T) {
 }
 
 func TestPrinterJSONPreservePrettyPrinted(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	input := `{
     "name": "alice",
@@ -161,7 +156,7 @@ func TestPrinterJSONPreservePrettyPrinted(t *testing.T) {
 }
 
 func TestPrinterCustomIndent(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetPrintIndent("\t")
 
 	l.Print().RawJSON([]byte(`{"a":1}`))
@@ -171,7 +166,7 @@ func TestPrinterCustomIndent(t *testing.T) {
 }
 
 func TestPrinterJSONIndentOverridesPrintIndent(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetPrintIndent("    ")
 	l.SetJSONIndent("\t")
 
@@ -182,7 +177,7 @@ func TestPrinterJSONIndentOverridesPrintIndent(t *testing.T) {
 }
 
 func TestPrinterYAMLIndentOverridesPrintIndent(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetPrintIndent("    ")
 	l.SetYAMLIndent("  ")
 
@@ -192,7 +187,7 @@ func TestPrinterYAMLIndentOverridesPrintIndent(t *testing.T) {
 }
 
 func TestPrinterYAMLIndentSequenceDisabled(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetYAMLIndentSequence(false)
 
 	l.Print().YAML(map[string]any{
@@ -207,7 +202,7 @@ func TestPrinterYAMLIndentSequenceDisabled(t *testing.T) {
 }
 
 func TestPrinterSubLoggerInheritsSettings(t *testing.T) {
-	l, _ := newTestPrinter()
+	l, _ := newTestLogger()
 	l.SetJSONPrintMode(JSONFlat)
 	l.SetPrintIndent("\t")
 
@@ -223,7 +218,7 @@ func TestPrinterSubLoggerInheritsSettings(t *testing.T) {
 }
 
 func TestPrinterIgnoresJSONMode(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	// Set JSON to flat mode - Printer should ignore it and use standard JSON.
 	s := DefaultStyles()
@@ -243,7 +238,7 @@ func TestPrinterIgnoresJSONMode(t *testing.T) {
 }
 
 func TestPrinterIgnoresJSONSpacing(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.SetJSONPrintMode(JSONFlat)
 
 	// Set OmitCommas and custom spacing on JSON - Printer should ignore them.
@@ -260,7 +255,7 @@ func TestPrinterIgnoresJSONSpacing(t *testing.T) {
 }
 
 func TestPrinterYAML(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().YAML(map[string]int{"a": 1})
 
@@ -268,7 +263,7 @@ func TestPrinterYAML(t *testing.T) {
 }
 
 func TestPrinterYAMLIndentedSequence(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().YAML(map[string]any{
 		"tags": []string{"a", "b"},
@@ -282,7 +277,7 @@ func TestPrinterYAMLIndentedSequence(t *testing.T) {
 }
 
 func TestPrinterRawYAML(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().RawYAML([]byte("name: alice\nage: 30\n"))
 
@@ -290,7 +285,7 @@ func TestPrinterRawYAML(t *testing.T) {
 }
 
 func TestPrinterRawYAMLAddsTrailingNewline(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().RawYAML([]byte("key: value"))
 
@@ -298,25 +293,25 @@ func TestPrinterRawYAMLAddsTrailingNewline(t *testing.T) {
 }
 
 func TestPrinterRawYAMLNil(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawYAML(nil)
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawYAMLEmpty(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawYAML([]byte{})
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterYAMLMarshalError(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().YAML(make(chan int))
 	assert.Equal(t, "unknown value type chan int\n", buf.String())
 }
 
 func TestPrinterTOML(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	type Config struct {
 		Port int `toml:"port"`
@@ -327,7 +322,7 @@ func TestPrinterTOML(t *testing.T) {
 }
 
 func TestPrinterRawTOML(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	l.Print().RawTOML([]byte("[server]\nhost = \"localhost\"\n"))
 
@@ -335,19 +330,19 @@ func TestPrinterRawTOML(t *testing.T) {
 }
 
 func TestPrinterRawTOMLNil(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawTOML(nil)
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawTOMLEmpty(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawTOML([]byte{})
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawHCL(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 
 	input := `resource "aws_instance" "web" {
   ami = "ami-12345678"
@@ -359,20 +354,20 @@ func TestPrinterRawHCL(t *testing.T) {
 }
 
 func TestPrinterRawHCLNil(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawHCL(nil)
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterRawHCLEmpty(t *testing.T) {
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	l.Print().RawHCL([]byte{})
 	assert.Equal(t, nl, buf.String())
 }
 
 func TestPrinterPackageLevel(t *testing.T) {
 	old := Default()
-	l, buf := newTestPrinter()
+	l, buf := newTestLogger()
 	SetDefault(l)
 
 	defer func() { SetDefault(old) }()

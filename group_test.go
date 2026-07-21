@@ -18,8 +18,7 @@ import (
 )
 
 func TestGroupConcurrentRun(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r1 := g.Add(logger.Spinner("task one")).
@@ -158,8 +157,7 @@ func TestGroupSuspendBeforeFirstFrame(t *testing.T) {
 }
 
 func TestGroupProgress(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	var capturedProgress int
@@ -179,8 +177,7 @@ func TestGroupProgress(t *testing.T) {
 }
 
 func TestGroupMixedAnimations(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r1 := g.Add(logger.Spinner("spinning")).
@@ -311,8 +308,7 @@ func TestGroupParallelismLimitsConcurrentTasks(t *testing.T) {
 }
 
 func TestGroupErrorCollection(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	testErr := errors.New("task failed")
 
@@ -336,8 +332,7 @@ func TestGroupErrorCollection(t *testing.T) {
 }
 
 func TestGroupContextCancel(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, _ := newTestLogger()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -366,8 +361,7 @@ func TestGroupContextCancel(t *testing.T) {
 }
 
 func TestGroupNonTTY(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("non-tty task")).
@@ -384,8 +378,7 @@ func TestGroupNonTTY(t *testing.T) {
 }
 
 func TestGroupNonTTYStripsDynamicFields(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 	formats := DefaultFieldFormats()
 	formats.ElapsedMinimum = 0
 	logger.SetFieldFormats(formats)
@@ -415,8 +408,7 @@ func TestGroupEmptyWait(_ *testing.T) {
 }
 
 func TestGroupTaskResultFields(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("fielded").Str("base", "val")).
@@ -433,8 +425,7 @@ func TestGroupTaskResultFields(t *testing.T) {
 }
 
 func TestGroupTaskResultOnError(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	testErr := errors.New("boom")
 
@@ -453,8 +444,7 @@ func TestGroupTaskResultOnError(t *testing.T) {
 }
 
 func TestGroupTaskResultElapsed(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 	formats := DefaultFieldFormats()
 	formats.ElapsedMinimum = 0 // show all elapsed values
 	logger.SetFieldFormats(formats)
@@ -474,8 +464,7 @@ func TestGroupTaskResultElapsed(t *testing.T) {
 }
 
 func TestGroupUpdate(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, _ := newTestLogger()
 
 	g := logger.Group(context.Background())
 	var lastMsg atomic.Value
@@ -510,8 +499,7 @@ func TestGroupDefaultLogger(t *testing.T) {
 }
 
 func TestGroupTaskResultOnSuccessLevel(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 	logger.SetLevel(LevelDebug)
 
 	g := logger.Group(context.Background())
@@ -543,8 +531,7 @@ func TestGroupTaskResultSilent(t *testing.T) {
 }
 
 func TestGroupResultMsg(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	g.Add(logger.Spinner("task one")).
@@ -559,8 +546,7 @@ func TestGroupResultMsg(t *testing.T) {
 }
 
 func TestGroupResultError(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	testErr := errors.New("boom")
 
@@ -603,8 +589,7 @@ func TestGroupResultAllSucceed(t *testing.T) {
 }
 
 func TestGroupResultOnError(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	testErr := errors.New("oops")
 
@@ -620,8 +605,7 @@ func TestGroupResultOnError(t *testing.T) {
 }
 
 func TestGroupResultFields(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	g.Add(logger.Spinner("task")).
@@ -634,8 +618,7 @@ func TestGroupResultFields(t *testing.T) {
 }
 
 func TestTaskResultParts(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("task").Parts(PartMessage)).
@@ -650,8 +633,7 @@ func TestTaskResultParts(t *testing.T) {
 }
 
 func TestTaskResultPartsOverride(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	r := g.Add(logger.Spinner("task").Parts(PartMessage, PartLevel)).
@@ -665,8 +647,7 @@ func TestTaskResultPartsOverride(t *testing.T) {
 }
 
 func TestGroupResultParts(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	g := logger.Group(context.Background())
 	g.Add(logger.Spinner("task")).

@@ -64,8 +64,7 @@ func TestDefaultFieldFormatsTimeScales(t *testing.T) {
 }
 
 func TestFieldFormatsSubLoggerInheritsParent(t *testing.T) {
-	var buf bytes.Buffer
-	parent := New(TestOutput(&buf))
+	parent, buf := newTestLogger()
 
 	f := DefaultFieldFormats()
 	f.PercentPrecision = 1
@@ -92,8 +91,7 @@ func TestFieldFormatsHyperlinkPresetExpansion(t *testing.T) {
 }
 
 func TestFieldFormatsPercentMaximum(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 
 	f := DefaultFieldFormats()
 	f.PercentMaximum = 100

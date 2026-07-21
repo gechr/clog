@@ -1,7 +1,6 @@
 package clog
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -128,8 +127,7 @@ func TestBarSmoothingModeOption(t *testing.T) {
 }
 
 func TestBarNonTTYStripsDynamicFields(t *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, buf := newTestLogger()
 	formats := DefaultFieldFormats()
 	formats.ElapsedMinimum = 0
 	logger.SetFieldFormats(formats)
@@ -149,8 +147,7 @@ func TestBarNonTTYStripsDynamicFields(t *testing.T) {
 }
 
 func TestBarConfigWidgetRight(_ *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, _ := newTestLogger()
 
 	custom := func(s bar.State) string {
 		return fmt.Sprintf("%d/%d", s.Current, s.Total)
@@ -178,8 +175,7 @@ func TestBarConfigWidgetRight(_ *testing.T) {
 }
 
 func TestBarConfigWidgetLeft(_ *testing.T) {
-	var buf bytes.Buffer
-	logger := New(TestOutput(&buf))
+	logger, _ := newTestLogger()
 
 	custom := func(s bar.State) string {
 		return fmt.Sprintf("%d%%", s.Current*100/max(s.Total, 1))

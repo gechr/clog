@@ -41,8 +41,7 @@ func TestDeadlineFields(t *testing.T) {
 }
 
 func TestDeadlineResolvesRemaining(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	// The event is finalised immediately, so with a one-hour deadline the
 	// remaining time rounds back up to the full hour.
@@ -52,8 +51,7 @@ func TestDeadlineResolvesRemaining(t *testing.T) {
 }
 
 func TestDeadlineExpiredShowsZero(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	// A zero-duration deadline is already expired; unlike elapsed fields it
 	// is not hidden by ElapsedMinimum - the countdown shows "0s".
@@ -118,8 +116,7 @@ func TestFieldFormatsDeadlineIgnoresMinimum(t *testing.T) {
 }
 
 func TestDeadlineEventFormatFunc(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	f := DefaultFieldFormats()
 	f.ElapsedFormat = func(time.Duration) string { return "custom" }
 	l.SetFieldFormats(f)

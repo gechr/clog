@@ -125,8 +125,7 @@ func TestElapsedLevelFiltering(t *testing.T) {
 }
 
 func TestElapsedEventFormatFunc(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	f := DefaultFieldFormats()
 	f.ElapsedMinimum = 0
 	f.ElapsedFormat = func(time.Duration) string { return "custom" }

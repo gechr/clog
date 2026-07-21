@@ -365,16 +365,14 @@ func TestEventDictOutput(t *testing.T) {
 }
 
 func TestEventAnErr(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	l.Error().AnErr("cause", errors.New("timeout")).Msg("failed")
 
 	assert.Equal(t, "ERR ❌ failed cause=timeout\n", buf.String())
 }
 
 func TestEventBacktickNonColorLiteral(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	l.Warn().Str("hint", "see `inline`").Msg("check `value`")
 
 	// A non-color writer leaves backticks literal in both the message and fields,
@@ -1250,22 +1248,19 @@ func TestEventWithSymbolNilReceiver(t *testing.T) {
 
 func TestEventParts(t *testing.T) {
 	t.Run("reorder", func(t *testing.T) {
-		var buf bytes.Buffer
-		l := New(TestOutput(&buf))
+		l, buf := newTestLogger()
 		l.Info().Parts(PartMessage, PartLevel, PartSymbol).Msg("hello")
 		assert.Equal(t, "hello INF ℹ️\n", buf.String())
 	})
 
 	t.Run("omit", func(t *testing.T) {
-		var buf bytes.Buffer
-		l := New(TestOutput(&buf))
+		l, buf := newTestLogger()
 		l.Info().Parts(PartMessage).Str("k", "v").Msg("hello")
 		assert.Equal(t, "hello\n", buf.String())
 	})
 
 	t.Run("does_not_mutate_logger", func(t *testing.T) {
-		var buf bytes.Buffer
-		l := New(TestOutput(&buf))
+		l, buf := newTestLogger()
 		l.Info().Parts(PartMessage).Msg("first")
 		buf.Reset()
 		l.Info().Msg("second")

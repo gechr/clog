@@ -18,6 +18,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newTestLogger() (*Logger, *bytes.Buffer) {
+	var buf bytes.Buffer
+	return New(TestOutput(&buf)), &buf
+}
+
 func TestNewLogger(t *testing.T) {
 	var buf bytes.Buffer
 
@@ -1854,8 +1859,7 @@ func TestSetExitFuncNilDefaultsToOsExit(t *testing.T) {
 
 	// Verify it's os.Exit by comparing pointer values via fmt.
 	// A simpler check: ensure Fatal still invokes an exit function.
-	var buf bytes.Buffer
-	l2 := New(TestOutput(&buf))
+	l2, _ := newTestLogger()
 	var exitCode int
 	l2.SetExitFunc(nil) // should default to os.Exit
 	// Override again to intercept - just verify nil didn't leave it broken.
@@ -2488,8 +2492,7 @@ func TestLogCustomLevel(t *testing.T) {
 	})
 	defer cleanup()
 
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	l.SetLevel(LevelInfo)
 
 	// Register label/symbol on the test logger.
@@ -2513,8 +2516,7 @@ func TestRegisterLevelFiltering(t *testing.T) {
 	})
 	defer cleanup()
 
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	// Register label on the test logger.
 	l.mu.Lock()

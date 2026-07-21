@@ -9,8 +9,7 @@ import (
 )
 
 func TestDividerSend(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Send()
 
@@ -19,8 +18,7 @@ func TestDividerSend(t *testing.T) {
 }
 
 func TestDividerTitle(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Msg("Build")
 
@@ -33,8 +31,7 @@ func TestDividerTitle(t *testing.T) {
 }
 
 func TestDividerTitleAlignLeft(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Align(AlignLeft).Msg("Test")
 
@@ -46,8 +43,7 @@ func TestDividerTitleAlignLeft(t *testing.T) {
 }
 
 func TestDividerTitleAlignRight(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Align(AlignRight).Msg("Test")
 
@@ -59,8 +55,7 @@ func TestDividerTitleAlignRight(t *testing.T) {
 }
 
 func TestDividerTitleAlignCenter(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Align(AlignCenter).Msg("Mid")
 
@@ -72,8 +67,7 @@ func TestDividerTitleAlignCenter(t *testing.T) {
 }
 
 func TestDividerCustomChar(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Char('═').Send()
 
@@ -82,8 +76,7 @@ func TestDividerCustomChar(t *testing.T) {
 }
 
 func TestDividerCustomCharWithTitle(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Char('═').Msg("Section")
 
@@ -96,8 +89,7 @@ func TestDividerCustomCharWithTitle(t *testing.T) {
 }
 
 func TestDividerWidthFallback(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 	// TestOutput uses a bytes.Buffer which is non-TTY, Width() returns 0.
 
 	l.Divider().Send()
@@ -108,8 +100,7 @@ func TestDividerWidthFallback(t *testing.T) {
 }
 
 func TestDividerTitleLongerThanWidth(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	longTitle := strings.Repeat("X", defaultDividerWidth+10)
 	l.Divider().Msg(longTitle)
@@ -120,8 +111,7 @@ func TestDividerTitleLongerThanWidth(t *testing.T) {
 }
 
 func TestDividerTotalWidth(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Msg("Hi")
 
@@ -131,8 +121,7 @@ func TestDividerTotalWidth(t *testing.T) {
 }
 
 func TestDividerCustomWidth(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Width(40).Send()
 
@@ -142,8 +131,7 @@ func TestDividerCustomWidth(t *testing.T) {
 }
 
 func TestDividerCustomWidthWithTitle(t *testing.T) {
-	var buf bytes.Buffer
-	l := New(TestOutput(&buf))
+	l, buf := newTestLogger()
 
 	l.Divider().Width(30).Msg("Hi")
 
