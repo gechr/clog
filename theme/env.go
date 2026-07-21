@@ -8,9 +8,6 @@ import (
 	xstrings "github.com/gechr/x/strings"
 )
 
-// DefaultEnvPrefix is the default environment variable prefix.
-const DefaultEnvPrefix = "CLOG"
-
 const (
 	envTheme      = "THEME"
 	envThemeDark  = "THEME_DARK"

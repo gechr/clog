@@ -11,9 +11,6 @@ import (
 	"github.com/gechr/clog/theme"
 )
 
-// DefaultEnvPrefix is the default environment variable prefix.
-const DefaultEnvPrefix = "CLOG"
-
 // Env var suffixes (appended to prefix + "_").
 const (
 	envLogLevel              = "LOG_LEVEL"
