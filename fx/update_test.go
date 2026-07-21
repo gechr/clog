@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/field/deadline"
+	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 	"github.com/stretchr/testify/assert"
@@ -121,6 +122,32 @@ func TestUpdateSetSymbolNilNoOp(t *testing.T) {
 	assert.NotPanics(t, func() {
 		u.SetSymbol("📦")
 	})
+}
+
+// TestNewUpdateSetSymbolStopsSpinner guards the standalone Progress wiring:
+// newUpdate links the task's symbol override, so SetSymbol replaces an
+// animated spinner with the static symbol.
+func TestNewUpdateSetSymbolStopsSpinner(t *testing.T) {
+	b := NewBuilder(BuilderConfig{
+		AnimatedSymbol: true,
+		Level:          level.Info,
+		SpinnerConfig: spinner.Config{
+			Frames:   []string{"a", "b"},
+			Interval: time.Millisecond,
+		},
+	})
+	sym := "⏳"
+	symbolPtr := &atomic.Pointer[string]{}
+	symbolPtr.Store(&sym)
+	task := &groupTask{builder: b, start: time.Now(), symbolPtr: symbolPtr}
+	gt := &renderTask{groupTask: task}
+	gt.cfg.StyleSymbol = func(s string, _ core.Level) string { return s }
+
+	u := task.newUpdate()
+	assert.Equal(t, "a", resolveSymbol(gt, task.start))
+
+	u.SetSymbol("✓")
+	assert.Equal(t, "✓", resolveSymbol(gt, task.start))
 }
 
 func TestAddTotal(t *testing.T) {

@@ -502,31 +502,25 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 	levelPtr := &atomic.Int64{}
 	levelPtr.Store(int64(level.Unset))
 
-	startTime := time.Now()
-	update := &Update{
-		msgText:   b.cfg.Message,
-		msgPtr:    msgPtr,
+	t := &groupTask{
+		builder:   b,
 		fieldsPtr: fieldsPtr,
-		base:      b.Fields,
 		levelPtr:  levelPtr,
+		msgPtr:    msgPtr,
+		start:     time.Now(),
 		symbolPtr: symbolPtr,
-		elapsed:   func() time.Duration { return time.Since(startTime) },
 	}
-	if b.cfg.Mode == AnimationBar {
-		update.progressPtr = b.cfg.BarProgress
-		update.totalPtr = b.cfg.BarTotal
-	}
-	update.InitSelf(update)
+	update := t.newUpdate()
 
 	wrapped := func(ctx context.Context) error {
 		return task(ctx, update)
 	}
 	l := b.cfg.Logger
-	err := runAnimation(ctx, b, wrapped, msgPtr, fieldsPtr, levelPtr, symbolPtr, startTime)
+	err := runAnimation(ctx, t, wrapped)
 
 	msg := *msgPtr.Load()
 	w := NewWaitResult(err, b.IndentedLogger(l), b.partOverrides, b.cfg.Level, msg)
 	w.MsgStyle = b.msgStyle
-	w.Fields = b.ResolveDoneFields(*fieldsPtr.Load(), time.Since(startTime))
+	w.Fields = b.ResolveDoneFields(*fieldsPtr.Load(), time.Since(t.start))
 	return w
 }

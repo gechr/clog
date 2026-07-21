@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/gechr/clog/internal/core"
@@ -40,16 +39,9 @@ func liveRegionFor(output RenderOutput) *core.LiveRegion {
 
 // runAnimation runs the render loop for a single animation, blocking until
 // the task completes or the context is cancelled.
-func runAnimation(
-	ctx context.Context,
-	b *Builder,
-	task TaskFunc,
-	msgPtr *atomic.Pointer[string],
-	fields *atomic.Pointer[[]core.Field],
-	levelPtr *atomic.Int64,
-	symbolPtr *atomic.Pointer[string],
-	startTime time.Time,
-) error {
+func runAnimation(ctx context.Context, t *groupTask, task TaskFunc) error {
+	b := t.builder
+
 	// Run the task in a goroutine.
 	done := make(chan error, 1)
 	go func() {
@@ -72,16 +64,7 @@ func runAnimation(
 	}
 
 	// Build the gt and snapshot the logger's settings.
-	gt := &renderTask{
-		groupTask: &groupTask{
-			builder:   b,
-			fieldsPtr: fields,
-			levelPtr:  levelPtr,
-			msgPtr:    msgPtr,
-			start:     startTime,
-			symbolPtr: symbolPtr,
-		},
-	}
+	gt := &renderTask{groupTask: t}
 	captureTaskConfig(gt)
 
 	// A level-disabled task still runs, but renders nothing on any writer.
@@ -102,16 +85,14 @@ func runAnimation(
 	if !gt.cfg.IsTTY {
 		if !gt.cfg.NonTTYSilent {
 			fieldsStr := strings.TrimLeft(
-				gt.cfg.FormatFields(b.StripDynamicFields(*fields.Load())),
+				gt.cfg.FormatFields(b.StripDynamicFields(*gt.fieldsPtr.Load())),
 				" ",
 			)
-			line := buildLine(
-				gt.cfg.Order,
-				gt.cfg.ReportTimestamp,
+			line := gt.line(
 				time.Now().In(gt.cfg.TimeLocation).Format(gt.cfg.TimeFormat),
 				gt.cfg.Label,
 				*gt.symbolPtr.Load(),
-				gt.cfg.Indentation+*msgPtr.Load(),
+				gt.cfg.Indentation+*gt.msgPtr.Load(),
 				fieldsStr,
 			)
 			writeString(gt.cfg.Out, line+nl)
