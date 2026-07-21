@@ -224,7 +224,7 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 		// When a quote-delimiter style is configured, style the delimiters
 		// separately from the body. Otherwise wrap first and style the whole
-		// quoted string as one unit (legacy behaviour: delimiters inherit the
+		// quoted string as one unit (delimiters inherit the
 		// value's style).
 		if cfg := quoteDelim(opts); quoted && cfg != nil {
 			open, body, closing := quoteParts(
@@ -380,35 +380,13 @@ func formatValue(
 			timeFormat = time.DateTime
 		}
 		return val.Format(timeFormat), kindTime
-	case []time.Duration:
-		return formatDurationSlice(val, sf, nil, fmts), kindSlice
-	case []core.QuantityField:
-		return formatQuantitySlice(val, sf, nil, fmts.QuantityUnitsIgnoreCase), kindSlice
-	case []string:
-		return formatStringSlice(
-			val,
-			sf,
-			nil,
-			quoteMode,
-			quoteOpen,
-			quoteClose,
-			quoteSmart,
-		), kindSlice
-	case []int:
-		return formatIntSlice(val, sf, nil), kindSlice
-	case []int64:
-		return formatInt64Slice(val, sf, nil), kindSlice
-	case []uint:
-		return formatUintSlice(val, sf, nil), kindSlice
-	case []uint64:
-		return formatUint64Slice(val, sf, nil), kindSlice
-	case []float64:
-		return formatFloat64Slice(val, sf, nil), kindSlice
-	case []bool:
-		return formatBoolSlice(val, sf, nil), kindSlice
-	case []any:
-		return formatAnySlice(
-			val,
+	case []time.Duration, []core.QuantityField, []string, []int, []int64,
+		[]uint, []uint64, []float64, []bool, []any:
+		// Unstyled formatting is the styled dispatch with nil styles; every
+		// listed type is handled directly by styledSlice, so this cannot
+		// recurse back through formatValue.
+		return styledSlice(
+			v,
 			sf,
 			nil,
 			quoteMode,
