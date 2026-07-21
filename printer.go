@@ -63,15 +63,11 @@ func (p *Printer) effectiveMode() JSONPrintMode {
 	return p.logger.jsonPrintMode
 }
 
-// resolveJSONIndent returns the JSON indent string for the current mode.
-// Empty string means flatten to a single line. Must be called with l.mu held.
-func (p *Printer) resolveJSONIndent() string {
-	mode := p.effectiveMode()
-	if mode != JSONPretty {
-		return ""
-	}
-	if p.logger.jsonIndent != "" {
-		return p.logger.jsonIndent
+// resolveIndent returns specific when set, falling back to the logger's print
+// indent and then the default. Must be called with l.mu held.
+func (p *Printer) resolveIndent(specific string) string {
+	if specific != "" {
+		return specific
 	}
 	if p.logger.printIndent != "" {
 		return p.logger.printIndent
@@ -79,15 +75,18 @@ func (p *Printer) resolveJSONIndent() string {
 	return defaultPrintIndent
 }
 
+// resolveJSONIndent returns the JSON indent string for the current mode.
+// Empty string means flatten to a single line. Must be called with l.mu held.
+func (p *Printer) resolveJSONIndent() string {
+	if p.effectiveMode() != JSONPretty {
+		return ""
+	}
+	return p.resolveIndent(p.logger.jsonIndent)
+}
+
 // resolveYAMLIndent returns the YAML indent string. Must be called with l.mu held.
 func (p *Printer) resolveYAMLIndent() string {
-	if p.logger.yamlIndent != "" {
-		return p.logger.yamlIndent
-	}
-	if p.logger.printIndent != "" {
-		return p.logger.printIndent
-	}
-	return defaultPrintIndent
+	return p.resolveIndent(p.logger.yamlIndent)
 }
 
 // JSON marshals v to JSON and writes syntax-highlighted output.
