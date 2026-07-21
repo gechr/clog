@@ -206,18 +206,19 @@ func checkDefaultWrapperInventory(t *testing.T, wrappers map[string]any) {
 func defaultFuncs(t *testing.T) map[string]bool {
 	t.Helper()
 
-	file, err := parser.ParseFile(token.NewFileSet(), "defaults.go", nil, 0)
-	if err != nil {
-		t.Fatalf("parse defaults.go: %v", err)
-	}
-
 	funcs := make(map[string]bool)
-	for _, decl := range file.Decls {
-		fn, ok := decl.(*ast.FuncDecl)
-		if !ok || fn.Recv != nil || !fn.Name.IsExported() {
-			continue
+	for _, name := range []string{"defaults.go", "fieldformats_setters_default.go"} {
+		file, err := parser.ParseFile(token.NewFileSet(), name, nil, 0)
+		if err != nil {
+			t.Fatalf("parse %s: %v", name, err)
 		}
-		funcs[fn.Name.Name] = true
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Recv != nil || !fn.Name.IsExported() {
+				continue
+			}
+			funcs[fn.Name.Name] = true
+		}
 	}
 	return funcs
 }

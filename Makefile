@@ -57,7 +57,7 @@ fmt:
 
 .PHONY: gen
 gen:
-	@$(GO) generate
+	@$(GO) generate ./...
 
 .PHONY: lint
 lint:

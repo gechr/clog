@@ -1,5 +1,7 @@
 package clog
 
+//go:generate go run ./internal/gen/fieldsetters
+
 import (
 	"time"
 
@@ -265,37 +267,18 @@ func (l *Logger) mutateFieldFormats(fn func(*FieldFormats)) {
 	l.fieldFormats.Store(&f)
 }
 
-// SetNumberFormat sets how integer fields and both halves of fraction fields
-// are rendered. It applies to fractions too unless [Logger.SetFractionFormat]
-// overrides them. Defaults to [NumberPlain].
-func (l *Logger) SetNumberFormat(format NumberFormat) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberFormat = format })
-}
+// mutateHyperlinks applies fn to a copy of the current formats snapshot,
+// stores it, and pushes the hyperlink subset down to the logger's output
+// (hyperlink rendering lives on the Output, which has no logger access).
+func (l *Logger) mutateHyperlinks(fn func(*FieldFormats)) {
+	f := *l.loadFieldFormats()
+	fn(&f)
+	l.fieldFormats.Store(&f)
 
-// SetFractionFormat overrides the numeric format for fraction fields only.
-// When unset, fractions fall back to [Logger.SetNumberFormat].
-func (l *Logger) SetFractionFormat(format NumberFormat) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.FractionFormat = &format })
-}
-
-// SetNumberGroupSeparator sets the separator inserted between digit groups for
-// [NumberGrouped] (e.g. "," for "1,234,567"). Defaults to ",".
-func (l *Logger) SetNumberGroupSeparator(sep string) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberGroupSeparator = sep })
-}
-
-// SetNumberCompactMinimum sets the smallest magnitude that [NumberCompact]
-// abbreviates; values below it render using the compact fallback (see
-// [Logger.SetNumberCompactFallback]). Defaults to 1000.
-func (l *Logger) SetNumberCompactMinimum(minimum int64) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberCompactMinimum = minimum })
-}
-
-// SetNumberCompactFallback sets how [NumberCompact] renders values below the
-// compact minimum: [NumberGrouped] (the default, e.g. "9,999") or
-// [NumberPlain] (e.g. "9999").
-func (l *Logger) SetNumberCompactFallback(format NumberFormat) {
-	l.mutateFieldFormats(func(f *FieldFormats) { f.NumberCompactFallback = format })
+	l.mu.Lock()
+	out := l.output
+	l.mu.Unlock()
+	out.setHyperlinks(f.hyperlinkConfig())
 }
 
 // loadFieldFormats returns the logger's current immutable formats snapshot,
