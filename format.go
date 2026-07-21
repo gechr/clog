@@ -595,15 +595,15 @@ func styledSlice(
 	case []core.QuantityField:
 		return formatQuantitySlice(vals, sf, styles, fmts.QuantityUnitsIgnoreCase)
 	case []int:
-		return formatIntSlice(vals, sf, styles)
+		return formatNumberSlice(vals, sf, styles)
 	case []int64:
-		return formatInt64Slice(vals, sf, styles)
+		return formatNumberSlice(vals, sf, styles)
 	case []uint:
-		return formatUintSlice(vals, sf, styles)
+		return formatNumberSlice(vals, sf, styles)
 	case []uint64:
-		return formatUint64Slice(vals, sf, styles)
+		return formatNumberSlice(vals, sf, styles)
 	case []float64:
-		return formatFloat64Slice(vals, sf, styles)
+		return formatNumberSlice(vals, sf, styles)
 	case []string:
 		return formatStringSlice(vals, sf, styles, quoteMode, quoteOpen, quoteClose, quoteSmart)
 	case []any:

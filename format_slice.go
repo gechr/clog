@@ -103,54 +103,34 @@ func formatDurationSlice(
 	)
 }
 
-// formatFloat64Slice formats a float64 slice.
-// When styles is non-nil, individual elements are styled via FieldNumber.
-func formatFloat64Slice(vals []float64, sf sliceFormat, styles *style.Config) string {
-	return formatSlice(vals, sf, styles,
-		func(v float64) string {
-			return strconv.FormatFloat(v, 'f', -1, 64)
-		},
-		numberSliceStyle[float64],
-	)
+// formatNumberValue converts a numeric slice element to its string
+// representation, matching the scalar formatting for each type.
+func formatNumberValue[T int | int64 | uint | uint64 | float64](v T) string {
+	switch val := any(v).(type) {
+	case int:
+		return strconv.Itoa(val)
+	case int64:
+		return strconv.FormatInt(val, 10)
+	case uint:
+		return strconv.FormatUint(uint64(val), 10)
+	case uint64:
+		return strconv.FormatUint(val, 10)
+	case float64:
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	default:
+		// Unreachable: the constraint admits only the cases above.
+		return fmt.Sprint(val)
+	}
 }
 
-// formatIntSlice formats an int slice.
+// formatNumberSlice formats a numeric slice.
 // When styles is non-nil, individual elements are styled via FieldNumber.
-func formatIntSlice(vals []int, sf sliceFormat, styles *style.Config) string {
-	return formatSlice(vals, sf, styles, strconv.Itoa, numberSliceStyle[int])
-}
-
-// formatInt64Slice formats an int64 slice.
-// When styles is non-nil, individual elements are styled via FieldNumber.
-func formatInt64Slice(vals []int64, sf sliceFormat, styles *style.Config) string {
-	return formatSlice(vals, sf, styles,
-		func(v int64) string {
-			return strconv.FormatInt(v, 10)
-		},
-		numberSliceStyle[int64],
-	)
-}
-
-// formatUintSlice formats a uint slice.
-// When styles is non-nil, individual elements are styled via FieldNumber.
-func formatUintSlice(vals []uint, sf sliceFormat, styles *style.Config) string {
-	return formatSlice(vals, sf, styles,
-		func(v uint) string {
-			return strconv.FormatUint(uint64(v), 10)
-		},
-		numberSliceStyle[uint],
-	)
-}
-
-// formatUint64Slice formats a uint64 slice.
-// When styles is non-nil, individual elements are styled via FieldNumber.
-func formatUint64Slice(vals []uint64, sf sliceFormat, styles *style.Config) string {
-	return formatSlice(vals, sf, styles,
-		func(v uint64) string {
-			return strconv.FormatUint(v, 10)
-		},
-		numberSliceStyle[uint64],
-	)
+func formatNumberSlice[T int | int64 | uint | uint64 | float64](
+	vals []T,
+	sf sliceFormat,
+	styles *style.Config,
+) string {
+	return formatSlice(vals, sf, styles, formatNumberValue[T], numberSliceStyle[T])
 }
 
 // formatQuantitySlice formats a quantity slice.

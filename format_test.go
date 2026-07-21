@@ -3154,7 +3154,7 @@ func TestFormatInt64SlicePlain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatInt64Slice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
+			got := formatNumberSlice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -3164,7 +3164,7 @@ func TestFormatInt64SliceStyled(t *testing.T) {
 	styles := DefaultStyles()
 	n := styles.FieldNumber.Render
 
-	got := formatInt64Slice([]int64{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
+	got := formatNumberSlice([]int64{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
 	want := "[" + n("10") + ", " + n("20") + "]"
 	assert.Equal(t, want, got)
 }
@@ -3182,7 +3182,7 @@ func TestFormatUintSlicePlain(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatUintSlice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
+			got := formatNumberSlice(tt.vals, sliceFormat{open: "[", close: "]", sep: ", "}, nil)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -3192,7 +3192,7 @@ func TestFormatUintSliceStyled(t *testing.T) {
 	styles := DefaultStyles()
 	n := styles.FieldNumber.Render
 
-	got := formatUintSlice([]uint{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
+	got := formatNumberSlice([]uint{10, 20}, sliceFormat{open: "[", close: "]", sep: ", "}, styles)
 	want := "[" + n("10") + ", " + n("20") + "]"
 	assert.Equal(t, want, got)
 }
