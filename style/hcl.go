@@ -1,3 +1,4 @@
+//nolint:dupl // HCL's token-style shape coincidentally mirrors TOML's
 package style
 
 import (
@@ -32,15 +33,15 @@ func DefaultHCL() *HCL {
 // NewHCL returns lipgloss styles for HCL tokens using the given theme.
 func NewHCL(th *theme.Theme) *HCL {
 	return &HCL{
-		BlockType:   new(lipgloss.NewStyle().Foreground(th.Accent)),
-		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
-		BoolTrue:    new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
-		Comment:     new(lipgloss.NewStyle().Foreground(th.Comment)),
-		Key:         new(lipgloss.NewStyle().Foreground(th.Key)),
-		NestedKey:   new(lipgloss.NewStyle().Foreground(th.Secondary)),
-		Null:        new(lipgloss.NewStyle().Foreground(th.Comment).Italic(true)),
-		Number:      new(lipgloss.NewStyle().Foreground(th.Number)),
-		Punctuation: new(lipgloss.NewStyle().Foreground(th.Foreground)),
-		String:      new(lipgloss.NewStyle().Foreground(th.String)),
+		BlockType:   fg(th.Accent),
+		BoolFalse:   fgItalic(th.BoolFalse),
+		BoolTrue:    fgItalic(th.BoolTrue),
+		Comment:     fg(th.Comment),
+		Key:         fg(th.Key),
+		NestedKey:   fg(th.Secondary),
+		Null:        fgItalic(th.Comment),
+		Number:      fg(th.Number),
+		Punctuation: fg(th.Foreground),
+		String:      fg(th.String),
 	}
 }

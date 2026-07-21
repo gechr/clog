@@ -2,12 +2,23 @@
 package style
 
 import (
+	"image/color"
 	"reflect"
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/internal/gradient"
 	"github.com/gechr/clog/level"
 )
+
+// fg returns a style with the given foreground color.
+func fg(c color.Color) *lipgloss.Style {
+	return new(lipgloss.NewStyle().Foreground(c))
+}
+
+// fgItalic returns an italic style with the given foreground color.
+func fgItalic(c color.Color) *lipgloss.Style {
+	return new(lipgloss.NewStyle().Foreground(c).Italic(true))
+}
 
 // ColorStop defines a color at a specific position along a gradient.
 // Position is in the range 0.0-1.0.

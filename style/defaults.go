@@ -14,44 +14,28 @@ func Default() *Config {
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
 		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
 		FieldDuration: SegmentStyle{
-			Number: new(
-				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-			),
-			Unit: new(
-				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-			),
+			Number: fg(lipgloss.Color("5")), // magenta
+			Unit:   fg(lipgloss.Color("5")), // magenta
 		},
-		FieldError: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
-		),
-		HCL:  DefaultHCL(),
-		JSON: DefaultJSON(),
-		TOML: DefaultTOML(),
-		YAML: DefaultYAML(),
-		FieldNumber: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
+		FieldError:  fg(lipgloss.Color("1")), // red
+		HCL:         DefaultHCL(),
+		JSON:        DefaultJSON(),
+		TOML:        DefaultTOML(),
+		YAML:        DefaultYAML(),
+		FieldNumber: fg(lipgloss.Color("5")), // magenta
 		FieldQuantity: SegmentStyle{
-			Number: new(
-				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-			),
-			Unit: new(
-				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-			),
+			Number: fg(lipgloss.Color("5")), // magenta
+			Unit:   fg(lipgloss.Color("5")), // magenta
 		},
 		FieldQuote: &QuoteStyle{
 			Style:   lipgloss.NewStyle().Faint(true),
 			Inherit: true,
 		},
 		FieldString: new(lipgloss.NewStyle()),
-		FieldTime: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
-		KeyDefault: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("4")), // blue
-		),
-		Keys:      make(Map),
-		KeyValues: make(KeyValueMap),
+		FieldTime:   fg(lipgloss.Color("5")), // magenta
+		KeyDefault:  fg(lipgloss.Color("4")), // blue
+		Keys:        make(Map),
+		KeyValues:   make(KeyValueMap),
 		Levels: LevelMap{
 			level.Trace: new(lipgloss.NewStyle().
 				Bold(true).
@@ -103,7 +87,7 @@ func BacktickFor(bg theme.Background) *lipgloss.Style {
 	if bg == theme.BackgroundLight {
 		color = lipgloss.Color("#a21caf")
 	}
-	return new(lipgloss.NewStyle().Foreground(color))
+	return fg(color)
 }
 
 // DefaultElapsedGradient returns the default green -> yellow -> red gradient
@@ -185,8 +169,8 @@ func DefaultMessages() LevelMap {
 // DefaultValues returns sensible default styles for common value strings.
 func DefaultValues() ValueMap {
 	return ValueMap{
-		true:    new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))), // green
-		false:   new(lipgloss.NewStyle().Foreground(lipgloss.Color("1"))), // red
+		true:    fg(lipgloss.Color("2")), // green
+		false:   fg(lipgloss.Color("1")), // red
 		nil:     new(lipgloss.NewStyle().Faint(true)),
 		"<nil>": new(lipgloss.NewStyle().Faint(true)),
 		"":      new(lipgloss.NewStyle().Faint(true)),

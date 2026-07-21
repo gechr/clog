@@ -33,16 +33,16 @@ func DefaultYAML() *YAML {
 // NewYAML returns lipgloss styles for YAML tokens using the given theme.
 func NewYAML(th *theme.Theme) *YAML {
 	return &YAML{
-		Alias:       new(lipgloss.NewStyle().Foreground(th.Accent)),
-		Anchor:      new(lipgloss.NewStyle().Foreground(th.Accent)),
-		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
-		BoolTrue:    new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
-		Comment:     new(lipgloss.NewStyle().Foreground(th.Comment)),
-		Key:         new(lipgloss.NewStyle().Foreground(th.Key)),
-		Null:        new(lipgloss.NewStyle().Foreground(th.Comment).Italic(true)),
-		Number:      new(lipgloss.NewStyle().Foreground(th.Number)),
-		Punctuation: new(lipgloss.NewStyle().Foreground(th.Foreground)),
-		String:      new(lipgloss.NewStyle().Foreground(th.String)),
-		Tag:         new(lipgloss.NewStyle().Foreground(th.Comment)),
+		Alias:       fg(th.Accent),
+		Anchor:      fg(th.Accent),
+		BoolFalse:   fgItalic(th.BoolFalse),
+		BoolTrue:    fgItalic(th.BoolTrue),
+		Comment:     fg(th.Comment),
+		Key:         fg(th.Key),
+		Null:        fgItalic(th.Comment),
+		Number:      fg(th.Number),
+		Punctuation: fg(th.Foreground),
+		String:      fg(th.String),
+		Tag:         fg(th.Comment),
 	}
 }

@@ -1,3 +1,4 @@
+//nolint:dupl // TOML's token-style shape coincidentally mirrors HCL's
 package style
 
 import (
@@ -32,15 +33,15 @@ func DefaultTOML() *TOML {
 // NewTOML returns lipgloss styles for TOML tokens using the given theme.
 func NewTOML(th *theme.Theme) *TOML {
 	return &TOML{
-		BoolFalse:   new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
-		BoolTrue:    new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
-		Comment:     new(lipgloss.NewStyle().Foreground(th.Comment)),
-		DateTime:    new(lipgloss.NewStyle().Foreground(th.Accent)),
-		Float:       new(lipgloss.NewStyle().Foreground(th.Number)),
-		Integer:     new(lipgloss.NewStyle().Foreground(th.Number)),
-		Key:         new(lipgloss.NewStyle().Foreground(th.Key)),
-		Punctuation: new(lipgloss.NewStyle().Foreground(th.Foreground)),
-		String:      new(lipgloss.NewStyle().Foreground(th.String)),
-		TableKey:    new(lipgloss.NewStyle().Foreground(th.Accent)),
+		BoolFalse:   fgItalic(th.BoolFalse),
+		BoolTrue:    fgItalic(th.BoolTrue),
+		Comment:     fg(th.Comment),
+		DateTime:    fg(th.Accent),
+		Float:       fg(th.Number),
+		Integer:     fg(th.Number),
+		Key:         fg(th.Key),
+		Punctuation: fg(th.Foreground),
+		String:      fg(th.String),
+		TableKey:    fg(th.Accent),
 	}
 }

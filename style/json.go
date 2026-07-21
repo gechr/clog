@@ -92,19 +92,19 @@ func NewJSON(th *theme.Theme) *JSON {
 	return &JSON{
 		Spacing: JSONSpacingAfterComma,
 
-		BoolFalse: new(lipgloss.NewStyle().Foreground(th.BoolFalse).Italic(true)),
-		BoolTrue:  new(lipgloss.NewStyle().Foreground(th.BoolTrue).Italic(true)),
-		Key:       new(lipgloss.NewStyle().Foreground(th.Key)),
-		Null:      new(lipgloss.NewStyle().Foreground(th.Comment).Italic(true)),
-		Number:    new(lipgloss.NewStyle().Foreground(th.Number)),
-		String:    new(lipgloss.NewStyle().Foreground(th.String)),
+		BoolFalse: fgItalic(th.BoolFalse),
+		BoolTrue:  fgItalic(th.BoolTrue),
+		Key:       fg(th.Key),
+		Null:      fgItalic(th.Comment),
+		Number:    fg(th.Number),
+		String:    fg(th.String),
 
-		Brace:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		Brace:       fg(th.Foreground),
 		BraceRoot:   new(lipgloss.NewStyle().Foreground(th.Foreground).Bold(true)),
-		Bracket:     new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		Bracket:     fg(th.Foreground),
 		BracketRoot: new(lipgloss.NewStyle().Foreground(th.Foreground).Bold(true)),
-		Colon:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
-		Comma:       new(lipgloss.NewStyle().Foreground(th.Foreground)),
+		Colon:       fg(th.Foreground),
+		Comma:       fg(th.Foreground),
 	}
 }
 
