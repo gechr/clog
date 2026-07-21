@@ -421,18 +421,12 @@ func formatETA(d time.Duration) string {
 	return strconv.Itoa(s) + "s"
 }
 
-// formatDurationValue formats a duration for display, shared by Elapsed and
-// Duration fields. For durations >= 1 hour it uses composite "XhYm" format
-// (omitting Ym when Y=0). For durations >= 1 minute it uses "XmYs" (omitting
-// Ys when Y=0). For shorter durations it picks the largest unit where the
-// value is >= 1 and formats with the given decimal precision (no trailing
-// zero trimming).
-func formatDurationValue(d time.Duration, precision int) string {
-	return formatDurationValueOptions(d, precision, false)
-}
-
-// formatDurationValueOptions formats a duration like formatDurationValue and
-// optionally removes trailing fractional zeroes.
+// formatDurationValueOptions formats a duration for display, shared by
+// Elapsed and Duration fields. For durations >= 1 hour it uses composite
+// "XhYm" format (omitting Ym when Y=0). For durations >= 1 minute it uses
+// "XmYs" (omitting Ys when Y=0). For shorter durations it picks the largest
+// unit where the value is >= 1 and formats with the given decimal precision;
+// trim removes trailing fractional zeroes.
 func formatDurationValueOptions(d time.Duration, precision int, trim bool) string {
 	if d < 0 {
 		if d == math.MinInt64 {

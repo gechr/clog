@@ -339,7 +339,7 @@ func TestFormatElapsed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatDurationValue(tt.dur, tt.precision)
+			got := formatDurationValueOptions(tt.dur, tt.precision, false)
 			assert.Equal(t, tt.want, got)
 		})
 	}
