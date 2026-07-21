@@ -21,6 +21,17 @@ import (
 	"github.com/lucasb-eyer/go-colorful"
 )
 
+// rainbow is the shared 7-stop gradient used by the shimmer demos.
+var rainbow = []style.ColorStop{
+	{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+	{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
+	{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
+	{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
+	{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
+	{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
+	{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
+}
+
 func main() {
 	demoFlag := flag.Bool("demo", false, "run the demo")
 	quickFlag := flag.Bool("quick", false, "skip animations")
@@ -60,15 +71,6 @@ func main() {
 	if !*quickFlag {
 		// --- Shimmer (all directions, rainbow) ---
 		header("Shimmer")
-		rainbow := []style.ColorStop{
-			{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-			{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-			{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-			{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-			{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-			{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		}
 		sleep3s := func(_ context.Context) error {
 			time.Sleep(5 * time.Second)
 			return nil
@@ -282,15 +284,7 @@ func main() {
 
 		header("Shimmer (middle direction, rainbow)")
 		_ = clog.Shimmer("Synchronizing upstream dependencies and rebuilding artifacts",
-			shimmer.WithGradient(
-				style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-				style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-				style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-				style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-				style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-				style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			),
+			shimmer.WithGradient(rainbow...),
 			shimmer.WithDirection(shimmer.MiddleIn),
 		).
 			Wait(context.Background(), func(_ context.Context) error {
@@ -300,15 +294,7 @@ func main() {
 			Msg("Dependencies synced and artifacts rebuilt")
 
 		_ = clog.Shimmer("Broadcasting configuration changes to all edge nodes",
-			shimmer.WithGradient(
-				style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-				style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-				style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-				style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-				style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-				style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-				style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			),
+			shimmer.WithGradient(rainbow...),
 			shimmer.WithDirection(shimmer.MiddleOut),
 		).
 			Wait(context.Background(), func(_ context.Context) error {
@@ -965,15 +951,7 @@ func handleRequest(ctx context.Context) {
 
 func demo() {
 	_ = clog.Shimmer("Initializing environment and loading configuration modules",
-		shimmer.WithGradient(
-			style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-			style.ColorStop{Position: 0.17, Color: colorful.Color{R: 1, G: 0.6, B: 0.2}},
-			style.ColorStop{Position: 0.33, Color: colorful.Color{R: 1, G: 1, B: 0.4}},
-			style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.3, G: 1, B: 0.5}},
-			style.ColorStop{Position: 0.67, Color: colorful.Color{R: 0.4, G: 0.5, B: 1}},
-			style.ColorStop{Position: 0.83, Color: colorful.Color{R: 0.7, G: 0.3, B: 1}},
-			style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.3, B: 0.3}},
-		),
+		shimmer.WithGradient(rainbow...),
 		shimmer.WithDirection(shimmer.MiddleIn),
 	).
 		Str("eta", "Soon™").
