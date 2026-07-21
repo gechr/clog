@@ -153,8 +153,8 @@ func (t *groupTask) startTime() time.Time {
 // Add registers an animation builder with the group and returns a
 // [GroupEntry] for starting the task.
 func (g *Group) Add(b *Builder) *GroupEntry {
-	if b.log == nil {
-		b.log = g.log
+	if b.cfg.Logger == nil {
+		b.cfg.Logger = g.log
 	}
 
 	msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
@@ -348,7 +348,7 @@ func (ge *GroupEntry) Run(task TaskFunc) *TaskResult {
 func (t *groupTask) newUpdate() *Update {
 	b := t.builder
 	update := &Update{
-		msgText:           b.message,
+		msgText:           b.cfg.Message,
 		msgPtr:            t.msgPtr,
 		fieldsPtr:         t.fieldsPtr,
 		base:              b.Fields,
@@ -357,9 +357,9 @@ func (t *groupTask) newUpdate() *Update {
 		symbolPtr:         t.symbolPtr,
 		elapsed:           func() time.Duration { return t.duration(time.Now()) },
 	}
-	if b.mode == AnimationBar {
-		update.progressPtr = b.barProgressPtr
-		update.totalPtr = b.barTotalPtr
+	if b.cfg.Mode == AnimationBar {
+		update.progressPtr = b.cfg.BarProgress
+		update.totalPtr = b.cfg.BarTotal
 	}
 	update.InitSelf(update)
 	return update
@@ -417,7 +417,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		t.doneErr <- err
 	}()
 
-	l := b.log
+	l := b.cfg.Logger
 	if l == nil {
 		l = g.log
 	}
@@ -426,7 +426,7 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 		resultBase: resultBase[TaskResult]{
 			Log:          b.IndentedLogger(l),
 			PartOverride: b.partOverrides,
-			SuccessLevel: b.lvl,
+			SuccessLevel: b.cfg.Level,
 			LevelError:   level.Error,
 		},
 		task: t,

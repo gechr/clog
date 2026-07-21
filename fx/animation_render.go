@@ -155,7 +155,7 @@ func runAnimationRegion(
 	case err := <-done:
 		// For bar animations, render one final frame so 100% is visible
 		// before the line is cleared and replaced with the completion message.
-		if b.mode == AnimationBar && err == nil {
+		if b.cfg.Mode == AnimationBar && err == nil {
 			resetBarWidgetState(gt)
 			region.RenderFrame(time.Now())
 		}

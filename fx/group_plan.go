@@ -258,7 +258,7 @@ func stripEmptyTaskStatus(g *Group, built groupFrameLines) []string {
 func newOverflowTask(g *Group, gts []*renderTask, syncEpoch time.Time) *renderTask {
 	log := g.log
 	if log == nil {
-		log = gts[0].builder.log
+		log = gts[0].builder.cfg.Logger
 	}
 	b := NewBuilder(BuilderConfig{Logger: log, Level: level.Info})
 	if g.overflowStyle != nil {
