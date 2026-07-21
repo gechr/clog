@@ -116,19 +116,33 @@ func styleDurationGradient(
 		df.Gradient,
 		df.GradientMode,
 	)
+	return styleValueGradient(s, stops, mode, df.Value, gradientMax, df.GradientMax)
+}
+
+// styleValueGradient colors s by interpolating stops at value/max, shared by
+// the duration and elapsed gradients. A field-level max override takes
+// precedence over the logger default. Returns "" when the gradient is
+// inactive (no stops or non-positive max).
+func styleValueGradient(
+	s string,
+	stops []style.ColorStop,
+	mode style.GradientMode,
+	value, gradientMax time.Duration,
+	gmOverride *time.Duration,
+) string {
 	if len(stops) == 0 {
 		return ""
 	}
 
 	gm := gradientMax
-	if df.GradientMax != nil {
-		gm = *df.GradientMax
+	if gmOverride != nil {
+		gm = *gmOverride
 	}
 	if gm <= 0 {
 		return ""
 	}
 
-	t := xmath.Clamp01(float64(df.Value) / float64(gm))
+	t := xmath.Clamp01(float64(value) / float64(gm))
 	return renderGradient(s, t, stops, mode)
 }
 
@@ -196,20 +210,7 @@ func styleElapsedGradient(
 		ef.Gradient,
 		ef.GradientMode,
 	)
-	if len(stops) == 0 {
-		return ""
-	}
-
-	gm := gradientMax
-	if ef.GradientMax != nil {
-		gm = *ef.GradientMax
-	}
-	if gm <= 0 {
-		return ""
-	}
-
-	t := xmath.Clamp01(float64(ef.Value) / float64(gm))
-	return renderGradient(s, t, stops, mode)
+	return styleValueGradient(s, stops, mode, ef.Value, gradientMax, ef.GradientMax)
 }
 
 // styleDeadline renders a countdown string. When the deadline gradient is
