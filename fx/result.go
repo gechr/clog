@@ -65,35 +65,18 @@ func (w *WaitResult) Send() error {
 		return w.TaskErr
 	}
 
-	var lvl core.Level
-	var msg string
-	var errField error
-
-	switch {
-	case w.TaskErr == nil:
-		lvl = w.SuccessLevel
-		msg = w.SuccessMsg
-	case w.ErrorMsg != nil:
-		lvl = w.LevelError
-		msg = *w.ErrorMsg
-		errField = w.TaskErr
-	default:
-		lvl = w.LevelError
-		msg = w.TaskErr.Error()
-	}
-
-	evt := DoneEvent{
-		Level:    lvl,
-		Fields:   w.Fields,
-		MsgStyle: w.MsgStyle,
-		Parts:    w.PartOverride,
-		Symbol:   w.SymbolStr,
-		Msg:      msg,
-	}
-	if errField != nil {
-		evt.Err = errField
-	}
-	w.Log.Done(evt)
+	sendResult(
+		w.Log,
+		w.Fields,
+		w.PartOverride,
+		w.SymbolStr,
+		w.MsgStyle,
+		w.SuccessLevel,
+		w.LevelError,
+		w.SuccessMsg,
+		w.ErrorMsg,
+		w.TaskErr,
+	)
 	return w.TaskErr
 }
 
