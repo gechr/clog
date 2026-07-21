@@ -509,31 +509,39 @@ func (b *Builder) Wait(ctx context.Context, task TaskFunc) *WaitResult {
 	})
 }
 
-// Progress executes the task with the animation whose message and fields
-// can be updated via the [Update] builder.
-func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
-	var fieldsPtr atomic.Pointer[[]core.Field]
-	var levelPtr atomic.Int64
-	var msgPtr atomic.Pointer[string]
-	var symbolPtr atomic.Pointer[string]
-
+// newTaskPointers seeds a task's atomic message/fields/symbol pointers from
+// the builder's static configuration.
+func newTaskPointers(
+	b *Builder,
+) (*atomic.Pointer[string], *atomic.Pointer[[]core.Field], *atomic.Pointer[string]) {
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
 	msgPtr.Store(&b.message)
 	fieldsPtr.Store(&b.Fields)
 	sym := b.symbolIcon
 	if sym == "" {
 		sym = DefaultSymbol
 	}
-	levelPtr.Store(int64(level.Unset))
 	symbolPtr.Store(&sym)
+	return msgPtr, fieldsPtr, symbolPtr
+}
+
+// Progress executes the task with the animation whose message and fields
+// can be updated via the [Update] builder.
+func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
+	msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
+	levelPtr := &atomic.Int64{}
+	levelPtr.Store(int64(level.Unset))
 
 	startTime := time.Now()
 	update := &Update{
 		msgText:   b.message,
-		msgPtr:    &msgPtr,
-		fieldsPtr: &fieldsPtr,
+		msgPtr:    msgPtr,
+		fieldsPtr: fieldsPtr,
 		base:      b.Fields,
-		levelPtr:  &levelPtr,
-		symbolPtr: &symbolPtr,
+		levelPtr:  levelPtr,
+		symbolPtr: symbolPtr,
 		elapsed:   func() time.Duration { return time.Since(startTime) },
 	}
 	if b.mode == AnimationBar {
@@ -546,7 +554,7 @@ func (b *Builder) Progress(ctx context.Context, task UpdateFunc) *WaitResult {
 		return task(ctx, update)
 	}
 	l := b.log
-	err := runAnimation(ctx, b, wrapped, &msgPtr, &fieldsPtr, &levelPtr, &symbolPtr, startTime)
+	err := runAnimation(ctx, b, wrapped, msgPtr, fieldsPtr, levelPtr, symbolPtr, startTime)
 
 	msg := *msgPtr.Load()
 	w := NewWaitResult(err, b.IndentedLogger(l), b.partOverrides, b.lvl, msg)

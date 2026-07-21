@@ -157,16 +157,7 @@ func (g *Group) Add(b *Builder) *GroupEntry {
 		b.log = g.log
 	}
 
-	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
-	symbolPtr := &atomic.Pointer[string]{}
-	msgPtr.Store(&b.message)
-	fieldsPtr.Store(&b.Fields)
-	sym := b.symbolIcon
-	if sym == "" {
-		sym = DefaultSymbol
-	}
-	symbolPtr.Store(&sym)
+	msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
 
 	levelPtr := &atomic.Int64{}
 	levelPtr.Store(int64(level.Unset))

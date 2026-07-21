@@ -1316,16 +1316,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 		if b.log == nil {
 			b.log = g.log
 		}
-		msgPtr := &atomic.Pointer[string]{}
-		fieldsPtr := &atomic.Pointer[[]core.Field]{}
-		symbolPtr := &atomic.Pointer[string]{}
-		msgPtr.Store(&b.message)
-		fieldsPtr.Store(&b.Fields)
-		sym := b.symbolIcon
-		if sym == "" {
-			sym = DefaultSymbol
-		}
-		symbolPtr.Store(&sym)
+		msgPtr, fieldsPtr, symbolPtr := newTaskPointers(b)
 
 		gt := &renderTask{
 			groupTask: &groupTask{
