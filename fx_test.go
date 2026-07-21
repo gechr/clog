@@ -307,7 +307,7 @@ func (b *regionBuffer) String() string {
 func newRegionTestLogger(buf *regionBuffer) (*Logger, *Output) {
 	out := TestOutput(buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
 	l := New(out)
 	l.SetParts(PartMessage)

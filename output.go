@@ -28,13 +28,10 @@ type Output struct {
 	isTTY   bool
 	profile colorprofile.Profile
 
-	widthMu   sync.Mutex
-	widthDone bool
-	width     int
-
-	heightMu   sync.Mutex
-	heightDone bool
-	height     int
+	sizeMu   sync.Mutex
+	sizeDone bool
+	width    int
+	height   int
 
 	bgMu   sync.Mutex
 	bgDone bool
@@ -191,71 +188,59 @@ func (o *Output) file() *os.File {
 // The value is lazily detected and cached; call [Output.RefreshWidth]
 // to re-detect.
 func (o *Output) Width() int {
-	o.widthMu.Lock()
-	defer o.widthMu.Unlock()
-
-	if !o.widthDone {
-		o.widthDone = true
-
-		if o.isTTY && o.fd >= 0 {
-			if w, _, err := term.GetSize(o.fd); err == nil {
-				o.width = w
-			}
-		}
-	}
-
+	o.sizeMu.Lock()
+	defer o.sizeMu.Unlock()
+	o.detectSizeLocked()
 	return o.width
-}
-
-// RefreshWidth re-queries the terminal for the current width and updates the
-// cached value. If the query fails (or the writer is not a TTY) the cache is
-// left untouched, so manually-seeded test widths survive a refresh.
-func (o *Output) RefreshWidth() {
-	o.widthMu.Lock()
-	defer o.widthMu.Unlock()
-	if !o.isTTY || o.fd < 0 {
-		return
-	}
-	if w, _, err := term.GetSize(o.fd); err == nil {
-		o.width = w
-		o.widthDone = true
-	}
 }
 
 // Height returns the terminal height, or 0 for non-TTY writers.
 // The value is lazily detected and cached; call [Output.RefreshHeight]
 // to re-detect.
 func (o *Output) Height() int {
-	o.heightMu.Lock()
-	defer o.heightMu.Unlock()
-
-	if !o.heightDone {
-		o.heightDone = true
-
-		if o.isTTY && o.fd >= 0 {
-			if _, h, err := term.GetSize(o.fd); err == nil {
-				o.height = h
-			}
-		}
-	}
-
+	o.sizeMu.Lock()
+	defer o.sizeMu.Unlock()
+	o.detectSizeLocked()
 	return o.height
 }
 
-// RefreshHeight re-queries the terminal for the current height and updates
-// the cached value. If the query fails (or the writer is not a TTY) the
-// cache is left untouched, so manually-seeded test heights survive a refresh.
-func (o *Output) RefreshHeight() {
-	o.heightMu.Lock()
-	defer o.heightMu.Unlock()
+// detectSizeLocked lazily queries both terminal dimensions with a single
+// size query. o.sizeMu must be held.
+func (o *Output) detectSizeLocked() {
+	if o.sizeDone {
+		return
+	}
+	o.sizeDone = true
+
+	if o.isTTY && o.fd >= 0 {
+		if w, h, err := term.GetSize(o.fd); err == nil {
+			o.width, o.height = w, h
+		}
+	}
+}
+
+// refreshSize re-queries the terminal size and updates both cached
+// dimensions. If the query fails (or the writer is not a TTY) the cache is
+// left untouched, so manually-seeded test sizes survive a refresh.
+func (o *Output) refreshSize() {
+	o.sizeMu.Lock()
+	defer o.sizeMu.Unlock()
 	if !o.isTTY || o.fd < 0 {
 		return
 	}
-	if _, h, err := term.GetSize(o.fd); err == nil {
-		o.height = h
-		o.heightDone = true
+	if w, h, err := term.GetSize(o.fd); err == nil {
+		o.width, o.height = w, h
+		o.sizeDone = true
 	}
 }
+
+// RefreshWidth re-queries the terminal size and updates the cached
+// dimensions. See [Output.refreshSize].
+func (o *Output) RefreshWidth() { o.refreshSize() }
+
+// RefreshHeight re-queries the terminal size and updates the cached
+// dimensions. See [Output.refreshSize].
+func (o *Output) RefreshHeight() { o.refreshSize() }
 
 // ListenResize starts a background goroutine that refreshes the cached
 // terminal width and height on SIGWINCH. Call the returned stop function
@@ -269,8 +254,7 @@ func (o *Output) ListenResize() func() {
 	notifyResize(ch)
 	go func() {
 		for range ch {
-			o.RefreshWidth()
-			o.RefreshHeight()
+			o.refreshSize()
 		}
 	}()
 	return func() {

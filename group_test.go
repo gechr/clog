@@ -215,9 +215,8 @@ func TestGroupRenderDelaySkipsShortLivedTTYGroup(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 1, column: 1}, true
@@ -239,9 +238,8 @@ func TestGroupTransientHeaderHidesWhenNoTaskRowsVisible(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 1, column: 1}, true
@@ -686,9 +684,8 @@ func TestGroupSuppressesLiveFrameAtViewportBottom(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 24, column: 1}, true
@@ -721,9 +718,8 @@ func TestGroupRepaintClearsWrappedRows(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 32
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 1, column: 1}, true
@@ -772,9 +768,8 @@ func TestGroupAdvancementUsesLineFeed(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 1, column: 1}, true
@@ -822,9 +817,8 @@ func TestGroupFrameSynchronizationAndSkip(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	out.queryCursorPosition = func(io.Writer) (cursorPosition, bool) {
 		return cursorPosition{row: 1, column: 1}, true
@@ -880,9 +874,8 @@ func TestAnimationFrameSynchronizationAndSkip(t *testing.T) {
 	var buf bytes.Buffer
 	out := TestOutput(&buf)
 	out.isTTY = true
-	out.widthDone = true
+	out.sizeDone = true
 	out.width = 80
-	out.heightDone = true
 	out.height = 24
 	logger := New(out)
 	logger.SetAnimationInterval(time.Millisecond)
