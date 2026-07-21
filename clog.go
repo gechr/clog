@@ -1285,29 +1285,15 @@ func (l *Logger) log(e *Event, msg string) {
 			} else {
 				now = time.Now().In(l.timeLocation)
 			}
-			ts := now.Format(l.timeFormat)
-			if noColor || l.styles.Timestamp == nil {
-				s = ts
-			} else {
-				s = l.styles.Timestamp.Render(ts)
-			}
+			s = styledTimestamp(now.Format(l.timeFormat), l.styles, noColor)
 		case PartLevel:
-			label := l.formatLabel(e.level)
-			if style := l.styles.Levels[e.level]; !noColor && style != nil {
-				s = style.Render(label)
-			} else {
-				s = label
-			}
+			s = styledLevel(l.formatLabel(e.level), e.level, l.styles, noColor)
 		case PartSymbol:
 			if symbol == "" {
 				continue
 			}
 
-			if style := l.styles.Symbols[e.level]; !noColor && style != nil {
-				s = style.Render(symbol)
-			} else {
-				s = symbol
-			}
+			s = styledSymbol(symbol, e.level, l.styles, noColor)
 		case PartMessage:
 			if msg == "" && l.indent == 0 && len(l.tree) == 0 {
 				continue

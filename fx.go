@@ -111,11 +111,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	l.mu.Unlock()
 
 	// Styled level symbol for the builder's own level.
-	if s := styles.Levels[level]; s != nil && !noColor {
-		cfg.LevelSymbol = s.Render(label)
-	} else {
-		cfg.LevelSymbol = label
-	}
+	cfg.LevelSymbol = styledLevel(label, level, styles, noColor)
 
 	cfg.FormatFields = func(fields []core.Field) string {
 		// Honor the logger's omit settings so task rows match regular log
@@ -127,11 +123,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		return formatFields(fields, fieldOpts)
 	}
 	cfg.StyleLevel = func(lvl core.Level) string {
-		lab := labels[lvl]
-		if s := styles.Levels[lvl]; s != nil && !noColor {
-			return s.Render(lab)
-		}
-		return lab
+		return styledLevel(labels[lvl], lvl, styles, noColor)
 	}
 	msgStyleOverride := b.MessageStyleOverride()
 	cfg.StyleMessage = func(msg string, lvl core.Level) string {
@@ -147,10 +139,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 		return styledSymbol(symbol, lvl, styles, noColor)
 	}
 	cfg.StyleTimestamp = func(ts string) string {
-		if styles.Timestamp != nil && !noColor {
-			return styles.Timestamp.Render(ts)
-		}
-		return ts
+		return styledTimestamp(ts, styles, noColor)
 	}
 	return cfg
 }
@@ -176,4 +165,22 @@ func styledSymbol(symbol string, level Level, styles *style.Config, noColor bool
 		}
 	}
 	return symbol
+}
+
+// styledLevel applies the level label style for the given level, if any.
+func styledLevel(label string, level Level, styles *style.Config, noColor bool) string {
+	if !noColor {
+		if s := styles.Levels[level]; s != nil {
+			return s.Render(label)
+		}
+	}
+	return label
+}
+
+// styledTimestamp applies the timestamp style, if any.
+func styledTimestamp(ts string, styles *style.Config, noColor bool) string {
+	if !noColor && styles.Timestamp != nil {
+		return styles.Timestamp.Render(ts)
+	}
+	return ts
 }
