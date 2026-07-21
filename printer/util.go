@@ -31,3 +31,8 @@ func EmitStyled(buf *strings.Builder, text string, style *lipgloss.Style) {
 		buf.WriteString(text)
 	}
 }
+
+// IsDigit reports whether c is an ASCII digit.
+func IsDigit(c byte) bool {
+	return c >= '0' && c <= '9'
+}

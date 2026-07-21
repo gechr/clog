@@ -174,7 +174,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 	case c == '{':
 		i = highlightInlineTable(data, i, n, buf, styles)
 
-	case isDigit(c) || c == '+' || c == '-' || c == 'i' || c == 'n':
+	case printer.IsDigit(c) || c == '+' || c == '-' || c == 'i' || c == 'n':
 		start := i
 		i = scanBareValue(data, i, n)
 		val := string(data[start:i])
@@ -366,8 +366,4 @@ func classifyNumber(val string, styles *style.TOML) *lipgloss.Style {
 	}
 
 	return styles.Integer
-}
-
-func isDigit(c byte) bool {
-	return c >= '0' && c <= '9'
 }

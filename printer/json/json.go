@@ -208,17 +208,17 @@ func Highlight(s string, styles *style.JSON) string {
 				return buf.String()
 			}
 
-		case c == tokenMinus || (isDigit(c)):
+		case c == tokenMinus || (printer.IsDigit(c)):
 			j := i
 			if data[j] == '-' {
 				j++
 			}
-			for j < n && isDigit(data[j]) {
+			for j < n && printer.IsDigit(data[j]) {
 				j++
 			}
 			if j < n && data[j] == '.' {
 				j++
-				for j < n && isDigit(data[j]) {
+				for j < n && printer.IsDigit(data[j]) {
 					j++
 				}
 			}
@@ -227,7 +227,7 @@ func Highlight(s string, styles *style.JSON) string {
 				if j < n && (data[j] == '+' || data[j] == '-') {
 					j++
 				}
-				for j < n && isDigit(data[j]) {
+				for j < n && printer.IsDigit(data[j]) {
 					j++
 				}
 			}
@@ -468,11 +468,6 @@ func scanValueEnd(data []byte, i int) int {
 	}
 }
 
-// isDigit reports whether c is an ASCII digit.
-func isDigit(c byte) bool {
-	return c >= '0' && c <= '9'
-}
-
 // isSpace reports whether c is a JSON whitespace character.
 func isSpace(c byte) bool {
 	return c == ' ' || c == '\t' || c == '\n' || c == '\r'
@@ -609,10 +604,10 @@ func hjsonUnquoteValue(raw string, hjson bool) (string, bool) {
 		}
 	}
 	// ambiguous as number: starts with digit or '-' followed by digit
-	if isDigit(s[0]) {
+	if printer.IsDigit(s[0]) {
 		return raw, false
 	}
-	if s[0] == '-' && len(s) > 1 && isDigit(s[1]) {
+	if s[0] == '-' && len(s) > 1 && printer.IsDigit(s[1]) {
 		return raw, false
 	}
 	return s, true
