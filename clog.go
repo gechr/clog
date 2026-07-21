@@ -91,16 +91,61 @@ func SetDefault(logger *Logger) {
 	defaultLogger.Store(logger)
 }
 
+// Indices into styleOverride / themedStyles, one per theme-derived style.
+const (
+	themedBacktick = iota
+	themedJSON
+	themedYAML
+	themedTOML
+	themedHCL
+	themedGradient
+	themedStyleCount
+)
+
 // styleOverride records which theme-derived styles the user supplied
 // explicitly via [Logger.SetStyles]. Each set flag is excluded from
 // background-driven theme resolution so it is never overwritten.
-type styleOverride struct {
-	backtick bool
-	json     bool
-	yaml     bool
-	toml     bool
-	hcl      bool
-	gradient bool
+type styleOverride [themedStyleCount]bool
+
+// themedStyles drives the theme-derived style machinery: isCustom reports
+// whether an incoming [Logger.SetStyles] config deliberately overrides the
+// style (see customStyle), and apply rebuilds it from a resolved theme.
+// Adding a theme-derived style means adding an index above and a row here.
+var themedStyles = [themedStyleCount]struct {
+	isCustom func(*style.Config) bool
+	apply    func(*style.Config, *theme.Theme)
+}{
+	themedBacktick: {
+		isCustom: func(s *style.Config) bool {
+			return customStyle(s.Backtick, style.BacktickFor(theme.BackgroundDark))
+		},
+		apply: func(s *style.Config, t *theme.Theme) { s.Backtick = style.BacktickFor(t.Background) },
+	},
+	themedJSON: {
+		isCustom: func(s *style.Config) bool { return customStyle(s.JSON, style.DefaultJSON()) },
+		apply:    func(s *style.Config, t *theme.Theme) { s.JSON = style.NewJSON(t) },
+	},
+	themedYAML: {
+		isCustom: func(s *style.Config) bool { return customStyle(s.YAML, style.DefaultYAML()) },
+		apply:    func(s *style.Config, t *theme.Theme) { s.YAML = style.NewYAML(t) },
+	},
+	themedTOML: {
+		isCustom: func(s *style.Config) bool { return customStyle(s.TOML, style.DefaultTOML()) },
+		apply:    func(s *style.Config, t *theme.Theme) { s.TOML = style.NewTOML(t) },
+	},
+	themedHCL: {
+		isCustom: func(s *style.Config) bool { return customStyle(s.HCL, style.DefaultHCL()) },
+		apply:    func(s *style.Config, t *theme.Theme) { s.HCL = style.NewHCL(t) },
+	},
+	themedGradient: {
+		isCustom: customGradient,
+		apply: func(s *style.Config, t *theme.Theme) {
+			s.DurationGradient = style.ElapsedGradientFor(t.Background)
+			s.ElapsedGradient = style.ElapsedGradientFor(t.Background)
+			s.DeadlineGradient = style.ElapsedGradientFor(t.Background)
+			s.PercentGradient = style.PercentGradientFor(t.Background)
+		},
+	},
 }
 
 // Logger is the main structured logger.
@@ -867,26 +912,10 @@ func (l *Logger) resolvePrintThemeLocked() {
 // explicitly via [Logger.SetStyles] is left untouched, so overriding one (e.g.
 // JSON) does not opt the rest out of background detection.
 func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
-	if !l.styleOverride.backtick {
-		l.styles.Backtick = style.BacktickFor(t.Background)
-	}
-	if !l.styleOverride.json {
-		l.styles.JSON = style.NewJSON(t)
-	}
-	if !l.styleOverride.yaml {
-		l.styles.YAML = style.NewYAML(t)
-	}
-	if !l.styleOverride.toml {
-		l.styles.TOML = style.NewTOML(t)
-	}
-	if !l.styleOverride.hcl {
-		l.styles.HCL = style.NewHCL(t)
-	}
-	if !l.styleOverride.gradient {
-		l.styles.DurationGradient = style.ElapsedGradientFor(t.Background)
-		l.styles.ElapsedGradient = style.ElapsedGradientFor(t.Background)
-		l.styles.DeadlineGradient = style.ElapsedGradientFor(t.Background)
-		l.styles.PercentGradient = style.PercentGradientFor(t.Background)
+	for i, ts := range themedStyles {
+		if !l.styleOverride[i] {
+			ts.apply(l.styles, t)
+		}
 	}
 }
 
@@ -908,23 +937,10 @@ func (l *Logger) SetStyles(styles *style.Config) {
 	// background-adaptable default. Passing DefaultStyles() through unchanged
 	// (or with unrelated fields tweaked) must still adapt to the terminal, and
 	// each style opts out individually so the rest keep adapting.
-	if customStyle(styles.Backtick, style.BacktickFor(theme.BackgroundDark)) {
-		l.styleOverride.backtick = true
-	}
-	if customStyle(styles.JSON, style.DefaultJSON()) {
-		l.styleOverride.json = true
-	}
-	if customStyle(styles.YAML, style.DefaultYAML()) {
-		l.styleOverride.yaml = true
-	}
-	if customStyle(styles.TOML, style.DefaultTOML()) {
-		l.styleOverride.toml = true
-	}
-	if customStyle(styles.HCL, style.DefaultHCL()) {
-		l.styleOverride.hcl = true
-	}
-	if customGradient(styles) {
-		l.styleOverride.gradient = true
+	for i, ts := range themedStyles {
+		if ts.isCustom(styles) {
+			l.styleOverride[i] = true
+		}
 	}
 }
 
