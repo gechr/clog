@@ -27,26 +27,18 @@ func Rate(opts ...Option) bar.Widget {
 // units per second (e.g. "82.9 MB/s", "1.5 GB/s"). The result is right-aligned
 // to the widest value seen so far to prevent the bar from jumping.
 func BytesRate(opts ...Option) bar.Widget {
-	c := config{digits: 3} //nolint:mnd // default significant digits
-	apply(&c, opts...)
-
-	p := pad()
-
-	return func(s bar.State) string {
-		var raw string
-		if s.Rate <= 0 {
-			raw = "0 B/s"
-		} else {
-			raw = numfmt.Bytes(uint64(s.Rate), c.digits) + "/s"
-		}
-		return p(raw, c.render(raw))
-	}
+	return bytesRateWidget(numfmt.Bytes, opts)
 }
 
 // IBytesRate returns a [bar.Widget] that displays throughput in IEC byte
 // units per second (e.g. "82.9 MiB/s", "1.5 GiB/s"). The result is right-aligned
 // to the widest value seen so far to prevent the bar from jumping.
 func IBytesRate(opts ...Option) bar.Widget {
+	return bytesRateWidget(numfmt.IBytes, opts)
+}
+
+// bytesRateWidget is the shared implementation for [BytesRate] and [IBytesRate].
+func bytesRateWidget(format func(uint64, int) string, opts []Option) bar.Widget {
 	c := config{digits: 3} //nolint:mnd // default significant digits
 	apply(&c, opts...)
 
@@ -57,7 +49,7 @@ func IBytesRate(opts ...Option) bar.Widget {
 		if s.Rate <= 0 {
 			raw = "0 B/s"
 		} else {
-			raw = numfmt.IBytes(uint64(s.Rate), c.digits) + "/s"
+			raw = format(uint64(s.Rate), c.digits) + "/s"
 		}
 		return p(raw, c.render(raw))
 	}
