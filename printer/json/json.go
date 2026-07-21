@@ -54,7 +54,6 @@ func Highlight(s string, styles *style.JSON) string {
 	hjson := styles.Mode == style.JSONModeHuman
 	indent := styles.Indent
 	preserve := styles.PreserveFormat
-	depth := 0
 	justOpened := false // true immediately after { or [ (for empty container detection)
 
 	for i < n {
@@ -74,7 +73,7 @@ func Highlight(s string, styles *style.JSON) string {
 		// Skipped for } and ] so empty containers ({}, []) stay compact.
 		if indent != "" && justOpened && c != tokenRBrace && c != tokenRBracket {
 			buf.WriteByte('\n')
-			buf.WriteString(strings.Repeat(indent, depth))
+			buf.WriteString(strings.Repeat(indent, len(stack)))
 			justOpened = false
 		}
 
@@ -89,18 +88,14 @@ func Highlight(s string, styles *style.JSON) string {
 			}
 			printer.EmitStyled(&buf, "{", braceStyle)
 			stack = append(stack, tokenLBrace)
-			depth++
 			justOpened = true
 			expectKey = true
 			i++
 
 		case c == tokenRBrace:
-			if depth > 0 {
-				depth--
-			}
 			if indent != "" && !justOpened && len(stack) > 0 {
 				buf.WriteByte('\n')
-				buf.WriteString(strings.Repeat(indent, depth))
+				buf.WriteString(strings.Repeat(indent, len(stack)-1))
 			}
 			justOpened = false
 			braceStyle := styles.Brace
@@ -124,17 +119,13 @@ func Highlight(s string, styles *style.JSON) string {
 			}
 			printer.EmitStyled(&buf, "[", bracketStyle)
 			stack = append(stack, tokenLBracket)
-			depth++
 			justOpened = true
 			i++
 
 		case c == tokenRBracket:
-			if depth > 0 {
-				depth--
-			}
 			if indent != "" && !justOpened && len(stack) > 0 {
 				buf.WriteByte('\n')
-				buf.WriteString(strings.Repeat(indent, depth))
+				buf.WriteString(strings.Repeat(indent, len(stack)-1))
 			}
 			justOpened = false
 			bracketStyle := styles.Bracket
@@ -161,7 +152,7 @@ func Highlight(s string, styles *style.JSON) string {
 			}
 			if indent != "" {
 				buf.WriteByte('\n')
-				buf.WriteString(strings.Repeat(indent, depth))
+				buf.WriteString(strings.Repeat(indent, len(stack)))
 			} else if styles.Spacing&style.JSONSpacingAfterComma != 0 {
 				buf.WriteByte(' ')
 			}
