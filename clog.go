@@ -1178,6 +1178,15 @@ func (l *Logger) fieldOpts(level Level, sort Sort, noColor bool) formatFieldsOpt
 	}
 }
 
+// eventTime resolves the event's timestamp - explicit override or now - in
+// the logger's time location.
+func (l *Logger) eventTime(e *Event) time.Time {
+	if !e.timestamp.IsZero() {
+		return e.timestamp.In(l.timeLocation)
+	}
+	return time.Now().In(l.timeLocation)
+}
+
 // log writes a log entry using either the custom handler or the built-in pretty formatter.
 func (l *Logger) log(e *Event, msg string) {
 	l.mu.Lock()
@@ -1244,11 +1253,7 @@ func (l *Logger) log(e *Event, msg string) {
 			Tree:    l.tree,
 		}
 		if l.reportTimestamp && !e.noTimestamp {
-			if !e.timestamp.IsZero() {
-				entry.Time = e.timestamp.In(l.timeLocation)
-			} else {
-				entry.Time = time.Now().In(l.timeLocation)
-			}
+			entry.Time = l.eventTime(e)
 		}
 
 		l.runHooks(HookBeforeWrite)
@@ -1279,13 +1284,7 @@ func (l *Logger) log(e *Event, msg string) {
 				continue
 			}
 
-			var now time.Time
-			if !e.timestamp.IsZero() {
-				now = e.timestamp.In(l.timeLocation)
-			} else {
-				now = time.Now().In(l.timeLocation)
-			}
-			s = styledTimestamp(now.Format(l.timeFormat), l.styles, noColor)
+			s = styledTimestamp(l.eventTime(e).Format(l.timeFormat), l.styles, noColor)
 		case PartLevel:
 			s = styledLevel(l.formatLabel(e.level), e.level, l.styles, noColor)
 		case PartSymbol:
