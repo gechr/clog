@@ -221,17 +221,9 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// quoted string as one unit (delimiters inherit the
 		// value's style).
 		if cfg := quoteDelim(opts); quoted && cfg != nil {
-			open, body, closing := quoteParts(
-				valStr,
-				opts.quoteOpen,
-				opts.quoteClose,
-				opts.quoteSmart,
-			)
 			delim := cfg.Resolve(valueBaseStyle(f.Value, f.Key, kind, opts.styles))
-			styled := delim.Render(open) +
-				styledFieldValue(f, body, kind, opts) +
-				delim.Render(closing)
-			buf.WriteString(styled)
+			writeQuoted(&buf, valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart, delim,
+				func(body string) string { return styledFieldValue(f, body, kind, opts) })
 			continue
 		}
 
@@ -717,6 +709,22 @@ func needsQuoting(s string) bool {
 func quoteString(s string, openChar, closeChar rune, smart []QuotePair) string {
 	open, body, closing := quoteParts(s, openChar, closeChar, smart)
 	return open + body + closing
+}
+
+// writeQuoted writes a quoted value with separately styled delimiters: the
+// open/close delimiters render via delim, the body via renderBody.
+func writeQuoted(
+	buf *strings.Builder,
+	s string,
+	openChar, closeChar rune,
+	smart []QuotePair,
+	delim lipgloss.Style,
+	renderBody func(string) string,
+) {
+	open, body, closing := quoteParts(s, openChar, closeChar, smart)
+	buf.WriteString(delim.Render(open))
+	buf.WriteString(renderBody(body))
+	buf.WriteString(delim.Render(closing))
 }
 
 // quoteParts splits the quoting of s into its opening delimiter, body, and

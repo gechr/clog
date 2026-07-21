@@ -181,11 +181,9 @@ func formatStringSlice(
 		// When a quote-delimiter style is set, style the delimiters separately
 		// from the body; otherwise style the whole quoted element as one unit.
 		if quoted && styles != nil && styles.FieldQuote != nil {
-			open, body, closing := quoteParts(v, quoteOpen, quoteClose, quoteSmart)
 			delim := styles.FieldQuote.Resolve(valueBaseStyle(v, "", kindString, styles))
-			buf.WriteString(delim.Render(open))
-			buf.WriteString(styleStringElem(body, v, styles))
-			buf.WriteString(delim.Render(closing))
+			writeQuoted(&buf, v, quoteOpen, quoteClose, quoteSmart, delim,
+				func(body string) string { return styleStringElem(body, v, styles) })
 
 			continue
 		}
@@ -245,15 +243,14 @@ func formatAnySlice(
 		// When a quote-delimiter style is set, style the delimiters separately
 		// from the body; otherwise style the whole quoted element as one unit.
 		if quoted && styles != nil && styles.FieldQuote != nil {
-			open, body, closing := quoteParts(s, quoteOpen, quoteClose, quoteSmart)
 			delim := styles.FieldQuote.Resolve(valueBaseStyle(v, "", kind, styles))
-			styledBody := body
-			if styled := styleAnyElement(body, v, kind, styles, fmts); styled != "" {
-				styledBody = styled
-			}
-			buf.WriteString(delim.Render(open))
-			buf.WriteString(styledBody)
-			buf.WriteString(delim.Render(closing))
+			writeQuoted(&buf, s, quoteOpen, quoteClose, quoteSmart, delim,
+				func(body string) string {
+					if styled := styleAnyElement(body, v, kind, styles, fmts); styled != "" {
+						return styled
+					}
+					return body
+				})
 
 			continue
 		}
