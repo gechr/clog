@@ -69,7 +69,7 @@ func TestSetEnvPrefix(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, LevelDebug, Default().level)
+	assert.Equal(t, LevelDebug, Default().Level())
 	assert.True(t, Default().reportTimestamp)
 }
 
@@ -85,7 +85,7 @@ func TestSetEnvPrefixFallbackToClog(t *testing.T) {
 
 	SetEnvPrefix("MYAPP")
 
-	assert.Equal(t, LevelWarn, Default().level)
+	assert.Equal(t, LevelWarn, Default().Level())
 }
 
 func TestSetEnvPrefixTrimsUnderscores(t *testing.T) {
@@ -120,7 +120,7 @@ func TestEnvLogLevelWhitespaceTrimming(t *testing.T) {
 
 			loadLogLevelFromEnv()
 
-			assert.Equal(t, tt.want, Default().level)
+			assert.Equal(t, tt.want, Default().Level())
 		})
 	}
 }

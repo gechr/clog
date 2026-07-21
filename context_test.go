@@ -302,7 +302,7 @@ func TestContextLoggerInheritsSettings(t *testing.T) {
 
 	sub := l.With().Str("component", "db").Logger()
 
-	assert.Equal(t, LevelDebug, sub.level)
+	assert.Equal(t, LevelDebug, sub.Level())
 	assert.True(t, sub.reportTimestamp, "expected reportTimestamp inherited")
 	assert.Equal(t, "2006-01-02", sub.timeFormat)
 	assert.NotNil(t, sub.handler, "expected handler inherited")

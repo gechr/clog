@@ -23,7 +23,7 @@ func TestNewLogger(t *testing.T) {
 
 	l := New(TestOutput(&buf))
 
-	assert.Equal(t, LevelInfo, l.level)
+	assert.Equal(t, LevelInfo, l.Level())
 	assert.Nil(t, l.symbol)
 	assert.NotNil(t, l.mu)
 	assert.Nil(t, l.handler)
@@ -125,10 +125,10 @@ func TestSetLevel(t *testing.T) {
 	l := NewWriter(io.Discard)
 
 	l.SetLevel(LevelDebug)
-	assert.Equal(t, LevelDebug, l.level)
+	assert.Equal(t, LevelDebug, l.Level())
 
 	l.SetLevel(LevelError)
-	assert.Equal(t, LevelError, l.level)
+	assert.Equal(t, LevelError, l.Level())
 }
 
 func TestLoadLogLevelFromEnv(t *testing.T) {
@@ -158,7 +158,7 @@ func TestLoadLogLevelFromEnv(t *testing.T) {
 			t.Setenv("CLOG_LOG_LEVEL", tt.value)
 			loadLogLevelFromEnv()
 
-			assert.Equal(t, tt.wantLevel, Default().level)
+			assert.Equal(t, tt.wantLevel, Default().Level())
 			assert.Equal(t, tt.wantTimestamp, Default().reportTimestamp)
 		})
 	}
@@ -174,7 +174,7 @@ func TestLoadLogLevelFromEnvNotSet(t *testing.T) {
 
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, LevelWarn, Default().level)
+	assert.Equal(t, LevelWarn, Default().Level())
 }
 
 func TestGetLevel(t *testing.T) {
@@ -272,7 +272,7 @@ func TestConfigure(t *testing.T) {
 		SetDefault(NewWriter(io.Discard))
 		Configure(&Config{Verbose: true})
 
-		assert.Equal(t, LevelDebug, Default().level)
+		assert.Equal(t, LevelDebug, Default().Level())
 		assert.True(t, Default().reportTimestamp)
 	})
 
@@ -324,7 +324,7 @@ func TestConfigure(t *testing.T) {
 
 		Configure(&Config{Verbose: false})
 
-		assert.Equal(t, LevelInfo, Default().level)
+		assert.Equal(t, LevelInfo, Default().Level())
 		assert.False(t, Default().reportTimestamp)
 	})
 
@@ -338,7 +338,7 @@ func TestConfigure(t *testing.T) {
 
 		Configure(&Config{Verbose: false})
 
-		assert.Equal(t, LevelDebug, Default().level)
+		assert.Equal(t, LevelDebug, Default().Level())
 	})
 }
 
@@ -350,7 +350,7 @@ func TestSetVerbose(t *testing.T) {
 		SetDefault(NewWriter(io.Discard))
 		SetVerbose(true)
 
-		assert.Equal(t, LevelDebug, Default().level)
+		assert.Equal(t, LevelDebug, Default().Level())
 		assert.True(t, Default().reportTimestamp)
 	})
 
@@ -364,7 +364,7 @@ func TestSetVerbose(t *testing.T) {
 
 		SetVerbose(false)
 
-		assert.Equal(t, LevelInfo, Default().level)
+		assert.Equal(t, LevelInfo, Default().Level())
 	})
 
 	t.Run("disable_with_env", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestSetVerbose(t *testing.T) {
 
 		SetVerbose(false)
 
-		assert.Equal(t, LevelDebug, Default().level)
+		assert.Equal(t, LevelDebug, Default().Level())
 	})
 }
 
@@ -434,7 +434,7 @@ func TestPackageLevelSetters(t *testing.T) {
 	SetDefault(NewWriter(io.Discard))
 
 	SetLevel(LevelWarn)
-	assert.Equal(t, LevelWarn, Default().level)
+	assert.Equal(t, LevelWarn, Default().Level())
 
 	SetReportTimestamp(true)
 	assert.True(t, Default().reportTimestamp)
@@ -680,7 +680,7 @@ func TestLoadLogLevelFromEnvDry(t *testing.T) {
 	t.Setenv("CLOG_LOG_LEVEL", "dry")
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, LevelDry, Default().level)
+	assert.Equal(t, LevelDry, Default().Level())
 }
 
 func TestLoadLogLevelFromEnvFatal(t *testing.T) {
@@ -691,7 +691,7 @@ func TestLoadLogLevelFromEnvFatal(t *testing.T) {
 	t.Setenv("CLOG_LOG_LEVEL", "fatal")
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, LevelFatal, Default().level)
+	assert.Equal(t, LevelFatal, Default().Level())
 }
 
 func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
@@ -704,7 +704,7 @@ func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 	// Should not change the level, just print to stderr.
 	loadLogLevelFromEnv()
 
-	assert.Equal(t, LevelInfo, Default().level)
+	assert.Equal(t, LevelInfo, Default().Level())
 }
 
 func TestSetLabels(t *testing.T) {

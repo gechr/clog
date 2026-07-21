@@ -126,7 +126,6 @@ type Logger struct {
 	labels             LabelMap
 	labelsPadded       LabelMap
 	labelWidth         int
-	level              Level
 	levelAlign         Align
 	nonTTYLevel        Level // events below this level are suppressed on non-TTY writers
 	omitEmpty          bool
@@ -181,7 +180,6 @@ func New(output *Output) *Logger {
 		indentWidth:       2, //nolint:mnd // default indent: 2 spaces per level
 		fieldTimeFormat:   time.RFC3339,
 		labels:            DefaultLabels(),
-		level:             LevelInfo,
 		levelAlign:        AlignRight,
 		output:            output,
 		parts:             DefaultParts(),
@@ -238,9 +236,7 @@ func (l *Logger) Fatal() *Event { return l.newEvent(LevelFatal) }
 
 // Level returns the current minimum log level.
 func (l *Logger) Level() Level {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.level
+	return Level(l.atomicLevel.Load())
 }
 
 // LevelEnabled reports whether the logger handles records at the given level.
@@ -541,9 +537,6 @@ func (l *Logger) SetLabelWidth(width int) {
 
 // SetLevel sets the minimum log level.
 func (l *Logger) SetLevel(level Level) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.level = level
 	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (-10 to 15)
 }
 
