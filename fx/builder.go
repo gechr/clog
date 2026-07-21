@@ -28,7 +28,6 @@ type Builder struct {
 	core.FieldBuilder[Builder]
 
 	animatedSymbol   bool               // when true, cycles spinnerConfig.Frames as the symbol instead of a static icon
-	clearOnCancel    bool               // when true, erase the animation line on context cancellation
 	barPercentKey    string             // when set, a formatted percent field is injected each tick
 	barProgressPtr   *atomic.Int64      // bar mode: current progress; nil for non-bar modes
 	barConfig        bar.Config         // bar mode: visual style

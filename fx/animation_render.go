@@ -20,7 +20,7 @@ func writeString(w io.Writer, s string) {
 
 // liveRegionProvider is the optional capability probed for on the task's
 // [RenderOutput]. The root clog Output implements it; external Output
-// implementations (and test stubs) that don't are served by the legacy
+// implementations (and test stubs) that don't are served by the direct
 // in-place render loop below, so the interface contracts stay unchanged.
 type liveRegionProvider interface {
 	LiveRegion() *core.LiveRegion
@@ -124,7 +124,7 @@ func runAnimation(
 		}
 	}
 
-	// Legacy path: this animation owns the terminal and repaints in place.
+	// Direct path: this animation owns the terminal and repaints in place.
 	// Hide cursor during animation.
 	writeString(gt.cfg.Out, xansi.HideCursor)
 	defer writeString(gt.cfg.Out, xansi.ShowCursor)
@@ -185,16 +185,8 @@ func runAnimation(
 			lastLine = line
 			lastWidth = width
 		case <-ctx.Done():
-			switch {
-			case b.clearOnCancel && rendered:
-				writeString(gt.cfg.Out, syncFrame(
-					xansi.CursorUp(prevLineCount)+xansi.EraseScreenBelow,
-				))
-			case !b.clearOnCancel:
-				writeString(gt.cfg.Out, nl)
-			default:
-				writeString(gt.cfg.Out, xansi.ClearLine)
-			}
+			// Preserve the in-progress line as scrollback.
+			writeString(gt.cfg.Out, nl)
 			return ctx.Err()
 		}
 	}
@@ -205,7 +197,7 @@ func runAnimation(
 // is cancelled. The region's render loop calls the slot's render closure
 // under the region lock, so this goroutine must not call renderTaskLine while
 // the slot is registered (the closure mutates per-tick caches on gt).
-// Done and cancel semantics mirror the legacy loop: a successful bar shows a
+// Done and cancel semantics mirror the direct render loop: a successful bar shows a
 // final 100% frame before the line is erased, and the completion message is
 // printed by the caller through the logger, landing cleanly via displacement.
 func runAnimationRegion(
@@ -233,13 +225,10 @@ func runAnimationRegion(
 		// Unregister first so the region stops calling the render closure;
 		// after that this goroutine owns gt again.
 		region.Unregister(id)
-		if !b.clearOnCancel {
-			// Preserve the in-progress line as scrollback, mirroring the
-			// legacy loop which leaves the last frame on screen. The frozen
-			// frame is written as a regular displaced line so it lands above
-			// any animations still live in the region.
-			region.WriteLines(renderTaskLine(gt, false, time.Now(), nil) + nl)
-		}
+		// Preserve the in-progress line as scrollback - the last frame stays
+		// on screen. The frozen frame is written as a regular displaced line
+		// so it lands above any animations still live in the region.
+		region.WriteLines(renderTaskLine(gt, false, time.Now(), nil) + nl)
 		return ctx.Err()
 	}
 }
