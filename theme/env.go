@@ -28,8 +28,8 @@ func SetEnvPrefix(prefix string) {
 
 // PairFromEnv builds a theme pair from <PREFIX>_THEME_LIGHT and <PREFIX>_THEME_DARK.
 func PairFromEnv(opts ...PairOption) (*Pair, error) {
-	lightName, lightEnv := lookupEnv(envThemeLight)
-	darkName, darkEnv := lookupEnv(envThemeDark)
+	lightName, lightEnv := env.Lookup(envThemeLight)
+	darkName, darkEnv := env.Lookup(envThemeDark)
 	lightName = strings.TrimSpace(lightName)
 	darkName = strings.TrimSpace(darkName)
 	if lightName == "" {
@@ -60,7 +60,7 @@ func PairFromEnv(opts ...PairOption) (*Pair, error) {
 // It returns (nil, nil) when no theme variables are set. A set-but-invalid
 // value returns an error.
 func FromEnv(opts ...PairOption) (*Pair, error) {
-	if value, envVar := lookupEnv(envTheme); !xstrings.IsBlank(value) {
+	if value, envVar := env.Lookup(envTheme); !xstrings.IsBlank(value) {
 		var t Theme
 		if err := t.UnmarshalText([]byte(strings.TrimSpace(value))); err != nil {
 			return nil, fmt.Errorf("%s: %w", envVar, err)
@@ -68,15 +68,11 @@ func FromEnv(opts ...PairOption) (*Pair, error) {
 		return Single(&t), nil
 	}
 
-	lightName, _ := lookupEnv(envThemeLight)
-	darkName, _ := lookupEnv(envThemeDark)
+	lightName, _ := env.Lookup(envThemeLight)
+	darkName, _ := env.Lookup(envThemeDark)
 	if xstrings.IsBlank(lightName) && xstrings.IsBlank(darkName) {
 		return nil, nil //nolint:nilnil // no theme configured is a valid absence, not an error
 	}
 
 	return PairFromEnv(opts...)
-}
-
-func lookupEnv(suffix string) (string, string) {
-	return env.Lookup(suffix)
 }
