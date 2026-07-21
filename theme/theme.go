@@ -28,21 +28,11 @@ type Theme struct {
 // Dark returns clog's default dark-background color theme.
 //
 // This intentionally preserves the colors that clog used before light/dark
-// theme selection was added.
+// theme selection was added, which were [Dracula]'s palette.
 func Dark() *Theme {
-	return &Theme{
-		name:       themeNameDark,
-		Background: BackgroundDark,
-		Accent:     lipgloss.Color("#8be9fd"), // cyan
-		BoolFalse:  lipgloss.Color("#ff5555"), // red
-		BoolTrue:   lipgloss.Color("#50fa7b"), // green
-		Comment:    lipgloss.Color("#6272a4"), // comment
-		Foreground: lipgloss.Color("#f8f8f2"), // foreground
-		Key:        lipgloss.Color("#bd93f9"), // purple
-		Number:     lipgloss.Color("#ff79c6"), // pink
-		Secondary:  lipgloss.Color("#ffb86c"), // orange
-		String:     lipgloss.Color("#f1fa8c"), // yellow
-	}
+	th := Dracula()
+	th.name = themeNameDark
+	return th
 }
 
 // Light returns clog's default light-background color theme.
@@ -147,9 +137,20 @@ func CatppuccinMocha() *Theme {
 	}
 }
 
-// Dracula returns the Dracula color theme.
+// Dracula returns the Dracula color theme. It is also the palette behind
+// [Dark], clog's default dark theme.
 func Dracula() *Theme {
-	th := Dark()
-	th.name = themeNameDracula
-	return th
+	return &Theme{
+		name:       themeNameDracula,
+		Background: BackgroundDark,
+		Accent:     lipgloss.Color("#8be9fd"), // cyan
+		BoolFalse:  lipgloss.Color("#ff5555"), // red
+		BoolTrue:   lipgloss.Color("#50fa7b"), // green
+		Comment:    lipgloss.Color("#6272a4"), // comment
+		Foreground: lipgloss.Color("#f8f8f2"), // foreground
+		Key:        lipgloss.Color("#bd93f9"), // purple
+		Number:     lipgloss.Color("#ff79c6"), // pink
+		Secondary:  lipgloss.Color("#ffb86c"), // orange
+		String:     lipgloss.Color("#f1fa8c"), // yellow
+	}
 }
