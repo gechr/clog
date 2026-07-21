@@ -40,10 +40,8 @@ func Highlight(s string, styles *style.TOML) string {
 
 		switch data[i] {
 		case '#':
-			end := scanToEOL(data, i)
 			buf.Write(data[lineStart:i])
-			printer.EmitStyled(&buf, string(data[i:end]), styles.Comment)
-			i = end
+			i = emitComment(data, i, &buf, styles)
 
 		case '[':
 			buf.Write(data[lineStart:i])
@@ -61,6 +59,14 @@ func Highlight(s string, styles *style.TOML) string {
 	}
 
 	return buf.String()
+}
+
+// emitComment emits the comment run starting at i styled as a comment,
+// returning the index just past its end of line.
+func emitComment(data []byte, i int, buf *strings.Builder, styles *style.TOML) int {
+	end := scanToEOL(data, i)
+	printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
+	return end
 }
 
 // emitSpaces copies leading spaces and tabs at i verbatim into buf, returning
@@ -102,9 +108,7 @@ func highlightTableHeader(data []byte, i, n int, buf *strings.Builder, styles *s
 	// Emit any trailing comment on the same line.
 	j = emitSpaces(data, j, n, buf)
 	if j < n && data[j] == '#' {
-		end := scanToEOL(data, j)
-		printer.EmitStyled(buf, string(data[j:end]), styles.Comment)
-		j = end
+		j = emitComment(data, j, buf, styles)
 	}
 
 	return j
@@ -191,9 +195,7 @@ func highlightValue(data []byte, i, n int, buf *strings.Builder, styles *style.T
 	// Trailing whitespace + inline comment.
 	i = emitSpaces(data, i, n, buf)
 	if i < n && data[i] == '#' {
-		end := scanToEOL(data, i)
-		printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
-		i = end
+		i = emitComment(data, i, buf, styles)
 	}
 
 	return i
@@ -224,9 +226,7 @@ func highlightArray(data []byte, i, n int, buf *strings.Builder, styles *style.T
 			continue
 		}
 		if data[i] == '#' {
-			end := scanToEOL(data, i)
-			printer.EmitStyled(buf, string(data[i:end]), styles.Comment)
-			i = end
+			i = emitComment(data, i, buf, styles)
 			continue
 		}
 		i = highlightValue(data, i, n, buf, styles)
