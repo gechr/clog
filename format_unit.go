@@ -147,8 +147,13 @@ func styleElapsed(
 	if styled := styleElapsedGradient(s, originalValue, styles, gradientMax); styled != "" {
 		return styled
 	}
+	return styleElapsedNumberUnit(s, styles)
+}
 
-	// Number/unit split path.
+// styleElapsedNumberUnit renders an elapsed-family string via the number/unit
+// split path, falling back to the duration styles when the elapsed-specific
+// ones are unset.
+func styleElapsedNumberUnit(s string, styles *style.Config) string {
 	numStyle := styles.FieldElapsedNumber
 	if numStyle == nil {
 		numStyle = styles.FieldDurationNumber
@@ -222,26 +227,7 @@ func styleDeadline(
 	if styled := styleDeadlineGradient(s, originalValue, styles); styled != "" {
 		return styled
 	}
-
-	// Number/unit split path.
-	numStyle := styles.FieldElapsedNumber
-	if numStyle == nil {
-		numStyle = styles.FieldDurationNumber
-	}
-
-	unitStyle := styles.FieldElapsedUnit
-	if unitStyle == nil {
-		unitStyle = styles.FieldDurationUnit
-	}
-
-	return styleNumberUnit(
-		s,
-		numStyle,
-		unitStyle,
-		styles.DurationUnits,
-		styles.DurationThresholds,
-		true,
-	)
+	return styleElapsedNumberUnit(s, styles)
 }
 
 // styleDeadlineGradient colors the entire countdown string based on
