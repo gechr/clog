@@ -97,17 +97,14 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 		// (so a field only first appears once real time reaches the minimum,
 		// rather than as soon as rounding pushes it there), then round.
 		if val, ok := f.Value.(core.ElapsedField); ok {
-			d := val.Value
-			minimum := fmts.ElapsedMinimum
-			if val.Minimum != nil {
-				minimum = *val.Minimum
-			}
-			if minimum > 0 && d < minimum {
+			d, skip := applyMinAndRound(
+				val.Value,
+				val.Minimum,
+				fmts.ElapsedMinimum,
+				fmts.elapsedRound(val.Value, val.Round, val.Scale),
+			)
+			if skip {
 				continue
-			}
-			round := fmts.elapsedRound(d, val.Round, val.Scale)
-			if round > 0 {
-				d = d.Round(round)
 			}
 			val.Value = d
 			f.Value = val
@@ -128,17 +125,14 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 		// Duration pre-processing mirrors Elapsed's above.
 		if val, ok := f.Value.(core.DurationField); ok {
-			d := val.Value
-			minimum := fmts.DurationMinimum
-			if val.Minimum != nil {
-				minimum = *val.Minimum
-			}
-			if minimum > 0 && d < minimum {
+			d, skip := applyMinAndRound(
+				val.Value,
+				val.Minimum,
+				fmts.DurationMinimum,
+				fmts.durationRound(val.Value, val.Round, val.Scale),
+			)
+			if skip {
 				continue
-			}
-			round := fmts.durationRound(d, val.Round, val.Scale)
-			if round > 0 {
-				d = d.Round(round)
 			}
 			val.Value = d
 			f.Value = val
@@ -418,6 +412,28 @@ func formatDurationValueOptions(d time.Duration, precision int, trim bool) strin
 		Precision:         precision,
 		TrimTrailingZeros: trim,
 	})
+}
+
+// applyMinAndRound resolves the minimum-visibility threshold (field override
+// or format default) and rounding for a raw duration value, shared by the
+// Elapsed and Duration pre-processing. skip reports that the field should be
+// hidden because the raw value has not yet reached the minimum.
+func applyMinAndRound(
+	d time.Duration,
+	override *time.Duration,
+	defaultMin, round time.Duration,
+) (time.Duration, bool) {
+	minimum := defaultMin
+	if override != nil {
+		minimum = *override
+	}
+	if minimum > 0 && d < minimum {
+		return 0, true
+	}
+	if round > 0 {
+		d = d.Round(round)
+	}
+	return d, false
 }
 
 // ceilDuration rounds d up to the next multiple of r. Non-positive durations
