@@ -91,29 +91,20 @@ func loadHyperlinkFormatsFromEnv() {
 		}
 	}
 
-	if v := getEnv(envHyperlinkPathFormat); v != "" {
-		f.HyperlinkPathFormat = v
-		changed = true
-	}
-
-	if v := getEnv(envHyperlinkFileFormat); v != "" {
-		f.HyperlinkFileFormat = v
-		changed = true
-	}
-
-	if v := getEnv(envHyperlinkDirFormat); v != "" {
-		f.HyperlinkDirFormat = v
-		changed = true
-	}
-
-	if v := getEnv(envHyperlinkLineFormat); v != "" {
-		f.HyperlinkLineFormat = v
-		changed = true
-	}
-
-	if v := getEnv(envHyperlinkColumnFormat); v != "" {
-		f.HyperlinkColumnFormat = v
-		changed = true
+	for _, h := range []struct {
+		suffix string
+		dst    *string
+	}{
+		{envHyperlinkPathFormat, &f.HyperlinkPathFormat},
+		{envHyperlinkFileFormat, &f.HyperlinkFileFormat},
+		{envHyperlinkDirFormat, &f.HyperlinkDirFormat},
+		{envHyperlinkLineFormat, &f.HyperlinkLineFormat},
+		{envHyperlinkColumnFormat, &f.HyperlinkColumnFormat},
+	} {
+		if v := getEnv(h.suffix); v != "" {
+			*h.dst = v
+			changed = true
+		}
 	}
 
 	if changed {
