@@ -10,13 +10,6 @@ import (
 // line of a painted block.
 const nl = "\n"
 
-// SyncFrame brackets s with DEC 2026 synchronized-output markers so
-// supporting terminals apply the whole sequence atomically (no tearing);
-// terminals without support ignore the markers.
-func SyncFrame(s string) string {
-	return xansi.EnableSyncOutput + s + xansi.DisableSyncOutput
-}
-
 // FrameRows returns the number of physical terminal rows the rendered line
 // occupies once wrapping at termWidth is accounted for. ANSI escape codes
 // are stripped before measuring. Falls back to 1 when the width is unknown
