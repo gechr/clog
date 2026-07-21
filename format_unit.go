@@ -53,6 +53,47 @@ func asDurationField(v any) (core.DurationField, bool) {
 	}
 }
 
+// resolveGradient returns the active stops and mode after applying the
+// field-level overrides (if any) over the logger defaults.
+func resolveGradient(
+	defStops []style.ColorStop,
+	defMode style.GradientMode,
+	overrideStops []style.ColorStop,
+	overrideMode *style.GradientMode,
+) ([]style.ColorStop, style.GradientMode) {
+	stops := defStops
+	if len(overrideStops) > 0 {
+		stops = overrideStops
+	}
+
+	mode := defMode
+	if overrideMode != nil {
+		mode = *overrideMode
+	}
+	return stops, mode
+}
+
+// gradientColor picks the color at position t along stops, honoring mode.
+// A single stop is used as-is.
+func gradientColor(t float64, stops []style.ColorStop, mode style.GradientMode) colorful.Color {
+	switch {
+	case len(stops) == 1:
+		return stops[0].Color
+	case mode == style.GradientStep:
+		return style.StepGradient(t, stops)
+	default:
+		return style.InterpolateGradient(t, stops)
+	}
+}
+
+// renderGradient renders s with the gradient color at position t as its
+// foreground.
+func renderGradient(s string, t float64, stops []style.ColorStop, mode style.GradientMode) string {
+	c := gradientColor(t, stops, mode)
+	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
+	return ls.Render(s)
+}
+
 // styleDurationGradient colors the entire duration string based on value/max.
 // Returns "" when the gradient is inactive (no stops, zero max, or wrong type).
 // A field-level override set via [duration.WithGradientMax], [duration.WithGradient],
@@ -69,10 +110,12 @@ func styleDurationGradient(
 		return ""
 	}
 
-	stops := styles.DurationGradient
-	if len(df.Gradient) > 0 {
-		stops = df.Gradient
-	}
+	stops, mode := resolveGradient(
+		styles.DurationGradient,
+		styles.DurationGradientMode,
+		df.Gradient,
+		df.GradientMode,
+	)
 	if len(stops) == 0 {
 		return ""
 	}
@@ -85,25 +128,8 @@ func styleDurationGradient(
 		return ""
 	}
 
-	mode := styles.DurationGradientMode
-	if df.GradientMode != nil {
-		mode = *df.GradientMode
-	}
-
 	t := xmath.Clamp01(float64(df.Value) / float64(gm))
-
-	var c colorful.Color
-	switch {
-	case len(stops) == 1:
-		c = stops[0].Color
-	case mode == style.GradientStep:
-		c = style.StepGradient(t, stops)
-	default:
-		c = style.InterpolateGradient(t, stops)
-	}
-
-	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
-	return ls.Render(s)
+	return renderGradient(s, t, stops, mode)
 }
 
 // styleElapsed renders an elapsed-time string. When the elapsed gradient is
@@ -159,10 +185,12 @@ func styleElapsedGradient(
 		return ""
 	}
 
-	stops := styles.ElapsedGradient
-	if len(ef.Gradient) > 0 {
-		stops = ef.Gradient
-	}
+	stops, mode := resolveGradient(
+		styles.ElapsedGradient,
+		styles.ElapsedGradientMode,
+		ef.Gradient,
+		ef.GradientMode,
+	)
 	if len(stops) == 0 {
 		return ""
 	}
@@ -175,25 +203,8 @@ func styleElapsedGradient(
 		return ""
 	}
 
-	mode := styles.ElapsedGradientMode
-	if ef.GradientMode != nil {
-		mode = *ef.GradientMode
-	}
-
 	t := xmath.Clamp01(float64(ef.Value) / float64(gm))
-
-	var c colorful.Color
-	switch {
-	case len(stops) == 1:
-		c = stops[0].Color
-	case mode == style.GradientStep:
-		c = style.StepGradient(t, stops)
-	default:
-		c = style.InterpolateGradient(t, stops)
-	}
-
-	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
-	return ls.Render(s)
+	return renderGradient(s, t, stops, mode)
 }
 
 // styleDeadline renders a countdown string. When the deadline gradient is
@@ -249,10 +260,12 @@ func styleDeadlineGradient(
 		return ""
 	}
 
-	stops := styles.DeadlineGradient
-	if len(df.Gradient) > 0 {
-		stops = df.Gradient
-	}
+	stops, mode := resolveGradient(
+		styles.DeadlineGradient,
+		styles.DeadlineGradientMode,
+		df.Gradient,
+		df.GradientMode,
+	)
 	if len(stops) == 0 {
 		return ""
 	}
@@ -261,26 +274,9 @@ func styleDeadlineGradient(
 		return ""
 	}
 
-	mode := styles.DeadlineGradientMode
-	if df.GradientMode != nil {
-		mode = *df.GradientMode
-	}
-
 	consumed := df.From - df.Remaining
 	t := xmath.Clamp01(float64(consumed) / float64(df.From))
-
-	var c colorful.Color
-	switch {
-	case len(stops) == 1:
-		c = stops[0].Color
-	case mode == style.GradientStep:
-		c = style.StepGradient(t, stops)
-	default:
-		c = style.InterpolateGradient(t, stops)
-	}
-
-	ls := lipgloss.NewStyle().Foreground(lipgloss.Color(c.Clamped().Hex()))
-	return ls.Render(s)
+	return renderGradient(s, t, stops, mode)
 }
 
 // stylePercent renders a percentage string with a gradient color based on the
@@ -324,13 +320,7 @@ func stylePercent(
 			t = 1 - t
 		}
 
-		var c colorful.Color
-		if len(styles.PercentGradient) == 1 {
-			c = styles.PercentGradient[0].Color
-		} else {
-			c = style.InterpolateGradient(t, styles.PercentGradient)
-		}
-
+		c := gradientColor(t, styles.PercentGradient, style.GradientFade)
 		ls = ls.Foreground(lipgloss.Color(c.Clamped().Hex()))
 	}
 	return ls.Render(valStr)
@@ -362,13 +352,7 @@ func styleFraction(valStr string, originalValue any, styles *style.Config, rever
 			t = 1 - t
 		}
 
-		var c colorful.Color
-		if len(styles.PercentGradient) == 1 {
-			c = styles.PercentGradient[0].Color
-		} else {
-			c = style.InterpolateGradient(t, styles.PercentGradient)
-		}
-
+		c := gradientColor(t, styles.PercentGradient, style.GradientFade)
 		ls = ls.Foreground(lipgloss.Color(c.Clamped().Hex()))
 	}
 
