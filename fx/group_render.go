@@ -603,6 +603,11 @@ func buildLine(
 	return strings.Join(parts, " ")
 }
 
+// line assembles a log line from the task's configured parts order.
+func (gt *renderTask) line(tsStr, levelStr, symbol, msg, fieldsStr string) string {
+	return buildLine(gt.cfg.Order, gt.cfg.ReportTimestamp, tsStr, levelStr, symbol, msg, fieldsStr)
+}
+
 func supportsFieldAlignment(order []core.Part, alignment FieldAlignment) bool {
 	if alignment != FieldAlignmentMessage {
 		return false
@@ -709,9 +714,7 @@ func measureTaskFieldStart(
 	if isDone {
 		renderLevel, levelSymbol := gt.resolveLevel()
 		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), renderLevel)
-		return lipgloss.Width(buildLine(
-			gt.cfg.Order,
-			gt.cfg.ReportTimestamp,
+		return lipgloss.Width(gt.line(
 			tsStr,
 			levelSymbol,
 			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), renderLevel),
@@ -722,15 +725,7 @@ func measureTaskFieldStart(
 
 	msg, char := renderTaskMessageSymbol(gt, now)
 
-	return lipgloss.Width(buildLine(
-		gt.cfg.Order,
-		gt.cfg.ReportTimestamp,
-		tsStr,
-		gt.cfg.LevelSymbol,
-		char,
-		msg,
-		"",
-	))
+	return lipgloss.Width(gt.line(tsStr, gt.cfg.LevelSymbol, char, msg, ""))
 }
 
 // renderTaskLine renders a single animation frame line for a task.
@@ -764,15 +759,7 @@ func renderTaskLine(gt *renderTask, isDone bool, now time.Time, layout *groupRen
 			fieldsStr,
 			layout,
 		)
-		return buildLine(
-			gt.cfg.Order,
-			gt.cfg.ReportTimestamp,
-			tsStr,
-			levelSymbol,
-			doneSymbol,
-			msg,
-			fieldsStr,
-		)
+		return gt.line(tsStr, levelSymbol, doneSymbol, msg, fieldsStr)
 	}
 
 	// Bar mode has its own rendering path.
@@ -807,15 +794,7 @@ func renderTaskLine(gt *renderTask, isDone bool, now time.Time, layout *groupRen
 		layout,
 	)
 
-	return buildLine(
-		gt.cfg.Order,
-		gt.cfg.ReportTimestamp,
-		tsStr,
-		gt.cfg.LevelSymbol,
-		char,
-		msg,
-		fieldsStr,
-	)
+	return gt.line(tsStr, gt.cfg.LevelSymbol, char, msg, fieldsStr)
 }
 
 func renderAnimatedTaskMessage(gt *renderTask, now time.Time) (string, string) {
@@ -994,15 +973,7 @@ func buildTaskBarParts(
 		sep = " "
 	}
 
-	parts := buildLine(
-		gt.cfg.Order,
-		gt.cfg.ReportTimestamp,
-		tsStr,
-		gt.cfg.LevelSymbol,
-		symbol,
-		msg,
-		fieldsStr,
-	)
+	parts := gt.line(tsStr, gt.cfg.LevelSymbol, symbol, msg, fieldsStr)
 	if !bar.ShowPending(b.cfg.BarConfig, current) {
 		return parts, "", "", "", sep, false
 	}
@@ -1055,15 +1026,8 @@ func buildTaskBarParts(
 			maxLeft:  lipgloss.Width(leftText),
 			maxRight: lipgloss.Width(rightText),
 		}, leftText, barStr, rightText, sep)
-		return buildLine(
-			gt.cfg.Order,
-			gt.cfg.ReportTimestamp,
-			tsStr,
-			gt.cfg.LevelSymbol,
-			symbol,
-			msg+sep+barFull,
-			fieldsStr,
-		), "", "", "", sep, true
+		return gt.line(tsStr, gt.cfg.LevelSymbol, symbol, msg+sep+barFull, fieldsStr),
+			"", "", "", sep, true
 	}
 	return parts, leftText, barStr, rightText, sep, true
 }
@@ -1147,9 +1111,7 @@ func measureGroupRenderLayoutForIndexes(
 		tsStr := renderTaskTimestamp(gt, now)
 		msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.cfg.Level)
 		fieldsStr := renderTaskFields(gt, gt.fieldsSnapshot(), gt.duration(now), 0, 0)
-		parts := buildLine(
-			gt.cfg.Order,
-			gt.cfg.ReportTimestamp,
+		parts := gt.line(
 			tsStr,
 			gt.cfg.LevelSymbol,
 			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.builder.cfg.Level),
@@ -1361,9 +1323,7 @@ func runGroupLoop(ctx context.Context, g *Group) error {
 			fieldsStr := strings.TrimLeft(
 				gt.cfg.FormatFields(b.StripDynamicFields(*gt.fieldsPtr.Load())), " ",
 			)
-			line := buildLine(
-				gt.cfg.Order,
-				gt.cfg.ReportTimestamp,
+			line := gt.line(
 				time.Now().In(gt.cfg.TimeLocation).Format(gt.cfg.TimeFormat),
 				gt.cfg.Label,
 				gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.builder.cfg.Level),
