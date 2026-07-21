@@ -171,12 +171,15 @@ func (f *FieldFormats) resolveScale(d time.Duration, specific TimeScale) (TimeSc
 	return f.TimeScale.Resolve(d)
 }
 
-// durationRound resolves the rounding granularity for a raw duration value: a
-// per-field override wins, then the DurationScale bracket, then DurationRound.
-func (f *FieldFormats) durationRound(
+// resolveRound resolves the rounding granularity for a raw duration value: a
+// per-field override wins, then the per-call scale bracket, then the
+// field-specific scale (falling back to the shared TimeScale), then the
+// scalar fallback.
+func (f *FieldFormats) resolveRound(
 	raw time.Duration,
 	override *time.Duration,
-	scale TimeScale,
+	scale, fieldScale TimeScale,
+	scalar time.Duration,
 ) time.Duration {
 	if override != nil {
 		return *override
@@ -185,26 +188,47 @@ func (f *FieldFormats) durationRound(
 		if step, ok := scale.Resolve(raw); ok {
 			return step.Round
 		}
-		return f.DurationRound
+		return scalar
 	}
-	if step, ok := f.resolveScale(raw, f.DurationScale); ok {
+	if step, ok := f.resolveScale(raw, fieldScale); ok {
 		return step.Round
 	}
-	return f.DurationRound
+	return scalar
 }
 
-// durationDisplay resolves display settings for a duration value.
-func (f *FieldFormats) durationDisplay(d time.Duration, scale TimeScale) (int, bool) {
+// resolveDisplay resolves the precision and trim settings for a duration
+// value: the per-call scale bracket wins, then the field-specific scale
+// (falling back to the shared TimeScale), then the scalar precision.
+func (f *FieldFormats) resolveDisplay(
+	d time.Duration,
+	scale, fieldScale TimeScale,
+	scalarPrecision int,
+) (int, bool) {
 	if scale != nil {
 		if step, ok := scale.Resolve(d); ok {
 			return step.Precision, step.Trim
 		}
-		return f.DurationPrecision, false
+		return scalarPrecision, false
 	}
-	if step, ok := f.resolveScale(d, f.DurationScale); ok {
+	if step, ok := f.resolveScale(d, fieldScale); ok {
 		return step.Precision, step.Trim
 	}
-	return f.DurationPrecision, false
+	return scalarPrecision, false
+}
+
+// durationRound resolves the rounding granularity for a raw duration value: a
+// per-field override wins, then the DurationScale bracket, then DurationRound.
+func (f *FieldFormats) durationRound(
+	raw time.Duration,
+	override *time.Duration,
+	scale TimeScale,
+) time.Duration {
+	return f.resolveRound(raw, override, scale, f.DurationScale, f.DurationRound)
+}
+
+// durationDisplay resolves display settings for a duration value.
+func (f *FieldFormats) durationDisplay(d time.Duration, scale TimeScale) (int, bool) {
+	return f.resolveDisplay(d, scale, f.DurationScale, f.DurationPrecision)
 }
 
 // elapsedRound mirrors [FieldFormats.durationRound] for elapsed and deadline
@@ -214,34 +238,13 @@ func (f *FieldFormats) elapsedRound(
 	override *time.Duration,
 	scale TimeScale,
 ) time.Duration {
-	if override != nil {
-		return *override
-	}
-	if scale != nil {
-		if step, ok := scale.Resolve(raw); ok {
-			return step.Round
-		}
-		return f.ElapsedRound
-	}
-	if step, ok := f.resolveScale(raw, f.ElapsedScale); ok {
-		return step.Round
-	}
-	return f.ElapsedRound
+	return f.resolveRound(raw, override, scale, f.ElapsedScale, f.ElapsedRound)
 }
 
 // elapsedDisplay mirrors [FieldFormats.durationDisplay] for elapsed and
 // deadline fields.
 func (f *FieldFormats) elapsedDisplay(d time.Duration, scale TimeScale) (int, bool) {
-	if scale != nil {
-		if step, ok := scale.Resolve(d); ok {
-			return step.Precision, step.Trim
-		}
-		return f.ElapsedPrecision, false
-	}
-	if step, ok := f.resolveScale(d, f.ElapsedScale); ok {
-		return step.Precision, step.Trim
-	}
-	return f.ElapsedPrecision, false
+	return f.resolveDisplay(d, scale, f.ElapsedScale, f.ElapsedPrecision)
 }
 
 // defaultFieldFormats is the shared immutable default used when a
