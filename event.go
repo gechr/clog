@@ -112,6 +112,13 @@ func (e *Event) Bools(key string, vals []bool) *Event {
 
 // Column adds a file path field with a line and column number as a clickable terminal hyperlink.
 // Respects the logger's [ColorMode] setting.
+// output returns the logger's [Output] for hyperlink and color resolution.
+// Every Event is created by a Logger constructor ([Logger.newEvent],
+// [Logger.Dict]), so e.logger is never nil.
+func (e *Event) output() *Output {
+	return e.logger.Output()
+}
+
 func (e *Event) Column(key, path string, line, column int) *Event {
 	if e == nil {
 		return e
@@ -125,10 +132,7 @@ func (e *Event) Column(key, path string, line, column int) *Event {
 		column = 1
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -151,10 +155,7 @@ func (e *Event) Columns(key string, items []Column) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	vals := make([]string, len(items))
 	for i, item := range items {
@@ -466,10 +467,7 @@ func (e *Event) Line(key, path string, line int) *Event {
 		return e.Path(key, path)
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -493,10 +491,7 @@ func (e *Event) Lines(key string, items []Line) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	vals := make([]string, len(items))
 	for i, item := range items {
@@ -518,10 +513,7 @@ func (e *Event) Link(key, url, text string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -536,10 +528,7 @@ func (e *Event) Links(key string, links []Link) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	vals := make([]string, len(links))
 	for i, l := range links {
@@ -659,10 +648,7 @@ func (e *Event) Path(key, path string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -681,10 +667,7 @@ func (e *Event) PathText(key, text, path string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -700,10 +683,7 @@ func (e *Event) Paths(key string, paths []string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	vals := make([]string, len(paths))
 	for i, p := range paths {
@@ -1048,10 +1028,7 @@ func (e *Event) URL(key, url string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	e.fields = append(
 		e.fields,
@@ -1067,10 +1044,7 @@ func (e *Event) URLs(key string, urls []string) *Event {
 		return e
 	}
 
-	output := Default().Output()
-	if e.logger != nil {
-		output = e.logger.Output()
-	}
+	output := e.output()
 
 	vals := make([]string, len(urls))
 	for i, u := range urls {
