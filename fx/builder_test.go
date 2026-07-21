@@ -297,3 +297,57 @@ func TestResolveDynamicFieldsUpdateDeadlineClampsAtZero(t *testing.T) {
 		OmitOnDone: true,
 	}, out[0].Value)
 }
+
+func TestResolveDynamicFieldsUpdateElapsed(t *testing.T) {
+	// No builder-level elapsed key: the update-scoped stopwatch must still
+	// resolve, keyed by nothing but its value type.
+	b := NewBuilder(BuilderConfig{})
+
+	fields := []core.Field{
+		{Key: "url", Value: "https://example.com"},
+		{
+			Key: "waited",
+			Value: core.ElapsedField{
+				Value:      2 * time.Second,
+				Start:      3 * time.Second, // attached 5s in, backdated 2s
+				OmitOnDone: true,
+			},
+		},
+	}
+
+	out := b.ResolveDynamicFields(fields, 8*time.Second)
+
+	assert.Equal(t, []core.Field{
+		{Key: "url", Value: "https://example.com"},
+		{
+			Key: "waited",
+			Value: core.ElapsedField{
+				Value:      5 * time.Second,
+				Start:      3 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, out)
+}
+
+func TestResolveDynamicFieldsUpdateElapsedClampsAtZero(t *testing.T) {
+	b := NewBuilder(BuilderConfig{})
+
+	fields := []core.Field{
+		{
+			Key: "waited",
+			Value: core.ElapsedField{
+				Start:      3 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}
+
+	out := b.ResolveDynamicFields(fields, 1*time.Second)
+
+	assert.Equal(t, core.ElapsedField{
+		Value:      0,
+		Start:      3 * time.Second,
+		OmitOnDone: true,
+	}, out[0].Value)
+}

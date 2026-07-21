@@ -25,8 +25,12 @@ type QuantityField string
 // rows while leaving the live animation field visible. Trailing
 // pins the field to the end of the row when fx.Builder.ResolveDynamicFields
 // reorders fields for animated rows.
+// Start anchors an update-scoped stopwatch (fx.Update.Elapsed) as the task
+// elapsed time at which it started counting; the fx render loop resolves
+// Value = taskElapsed - Start each frame.
 type ElapsedField struct {
 	Value        time.Duration
+	Start        time.Duration
 	GradientMax  *time.Duration
 	Gradient     []style.ColorStop
 	GradientMode *style.GradientMode

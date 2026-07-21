@@ -328,10 +328,15 @@ func (b *Builder) resolveFieldsWith(
 		case b.barPercentKey:
 			out[i].Value = pct()
 		default:
-			// An update-scoped countdown ([Update.Deadline]) carries its
-			// anchor in the field value itself rather than a builder key.
-			if f, ok := out[i].Value.(core.DeadlineField); ok {
+			// An update-scoped countdown ([Update.Deadline]) or stopwatch
+			// ([Update.Elapsed]) carries its anchor in the field value itself
+			// rather than a builder key.
+			switch f := out[i].Value.(type) {
+			case core.DeadlineField:
 				f.Remaining = max(f.From-dur, 0)
+				out[i].Value = f
+			case core.ElapsedField:
+				f.Value = max(dur-f.Start, 0)
 				out[i].Value = f
 			}
 		}
@@ -342,7 +347,7 @@ func (b *Builder) resolveFieldsWith(
 // ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
 func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
 	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) &&
-		!hasDeadlineField(fields) {
+		!hasDynamicField(fields) {
 		return fields
 	}
 
@@ -362,12 +367,14 @@ func (b *Builder) ResolveDoneFields(fields []core.Field, dur time.Duration) []co
 	return omitOnDoneFields(b.ResolveDynamicFields(fields, dur))
 }
 
-// hasDeadlineField reports whether any field carries a countdown value - an
-// update-scoped deadline ([Update.Deadline]) animates without a builder key,
-// so the render paths must resolve dynamic fields whenever one is present.
-func hasDeadlineField(fields []core.Field) bool {
+// hasDynamicField reports whether any field carries a countdown or stopwatch
+// value - an update-scoped deadline ([Update.Deadline]) or elapsed
+// ([Update.Elapsed]) animates without a builder key, so the render paths must
+// resolve dynamic fields whenever one is present.
+func hasDynamicField(fields []core.Field) bool {
 	for _, f := range fields {
-		if _, ok := f.Value.(core.DeadlineField); ok {
+		switch f.Value.(type) {
+		case core.DeadlineField, core.ElapsedField:
 			return true
 		}
 	}

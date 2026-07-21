@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/field/deadline"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/fx/spinner"
 	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
@@ -276,6 +277,88 @@ func TestUpdateDeadlineOptions(t *testing.T) {
 				Remaining: 10 * time.Second,
 				From:      10 * time.Second,
 			},
+		},
+	}, *fieldsAtom.Load())
+}
+
+func TestUpdateElapsedAnchorsAtCall(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{
+		msgPtr:    &msgAtom,
+		fieldsPtr: &fieldsAtom,
+		elapsed:   func() time.Duration { return 5 * time.Second },
+	}
+	u.InitSelf(u)
+
+	result := u.Elapsed("waited", 2*time.Second)
+	assert.Equal(t, u, result) // fluent return
+	u.Send()
+
+	// The task is 5s in when the stopwatch is attached, backdated 2s, so the
+	// anchor lands at 3s: Value = taskElapsed - Start counts from 2s now.
+	assert.Equal(t, []core.Field{
+		{
+			Key: "waited",
+			Value: core.ElapsedField{
+				Value:      2 * time.Second,
+				Start:      3 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, *fieldsAtom.Load())
+
+	// A later Send without the field clears the stopwatch - the timer is
+	// scoped to the phase that sent it.
+	u.Msg("next phase").Send()
+	assert.Empty(t, *fieldsAtom.Load())
+}
+
+func TestUpdateElapsedNilElapsed(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{msgPtr: &msgAtom, fieldsPtr: &fieldsAtom}
+	u.InitSelf(u)
+
+	assert.NotPanics(t, func() {
+		u.Elapsed("waited", 2*time.Second).Send()
+	})
+	assert.Equal(t, []core.Field{
+		{
+			Key: "waited",
+			Value: core.ElapsedField{
+				Value:      2 * time.Second,
+				Start:      -2 * time.Second,
+				OmitOnDone: true,
+			},
+		},
+	}, *fieldsAtom.Load())
+}
+
+func TestUpdateElapsedOptions(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	initial := "starting"
+	msgAtom.Store(&initial)
+
+	u := &Update{
+		msgPtr:    &msgAtom,
+		fieldsPtr: &fieldsAtom,
+		elapsed:   func() time.Duration { return 0 },
+	}
+	u.InitSelf(u)
+
+	u.Elapsed("waited", 0, elapsed.WithOmitOnDone(false)).Send()
+	assert.Equal(t, []core.Field{
+		{
+			Key:   "waited",
+			Value: core.ElapsedField{},
 		},
 	}, *fieldsAtom.Load())
 }

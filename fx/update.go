@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/field/deadline"
+	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/internal/core"
 )
 
@@ -150,6 +151,35 @@ func (p *Update) Deadline(
 		// The renderer computes Remaining = From - taskElapsed, so folding
 		// the elapsed-so-far into From anchors the countdown at now.
 		f.From += p.elapsed()
+	}
+	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
+	return p
+}
+
+// Elapsed adds an auto-updating stopwatch field that displays the time since
+// it started counting. Unlike [Builder.Elapsed], whose timer is anchored to
+// the animation's start, the stopwatch is anchored to the moment this method
+// is called, backdated by since - so a timer can be scoped to one phase of a
+// task (since 0), or continue a count that began before the field was
+// attached. Like any other update field, it lasts until a later [Update.Send]
+// omits it - and keeps counting between Sends, so a stalled loop still renders
+// live progress. Coloring runs against the logger's elapsed gradient; use
+// options from the [elapsed] package to override rendering for this field.
+// The field is omitted from the done row by default
+// (elapsed.WithOmitOnDone). On a non-animated (non-TTY) line the field
+// renders statically as since.
+func (p *Update) Elapsed(
+	key string,
+	since time.Duration,
+	opts ...elapsed.Option,
+) *Update {
+	f := core.ElapsedField{Value: since, OmitOnDone: true}
+	elapsed.Apply(&f, opts...)
+	// The renderer computes Value = taskElapsed - Start, so subtracting the
+	// already-elapsed count anchors the stopwatch since ago.
+	f.Start = -since
+	if p.elapsed != nil {
+		f.Start += p.elapsed()
 	}
 	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
 	return p

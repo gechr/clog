@@ -692,7 +692,7 @@ func renderTaskFields(
 ) string {
 	b := gt.builder
 	if xstrings.AnyNonEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) ||
-		hasDeadlineField(*fieldsPtr) {
+		hasDynamicField(*fieldsPtr) {
 		resolved := resolveDynamicFields(*fieldsPtr, b, dur, current, total)
 		gt.cachedFieldsStr = strings.TrimLeft(gt.cfg.FormatFields(resolved), " ")
 	} else if fieldsPtr != gt.cachedFieldsPtr {
