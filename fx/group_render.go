@@ -116,8 +116,9 @@ func (gt *renderTask) effectiveLevel() core.Level {
 }
 
 // resolveLevel returns the effective level and styled level symbol for a
-// completed task. If SetLevel was called on the Update, the overridden
-// level is used; otherwise the builder's original level applies.
+// task's rendered line, live or completed. If SetLevel was called on the
+// Update, the overridden level is used; otherwise the builder's original
+// level applies.
 func (gt *renderTask) resolveLevel() (core.Level, string) {
 	lvl := gt.effectiveLevel()
 	if lvl == gt.builder.cfg.Level {
@@ -801,18 +802,19 @@ func renderTaskLine(gt *renderTask, isDone bool, now time.Time, layout *groupRen
 	}
 
 	msg, char := renderTaskMessageSymbol(gt, now)
+	_, levelSymbol := gt.resolveLevel()
 	msg = alignMessageForFields(
 		gt.cfg.Order,
 		gt.cfg.ReportTimestamp,
 		tsStr,
-		gt.cfg.LevelSymbol,
+		levelSymbol,
 		char,
 		msg,
 		fieldsStr,
 		layout,
 	)
 
-	return gt.line(tsStr, gt.cfg.LevelSymbol, char, msg, fieldsStr)
+	return gt.line(tsStr, levelSymbol, char, msg, fieldsStr)
 }
 
 func renderAnimatedTaskMessage(gt *renderTask, now time.Time) (string, string) {
@@ -829,7 +831,7 @@ func renderAnimatedTaskMessage(gt *renderTask, now time.Time) (string, string) {
 		phase := math.Mod(dur.Seconds()*b.cfg.Speed, 1.0)
 		msg = shimmer.Text(msg, phase, b.cfg.ShimmerDir, gt.hexLUT, gt.styleLUT)
 	default:
-		msg = gt.cfg.StyleMessage(msg, b.cfg.Level)
+		msg = gt.cfg.StyleMessage(msg, gt.effectiveLevel())
 	}
 
 	// Symbol: animated spinner frames or static icon.
@@ -866,19 +868,19 @@ func resolveSymbol(gt *renderTask, now time.Time) string {
 		if b.cfg.SpinnerConfig.Reverse {
 			i = n - 1 - i
 		}
-		return gt.cfg.StyleSymbol(b.cfg.SpinnerConfig.Frames[i], b.cfg.Level)
+		return gt.cfg.StyleSymbol(b.cfg.SpinnerConfig.Frames[i], gt.effectiveLevel())
 	}
 	return gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.effectiveLevel())
 }
 
 func renderTaskMessageSymbol(gt *renderTask, now time.Time) (string, string) {
 	if !gt.started() {
-		return gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.cfg.Level),
-			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.builder.cfg.Level)
+		return gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.effectiveLevel()),
+			gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.effectiveLevel())
 	}
 
 	if gt.builder.cfg.Mode == AnimationBar {
-		return gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.builder.cfg.Level),
+		return gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.effectiveLevel()),
 			resolveSymbol(gt, now)
 	}
 
@@ -937,12 +939,13 @@ func buildTaskBarParts(
 ) (string, string, string, string, string, bool) {
 	b := gt.builder
 	symbol := resolveSymbol(gt, now)
-	msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), b.cfg.Level)
+	_, levelSymbol := gt.resolveLevel()
+	msg := gt.cfg.Indentation + gt.cfg.StyleMessage(*gt.msgPtr.Load(), gt.effectiveLevel())
 	msg = alignMessageForFields(
 		gt.cfg.Order,
 		gt.cfg.ReportTimestamp,
 		tsStr,
-		gt.cfg.LevelSymbol,
+		levelSymbol,
 		symbol,
 		msg,
 		fieldsStr,
@@ -991,7 +994,7 @@ func buildTaskBarParts(
 		sep = " "
 	}
 
-	parts := gt.line(tsStr, gt.cfg.LevelSymbol, symbol, msg, fieldsStr)
+	parts := gt.line(tsStr, levelSymbol, symbol, msg, fieldsStr)
 	if !bar.ShowPending(b.cfg.BarConfig, current) {
 		return parts, "", "", "", sep, false
 	}
@@ -1044,7 +1047,7 @@ func buildTaskBarParts(
 			maxLeft:  lipgloss.Width(leftText),
 			maxRight: lipgloss.Width(rightText),
 		}, leftText, barStr, rightText, sep)
-		return gt.line(tsStr, gt.cfg.LevelSymbol, symbol, msg+sep+barFull, fieldsStr),
+		return gt.line(tsStr, levelSymbol, symbol, msg+sep+barFull, fieldsStr),
 			"", "", "", sep, true
 	}
 	return parts, leftText, barStr, rightText, sep, true
