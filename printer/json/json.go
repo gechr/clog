@@ -171,24 +171,7 @@ func Highlight(s string, styles *style.JSON) string {
 			i++
 
 		case c == tokenQuote:
-			j := i + 1
-			for j < n {
-				if data[j] == tokenBackslash {
-					j += 2 // skip escaped character
-					if j >= n {
-						break
-					}
-					continue
-				}
-				if data[j] == tokenQuote {
-					j++
-					break
-				}
-				j++
-			}
-			if j > n {
-				j = n
-			}
+			j := scanString(data, i)
 			raw := string(data[i:j])
 			text, style := resolveStringToken(raw, expectKey, hjson, styles)
 			printer.EmitStyled(&buf, text, style)
@@ -375,24 +358,7 @@ func collectFlatPairs(data []byte, prefix string) []flatPair {
 		}
 
 		// scan key string
-		j := i + 1
-		for j < n {
-			if data[j] == '\\' {
-				j += 2
-				if j >= n {
-					break
-				}
-				continue
-			}
-			if data[j] == '"' {
-				j++
-				break
-			}
-			j++
-		}
-		if j > n {
-			j = n
-		}
+		j := scanString(data, i)
 		rawKey := string(data[i+1 : j-1]) // unescaped content between quotes
 		i = j
 
@@ -430,6 +396,29 @@ func collectFlatPairs(data []byte, prefix string) []flatPair {
 	return pairs
 }
 
+// scanString returns the index one past the closing quote of the JSON string
+// starting at i in data (i must point at the opening quote), or len(data)
+// when the string is unterminated. Backslash escapes are honored.
+func scanString(data []byte, i int) int {
+	n := len(data)
+	j := i + 1
+	for j < n {
+		if data[j] == tokenBackslash {
+			j += 2 // skip escaped character
+			if j >= n {
+				break
+			}
+			continue
+		}
+		if data[j] == tokenQuote {
+			j++
+			break
+		}
+		j++
+	}
+	return min(j, n)
+}
+
 // scanValueEnd returns the index one past the end of the JSON value
 // starting at i in data. Handles strings, objects, arrays, and bare literals.
 func scanValueEnd(data []byte, i int) int {
@@ -439,24 +428,7 @@ func scanValueEnd(data []byte, i int) int {
 	}
 	switch data[i] {
 	case '"':
-		i++
-		for i < n {
-			if data[i] == '\\' {
-				i += 2
-				if i >= n {
-					break
-				}
-				continue
-			}
-			if data[i] == '"' {
-				return i + 1
-			}
-			i++
-		}
-		if i > n {
-			i = n
-		}
-		return i
+		return scanString(data, i)
 
 	case '{', '[':
 		openByte := data[i]
@@ -468,21 +440,7 @@ func scanValueEnd(data []byte, i int) int {
 		for i < n {
 			c := data[i]
 			if c == '"' {
-				i++
-				for i < n {
-					if data[i] == '\\' {
-						i += 2
-						if i >= n {
-							break
-						}
-						continue
-					}
-					if data[i] == '"' {
-						i++
-						break
-					}
-					i++
-				}
+				i = scanString(data, i)
 				continue
 			}
 			switch c {
