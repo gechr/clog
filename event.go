@@ -788,7 +788,7 @@ func (e *Event) MessageStyle(s Style) *Event {
 }
 
 // Quantities adds a quantity string slice field. Each element is styled
-// with [style.Config.FieldQuantityNumber] and [style.Config.FieldQuantityUnit].
+// with the [style.Config.FieldQuantity] segment styles.
 func (e *Event) Quantities(key string, vals []string) *Event {
 	if e == nil {
 		return e
@@ -804,7 +804,7 @@ func (e *Event) Quantities(key string, vals []string) *Event {
 
 // Quantity adds a quantity string field where numeric and unit segments are
 // styled independently (e.g. "5m", "5.1km", "100MB").
-// The value is styled with [style.Config.FieldQuantityNumber] and [style.Config.FieldQuantityUnit].
+// The value is styled with the [style.Config.FieldQuantity] segment styles.
 func (e *Event) Quantity(key, val string) *Event {
 	if e == nil {
 		return e

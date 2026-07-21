@@ -16,8 +16,7 @@ import (
 // styleDuration renders a duration string (from [time.Duration.String]) with
 // gradient coloring when active ([style.Config.DurationGradient] non-empty and
 // gradientMax > 0), otherwise with separate styles for numeric and
-// unit segments using [style.Config.FieldDurationNumber] and
-// [style.Config.FieldDurationUnit]. Returns "" when no styles apply.
+// unit segments using the [style.Config.FieldDuration] segment styles. Returns "" when no styles apply.
 func styleDuration(
 	s string,
 	originalValue any,
@@ -30,8 +29,8 @@ func styleDuration(
 
 	return styleNumberUnit(
 		s,
-		styles.FieldDurationNumber,
-		styles.FieldDurationUnit,
+		styles.FieldDuration.Number,
+		styles.FieldDuration.Unit,
 		styles.DurationUnits,
 		styles.DurationThresholds,
 		true,
@@ -150,7 +149,7 @@ func styleValueGradient(
 // active ([style.Config.ElapsedGradient] non-empty and gradientMax > 0),
 // the entire string is colored by interpolating the gradient based on
 // elapsed/max. Otherwise it falls back to the number/unit split path using
-// [style.Config.FieldElapsedNumber] and [style.Config.FieldElapsedUnit].
+// the [style.Config.FieldElapsed] segment styles.
 // Returns "" when no styles apply.
 func styleElapsed(
 	s string,
@@ -168,14 +167,14 @@ func styleElapsed(
 // split path, falling back to the duration styles when the elapsed-specific
 // ones are unset.
 func styleElapsedNumberUnit(s string, styles *style.Config) string {
-	numStyle := styles.FieldElapsedNumber
+	numStyle := styles.FieldElapsed.Number
 	if numStyle == nil {
-		numStyle = styles.FieldDurationNumber
+		numStyle = styles.FieldDuration.Number
 	}
 
-	unitStyle := styles.FieldElapsedUnit
+	unitStyle := styles.FieldElapsed.Unit
 	if unitStyle == nil {
-		unitStyle = styles.FieldDurationUnit
+		unitStyle = styles.FieldDuration.Unit
 	}
 
 	return styleNumberUnit(
@@ -218,8 +217,7 @@ func styleElapsedGradient(
 // string is colored by interpolating the gradient based on the consumed time
 // (From - Remaining) / From, so a fresh deadline uses the first stop and an
 // expiring one the last. Otherwise it falls back to the number/unit split
-// path using [style.Config.FieldElapsedNumber] and
-// [style.Config.FieldElapsedUnit]. Returns "" when no styles apply.
+// path using the [style.Config.FieldElapsed] segment styles. Returns "" when no styles apply.
 func styleDeadline(
 	s string,
 	originalValue any,
@@ -371,15 +369,15 @@ func renderFraction(valStr string, valueStyle, sepStyle lipgloss.Style) string {
 }
 
 // styleQuantity renders a quantity string with separate styles for the numeric
-// and unit segments (e.g. "5" in FieldQuantityNumber, "km" in FieldQuantityUnit).
-// Per-unit overrides in [style.Config.QuantityUnits] take priority over [style.Config.FieldQuantityUnit].
+// and unit segments (e.g. "5" in FieldQuantity.Number, "km" in FieldQuantity.Unit).
+// Per-unit overrides in [style.Config.QuantityUnits] take priority over the [style.Config.FieldQuantity] unit style.
 // Returns "" when both default styles are nil and no unit overrides match,
 // or the string is not a valid quantity pattern.
 func styleQuantity(s string, styles *style.Config, ignoreCase bool) string {
 	return styleNumberUnit(
 		s,
-		styles.FieldQuantityNumber,
-		styles.FieldQuantityUnit,
+		styles.FieldQuantity.Number,
+		styles.FieldQuantity.Unit,
 		styles.QuantityUnits,
 		styles.QuantityThresholds,
 		ignoreCase,

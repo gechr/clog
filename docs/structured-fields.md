@@ -111,7 +111,7 @@ clog.Info().Duration("duration", 10*time.Second).Msg("medium") // yellow
 clog.Info().Duration("duration", 25*time.Second).Msg("slow")   // red (clamped)
 ```
 
-When active, the gradient overrides `FieldDurationNumber` / `FieldDurationUnit`. See [Duration Gradient](styles.md#duration-gradient) in the styles reference for gradient mode and custom stop configuration.
+When active, the gradient overrides the `FieldDuration` segment styles. See [Duration Gradient](styles.md#duration-gradient) in the styles reference for gradient mode and custom stop configuration.
 
 ## Nested Fields (Dict)
 

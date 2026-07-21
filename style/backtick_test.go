@@ -75,6 +75,17 @@ func TestBacktickModeRender(t *testing.T) {
 	})
 }
 
+func TestConfigMergeSegmentStyle(t *testing.T) {
+	num := new(lipgloss.NewStyle().Bold(true))
+	unit := new(lipgloss.NewStyle().Faint(true))
+	c := &style.Config{FieldDuration: style.SegmentStyle{Number: num, Unit: unit}}
+
+	// A partially-set override replaces only its own segment.
+	override := new(lipgloss.NewStyle().Italic(true))
+	c.Merge(&style.Config{FieldDuration: style.SegmentStyle{Number: override}})
+	require.Equal(t, style.SegmentStyle{Number: override, Unit: unit}, c.FieldDuration)
+}
+
 func TestConfigMergeBacktickMode(t *testing.T) {
 	c := &style.Config{BacktickMode: style.BacktickKeep}
 

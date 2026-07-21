@@ -1503,14 +1503,14 @@ func TestStyleValueDuration(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, &defaultFieldFormats)
 
-	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+	want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 	assert.Equal(t, want, got)
 }
 
 func TestStyleValueDurationNil(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldDurationNumber = nil
-	styles.FieldDurationUnit = nil
+	styles.FieldDuration.Number = nil
+	styles.FieldDuration.Unit = nil
 
 	got := styleValue("5s", 5*time.Second, "elapsed", kindDuration, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
@@ -1586,14 +1586,14 @@ func TestStyleAnyElementDuration(t *testing.T) {
 	styles := DefaultStyles()
 	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, &defaultFieldFormats)
 
-	want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+	want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 	assert.Equal(t, want, got)
 }
 
 func TestStyleAnyElementDurationNil(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldDurationNumber = nil
-	styles.FieldDurationUnit = nil
+	styles.FieldDuration.Number = nil
+	styles.FieldDuration.Unit = nil
 
 	got := styleAnyElement("5s", 5*time.Second, kindDuration, styles, &defaultFieldFormats)
 	assert.Empty(t, got)
@@ -1761,8 +1761,8 @@ func TestFormatStringSliceQuoteDelimiterStyle(t *testing.T) {
 
 func TestStyleQuantity(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 
 	tests := []struct {
 		name  string
@@ -1797,9 +1797,9 @@ func TestStyleQuantity(t *testing.T) {
 
 func TestStyleQuantityPartialNil(t *testing.T) {
 	styles := DefaultStyles()
-	unit := styles.FieldQuantityUnit.Render
+	unit := styles.FieldQuantity.Unit.Render
 
-	styles.FieldQuantityNumber = nil
+	styles.FieldQuantity.Number = nil
 
 	got := styleQuantity("5s", styles, true)
 	assert.Equal(t, "5"+unit("s"), got)
@@ -1905,7 +1905,7 @@ func TestStyleQuantityUnitOverride(t *testing.T) {
 	kmStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	styles.QuantityUnits["km"] = new(kmStyle)
 
-	num := styles.FieldQuantityNumber.Render
+	num := styles.FieldQuantity.Number.Render
 
 	got := styleQuantity("5.1km", styles, true)
 	assert.Equal(t, num("5.1")+kmStyle.Render("km"), got)
@@ -1916,8 +1916,8 @@ func TestStyleQuantityUnitOverrideCompound(t *testing.T) {
 	hStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	styles.QuantityUnits["h"] = new(hStyle)
 
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 
 	// "h" gets the override, "m" gets the default.
 	got := styleQuantity("2h30m", styles, true)
@@ -1926,8 +1926,8 @@ func TestStyleQuantityUnitOverrideCompound(t *testing.T) {
 
 func TestStyleQuantityOnlyUnitOverrides(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldQuantityNumber = nil
-	styles.FieldQuantityUnit = nil
+	styles.FieldQuantity.Number = nil
+	styles.FieldQuantity.Unit = nil
 
 	kmStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	styles.QuantityUnits["km"] = new(kmStyle)
@@ -1941,7 +1941,7 @@ func TestStyleQuantityUnitIgnoreCase(t *testing.T) {
 	mbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styles.QuantityUnits["mb"] = new(mbStyle)
 
-	num := styles.FieldQuantityNumber.Render
+	num := styles.FieldQuantity.Number.Render
 
 	// "MB" should match "mb" with case-insensitive lookup (default).
 	got := styleQuantity("100MB", styles, true)
@@ -1954,8 +1954,8 @@ func TestStyleQuantityUnitCaseSensitive(t *testing.T) {
 	mbStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 	styles.QuantityUnits["mb"] = new(mbStyle)
 
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 
 	// "MB" should NOT match "mb" when case-sensitive.
 	got := styleQuantity("100MB", styles, false)
@@ -1975,8 +1975,8 @@ func TestFormatDurationSlicePlain(t *testing.T) {
 
 func TestFormatDurationSliceStyled(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldDurationNumber.Render
-	unit := styles.FieldDurationUnit.Render
+	num := styles.FieldDuration.Number.Render
+	unit := styles.FieldDuration.Unit.Render
 
 	vals := []time.Duration{5 * time.Second, 500 * time.Millisecond}
 	got := formatDurationSlice(
@@ -2017,8 +2017,8 @@ func TestFormatFieldsDurationSliceStyled(t *testing.T) {
 		Value: []time.Duration{5 * time.Second, 2 * time.Minute},
 	}}, opts)
 
-	num := styles.FieldDurationNumber.Render
-	unit := styles.FieldDurationUnit.Render
+	num := styles.FieldDuration.Number.Render
+	unit := styles.FieldDuration.Unit.Render
 	want := " " + styles.KeyDefault.Render(
 		"latencies",
 	) + styles.Separator.Render(
@@ -2036,8 +2036,8 @@ func TestFormatQuantitySlicePlain(t *testing.T) {
 
 func TestFormatQuantitySliceStyled(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 
 	vals := []core.QuantityField{"5m", "100MB"}
 	got := formatQuantitySlice(vals, sliceFormat{open: "[", close: "]", sep: ", "}, styles, true)
@@ -2073,8 +2073,8 @@ func TestFormatFieldsQuantitySliceStyled(t *testing.T) {
 		Value: []core.QuantityField{"5m", "10s"},
 	}}, opts)
 
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 	want := " " + styles.KeyDefault.Render(
 		"rates",
 	) + styles.Separator.Render(
@@ -2086,7 +2086,7 @@ func TestFormatFieldsQuantitySliceStyled(t *testing.T) {
 
 func TestStyleThreshold(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
+	num := styles.FieldQuantity.Number.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
@@ -2094,8 +2094,8 @@ func TestStyleThreshold(t *testing.T) {
 	yellowUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("3")).Faint(true)
 
 	styles.QuantityThresholds["ms"] = []style.Threshold{
-		{Value: 5000, Style: style.ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
-		{Value: 1000, Style: style.ThresholdStyle{Number: new(yellowNum), Unit: new(yellowUnit)}},
+		{Value: 5000, Style: style.SegmentStyle{Number: new(redNum), Unit: new(redUnit)}},
+		{Value: 1000, Style: style.SegmentStyle{Number: new(yellowNum), Unit: new(yellowUnit)}},
 	}
 
 	tests := []struct {
@@ -2106,7 +2106,7 @@ func TestStyleThreshold(t *testing.T) {
 		{
 			name:  "below_threshold",
 			input: "500ms",
-			want:  num("500") + styles.FieldQuantityUnit.Render("ms"),
+			want:  num("500") + styles.FieldQuantity.Unit.Render("ms"),
 		},
 		{
 			name:  "at_yellow_threshold",
@@ -2140,12 +2140,12 @@ func TestStyleThreshold(t *testing.T) {
 
 func TestStyleThresholdCompound(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
-	unit := styles.FieldQuantityUnit.Render
+	num := styles.FieldQuantity.Number.Render
+	unit := styles.FieldQuantity.Unit.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	styles.QuantityThresholds["h"] = []style.Threshold{
-		{Value: 10, Style: style.ThresholdStyle{Number: new(redNum)}},
+		{Value: 10, Style: style.SegmentStyle{Number: new(redNum)}},
 	}
 
 	// "12h30m" - "h" threshold fires for 12, "m" uses default.
@@ -2155,31 +2155,31 @@ func TestStyleThresholdCompound(t *testing.T) {
 
 func TestStyleThresholdNilOverrides(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
+	num := styles.FieldQuantity.Number.Render
 
 	// Threshold with only Number override (Unit = nil keeps default).
 	yellowNum := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
 	styles.QuantityThresholds["s"] = []style.Threshold{
-		{Value: 30, Style: style.ThresholdStyle{Number: new(yellowNum)}},
+		{Value: 30, Style: style.SegmentStyle{Number: new(yellowNum)}},
 	}
 
 	got := styleQuantity("60s", styles, true)
-	assert.Equal(t, yellowNum.Render("60")+styles.FieldQuantityUnit.Render("s"), got)
+	assert.Equal(t, yellowNum.Render("60")+styles.FieldQuantity.Unit.Render("s"), got)
 
 	// Below threshold - uses default.
 	got = styleQuantity("5s", styles, true)
-	assert.Equal(t, num("5")+styles.FieldQuantityUnit.Render("s"), got)
+	assert.Equal(t, num("5")+styles.FieldQuantity.Unit.Render("s"), got)
 }
 
 func TestStyleDurationThreshold(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldDurationNumber.Render
+	num := styles.FieldDuration.Number.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
 
 	styles.DurationThresholds["s"] = []style.Threshold{
-		{Value: 30, Style: style.ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
+		{Value: 30, Style: style.SegmentStyle{Number: new(redNum), Unit: new(redUnit)}},
 	}
 
 	// 45s exceeds 30s threshold.
@@ -2188,36 +2188,36 @@ func TestStyleDurationThreshold(t *testing.T) {
 
 	// 5s does not exceed threshold - uses default.
 	got = styleDuration("5s", time.Duration(0), styles, 0)
-	assert.Equal(t, num("5")+styles.FieldDurationUnit.Render("s"), got)
+	assert.Equal(t, num("5")+styles.FieldDuration.Unit.Render("s"), got)
 }
 
 func TestStyleThresholdIgnoreCase(t *testing.T) {
 	styles := DefaultStyles()
-	num := styles.FieldQuantityNumber.Render
+	num := styles.FieldQuantity.Number.Render
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	styles.QuantityThresholds["mb"] = []style.Threshold{
-		{Value: 500, Style: style.ThresholdStyle{Number: new(redNum)}},
+		{Value: 500, Style: style.SegmentStyle{Number: new(redNum)}},
 	}
 
 	// "MB" should match "mb" threshold with case-insensitive matching (default).
 	got := styleQuantity("1000MB", styles, true)
-	assert.Equal(t, redNum.Render("1000")+styles.FieldQuantityUnit.Render("MB"), got)
+	assert.Equal(t, redNum.Render("1000")+styles.FieldQuantity.Unit.Render("MB"), got)
 
 	// Below threshold - uses default number style.
 	got = styleQuantity("100MB", styles, true)
-	assert.Equal(t, num("100")+styles.FieldQuantityUnit.Render("MB"), got)
+	assert.Equal(t, num("100")+styles.FieldQuantity.Unit.Render("MB"), got)
 }
 
 func TestStyleThresholdOnlyOverridesEnabled(t *testing.T) {
 	styles := DefaultStyles()
-	styles.FieldQuantityNumber = nil
-	styles.FieldQuantityUnit = nil
+	styles.FieldQuantity.Number = nil
+	styles.FieldQuantity.Unit = nil
 
 	redNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 	redUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("1")).Faint(true)
 	styles.QuantityThresholds["ms"] = []style.Threshold{
-		{Value: 100, Style: style.ThresholdStyle{Number: new(redNum), Unit: new(redUnit)}},
+		{Value: 100, Style: style.SegmentStyle{Number: new(redNum), Unit: new(redUnit)}},
 	}
 
 	// Above threshold - threshold styles apply even with nil defaults.
@@ -3169,8 +3169,8 @@ func TestStyleElapsed(t *testing.T) {
 		styles := DefaultStyles()
 		elapsedNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
 		elapsedUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-		styles.FieldElapsedNumber = new(elapsedNum)
-		styles.FieldElapsedUnit = new(elapsedUnit)
+		styles.FieldElapsed.Number = new(elapsedNum)
+		styles.FieldElapsed.Unit = new(elapsedUnit)
 
 		got := styleElapsed("5s", nil, styles, 0)
 		want := elapsedNum.Render("5") + elapsedUnit.Render("s")
@@ -3179,44 +3179,44 @@ func TestStyleElapsed(t *testing.T) {
 
 	t.Run("fallback_to_duration_styles", func(t *testing.T) {
 		styles := DefaultStyles()
-		// FieldElapsedNumber and FieldElapsedUnit are nil by default,
-		// so it should fall back to FieldDurationNumber and FieldDurationUnit.
-		styles.FieldElapsedNumber = nil
-		styles.FieldElapsedUnit = nil
+		// FieldElapsed.Number and FieldElapsed.Unit are nil by default,
+		// so it should fall back to FieldDuration.Number and FieldDuration.Unit.
+		styles.FieldElapsed.Number = nil
+		styles.FieldElapsed.Unit = nil
 
 		got := styleElapsed("5s", nil, styles, 0)
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("partial_fallback_number_only", func(t *testing.T) {
 		styles := DefaultStyles()
 		elapsedNum := lipgloss.NewStyle().Foreground(lipgloss.Color("1"))
-		styles.FieldElapsedNumber = new(elapsedNum)
-		styles.FieldElapsedUnit = nil // falls back to FieldDurationUnit
+		styles.FieldElapsed.Number = new(elapsedNum)
+		styles.FieldElapsed.Unit = nil // falls back to FieldDuration.Unit
 
 		got := styleElapsed("5s", nil, styles, 0)
-		want := elapsedNum.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := elapsedNum.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("partial_fallback_unit_only", func(t *testing.T) {
 		styles := DefaultStyles()
 		elapsedUnit := lipgloss.NewStyle().Foreground(lipgloss.Color("2"))
-		styles.FieldElapsedNumber = nil // falls back to FieldDurationNumber
-		styles.FieldElapsedUnit = new(elapsedUnit)
+		styles.FieldElapsed.Number = nil // falls back to FieldDuration.Number
+		styles.FieldElapsed.Unit = new(elapsedUnit)
 
 		got := styleElapsed("5s", nil, styles, 0)
-		want := styles.FieldDurationNumber.Render("5") + elapsedUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + elapsedUnit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
 	t.Run("all_nil_returns_empty", func(t *testing.T) {
 		styles := DefaultStyles()
-		styles.FieldElapsedNumber = nil
-		styles.FieldElapsedUnit = nil
-		styles.FieldDurationNumber = nil
-		styles.FieldDurationUnit = nil
+		styles.FieldElapsed.Number = nil
+		styles.FieldElapsed.Unit = nil
+		styles.FieldDuration.Number = nil
+		styles.FieldDuration.Unit = nil
 
 		got := styleElapsed("5s", nil, styles, 0)
 		assert.Empty(t, got)
@@ -3264,7 +3264,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		got := styleElapsed("5s", val, styles, 0) // disabled
 
 		// Should fall through to number/unit path (non-empty with default styles).
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
@@ -3276,7 +3276,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		got := styleElapsed("5s", val, styles, 30*time.Second)
 
 		// Should fall through to number/unit path.
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
@@ -3287,7 +3287,7 @@ func TestStyleElapsedGradient(t *testing.T) {
 		got := styleElapsed("5s", "not elapsed", styles, 30*time.Second)
 
 		// Falls through to number/unit path.
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
@@ -3477,7 +3477,7 @@ func TestStyleDeadlineGradient(t *testing.T) {
 
 		// Should fall through to number/unit path (non-empty with default styles).
 		got := styleDeadline("5s", val, styles)
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
@@ -3489,7 +3489,7 @@ func TestStyleDeadlineGradient(t *testing.T) {
 		got := styleDeadline("5s", val, styles)
 
 		// Should fall through to number/unit path.
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 
@@ -3500,7 +3500,7 @@ func TestStyleDeadlineGradient(t *testing.T) {
 		got := styleDeadline("5s", "not deadline", styles)
 
 		// Falls through to number/unit path.
-		want := styles.FieldDurationNumber.Render("5") + styles.FieldDurationUnit.Render("s")
+		want := styles.FieldDuration.Number.Render("5") + styles.FieldDuration.Unit.Render("s")
 		assert.Equal(t, want, got)
 	})
 

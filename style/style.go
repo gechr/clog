@@ -13,19 +13,19 @@ import (
 // Position is in the range 0.0-1.0.
 type ColorStop = gradient.ColorStop
 
-// ThresholdStyle holds optional style overrides for the number and unit
-// segments of a quantity or duration value. nil fields keep the default style.
-type ThresholdStyle struct {
-	Number *lipgloss.Style // Override for the number segment (nil = keep default).
-	Unit   *lipgloss.Style // Override for the unit segment (nil = keep default).
+// SegmentStyle holds optional styles for the number and unit segments of a
+// quantity, duration, or elapsed value. nil fields keep the default style.
+type SegmentStyle struct {
+	Number *lipgloss.Style // Style for the number segment (nil = keep default).
+	Unit   *lipgloss.Style // Style for the unit segment (nil = keep default).
 }
 
 // Threshold defines a style override when a quantity's numeric value
 // meets or exceeds the given threshold. Thresholds are evaluated in descending
 // order - the first match wins.
 type Threshold struct {
-	Value float64        // Minimum numeric value (inclusive) to trigger this style.
-	Style ThresholdStyle // Style overrides for number and unit segments.
+	Value float64      // Minimum numeric value (inclusive) to trigger this style.
+	Style SegmentStyle // Style overrides for number and unit segments.
 }
 
 // Map maps string keys to lipgloss styles (e.g. field key names or unit strings).
@@ -99,7 +99,7 @@ type Config struct {
 	// caller wrote (pre-aligned content stays aligned).
 	BacktickMode BacktickMode
 	// Gradient stops for Deadline fields (default: green -> yellow -> red).
-	// Active only when the field has a positive From; overrides FieldElapsedNumber/FieldElapsedUnit.
+	// Active only when the field has a positive From; overrides FieldElapsed.
 	DeadlineGradient []ColorStop
 	// How deadline gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
 	DeadlineGradientMode GradientMode
@@ -108,7 +108,7 @@ type Config struct {
 	// Style for divider title text [nil = plain text]
 	DividerTitle *lipgloss.Style
 	// Gradient stops for Duration fields (default: green -> yellow -> red).
-	// Active only when FieldFormats.DurationGradientMax > 0; overrides FieldDurationNumber/FieldDurationUnit.
+	// Active only when FieldFormats.DurationGradientMax > 0; overrides FieldDuration.
 	DurationGradient []ColorStop
 	// How duration gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
 	DurationGradientMode GradientMode
@@ -117,18 +117,16 @@ type Config struct {
 	// Duration unit -> style override (e.g. "s" -> yellow).
 	DurationUnits Map
 	// Gradient stops for Elapsed fields (default: green -> yellow -> red).
-	// Active only when FieldFormats.ElapsedGradientMax > 0; overrides FieldElapsedNumber/FieldElapsedUnit.
+	// Active only when FieldFormats.ElapsedGradientMax > 0; overrides FieldElapsed.
 	ElapsedGradient []ColorStop
 	// How elapsed gradient colors transition: [GradientFade] (smooth) or [GradientStep] (discrete).
 	ElapsedGradientMode GradientMode
-	// Style for the numeric segments of duration values (e.g. "1" in "1m30s") [nil = plain text]
-	FieldDurationNumber *lipgloss.Style
-	// Style for the unit segments of duration values (e.g. "m" in "1m30s") [nil = plain text]
-	FieldDurationUnit *lipgloss.Style
-	// Style for the numeric segments of elapsed-time values [nil = falls back to FieldDurationNumber]
-	FieldElapsedNumber *lipgloss.Style
-	// Style for the unit segments of elapsed-time values [nil = falls back to FieldDurationUnit]
-	FieldElapsedUnit *lipgloss.Style
+	// Styles for the number and unit segments of duration values (e.g. "1"
+	// and "m" in "1m30s") [nil segments = plain text]
+	FieldDuration SegmentStyle
+	// Styles for the number and unit segments of elapsed-time values
+	// [nil segments = fall back to FieldDuration]
+	FieldElapsed SegmentStyle
 	// Style for error field values [nil = plain text]
 	FieldError *lipgloss.Style
 	// Style for the "/" separator in fraction values. nil = the fraction's
@@ -139,10 +137,9 @@ type Config struct {
 	FieldNumber *lipgloss.Style
 	// Base style for Percent fields (foreground overridden by gradient). nil = gradient color only.
 	FieldPercent *lipgloss.Style
-	// Style for the numeric part of quantity values (e.g. "5" in "5km") [nil = plain text]
-	FieldQuantityNumber *lipgloss.Style
-	// Style for the unit part of quantity values (e.g. "km" in "5km") [nil = plain text]
-	FieldQuantityUnit *lipgloss.Style
+	// Styles for the number and unit parts of quantity values (e.g. "5" and
+	// "km" in "5km") [nil segments = plain text]
+	FieldQuantity SegmentStyle
 	// Style for the quote delimiters around quoted values [nil = same style as the value]
 	FieldQuote *QuoteStyle
 	// Style for string field values [nil = plain text]
@@ -226,6 +223,18 @@ func (c *Config) Merge(other *Config) {
 			}
 			for _, k := range sv.MapKeys() {
 				dv.SetMapIndex(k, sv.MapIndex(k))
+			}
+			continue
+		}
+
+		// Struct fields (e.g. SegmentStyle): merge subfield-by-subfield so a
+		// partially-set override keeps the destination's other segments.
+		if sv.Kind() == reflect.Struct {
+			for ssf, ssv := range sv.Fields() {
+				if ssv.IsZero() {
+					continue
+				}
+				dv.FieldByIndex(ssf.Index).Set(ssv)
 			}
 			continue
 		}

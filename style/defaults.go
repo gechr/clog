@@ -13,12 +13,14 @@ func Default() *Config {
 		Backtick:     BacktickFor(theme.BackgroundDark),
 		DividerLine:  new(lipgloss.NewStyle().Faint(true)),
 		DividerTitle: new(lipgloss.NewStyle().Bold(true)),
-		FieldDurationNumber: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
-		FieldDurationUnit: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
+		FieldDuration: SegmentStyle{
+			Number: new(
+				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
+			),
+			Unit: new(
+				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
+			),
+		},
 		FieldError: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("1")), // red
 		),
@@ -29,12 +31,14 @@ func Default() *Config {
 		FieldNumber: new(
 			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
 		),
-		FieldQuantityNumber: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
-		FieldQuantityUnit: new(
-			lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
-		),
+		FieldQuantity: SegmentStyle{
+			Number: new(
+				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
+			),
+			Unit: new(
+				lipgloss.NewStyle().Foreground(lipgloss.Color("5")), // magenta
+			),
+		},
 		FieldQuote: &QuoteStyle{
 			Style:   lipgloss.NewStyle().Faint(true),
 			Inherit: true,

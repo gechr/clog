@@ -102,16 +102,13 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 | `DurationUnits`          | `map[string]Style`       | `StyleMap`      | `{}`                         |
 | `ElapsedGradient`        | `[]style.ColorStop`      |                 | green → yellow → red         |
 | `ElapsedGradientMode`    | `style.GradientMode`     |                 | `style.GradientFade`         |
-| `FieldDurationNumber`    | `Style`                  |                 | magenta                      |
-| `FieldDurationUnit`      | `Style`                  |                 | magenta faint                |
-| `FieldElapsedNumber`     | `Style`                  |                 | `nil` (→ `DurationNumber`)   |
-| `FieldElapsedUnit`       | `Style`                  |                 | `nil` (→ `DurationUnit`)     |
+| `FieldDuration`          | `SegmentStyle`           |                 | magenta number and unit      |
+| `FieldElapsed`           | `SegmentStyle`           |                 | `nil` (→ `FieldDuration`)    |
 | `FieldError`             | `Style`                  |                 | red                          |
 | `FieldFractionSeparator` | `Style`                  |                 | `nil` (→ value color, faint) |
 | `FieldNumber`            | `Style`                  |                 | magenta                      |
 | `FieldPercent`           | `Style`                  |                 | `nil`                        |
-| `FieldQuantityNumber`    | `Style`                  |                 | magenta                      |
-| `FieldQuantityUnit`      | `Style`                  |                 | magenta faint                |
+| `FieldQuantity`          | `SegmentStyle`           |                 | magenta number and unit      |
 | `FieldQuote`             | `*QuoteStyle`            |                 | `nil` (→ value's style)      |
 | `FieldString`            | `Style`                  |                 | white                        |
 | `FieldTime`              | `Style`                  |                 | magenta                      |
@@ -156,16 +153,13 @@ See [Printer](printer.md) for per-format token style tables.
 | `DurationUnits`          | Duration unit string -> style override                                                                        |
 | `ElapsedGradient`        | Gradient color stops for `Elapsed` fields; active when `FieldFormats.ElapsedGradientMax` > 0                  |
 | `ElapsedGradientMode`    | Gradient transition mode: `GradientFade` (smooth) or `GradientStep` (discrete)                                |
-| `FieldDurationNumber`    | Style for numeric segments of duration values (e.g. "1" in "1m30s"), nil to disable                           |
-| `FieldDurationUnit`      | Style for unit segments of duration values (e.g. "m" in "1m30s"), nil to disable                              |
-| `FieldElapsedNumber`     | Style for numeric segments of elapsed-time values; nil falls back to `FieldDurationNumber`                    |
-| `FieldElapsedUnit`       | Style for unit segments of elapsed-time values; nil falls back to `FieldDurationUnit`                         |
+| `FieldDuration`          | Number/unit segment styles for duration values (e.g. "1" and "m" in "1m30s"), nil segments to disable         |
+| `FieldElapsed`           | Number/unit segment styles for elapsed-time values; nil segments fall back to `FieldDuration`                 |
 | `FieldError`             | Style for error field values, nil to disable                                                                  |
 | `FieldFractionSeparator` | Style for the `/` in fraction values; nil keeps the value's color and adds the faint attribute                |
 | `FieldNumber`            | Style for int/float field values, nil to disable                                                              |
 | `FieldPercent`           | Base style for `Percent` fields (foreground overridden by gradient), nil to disable                           |
-| `FieldQuantityNumber`    | Style for numeric part of quantity values (e.g. "5" in "5km"), nil to disable                                 |
-| `FieldQuantityUnit`      | Style for unit part of quantity values (e.g. "km" in "5km"), nil to disable                                   |
+| `FieldQuantity`          | Number/unit segment styles for quantity values (e.g. "5" and "km" in "5km"), nil segments to disable          |
 | `FieldQuote`             | Style for the quote delimiters around quoted values (set `Inherit` to keep the value's color)                 |
 | `FieldString`            | Style for string field values, nil to disable                                                                 |
 | `FieldTime`              | Style for `time.Time` field values, nil to disable                                                            |
@@ -198,14 +192,14 @@ Field formatting behaviour (gradient maxima, format functions, percent precision
 Each `Threshold` pairs a minimum value with style overrides:
 
 ```go
-type ThresholdStyle struct {
-  Number Style // Override for the number segment (nil = keep default).
-  Unit   Style // Override for the unit segment (nil = keep default).
+type SegmentStyle struct {
+  Number Style // Style for the number segment (nil = keep default).
+  Unit   Style // Style for the unit segment (nil = keep default).
 }
 
 type Threshold struct {
-  Value float64        // Minimum numeric value (inclusive) to trigger this style.
-  Style ThresholdStyle // Style overrides for number and unit segments.
+  Value float64      // Minimum numeric value (inclusive) to trigger this style.
+  Style SegmentStyle // Style overrides for number and unit segments.
 }
 ```
 
@@ -213,8 +207,8 @@ Thresholds are evaluated in descending order - the first match wins:
 
 ```go
 styles.QuantityThresholds["ms"] = style.Thresholds{
-  {Value: 5000, Style: style.ThresholdStyle{Number: redStyle, Unit: redStyle}},
-  {Value: 1000, Style: style.ThresholdStyle{Number: yellowStyle, Unit: yellowStyle}},
+  {Value: 5000, Style: style.SegmentStyle{Number: redStyle, Unit: redStyle}},
+  {Value: 1000, Style: style.SegmentStyle{Number: yellowStyle, Unit: yellowStyle}},
 }
 ```
 
@@ -279,7 +273,7 @@ f.DurationGradientMax = 20 * time.Second
 clog.SetFieldFormats(f)
 ```
 
-When active, the gradient overrides `FieldDurationNumber` / `FieldDurationUnit` and colors the entire formatted string. When the max is 0 (the default) or `DurationGradient` stops are nil, the existing number/unit split styling is used.
+When active, the gradient overrides the `FieldDuration` segment styles and colors the entire formatted string. When the max is 0 (the default) or `DurationGradient` stops are nil, the existing number/unit split styling is used.
 
 Use `style.DefaultElapsedGradient()` to get the default green → yellow → red gradient stops (shared with `Elapsed` by default).
 
@@ -309,7 +303,7 @@ f.ElapsedGradientMax = 30 * time.Second
 clog.SetFieldFormats(f)
 ```
 
-When active, the gradient overrides `FieldElapsedNumber` / `FieldElapsedUnit` and colors the entire formatted string. When the max is 0 (the default) or `ElapsedGradient` stops are nil, the existing number/unit split styling is used.
+When active, the gradient overrides the `FieldElapsed` segment styles and colors the entire formatted string. When the max is 0 (the default) or `ElapsedGradient` stops are nil, the existing number/unit split styling is used.
 
 Use `style.DefaultElapsedGradient()` to get the default green → yellow → red gradient stops used for `Elapsed` fields (the same stops back `DurationGradient` and `DeadlineGradient` by default).
 
