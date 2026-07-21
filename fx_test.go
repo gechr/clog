@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/fx"
 	"github.com/gechr/clog/internal/core"
 	xansi "github.com/gechr/x/ansi"
@@ -486,4 +487,31 @@ func TestTaskConfigFormatFieldsNoOmit(t *testing.T) {
 		{Key: "url", Value: ""},
 	})
 	assert.Equal(t, " name=alice url=", got)
+}
+
+// TestStyledMsgHighlightsBacktickSpans pins the live animation row's message
+// treatment to the event formatter's: backtick spans render in the backtick
+// style mid-animation, not only on the completion line.
+func TestStyledMsgHighlightsBacktickSpans(t *testing.T) {
+	styles := DefaultStyles()
+	got := styledMsg("read `config.json` now", LevelInfo, styles, false)
+	want := "read " + styles.Backtick.Render("config.json") + " now"
+	assert.Equal(t, want, got)
+}
+
+// TestTaskConfigStyleMessageOverrideHighlightsBacktickSpans covers the
+// [fx.Builder.MessageStyle] override branch: the override styles the prose
+// while backtick spans keep the backtick style, mirroring how a done event
+// carrying the same override renders.
+func TestTaskConfigStyleMessageOverrideHighlightsBacktickSpans(t *testing.T) {
+	l := NewWriter(io.Discard)
+	l.SetColorMode(ColorAlways)
+	msgStyle := lipgloss.NewStyle().Bold(true)
+
+	cfg := fxLogger{l}.TaskConfig(l.Spinner("test").MessageStyle(&msgStyle))
+	got := cfg.StyleMessage("read `config.json` now", LevelInfo)
+	want := msgStyle.Render("read ") +
+		DefaultStyles().Backtick.Render("config.json") +
+		msgStyle.Render(" now")
+	assert.Equal(t, want, got)
 }

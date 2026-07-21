@@ -122,7 +122,7 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 			if noColor {
 				return msg
 			}
-			return msgStyleOverride.Render(msg)
+			return styles.BacktickMode.Render(msg, msgStyleOverride, styles.Backtick)
 		}
 		return styledMsg(msg, lvl, styles, noColor)
 	}
@@ -135,18 +135,19 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	return cfg
 }
 
-// styledMsg applies the message style for the given level, if any.
+// styledMsg applies the message style for the given level, if any, rendering
+// backtick-quoted `code` spans in the backtick style - the same treatment a
+// regular log line's message part gets, so a live animation row highlights
+// exactly what its completion line will.
 func styledMsg(msg string, level Level, styles *style.Config, noColor bool) string {
 	if noColor {
 		return msg
 	}
+	base := styles.Message
 	if s := styles.Messages[level]; s != nil {
-		return s.Render(msg)
+		base = s
 	}
-	if styles.Message != nil {
-		return styles.Message.Render(msg)
-	}
-	return msg
+	return styles.BacktickMode.Render(msg, base, styles.Backtick)
 }
 
 func styledSymbol(symbol string, level Level, styles *style.Config, noColor bool) string {
