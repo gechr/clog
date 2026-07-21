@@ -214,6 +214,12 @@ func visibleTaskIndexes(gts []*renderTask, done []bool, hideDone bool, now time.
 		if hideDone && done[i] {
 			continue
 		}
+		// A task that finalized with an empty message opted out of its done
+		// line - the explicit "nothing durable to say", mirroring how an
+		// empty message hides a transient status line.
+		if done[i] && *gt.msgPtr.Load() == "" {
+			continue
+		}
 		if shouldRenderTask(gt, done[i], now) {
 			indexes = append(indexes, i)
 		}

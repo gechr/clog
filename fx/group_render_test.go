@@ -1148,3 +1148,25 @@ func TestNewSyntheticTaskWiresLevelOverride(t *testing.T) {
 	gt.levelPtr.Store(int64(level.Warn))
 	assert.Equal(t, level.Warn, gt.effectiveLevel())
 }
+
+// A done task whose final message was blanked opts out of its done line - it
+// must vanish from the rendered set instead of freezing a stale mid-state
+// snapshot into the terminal history. A live task with an empty message still
+// renders.
+func TestVisibleTaskIndexesSkipsBlankedDoneTasks(t *testing.T) {
+	log := newStubLogger()
+	blanked := newSyntheticTask(testSpinner(log, "working"), time.Now())
+	empty := ""
+	blanked.msgPtr.Store(&empty)
+	kept := newSyntheticTask(testSpinner(log, "finished"), time.Now())
+	live := newSyntheticTask(testSpinner(log, ""), time.Now())
+
+	got := visibleTaskIndexes(
+		[]*renderTask{blanked, kept, live},
+		[]bool{true, true, false},
+		false,
+		time.Now(),
+	)
+
+	assert.Equal(t, []int{1, 2}, got)
+}
