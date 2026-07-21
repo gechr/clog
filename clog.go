@@ -108,10 +108,10 @@ type Logger struct {
 	mu *sync.Mutex
 
 	animationInterval  time.Duration
-	atomicLevel        atomic.Int32                 // lock-free level check for newEvent() hot path
-	fieldFormats       atomic.Pointer[FieldFormats] // immutable snapshot; nil = DefaultFieldFormats
-	exitCode           int                          // default exit code for Fatal-level events; 0 means 1
-	exitFunc           func(int)                    // called by Fatal-level events; defaults to os.Exit
+	atomicLevel        *atomic.Int32                 // lock-free level check for newEvent() hot path
+	fieldFormats       *atomic.Pointer[FieldFormats] // immutable snapshot; nil = DefaultFieldFormats
+	exitCode           int                           // default exit code for Fatal-level events; 0 means 1
+	exitFunc           func(int)                     // called by Fatal-level events; defaults to os.Exit
 	fields             []Field
 	fieldSort          Sort
 	fieldStyleLevel    Level
@@ -174,7 +174,9 @@ func New(output *Output) *Logger {
 		mu: &sync.Mutex{},
 
 		animationInterval: 67 * time.Millisecond, //nolint:mnd // ~15fps
+		atomicLevel:       &atomic.Int32{},
 		exitFunc:          os.Exit,
+		fieldFormats:      &atomic.Pointer[FieldFormats]{},
 		fieldStyleLevel:   LevelInfo,
 		indentWidth:       2, //nolint:mnd // default indent: 2 spaces per level
 		fieldTimeFormat:   time.RFC3339,

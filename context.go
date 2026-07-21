@@ -1,6 +1,6 @@
 package clog
 
-import "sync"
+import "sync/atomic"
 
 // Context builds a sub-logger with preset fields.
 // Created by [Logger.With]. Finalise with [Context.Logger].
@@ -149,14 +149,10 @@ func (c *Context) Logger() *Logger {
 	c.logger.mu.Lock()
 	defer c.logger.mu.Unlock()
 	l := c.logger.clone()
-	l.mu = c.logger.mu  // share mutex
 	l.fields = c.Fields // override with context Fields
 	l.indent = c.indent // override with accumulated indent
 	l.symbol = c.symbol // override with context symbol
 	l.tree = c.tree     // override with accumulated tree
-	l.atomicLevel.Store(
-		int32(l.level), //nolint:gosec // Level values are small constants (-10 to 15)
-	)
 	return l
 }
 
@@ -232,59 +228,22 @@ func (c *Context) URLs(key string, urls []string) *Context {
 	return c
 }
 
-// clone returns a shallow copy of the Logger with all fields duplicated.
-// The caller must hold l.mu. The returned Logger has its own mutex;
-// callers that want to share the parent mutex should reassign l.mu after cloning.
+// clone returns a copy of the Logger. The caller must hold l.mu. Every field
+// is copied wholesale - new Logger fields are inherited by sub-loggers
+// automatically - so only shared mutable state needs explicit handling below.
+// The returned Logger shares the parent's mutex (its only caller,
+// [Context.Logger], relies on this to prevent interleaved output).
 func (l *Logger) clone() *Logger {
-	c := &Logger{
-		mu: &sync.Mutex{}, // placeholder; callers typically override
+	c := *l
 
-		animationInterval:  l.animationInterval,
-		exitFunc:           l.exitFunc,
-		fields:             l.fields,
-		fieldSort:          l.fieldSort,
-		fieldStyleLevel:    l.fieldStyleLevel,
-		fieldTimeFormat:    l.fieldTimeFormat,
-		handler:            l.handler,
-		hooks:              l.hooks,
-		indent:             l.indent,
-		indentPrefixes:     l.indentPrefixes,
-		indentPrefixSep:    l.indentPrefixSep,
-		indentWidth:        l.indentWidth,
-		jsonIndent:         l.jsonIndent,
-		jsonPrintMode:      l.jsonPrintMode,
-		labels:             l.labels,
-		labelsPadded:       l.labelsPadded,
-		labelWidth:         l.labelWidth,
-		level:              l.level,
-		levelAlign:         l.levelAlign,
-		nonTTYLevel:        l.nonTTYLevel,
-		omitEmpty:          l.omitEmpty,
-		omitZero:           l.omitZero,
-		output:             l.output,
-		parts:              l.parts,
-		printIndent:        l.printIndent,
-		quoteClose:         l.quoteClose,
-		quoteMode:          l.quoteMode,
-		quoteOpen:          l.quoteOpen,
-		reportTimestamp:    l.reportTimestamp,
-		separatorText:      l.separatorText,
-		sliceClose:         l.sliceClose,
-		sliceOpen:          l.sliceOpen,
-		sliceSep:           l.sliceSep,
-		smartQuoteChars:    l.smartQuoteChars,
-		smartQuotes:        l.smartQuotes,
-		styles:             l.styles,
-		symbol:             l.symbol,
-		symbols:            l.symbols,
-		timeFormat:         l.timeFormat,
-		timeLocation:       l.timeLocation,
-		tree:               append([]TreePos{}, l.tree...),
-		treeChars:          l.treeChars,
-		wrap:               l.wrap,
-		yamlIndent:         l.yamlIndent,
-		yamlIndentSequence: l.yamlIndentSequence,
-	}
+	// Fresh atomics: the sub-logger's level and field-format snapshot must be
+	// settable independently of the parent.
+	c.atomicLevel = &atomic.Int32{}
+	c.atomicLevel.Store(l.atomicLevel.Load())
+	c.fieldFormats = &atomic.Pointer[FieldFormats]{}
 	c.fieldFormats.Store(l.fieldFormats.Load())
-	return c
+
+	// Deep-copy the slice the sub-logger appends to.
+	c.tree = append([]TreePos{}, l.tree...)
+	return &c
 }
