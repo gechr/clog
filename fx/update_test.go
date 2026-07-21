@@ -362,3 +362,31 @@ func TestUpdateElapsedOptions(t *testing.T) {
 		},
 	}, *fieldsAtom.Load())
 }
+
+func TestUpdateClear(t *testing.T) {
+	var msgAtom atomic.Pointer[string]
+	var fieldsAtom atomic.Pointer[[]core.Field]
+	var levelAtom atomic.Int64
+	initial := "working"
+	msgAtom.Store(&initial)
+	levelAtom.Store(int64(level.Unset))
+
+	u := &Update{
+		msgPtr:    &msgAtom,
+		fieldsPtr: &fieldsAtom,
+		levelPtr:  &levelAtom,
+		base:      []core.Field{{Key: "app", Value: "one"}},
+	}
+	u.InitSelf(u)
+	u.Msg("step").Str("k", "v").SetLevel(level.Warn).Send()
+
+	u.Clear()
+
+	assert.Empty(t, *msgAtom.Load(), "the message must be emptied")
+	assert.Empty(t, *fieldsAtom.Load(), "every field must go, including the builder's base fields")
+	assert.Equal(t, int64(level.Unset), levelAtom.Load(), "the level override must reset")
+
+	// A later Send starts from scratch - Clear must not poison reuse.
+	u.Msg("again").Send()
+	assert.Equal(t, "again", *msgAtom.Load())
+}

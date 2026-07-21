@@ -9,6 +9,7 @@ import (
 	"github.com/gechr/clog/field/deadline"
 	"github.com/gechr/clog/field/elapsed"
 	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/level"
 )
 
 // TaskFunc is a function executed by [Builder.Wait].
@@ -183,6 +184,24 @@ func (p *Update) Elapsed(
 	}
 	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
 	return p
+}
+
+// Clear empties the row - the message, every field (including the builder's
+// base fields), and any level override - and applies immediately, without a
+// separate [Update.Send]. A task that finalizes cleared logs no done line:
+// the explicit "nothing durable to say", for a loop that would otherwise
+// freeze a stale mid-state snapshot into the terminal history when it
+// returns on a teardown.
+func (p *Update) Clear() {
+	empty := ""
+	p.msgPtr.Store(&empty)
+	merged := []core.Field{}
+	p.fieldsPtr.Store(&merged)
+	p.Fields = nil
+	p.msgText = ""
+	if p.levelPtr != nil {
+		p.levelPtr.Store(int64(level.Unset))
+	}
 }
 
 // Send applies the accumulated message and field changes to the animation atomically.
