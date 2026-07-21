@@ -454,6 +454,26 @@ func quoteDelim(opts formatFieldsOpts) *style.QuoteStyle {
 	return opts.styles.FieldQuote
 }
 
+// resolveValueStyle resolves the first three value-styling tiers shared by
+// [valueBaseStyle] and [styleValue]: a governing KeyValues entry (which
+// decides even when it resolves to no style), then Keys, then Values. decided
+// reports whether a tier applied; st is nil for a governed key that resolves
+// to no style (render plain).
+func resolveValueStyle(originalValue any, key string, styles *style.Config) (Style, bool) {
+	if st, governed := lookupKeyValueStyle(key, originalValue, styles); governed {
+		return st, true
+	}
+	if key != "" {
+		if st := styles.Keys[key]; st != nil {
+			return st, true
+		}
+	}
+	if st := lookupValueStyle(originalValue, styles.Values); st != nil {
+		return st, true
+	}
+	return nil, false
+}
+
 // valueBaseStyle returns the style that styleValue would apply to a value of
 // the given kind (key > value > type priority), or nil when none applies. Only
 // the quotable kinds (string, error, time, default) are resolved; other kinds
@@ -462,16 +482,7 @@ func valueBaseStyle(originalValue any, key string, kind valueKind, styles *style
 	if styles == nil {
 		return nil
 	}
-	// Per-key per-value styling fully governs the key when an entry exists.
-	if st, governed := lookupKeyValueStyle(key, originalValue, styles); governed {
-		return st
-	}
-	if key != "" {
-		if st := styles.Keys[key]; st != nil {
-			return st
-		}
-	}
-	if st := lookupValueStyle(originalValue, styles.Values); st != nil {
+	if st, decided := resolveValueStyle(originalValue, key, styles); decided {
 		return st
 	}
 	switch kind { //nolint:exhaustive // only quotable kinds have a base style here
@@ -592,25 +603,13 @@ func styleValue(
 	styles *style.Config,
 	fmts *FieldFormats,
 ) string {
-	// Per-key per-value styling fully governs the key when an entry exists,
-	// short-circuiting the tiers below (plain when it resolves to no style).
-	if st, governed := lookupKeyValueStyle(key, originalValue, styles); governed {
+	// Key-value, key, and value tiers; a governing entry that resolves to no
+	// style renders plain.
+	if st, decided := resolveValueStyle(originalValue, key, styles); decided {
 		if st != nil {
 			return st.Render(valStr)
 		}
 		return ""
-	}
-
-	// Per-key styling takes priority. Slice elements pass no key.
-	if key != "" {
-		if style := styles.Keys[key]; style != nil {
-			return style.Render(valStr)
-		}
-	}
-
-	// Per-value styling (typed key lookup - bool true ≠ string "true").
-	if style := lookupValueStyle(originalValue, styles.Values); style != nil {
-		return style.Render(valStr)
 	}
 
 	// Type-based styling.
