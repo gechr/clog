@@ -1100,13 +1100,24 @@ func (l *Logger) colorsDisabled() bool {
 // indentation returns the indent string for the current indent level,
 // including any tree-drawing connectors.
 func (l *Logger) indentation() string {
+	return l.indentationWith(0, nil)
+}
+
+// indentationWith returns the indent string for the current indent level
+// deepened by extraDepth, with extraTree connectors appended to the logger's
+// own.
+func (l *Logger) indentationWith(extraDepth int, extraTree []TreePos) string {
+	tree := l.tree
+	if len(extraTree) > 0 {
+		tree = append(append([]TreePos{}, l.tree...), extraTree...)
+	}
 	return computeIndent(
-		l.indent,
+		l.indent+extraDepth,
 		l.indentWidth,
 		l.indentPrefixes,
 		l.indentPrefixSep,
 	) + computeTreeIndent(
-		l.tree,
+		tree,
 		l.treeChars,
 	)
 }

@@ -75,10 +75,6 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	if partOrder, ok := b.PartOrder(); ok {
 		order = partOrder
 	}
-	combinedTree := l.tree
-	if treePos := b.TreePositions(); len(treePos) > 0 {
-		combinedTree = append(append([]TreePos{}, l.tree...), treePos...)
-	}
 	noColor := l.output.ColorsDisabled()
 	omitEmpty := l.omitEmpty
 	omitZero := l.omitZero
@@ -87,14 +83,9 @@ func (f fxLogger) TaskConfig(b *fx.Builder) fx.TaskConfig {
 	labels := l.allPaddedLabels()
 	cfg := fx.TaskConfig{
 		AnimationInterval: l.animationInterval,
-		Indentation: computeIndent(
-			l.indent+b.IndentLevel(),
-			l.indentWidth,
-			l.indentPrefixes,
-			l.indentPrefixSep,
-		) + computeTreeIndent(combinedTree, l.treeChars),
-		IsTTY: l.output.IsTTY(),
-		Label: label,
+		Indentation:       l.indentationWith(b.IndentLevel(), b.TreePositions()),
+		IsTTY:             l.output.IsTTY(),
+		Label:             label,
 		NonTTYSilent: b.SuppressesNonTTY() ||
 			(l.nonTTYLevel != UnsetLevel && level < l.nonTTYLevel),
 		// A task whose level is below the logger minimum renders nothing,
