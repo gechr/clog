@@ -248,40 +248,36 @@ func (l *groupFieldLayout) enabled() bool {
 	return l != nil && l.alignment == FieldAlignmentMessage && l.maxStart > 0
 }
 
+// columnsFor returns the column tracker for placement, or nil for placements
+// that don't participate in group-wide alignment.
+func (l *groupBarLayout) columnsFor(placement bar.Placement) *groupBarColumns {
+	switch placement {
+	case bar.PlaceLeftPad:
+		return &l.leftPad
+	case bar.PlaceRightPad:
+		return &l.rightPad
+	case bar.PlaceAligned:
+		return &l.aligned
+	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
+		return nil
+	}
+	return nil
+}
+
 func (l *groupBarLayout) observe(
 	parts, leftText, barStr, rightText string,
 	placement bar.Placement,
 ) {
-	partsW := lipgloss.Width(parts)
-	leftW := lipgloss.Width(leftText)
-	barW := lipgloss.Width(barStr)
-	rightW := lipgloss.Width(rightText)
-
-	switch placement {
-	case bar.PlaceLeftPad:
-		l.leftPad.hasLeft = l.leftPad.hasLeft || leftText != ""
-		l.leftPad.hasRight = l.leftPad.hasRight || rightText != ""
-		l.leftPad.maxLeft = max(l.leftPad.maxLeft, leftW)
-		l.leftPad.maxParts = max(l.leftPad.maxParts, partsW)
-		l.leftPad.maxBar = max(l.leftPad.maxBar, barW)
-		l.leftPad.maxRight = max(l.leftPad.maxRight, rightW)
-	case bar.PlaceRightPad:
-		l.rightPad.hasLeft = l.rightPad.hasLeft || leftText != ""
-		l.rightPad.hasRight = l.rightPad.hasRight || rightText != ""
-		l.rightPad.maxLeft = max(l.rightPad.maxLeft, leftW)
-		l.rightPad.maxParts = max(l.rightPad.maxParts, partsW)
-		l.rightPad.maxBar = max(l.rightPad.maxBar, barW)
-		l.rightPad.maxRight = max(l.rightPad.maxRight, rightW)
-	case bar.PlaceAligned:
-		l.aligned.hasLeft = l.aligned.hasLeft || leftText != ""
-		l.aligned.hasRight = l.aligned.hasRight || rightText != ""
-		l.aligned.maxLeft = max(l.aligned.maxLeft, leftW)
-		l.aligned.maxParts = max(l.aligned.maxParts, partsW)
-		l.aligned.maxBar = max(l.aligned.maxBar, barW)
-		l.aligned.maxRight = max(l.aligned.maxRight, rightW)
-	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
+	c := l.columnsFor(placement)
+	if c == nil {
 		return
 	}
+	c.hasLeft = c.hasLeft || leftText != ""
+	c.hasRight = c.hasRight || rightText != ""
+	c.maxLeft = max(c.maxLeft, lipgloss.Width(leftText))
+	c.maxParts = max(c.maxParts, lipgloss.Width(parts))
+	c.maxBar = max(c.maxBar, lipgloss.Width(barStr))
+	c.maxRight = max(c.maxRight, lipgloss.Width(rightText))
 }
 
 func (l *groupBarLayout) formatWithTruncationMarker(
@@ -291,10 +287,8 @@ func (l *groupBarLayout) formatWithTruncationMarker(
 	truncationMarker string,
 ) string {
 	switch placement {
-	case bar.PlaceLeftPad:
-		return l.formatLeftPad(parts, leftText, barStr, rightText, sep, termWidth)
-	case bar.PlaceRightPad:
-		return l.formatRightPad(parts, leftText, barStr, rightText, sep, termWidth)
+	case bar.PlaceLeftPad, bar.PlaceRightPad:
+		return l.formatPadded(parts, leftText, barStr, rightText, sep, placement, termWidth)
 	case bar.PlaceAligned:
 		return l.formatAligned(parts, leftText, barStr, rightText, sep, termWidth, truncationMarker)
 	case bar.PlaceInline, bar.PlaceLeft, bar.PlaceRight:
@@ -317,46 +311,36 @@ const (
 	minUsefulTruncatedTextWidth = 5
 )
 
-func (l *groupBarLayout) formatLeftPad(
+// formatPadded renders a left- or right-padded bar layout: the bar columns
+// and the message parts separated by a pad computed from the group-wide
+// maxima, with the bar side chosen by placement.
+func (l *groupBarLayout) formatPadded(
 	parts, leftText, barStr, rightText, sep string,
+	placement bar.Placement,
 	termWidth int,
 ) string {
 	shared := l.leftPad
+	if placement == bar.PlaceRightPad {
+		shared = l.rightPad
+	}
 	barFull := assembleBarColumns(shared, leftText, barStr, rightText, sep)
 	if shared.maxParts == 0 || shared.maxBar == 0 {
-		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
+		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
 	}
 
 	gap := termWidth - rightEdgeSlack - shared.maxParts - shared.barWidth(sep)
 	if gap < 0 {
-		return bar.FormatLine(parts, barFull, sep, bar.PlaceLeftPad, termWidth)
+		return bar.FormatLine(parts, barFull, sep, placement, termWidth)
 	}
 
 	// The message is not part of the per-tick frame snapshot, so parts can
 	// drift wider than the measured max between layout and render; clamp so
 	// the pad count never goes negative (strings.Repeat panics on negative).
-	return barFull +
-		strings.Repeat(" ", max(0, gap+shared.maxParts-lipgloss.Width(parts))) +
-		parts
-}
-
-func (l *groupBarLayout) formatRightPad(
-	parts, leftText, barStr, rightText, sep string,
-	termWidth int,
-) string {
-	shared := l.rightPad
-	barFull := assembleBarColumns(shared, leftText, barStr, rightText, sep)
-	if shared.maxParts == 0 || shared.maxBar == 0 {
-		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
+	pad := strings.Repeat(" ", max(0, gap+shared.maxParts-lipgloss.Width(parts)))
+	if placement == bar.PlaceRightPad {
+		return parts + pad + barFull
 	}
-
-	gap := termWidth - rightEdgeSlack - shared.maxParts - shared.barWidth(sep)
-	if gap < 0 {
-		return bar.FormatLine(parts, barFull, sep, bar.PlaceRightPad, termWidth)
-	}
-
-	// Clamp for the same measure/render message drift as formatLeftPad.
-	return parts + strings.Repeat(" ", max(0, shared.maxParts-lipgloss.Width(parts)+gap)) + barFull
+	return barFull + pad + parts
 }
 
 func (l *groupBarLayout) formatAligned(
