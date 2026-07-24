@@ -15,4 +15,5 @@ jobs:
   release:
     permissions:
       contents: write
+    # @clover
     uses: gechr/actions/.github/workflows/release-notes.yaml@f86637c131004611b2346f2f3102ed291b13a412 # v0.2.9
