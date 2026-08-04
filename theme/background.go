@@ -95,8 +95,8 @@ func MustPair(light, dark *Theme, opts ...PairOption) *Pair {
 }
 
 // Single returns a Pair that renders t on both light and dark backgrounds,
-// bypassing the light/dark validation that [NewPair] performs. Background
-// detection still runs but has no visible effect.
+// bypassing the light/dark validation that [NewPair] performs. Loggers can
+// apply this pair without detecting the terminal background.
 func Single(t *Theme) *Pair {
 	return &Pair{Light: t, Dark: t, Fallback: BackgroundDark}
 }

@@ -900,6 +900,10 @@ func (l *Logger) resolvePrintThemeLocked() {
 	if pair == nil {
 		pair = theme.DefaultPair()
 	}
+	if pair.Light == pair.Dark {
+		l.applyPrintThemeLocked(pair.Light)
+		return
+	}
 	bg, ok := l.output.background()
 	if !ok {
 		bg = pair.Fallback

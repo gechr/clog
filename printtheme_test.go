@@ -57,6 +57,7 @@ func TestSetThemeSingleAppliesRegardlessOfBackground(t *testing.T) {
 	resolved(t, l)
 
 	require.False(t, l.printThemeDirty)
+	require.False(t, l.output.bgDone)
 	require.Equal(t, style.NewJSON(theme.Monokai()), l.styles.JSON)
 }
 
