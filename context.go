@@ -4,6 +4,13 @@ import "sync/atomic"
 
 // Context builds a sub-logger with preset fields.
 // Created by [Logger.With]. Finalise with [Context.Logger].
+//
+// Unlike [Logger] and [Event], a nil *Context is not inert, and cannot be: its
+// field methods are promoted from an embedded value-typed builder, so they
+// dereference the receiver before any guard could run. Nothing in the package
+// returns one - [Logger.With] on a nil Logger yields a Context over an inert
+// logger, not nil - so a nil Context can only come from a caller declaring one
+// and never assigning it.
 type Context struct {
 	fieldBuilder[Context]
 

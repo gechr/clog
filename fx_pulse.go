@@ -19,6 +19,8 @@ func Pulse(msg string, opts ...pulse.Option) *fx.Builder {
 // With no options, the default pulse gradient and speed are used.
 // Use [pulse.WithGradient] and [pulse.WithSpeed] to customise the animation.
 func (l *Logger) Pulse(msg string, opts ...pulse.Option) *fx.Builder {
+	l = l.orDiscard()
+
 	cfg := pulse.Apply(opts...)
 	return fx.NewBuilder(fx.BuilderConfig{
 		Logger:        fxLogger{l},

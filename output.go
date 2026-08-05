@@ -22,6 +22,10 @@ import (
 // Output bundles an [io.Writer] with its detected terminal capabilities
 // (TTY, width, color profile). Each [Logger] holds an *Output so that
 // capability detection is per-writer instead of per-process.
+//
+// A nil *Output is not inert; nothing in the package returns one, and
+// [Logger.Output] on a nil [Logger] returns an inert Output over [io.Discard]
+// rather than nil.
 type Output struct {
 	w       io.Writer
 	fd      int // -1 for non-fd writers

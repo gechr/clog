@@ -36,6 +36,9 @@ const defaultPrintIndent = "  "
 //
 //	clog.Print().JSON(data)
 //	clog.Print().RawJSON([]byte(`{"a":1}`))
+//
+// A nil *Printer is not inert; [Logger.Print] never returns one, and on a nil
+// [Logger] it prints to [io.Discard] instead.
 type Printer struct {
 	logger   *Logger
 	modeJSON *JSONPrintMode // nil = use logger default
@@ -45,7 +48,7 @@ type Printer struct {
 // The printer inherits the logger's print mode (see [Logger.SetJSONPrintMode]).
 // Use [Printer.Mode] for per-call overrides.
 func (l *Logger) Print() *Printer {
-	return &Printer{logger: l}
+	return &Printer{logger: l.orDiscard()}
 }
 
 // Mode sets the print mode for this call, overriding the logger default.

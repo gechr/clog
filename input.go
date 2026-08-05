@@ -158,11 +158,20 @@ func (l *Logger) Input(prompt string, opts ...InputOption) (string, error) {
 // aborted prompt as terminal for that input. In particular, do not close an
 // *os.File input after an aborted prompt: for non-pollable files such as
 // /dev/tty, Close blocks until the pending Read returns (golang/go#26593).
+//
+// A nil [Logger] has nothing to prompt on and no input to read, so it returns
+// [io.EOF] at once rather than falling back to [os.Stdin] and blocking on
+// input nobody was asked for. This covers [Logger.Input], [Logger.Password],
+// and [Logger.PasswordContext], which all funnel through here.
 func (l *Logger) InputContext(
 	ctx context.Context,
 	prompt string,
 	opts ...InputOption,
 ) (string, error) {
+	if l == nil {
+		return "", io.EOF
+	}
+
 	var cfg inputConfig
 	for _, o := range opts {
 		o(&cfg)

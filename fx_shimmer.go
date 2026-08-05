@@ -21,6 +21,8 @@ func Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
 // Use [shimmer.WithGradient], [shimmer.WithDirection], and [shimmer.WithSpeed]
 // to customise the animation.
 func (l *Logger) Shimmer(msg string, opts ...shimmer.Option) *fx.Builder {
+	l = l.orDiscard()
+
 	cfg := shimmer.Apply(opts...)
 	return fx.NewBuilder(fx.BuilderConfig{
 		Logger:        fxLogger{l},

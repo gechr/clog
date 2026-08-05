@@ -236,6 +236,9 @@ var defaultFieldFormats = DefaultFieldFormats()
 //	f.PercentPrecision = 1
 //	logger.SetFieldFormats(f)
 func (l *Logger) SetFieldFormats(f FieldFormats) {
+	if l == nil {
+		return
+	}
 	f.HyperlinkPathFormat = hyperlink.Expand(f.HyperlinkPathFormat, "path")
 	f.HyperlinkFileFormat = hyperlink.Expand(f.HyperlinkFileFormat, "path")
 	f.HyperlinkDirFormat = hyperlink.Expand(f.HyperlinkDirFormat, "path")
@@ -260,8 +263,12 @@ func (l *Logger) FieldFormats() FieldFormats {
 
 // mutateFieldFormats applies fn to a copy of the current formats snapshot and
 // stores the result. Hyperlink formats in the snapshot are already expanded,
-// so no re-expansion is needed.
+// so no re-expansion is needed. It is the choke point for every generated
+// format setter, so the nil-Logger guard here makes them all inert.
 func (l *Logger) mutateFieldFormats(fn func(*FieldFormats)) {
+	if l == nil {
+		return
+	}
 	f := *l.loadFieldFormats()
 	fn(&f)
 	l.fieldFormats.Store(&f)
@@ -269,8 +276,13 @@ func (l *Logger) mutateFieldFormats(fn func(*FieldFormats)) {
 
 // mutateHyperlinks applies fn to a copy of the current formats snapshot,
 // stores it, and pushes the hyperlink subset down to the logger's output
-// (hyperlink rendering lives on the Output, which has no logger access).
+// (hyperlink rendering lives on the Output, which has no logger access). Like
+// [Logger.mutateFieldFormats], it guards the nil Logger on behalf of every
+// generated hyperlink setter.
 func (l *Logger) mutateHyperlinks(fn func(*FieldFormats)) {
+	if l == nil {
+		return
+	}
 	f := *l.loadFieldFormats()
 	fn(&f)
 	l.fieldFormats.Store(&f)
@@ -282,8 +294,13 @@ func (l *Logger) mutateHyperlinks(fn func(*FieldFormats)) {
 }
 
 // loadFieldFormats returns the logger's current immutable formats snapshot,
-// falling back to the package default when none has been set.
+// falling back to the package default when none has been set - or when the
+// logger is nil, which is what makes [Logger.FieldFormats] report the defaults
+// rather than panicking.
 func (l *Logger) loadFieldFormats() *FieldFormats {
+	if l == nil {
+		return &defaultFieldFormats
+	}
 	if f := l.fieldFormats.Load(); f != nil {
 		return f
 	}

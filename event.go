@@ -14,8 +14,9 @@ import (
 )
 
 // Event represents a log event being constructed. All methods are safe
-// to call on a nil receiver - disabled events (when the log level is
-// below the logger's minimum) are no-ops.
+// to call on a nil receiver - disabled events (when the log level is below the
+// logger's minimum, or the logger itself is nil) are no-ops. See the package
+// documentation for the nil-receiver contract in full.
 type Event struct {
 	logger *Logger
 
@@ -46,7 +47,8 @@ type Event struct {
 
 // output returns the logger's [Output] for hyperlink and color resolution.
 // Every Event is created by a Logger constructor ([Logger.newEvent],
-// [Logger.Dict]), so e.logger is never nil.
+// [Logger.Dict]), so e.logger is never nil: on a nil Logger both return a nil
+// Event rather than an Event carrying a nil logger.
 func (e *Event) output() *Output {
 	return e.logger.Output()
 }

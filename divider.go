@@ -22,6 +22,9 @@ const (
 //	clog.Divider().Send()
 //	clog.Divider().Msg("Build Phase")
 //	clog.Divider().Char('═').Align(AlignCenter).Msg("Results")
+//
+// A nil *DividerBuilder is not inert; [Logger.Divider] never returns one, and
+// on a nil [Logger] it renders to [io.Discard] instead.
 type DividerBuilder struct {
 	logger     *Logger
 	char       rune
@@ -31,7 +34,7 @@ type DividerBuilder struct {
 
 // Divider returns a new [DividerBuilder] for rendering a horizontal rule.
 func (l *Logger) Divider() *DividerBuilder {
-	return &DividerBuilder{logger: l}
+	return &DividerBuilder{logger: l.orDiscard()}
 }
 
 // Char sets the character used for the divider line.

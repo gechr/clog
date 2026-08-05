@@ -20,5 +20,5 @@ func Group(ctx context.Context, opts ...fx.GroupOption) *fx.Group {
 // Group creates a new animation group. Configure it with options from the
 // fx package, e.g. [fx.WithParallelism] or [fx.WithHideDone].
 func (l *Logger) Group(ctx context.Context, opts ...fx.GroupOption) *fx.Group {
-	return fx.NewGroup(ctx, fxLogger{l}, opts...)
+	return fx.NewGroup(ctx, fxLogger{l.orDiscard()}, opts...)
 }

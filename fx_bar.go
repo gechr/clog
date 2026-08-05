@@ -17,6 +17,8 @@ func Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
 // Bar creates a new [fx.Builder] with a determinate progress bar animation.
 // total is the maximum progress value. Use [Update.SetProgress] to update progress.
 func (l *Logger) Bar(msg string, total int, opts ...bar.Option) *fx.Builder {
+	l = l.orDiscard()
+
 	if total <= 0 {
 		total = 1
 	}

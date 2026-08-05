@@ -7,6 +7,26 @@
 //
 // The default output is a pretty terminal formatter. A custom [Handler] can
 // be set for alternative formats (e.g. JSON).
+//
+// # Nil receivers
+//
+// A nil [Logger] and a nil [Event] are inert: every method on them is safe to
+// call, each returns a zero value or an equally inert object, and nothing is
+// written. A logging call is therefore never the thing that takes a process
+// down - a lazily-initialised package-level logger used before its
+// initialisation runs drops its output instead of panicking. The missing
+// initialisation is still a bug; it is just no longer a fatal one.
+//
+// The package never hands out a nil of either type: every constructor returns
+// a live value, and the builders on a nil Logger fall back to an inert logger
+// rather than propagating the nil (so [Logger.With], [Logger.Print],
+// [Logger.Divider], [Logger.Spinner] and friends are safe to chain). The
+// remaining exported pointer types - [Context], [Output], [Printer],
+// [DividerBuilder] - are deliberately not nil-tolerant: a nil one can only
+// come from a caller declaring it and never assigning it, and for Context it
+// is not even possible, because it embeds a value-typed field builder whose
+// promoted methods dereference the receiver before any guard could run (the
+// same constraint that stops [Event] embedding one).
 package clog
 
 import (
@@ -77,6 +97,21 @@ var defaultLogger = func() *atomic.Pointer[Logger] {
 	p.Store(New(Stdout(ColorAuto)))
 	return p
 }()
+
+// discardLogger backs every object a nil [Logger] hands out - printers,
+// dividers, animation builders, sub-loggers - so they stay inert instead of
+// carrying a nil logger to a panic one call away from the cause. It writes
+// nowhere and is never mutated: nil-receiver mutators return before they can
+// reach it.
+var discardLogger = New(NewOutput(io.Discard, ColorNever))
+
+// orDiscard returns l, or the shared inert logger when l is nil.
+func (l *Logger) orDiscard() *Logger {
+	if l == nil {
+		return discardLogger
+	}
+	return l
+}
 
 // Default returns the default [Logger] used by the package-level functions.
 func Default() *Logger { return defaultLogger.Load() }
@@ -149,6 +184,12 @@ var themedStyles = [themedStyleCount]struct {
 }
 
 // Logger is the main structured logger.
+//
+// A nil *Logger is inert, not fatal: every method is safe to call on one,
+// mirroring the nil-[Event] contract. Events are dropped, accessors report
+// their defaults, mutators are no-ops, prompts read nothing, and the builders
+// ([Logger.Print], [Logger.Divider], [Logger.Spinner] and friends) render to
+// [io.Discard]. See the package documentation for the contract in full.
 type Logger struct {
 	mu *sync.Mutex
 
@@ -279,13 +320,23 @@ func (l *Logger) Error() *Event { return l.newEvent(LevelError) }
 // Fatal returns a new [Event] at fatal level.
 func (l *Logger) Fatal() *Event { return l.newEvent(LevelFatal) }
 
-// Level returns the current minimum log level.
+// Level returns the current minimum log level. A nil [Logger] reports
+// [LevelInfo] - the Level zero value, and the level a real logger starts at -
+// but emits nothing at any level, which is what [Logger.LevelEnabled] reports.
 func (l *Logger) Level() Level {
+	if l == nil {
+		return LevelInfo
+	}
 	return Level(l.atomicLevel.Load())
 }
 
 // LevelEnabled reports whether the logger handles records at the given level.
+// A nil [Logger] handles no level, so it always reports false.
 func (l *Logger) LevelEnabled(level Level) bool {
+	if l == nil {
+		return false
+	}
+
 	//nolint:gosec // Level values are small constants (-10 to 15)
 	return int32(level) >= l.atomicLevel.Load()
 }
@@ -294,7 +345,11 @@ func (l *Logger) LevelEnabled(level Level) bool {
 //
 //	logger := clog.With().Str("component", "auth").Logger()
 //	logger.Info().Str("user", "john").Msg("Authenticated")
+//
+// A sub-logger of a nil [Logger] is inert too, so the whole chain stays safe.
 func (l *Logger) With() *Context {
+	l = l.orDiscard()
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	fields := make([]Field, len(l.fields))
@@ -312,7 +367,12 @@ func (l *Logger) With() *Context {
 }
 
 // WithContext returns a copy of ctx with the logger stored as a value.
+// A nil [Logger] is not stored - ctx is returned unchanged, so [Ctx] falls
+// back to [Default] rather than handing callers an inert logger.
 func (l *Logger) WithContext(ctx context.Context) context.Context {
+	if l == nil {
+		return ctx
+	}
 	return context.WithValue(ctx, ctxKey{}, l)
 }
 
@@ -391,7 +451,14 @@ func Dict() *Event { return Default().Dict() }
 
 // Dict returns a new detached [Event] for use as a nested dictionary field.
 // The event uses the logger's output for hyperlink/color resolution.
-func (l *Logger) Dict() *Event { return &Event{logger: l, dict: true} }
+// A nil [Logger] returns a nil Event: every Event method is a no-op on nil,
+// and [Event.Dict]/[Context.Dict] drop a nil dictionary.
+func (l *Logger) Dict() *Event {
+	if l == nil {
+		return nil
+	}
+	return &Event{logger: l, dict: true}
+}
 
 // Divider returns a new [DividerBuilder] for rendering a horizontal rule
 // using the [Default] logger.
@@ -416,6 +483,9 @@ func IsVerbose() bool {
 // is faster than d will be clamped to d. The default is 67ms (~15fps).
 // Zero means use built-in rates unchanged.
 func (l *Logger) SetAnimationInterval(d time.Duration) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.animationInterval = d
@@ -438,6 +508,9 @@ func (l *Logger) SetAnimationInterval(d time.Duration) {
 // exposure as the hidden cursor); `stty echo` or a shell prompt that resets
 // terminal modes recovers it.
 func (l *Logger) SetSuppressEchoDuringAnimations(suppress bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.suppressEcho = suppress
@@ -447,6 +520,9 @@ func (l *Logger) SetSuppressEchoDuringAnimations(suppress bool) {
 // SetColorMode sets the color mode by recreating the logger's [Output]
 // with the given mode.
 func (l *Logger) SetColorMode(mode ColorMode) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	w := l.output.Writer()
@@ -458,6 +534,9 @@ func (l *Logger) SetColorMode(mode ColorMode) {
 // Defaults to [os.Exit]. This can be used in tests to intercept fatal exits.
 // If fn is nil, the default [os.Exit] is used.
 func (l *Logger) SetExitFunc(fn func(int)) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if fn == nil {
@@ -470,6 +549,9 @@ func (l *Logger) SetExitFunc(fn func(int)) {
 // If code is 0, the default exit code (1) is used.
 // This can be overridden per-event with [Event.ExitCode].
 func (l *Logger) SetExitCode(code int) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.exitCode = code
@@ -478,6 +560,9 @@ func (l *Logger) SetExitCode(code int) {
 // SetFieldSort sets the sort order for fields in log output.
 // Default [SortNone] preserves insertion order.
 func (l *Logger) SetFieldSort(sort Sort) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.fieldSort = sort
@@ -487,6 +572,9 @@ func (l *Logger) SetFieldSort(sort Sort) {
 // styled (colored). Events below this level render fields as plain text.
 // Defaults to [LevelInfo].
 func (l *Logger) SetFieldStyleLevel(level Level) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.fieldStyleLevel = level
@@ -495,6 +583,9 @@ func (l *Logger) SetFieldStyleLevel(level Level) {
 // SetFieldTimeFormat sets the format string used for [time.Time] field values
 // added via [Event.Time] and [Context.Time]. Defaults to [time.RFC3339].
 func (l *Logger) SetFieldTimeFormat(format string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.fieldTimeFormat = format
@@ -503,6 +594,9 @@ func (l *Logger) SetFieldTimeFormat(format string) {
 // SetHandler sets a custom log handler. When set, the handler receives all
 // log entries instead of the built-in pretty formatter.
 func (l *Logger) SetHandler(h Handler) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.handler = h
@@ -512,6 +606,9 @@ func (l *Logger) SetHandler(h Handler) {
 // Multiple hooks per point are supported; they run in registration order.
 // Hooks are called under the logger's mutex.
 func (l *Logger) AddHook(point HookPoint, fn func()) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.hooks == nil {
@@ -522,6 +619,9 @@ func (l *Logger) AddHook(point HookPoint, fn func()) {
 
 // ClearAllHooks removes all registered hooks at every [HookPoint].
 func (l *Logger) ClearAllHooks() {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.hooks = nil
@@ -529,6 +629,9 @@ func (l *Logger) ClearAllHooks() {
 
 // ClearHooks removes all hooks registered at the given [HookPoint].
 func (l *Logger) ClearHooks(point HookPoint) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	delete(l.hooks, point)
@@ -536,6 +639,9 @@ func (l *Logger) ClearHooks(point HookPoint) {
 
 // SetIndent sets the indent depth (number of indent levels) on the logger.
 func (l *Logger) SetIndent(levels int) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.indent = levels
@@ -547,6 +653,9 @@ func (l *Logger) SetIndent(levels int) {
 // For example, with []string{"│"}, depth 2 produces "    │ " (4 spaces + "│" + space).
 // Pass nil to clear.
 func (l *Logger) SetIndentPrefixes(prefixes []string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.indentPrefixes = prefixes
@@ -555,6 +664,9 @@ func (l *Logger) SetIndentPrefixes(prefixes []string) {
 // SetIndentPrefixSeparator sets the separator appended after an indent prefix.
 // Defaults to " " (a single space).
 func (l *Logger) SetIndentPrefixSeparator(sep string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.indentPrefixSep = &sep
@@ -563,6 +675,9 @@ func (l *Logger) SetIndentPrefixSeparator(sep string) {
 // SetIndentWidth sets the number of spaces per indent level.
 // Defaults to 2.
 func (l *Logger) SetIndentWidth(width int) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.indentWidth = width
@@ -571,6 +686,9 @@ func (l *Logger) SetIndentWidth(width int) {
 // SetLabelWidth sets an explicit minimum width for level labels.
 // If width is 0, the width is computed automatically from the current labels.
 func (l *Logger) SetLabelWidth(width int) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if width <= 0 {
@@ -582,6 +700,9 @@ func (l *Logger) SetLabelWidth(width int) {
 
 // SetLevel sets the minimum log level.
 func (l *Logger) SetLevel(level Level) {
+	if l == nil {
+		return
+	}
 	l.atomicLevel.Store(int32(level)) //nolint:gosec // Level values are small constants (-10 to 15)
 }
 
@@ -590,6 +711,9 @@ func (l *Logger) SetLevel(level Level) {
 // output is not connected to a terminal, including animation progress lines.
 // Pass [UnsetLevel] to restore the default behaviour.
 func (l *Logger) SetNonTTYLevel(level Level) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.nonTTYLevel = level
@@ -597,6 +721,9 @@ func (l *Logger) SetNonTTYLevel(level Level) {
 
 // SetLevelAlign sets the alignment mode for level labels.
 func (l *Logger) SetLevelAlign(align Align) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.levelAlign = align
@@ -607,6 +734,9 @@ func (l *Logger) SetLevelAlign(align Align) {
 // Pass a map from [Level] to label string (e.g. {LevelWarn: "WARN"}).
 // Missing levels fall back to the defaults.
 func (l *Logger) SetLabels(labels LabelMap) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	merged := DefaultLabels()
@@ -619,6 +749,9 @@ func (l *Logger) SetLabels(labels LabelMap) {
 // SetOmitEmpty enables or disables omitting fields with empty values.
 // Empty means nil, empty strings, and nil or empty slices/maps.
 func (l *Logger) SetOmitEmpty(omit bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.omitEmpty = omit
@@ -628,6 +761,9 @@ func (l *Logger) SetOmitEmpty(omit bool) {
 // Zero means the zero value for any type (0, false, "", nil, etc.).
 // This is a superset of [Logger.SetOmitEmpty].
 func (l *Logger) SetOmitZero(omit bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.omitZero = omit
@@ -636,6 +772,9 @@ func (l *Logger) SetOmitZero(omit bool) {
 // SetPrintIndent sets the indentation string used by [Printer] output in
 // [PrintMultiline] mode. Defaults to two spaces ("  ").
 func (l *Logger) SetPrintIndent(indent string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.printIndent = indent
@@ -644,6 +783,9 @@ func (l *Logger) SetPrintIndent(indent string) {
 // SetJSONIndent sets a JSON-specific indentation string, overriding [SetPrintIndent]
 // for JSON output only. Pass "" to clear and fall back to [SetPrintIndent].
 func (l *Logger) SetJSONIndent(indent string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.jsonIndent = indent
@@ -653,6 +795,9 @@ func (l *Logger) SetJSONIndent(indent string) {
 // The default is [JSONPretty]. Per-call overrides are available
 // via [Printer.Mode].
 func (l *Logger) SetJSONPrintMode(mode JSONPrintMode) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.jsonPrintMode = mode
@@ -661,6 +806,9 @@ func (l *Logger) SetJSONPrintMode(mode JSONPrintMode) {
 // SetYAMLIndent sets a YAML-specific indentation string, overriding [SetPrintIndent]
 // for YAML output only. Pass "" to clear and fall back to [SetPrintIndent].
 func (l *Logger) SetYAMLIndent(indent string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.yamlIndent = indent
@@ -679,6 +827,9 @@ func (l *Logger) SetYAMLIndent(indent string) {
 //	- a
 //	- b
 func (l *Logger) SetYAMLIndentSequence(indent bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.yamlIndentSequence = &indent
@@ -689,6 +840,9 @@ func (l *Logger) SetYAMLIndentSequence(indent bool) {
 // honouring the logger's [FieldFormats], and the echo-suppression setting
 // from [Logger.SetSuppressEchoDuringAnimations].
 func (l *Logger) SetOutput(out *Output) {
+	if l == nil {
+		return
+	}
 	if f := l.fieldFormats.Load(); f != nil {
 		out.setHyperlinks(f.hyperlinkConfig())
 	}
@@ -700,11 +854,18 @@ func (l *Logger) SetOutput(out *Output) {
 
 // SetOutputWriter sets the output writer with [ColorAuto].
 func (l *Logger) SetOutputWriter(w io.Writer) {
+	if l == nil {
+		return
+	}
 	l.SetOutput(NewOutput(w, ColorAuto))
 }
 
-// Output returns the logger's [Output].
+// Output returns the logger's [Output]. A nil [Logger] returns the inert
+// output every other nil-receiver builder writes to, so callers can use it
+// without a nil check of their own.
 func (l *Logger) Output() *Output {
+	l = l.orDiscard()
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return l.output
@@ -714,6 +875,9 @@ func (l *Logger) Output() *Output {
 // Defaults to [os.Stdin]. Primarily useful for tests. Pass nil to restore
 // the default.
 func (l *Logger) SetInput(r io.Reader) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if r == nil {
@@ -728,6 +892,9 @@ func (l *Logger) SetInput(r io.Reader) {
 // is rendered with the [style.Config.Prompt] style, so it can carry its own
 // color independent of the prompt message. Pass "" to disable.
 func (l *Logger) SetPromptMarker(marker string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.promptMarker = marker
@@ -737,6 +904,9 @@ func (l *Logger) SetPromptMarker(marker string) {
 // Parts not included in the order are hidden. Parts can be reordered freely.
 // Panics if no parts are provided.
 func (l *Logger) SetParts(parts ...Part) {
+	if l == nil {
+		return
+	}
 	if len(parts) == 0 {
 		panic("clog: SetParts requires at least one part")
 	}
@@ -749,6 +919,9 @@ func (l *Logger) SetParts(parts ...Part) {
 // SetSymbols sets the emoji symbols used for each level.
 // Pass a map from [Level] to symbol string. Missing levels fall back to the defaults.
 func (l *Logger) SetSymbols(symbols LabelMap) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	merged := DefaultSymbols()
@@ -764,6 +937,9 @@ func (l *Logger) SetSymbols(symbols LabelMap) {
 // Setting a non-zero openChar overrides [Logger.SetSmartQuotes], even when
 // smart quoting is enabled.
 func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quoteOpen = openChar
@@ -774,6 +950,9 @@ func (l *Logger) SetQuoteChars(openChar, closeChar rune) {
 // [QuoteAuto] (default) quotes only when needed; [QuoteAlways] always quotes
 // string/error/default-kind values; [QuoteNever] never quotes.
 func (l *Logger) SetQuote(mode Quote) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.quoteMode = mode
@@ -791,6 +970,9 @@ var defaultSmartQuoteChars = []QuotePair{{Open: '"'}, {Open: '\''}, {Open: '`'}}
 // no pair fits (or the value contains backslashes or non-printable runes).
 // [Logger.SetQuoteChars] takes precedence over smart quoting when set explicitly.
 func (l *Logger) SetSmartQuotes(enabled bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.smartQuotes = enabled
@@ -802,6 +984,9 @@ func (l *Logger) SetSmartQuotes(enabled bool) {
 // restores the default order ('"', then '\”, then '`'). This configures the
 // order only; it does not by itself enable smart quoting.
 func (l *Logger) SetSmartQuoteChars(pairs ...QuotePair) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.smartQuoteChars = pairs
@@ -823,6 +1008,9 @@ func (l *Logger) smartQuotePairs() []QuotePair {
 
 // SetReportTimestamp enables or disables timestamp reporting.
 func (l *Logger) SetReportTimestamp(report bool) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.reportTimestamp = report
@@ -831,6 +1019,9 @@ func (l *Logger) SetReportTimestamp(report bool) {
 // SetSeparatorText sets the separator between field keys and values.
 // Defaults to "=".
 func (l *Logger) SetSeparatorText(sep string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.separatorText = sep
@@ -840,6 +1031,9 @@ func (l *Logger) SetSeparatorText(sep string) {
 // values. Pass the same rune twice for symmetric brackets.
 // Defaults to '[' and ']'.
 func (l *Logger) SetSliceBrackets(openChar, closeChar rune) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.sliceOpen = openChar
@@ -849,6 +1043,9 @@ func (l *Logger) SetSliceBrackets(openChar, closeChar rune) {
 // SetSliceSeparator sets the separator between elements in slice field values.
 // Defaults to ", ".
 func (l *Logger) SetSliceSeparator(sep string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.sliceSep = sep
@@ -869,6 +1066,9 @@ func (l *Logger) resolveSpinnerConfig() spinner.Config {
 // SetSpinnerDefaults sets the default spinner configuration used by
 // [Logger.Spinner], built by applying opts over [spinner.DefaultConfig].
 func (l *Logger) SetSpinnerDefaults(opts ...spinner.Option) {
+	if l == nil {
+		return
+	}
 	cfg := spinner.Apply(opts...)
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -881,6 +1081,9 @@ func (l *Logger) SetSpinnerDefaults(opts ...spinner.Option) {
 // built-in default pair. For a fixed theme regardless of background, use
 // [theme.Single]. Per-token overrides via [SetStyles] still apply.
 func (l *Logger) SetTheme(p *theme.Pair) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.printThemePair = p
@@ -927,6 +1130,9 @@ func (l *Logger) applyPrintThemeLocked(t *theme.Theme) {
 // Non-nil pointer fields overwrite existing values; map fields are merged
 // key-by-key. Pass nil to reset to [DefaultStyles].
 func (l *Logger) SetStyles(styles *style.Config) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if styles == nil {
@@ -982,6 +1188,9 @@ func customGradient(s *style.Config) bool {
 
 // SetTimeFormat sets the timestamp format string.
 func (l *Logger) SetTimeFormat(format string) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.timeFormat = format
@@ -990,6 +1199,9 @@ func (l *Logger) SetTimeFormat(format string) {
 // SetTimeLocation sets the timezone for timestamps. Defaults to [time.Local].
 // If loc is nil, [time.Local] is used.
 func (l *Logger) SetTimeLocation(loc *time.Location) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if loc == nil {
@@ -1001,6 +1213,9 @@ func (l *Logger) SetTimeLocation(loc *time.Location) {
 // SetTreeChars sets the box-drawing characters used for tree indentation.
 // See [DefaultTreeChars] for the defaults.
 func (l *Logger) SetTreeChars(chars TreeChars) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.treeChars = chars
@@ -1011,6 +1226,9 @@ func (l *Logger) SetTreeChars(chars TreeChars) {
 // writing. [WrapSoft] prefers breaking at word boundaries.
 // Has no effect on non-TTY outputs.
 func (l *Logger) SetWrap(wrap Wrap) {
+	if l == nil {
+		return
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	l.wrap = wrap
@@ -1388,8 +1606,12 @@ func (l *Logger) runHooks(point HookPoint) {
 
 // newEvent creates a new [Event] for the given level.
 // Returns nil if the level is below the logger's minimum (all Event methods
-// are no-ops on nil).
+// are no-ops on nil), or if the logger itself is nil (see [Logger]).
 func (l *Logger) newEvent(level Level) *Event {
+	if l == nil {
+		return nil
+	}
+
 	// Fast path: lock-free level check to skip disabled events without
 	// acquiring the mutex.
 	//nolint:gosec // Level values are small constants (-10 to 15)
