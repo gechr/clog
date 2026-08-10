@@ -111,7 +111,7 @@ func (o *Output) Writer() io.Writer { return o.w }
 // log line on the same writer coordinates through it. The fx render loops
 // discover the region via an optional-capability type assertion, which keeps
 // the fx.Output interface (and external implementations) unchanged.
-func (o *Output) LiveRegion() *core.LiveRegion {
+func (o *Output) LiveRegion() *LiveRegion {
 	if r := o.region.Load(); r != nil {
 		return r
 	}
@@ -142,7 +142,7 @@ func (o *Output) SetSuppressEchoDuringAnimations(suppress bool) {
 
 // WriteLine writes a fully formatted log line (or multi-line payload ending
 // in a newline) to the underlying writer. While animations are live on this
-// output, the write is routed through the [core.LiveRegion] so the animation
+// output, the write is routed through the [LiveRegion] so the animation
 // block is displaced: erased, the line written above, and the block repainted
 // below in one synchronized frame. Without an active region this is a plain
 // write.

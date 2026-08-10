@@ -102,3 +102,23 @@ const (
 // TreeChars defines the box-drawing characters used by tree indentation.
 // Override with [Logger.SetTreeChars].
 type TreeChars = core.TreeChars
+
+// LiveRegion coordinates a single repaintable block of animation lines with
+// regular log writes on the same terminal. Obtain one with
+// [Output.LiveRegion]; there is exactly one per [Output], and it is created
+// on first use. External animation owners register a slot, write log lines
+// through [LiveRegion.WriteLines] so they displace the block instead of being
+// overpainted, force an out-of-band frame with [LiveRegion.RenderFrame], and
+// unregister when done.
+//
+// This is an alias so the type is nameable outside clog - callers can declare
+// variables and struct fields of this type rather than only chaining calls
+// off [Output.LiveRegion].
+type LiveRegion = core.LiveRegion
+
+// EchoController toggles the terminal's local echo while a live block is on
+// screen, so characters typed by the user cannot corrupt the block's row
+// accounting. Install one with [LiveRegion.SetEchoController], or let
+// [Logger.SetSuppressEchoDuringAnimations] install the built-in one.
+// Implementations must be idempotent.
+type EchoController = core.EchoController
