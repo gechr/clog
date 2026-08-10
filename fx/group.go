@@ -31,7 +31,7 @@ type Group struct {
 	mu  sync.Mutex
 
 	liveMu     sync.Mutex
-	liveRegion *core.LiveRegion
+	liveRegion *LiveRegion
 	liveSlot   uint64
 	liveWake   chan struct{}
 	suspended  bool
@@ -256,7 +256,7 @@ func (g *Group) Resume() {
 // suspended. The group lock spans registration so Suspend cannot miss a slot
 // that is being created concurrently.
 func (g *Group) registerLiveSlot(
-	region *core.LiveRegion,
+	region *LiveRegion,
 	render func(time.Time) string,
 	tick time.Duration,
 ) {
@@ -278,7 +278,7 @@ func (g *Group) hasLiveSlot() bool {
 	return g.liveSlot != 0
 }
 
-func (g *Group) unregisterLiveSlot(region *core.LiveRegion) {
+func (g *Group) unregisterLiveSlot(region *LiveRegion) {
 	g.liveMu.Lock()
 	defer g.liveMu.Unlock()
 	id := g.liveSlot

@@ -1518,7 +1518,7 @@ func (st *groupLoopState) updateStatusLines() (bool, bool) {
 }
 
 // runGroupLoopRegion runs the group render loop with the group's block as one
-// multi-line slot of the output's shared [core.LiveRegion], blocking until
+// multi-line slot of the output's shared [LiveRegion], blocking until
 // all tasks complete or the context is cancelled.
 //
 // The slot's render closure returns the most recently accepted frame rather
@@ -1533,7 +1533,7 @@ func (st *groupLoopState) updateStatusLines() (bool, bool) {
 func runGroupLoopRegion(
 	ctx context.Context,
 	st *groupLoopState,
-	region *core.LiveRegion,
+	region *LiveRegion,
 	tickRate time.Duration,
 ) error {
 	var block atomic.Pointer[string]

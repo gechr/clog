@@ -17,18 +17,19 @@ func writeString(w io.Writer, s string) {
 }
 
 // liveRegionProvider is the optional capability probed for on the task's
-// [RenderOutput]. The root clog Output implements it; external Output
-// implementations (and test stubs) that don't get a private region wrapping
-// their writer, so the interface contracts stay unchanged.
+// [RenderOutput]. The root clog Output implements it, and external Output
+// implementations (and test stubs) can too - [LiveRegion] is exported for
+// exactly that. Those that don't get a private region wrapping their writer,
+// so the [Output] and [RenderOutput] contracts stay unchanged.
 type liveRegionProvider interface {
-	LiveRegion() *core.LiveRegion
+	LiveRegion() *LiveRegion
 }
 
-// liveRegionFor returns the output's shared [core.LiveRegion] when it
+// liveRegionFor returns the output's shared [LiveRegion] when it
 // provides one, or a private region wrapping the output's writer otherwise.
 // A private region coordinates the animations of a single run; only the
 // shared region additionally displaces log lines written on the same output.
-func liveRegionFor(output RenderOutput) *core.LiveRegion {
+func liveRegionFor(output RenderOutput) *LiveRegion {
 	if p, ok := output.(liveRegionProvider); ok {
 		if region := p.LiveRegion(); region != nil {
 			return region
@@ -114,7 +115,7 @@ func runAnimation(ctx context.Context, t *groupTask, task TaskFunc) error {
 }
 
 // runAnimationRegion runs a single animation as one slot of the output's
-// [core.LiveRegion], blocking until the task completes or the context is
+// [LiveRegion], blocking until the task completes or the context is
 // cancelled. The region's render loop calls the slot's render closure
 // under the region lock, so this goroutine must not call renderTaskLine while
 // the slot is registered (the closure mutates per-tick caches on gt).
@@ -126,7 +127,7 @@ func runAnimationRegion(
 	b *Builder,
 	gt *renderTask,
 	done <-chan error,
-	region *core.LiveRegion,
+	region *LiveRegion,
 ) error {
 	id := region.Register(func(now time.Time) string {
 		return renderTaskLine(gt, false, now, nil)

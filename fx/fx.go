@@ -39,6 +39,19 @@ type Output interface {
 	Hyperlink(url, text string) string
 }
 
+// LiveRegion coordinates a single repaintable block of animation lines with
+// regular log writes on the same terminal. An [Output] implementation opts
+// into a shared region - one that also displaces log lines written to the
+// same writer - by additionally providing:
+//
+//	LiveRegion() *fx.LiveRegion
+//
+// An Output that does not provide one gets a private region wrapping its
+// writer, which coordinates the animations of a single run but not the
+// surrounding log output. The root clog Output provides a shared region, and
+// the clog package aliases this same type as clog.LiveRegion.
+type LiveRegion = core.LiveRegion
+
 // RenderOutput extends [Output] with the terminal-geometry queries the
 // render loops need to size and reposition the live block.
 type RenderOutput interface {

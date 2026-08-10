@@ -36,16 +36,16 @@ func (w *lockedWriter) String() string {
 	return w.buf.String()
 }
 
-// regionStubOutput is a stubOutput that exposes a shared [core.LiveRegion],
+// regionStubOutput is a stubOutput that exposes a shared [LiveRegion],
 // driving the render loops down the live-region path the way the root clog
 // Output does.
 type regionStubOutput struct {
 	stubOutput
 
-	region *core.LiveRegion
+	region *LiveRegion
 }
 
-func (o *regionStubOutput) LiveRegion() *core.LiveRegion { return o.region }
+func (o *regionStubOutput) LiveRegion() *LiveRegion { return o.region }
 
 // regionStubLogger wraps stubLogger so TaskConfig hands the render loops the
 // region-capable output instead of the bare stub.
