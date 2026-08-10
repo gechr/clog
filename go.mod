@@ -13,7 +13,8 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/gechr/gorules v0.0.3
-	github.com/gechr/x v0.5.16
+	github.com/gechr/x v0.5.17
+	github.com/go-logr/logr v1.4.4
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.24.0
 	github.com/lucasb-eyer/go-colorful v1.4.1
@@ -22,6 +23,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/sys v0.47.0
 	golang.org/x/term v0.45.0
+	k8s.io/klog/v2 v2.140.0
 )
 
 require (

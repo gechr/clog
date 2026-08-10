@@ -10,6 +10,7 @@
   - [Hooks](hooks.md)
   - [Handlers](handlers.md)
   - [`log/slog`](slog.md)
+  - [`klog`](klog.md)
 
 - [Formatting]()
   - [Part Order](part-order.md)

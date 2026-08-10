@@ -12,6 +12,7 @@ A highly customizable structured logger for command-line tools with a [zerolog](
 - **[JSON highlighting](json.md)** - syntax-highlighted JSON output with configurable rendering modes
 - **[Styling](styles.md)** - full visual customisation via [lipgloss](https://charm.land/lipgloss/v2), including per-key, per-value, and per-type colors
 - **[`log/slog` integration](slog.md)** - drop-in `slog.Handler` backed by clog
+- **[`klog` integration](klog.md)** - `logr.LogSink` backed by clog, for [klog](https://github.com/kubernetes/klog) and [controller-runtime](https://github.com/kubernetes-sigs/controller-runtime)
 - **[`NO_COLOR`](no-color.md)** - respects the `NO_COLOR` convention out of the box
 
 ## Installation
