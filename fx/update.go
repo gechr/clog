@@ -23,11 +23,11 @@ type UpdateFunc func(context.Context, *Update) error
 // during an [UpdateFunc]. Call [Update.Msg] and field methods to
 // build the update, then [Update.Send] to apply it atomically.
 type Update struct {
-	core.FieldBuilder[Update]
+	FieldBuilder[Update]
 
-	base              []core.Field
+	base              []Field
 	elapsed           func() time.Duration // task elapsed time, for anchoring update-scoped deadlines; nil-safe
-	fieldsPtr         *atomic.Pointer[[]core.Field]
+	fieldsPtr         *atomic.Pointer[[]Field]
 	levelPtr          *atomic.Int64 // overridden level; nil when not updatable
 	msgPtr            *atomic.Pointer[string]
 	msgText           string
@@ -99,7 +99,7 @@ func (p *Update) AddTotal(delta int) *Update {
 
 // SetLevel overrides the log level used when rendering the final done line.
 // No-op if the animation does not support level updates.
-func (p *Update) SetLevel(level core.Level) *Update {
+func (p *Update) SetLevel(level level.Level) *Update {
 	if p.levelPtr != nil {
 		p.levelPtr.Store(int64(level))
 	}
@@ -153,7 +153,7 @@ func (p *Update) Deadline(
 		// the elapsed-so-far into From anchors the countdown at now.
 		f.From += p.elapsed()
 	}
-	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
+	p.Fields = append(p.Fields, Field{Key: key, Value: f})
 	return p
 }
 
@@ -182,7 +182,7 @@ func (p *Update) Elapsed(
 	if p.elapsed != nil {
 		f.Start += p.elapsed()
 	}
-	p.Fields = append(p.Fields, core.Field{Key: key, Value: f})
+	p.Fields = append(p.Fields, Field{Key: key, Value: f})
 	return p
 }
 
@@ -195,7 +195,7 @@ func (p *Update) Elapsed(
 func (p *Update) Clear() {
 	empty := ""
 	p.msgPtr.Store(&empty)
-	merged := []core.Field{}
+	merged := []Field{}
 	p.fieldsPtr.Store(&merged)
 	p.Fields = nil
 	p.msgText = ""

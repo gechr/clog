@@ -89,7 +89,7 @@ type groupTask struct {
 	builder        *Builder
 	doneErr        chan error // buffered(1); goroutine sends result here
 	err            error      // populated by Wait() after doneErr is drained
-	fieldsPtr      *atomic.Pointer[[]core.Field]
+	fieldsPtr      *atomic.Pointer[[]Field]
 	finishedAt     atomic.Int64
 	levelPtr       *atomic.Int64
 	msgPtr         *atomic.Pointer[string]

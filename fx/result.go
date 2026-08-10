@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/gechr/clog/internal/core"
 	"github.com/gechr/clog/level"
 )
 
@@ -21,8 +20,8 @@ type WaitResult struct {
 func NewWaitResult(
 	err error,
 	logger Logger,
-	parts *[]core.Part,
-	lvl core.Level,
+	parts *[]Part,
+	lvl level.Level,
 	msg string,
 ) *WaitResult {
 	w := &WaitResult{

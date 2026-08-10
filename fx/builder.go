@@ -25,7 +25,7 @@ const DefaultSymbol = "⏳"
 // Create one with [NewBuilder] or the root clog convenience constructors
 // (Spinner, Pulse, Shimmer, Bar).
 type Builder struct {
-	core.FieldBuilder[Builder]
+	FieldBuilder[Builder]
 
 	cfg BuilderConfig // construction-time configuration (single source of truth)
 
@@ -48,7 +48,7 @@ type BuilderConfig struct {
 	BarProgress    *atomic.Int64 // bar mode: current progress; nil for non-bar modes
 	BarConfig      bar.Config    // bar mode: visual style
 	BarTotal       *atomic.Int64 // bar mode: total progress; nil for non-bar modes
-	Level          core.Level    // log level used during animation rendering (default: LevelInfo)
+	Level          level.Level   // log level used during animation rendering (default: LevelInfo)
 	Logger         Logger        // the logger interface; nil uses Default
 	Message        string
 	Mode           Animation
@@ -97,7 +97,7 @@ func (b *Builder) ElapsedFieldKey() string { return b.elapsedKey }
 func (b *Builder) IndentLevel() int { return b.indentDepth }
 
 // LogLevel returns the log level used during animation rendering.
-func (b *Builder) LogLevel() core.Level { return b.cfg.Level }
+func (b *Builder) LogLevel() level.Level { return b.cfg.Level }
 
 // InitialMessage returns the initial animation message.
 func (b *Builder) InitialMessage() string { return b.cfg.Message }
@@ -106,7 +106,7 @@ func (b *Builder) InitialMessage() string { return b.cfg.Message }
 func (b *Builder) AnimationMode() Animation { return b.cfg.Mode }
 
 // PartOrder returns the animation-specific part order override.
-func (b *Builder) PartOrder() ([]core.Part, bool) {
+func (b *Builder) PartOrder() ([]Part, bool) {
 	if b.partOverrides == nil {
 		return nil, false
 	}
@@ -143,7 +143,7 @@ func (b *Builder) SymbolOverride() string { return b.cfg.SymbolIcon }
 func (b *Builder) MessageStyleOverride() *lipgloss.Style { return b.msgStyle }
 
 // TreePositions returns the additional tree levels applied to the animation.
-func (b *Builder) TreePositions() []core.TreePos { return slices.Clone(b.treePos) }
+func (b *Builder) TreePositions() []TreePos { return slices.Clone(b.treePos) }
 
 // ResolveLogger returns the builder's logger, falling back to the given default.
 func (b *Builder) ResolveLogger(def Logger) Logger {
@@ -186,7 +186,7 @@ func (b *Builder) Indent() *Builder {
 }
 
 // Tree adds one tree-nesting level with the given position.
-func (b *Builder) Tree(pos core.TreePos) *Builder {
+func (b *Builder) Tree(pos TreePos) *Builder {
 	b.treePos = append(b.treePos, pos)
 	return b
 }
@@ -207,7 +207,7 @@ func (b *Builder) After(d time.Duration) *Builder {
 
 // Parts overrides the log-line part order for this animation and its
 // completion message.
-func (b *Builder) Parts(parts ...core.Part) *Builder {
+func (b *Builder) Parts(parts ...Part) *Builder {
 	b.partOverrides = new(parts)
 	return b
 }
@@ -244,7 +244,7 @@ func (b *Builder) Spinner(opts ...spinner.Option) *Builder {
 func (b *Builder) Elapsed(key string, opts ...elapsed.Option) *Builder {
 	b.elapsedKey = key
 	elapsed.Apply(&b.elapsedOverride, opts...)
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: b.elapsedOverride})
+	b.Fields = append(b.Fields, Field{Key: key, Value: b.elapsedOverride})
 	return b
 }
 
@@ -260,24 +260,24 @@ func (b *Builder) Deadline(key string, from time.Duration, opts ...deadline.Opti
 	b.deadlineOverride.Remaining = from
 	b.deadlineOverride.OmitOnDone = true
 	deadline.Apply(&b.deadlineOverride, opts...)
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: b.deadlineOverride})
+	b.Fields = append(b.Fields, Field{Key: key, Value: b.deadlineOverride})
 	return b
 }
 
 // BarPercent enables an auto-updating percentage field for [AnimationBar].
 func (b *Builder) BarPercent(key string) *Builder {
 	b.barPercentKey = key
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: core.Percent{}})
+	b.Fields = append(b.Fields, Field{Key: key, Value: Percent{}})
 	return b
 }
 
-// BarPercentValue returns the current progress as a [core.Percent].
-func (b *Builder) BarPercentValue() core.Percent {
+// BarPercentValue returns the current progress as a [Percent].
+func (b *Builder) BarPercentValue() Percent {
 	cur := int(b.cfg.BarProgress.Load())
 	tot := int(b.cfg.BarTotal.Load())
 	m := b.percentMaximum()
 	pct := float64(cur) / float64(max(tot, 1)) * m
-	return core.Percent{Value: min(pct, m)}
+	return Percent{Value: min(pct, m)}
 }
 
 // percentMaximum returns the stamped percent input-range maximum,
@@ -290,11 +290,11 @@ func (b *Builder) percentMaximum() float64 {
 }
 
 // StripDynamicFields returns fields with animation-only dynamic fields removed.
-func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
+func (b *Builder) StripDynamicFields(fields []Field) []Field {
 	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) {
 		return fields
 	}
-	out := make([]core.Field, 0, len(fields))
+	out := make([]Field, 0, len(fields))
 	for _, f := range fields {
 		if f.Key == b.deadlineKey || f.Key == b.elapsedKey || f.Key == b.barPercentKey {
 			continue
@@ -309,11 +309,11 @@ func (b *Builder) StripDynamicFields(fields []core.Field) []core.Field {
 // builder's percent key). It is the shared core of
 // [Builder.ResolveDynamicFields] and the group render loop's resolver.
 func (b *Builder) resolveFieldsWith(
-	fields []core.Field,
+	fields []Field,
 	dur time.Duration,
-	pct func() core.Percent,
-) []core.Field {
-	out := make([]core.Field, len(fields))
+	pct func() Percent,
+) []Field {
+	out := make([]Field, len(fields))
 	copy(out, fields)
 	for i := range out {
 		switch out[i].Key {
@@ -345,7 +345,7 @@ func (b *Builder) resolveFieldsWith(
 }
 
 // ResolveDynamicFields clones fields and injects elapsed/deadline/percent values.
-func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) []core.Field {
+func (b *Builder) ResolveDynamicFields(fields []Field, dur time.Duration) []Field {
 	if xstrings.AllEmpty(b.deadlineKey, b.elapsedKey, b.barPercentKey) &&
 		!hasDynamicField(fields) {
 		return fields
@@ -363,7 +363,7 @@ func (b *Builder) ResolveDynamicFields(fields []core.Field, dur time.Duration) [
 
 // ResolveDoneFields resolves animation-only dynamic fields for a done row,
 // then removes fields marked OmitOnDone.
-func (b *Builder) ResolveDoneFields(fields []core.Field, dur time.Duration) []core.Field {
+func (b *Builder) ResolveDoneFields(fields []Field, dur time.Duration) []Field {
 	return omitOnDoneFields(b.ResolveDynamicFields(fields, dur))
 }
 
@@ -371,7 +371,7 @@ func (b *Builder) ResolveDoneFields(fields []core.Field, dur time.Duration) []co
 // value - an update-scoped deadline ([Update.Deadline]) or elapsed
 // ([Update.Elapsed]) animates without a builder key, so the render paths must
 // resolve dynamic fields whenever one is present.
-func hasDynamicField(fields []core.Field) bool {
+func hasDynamicField(fields []Field) bool {
 	for _, f := range fields {
 		switch f.Value.(type) {
 		case core.DeadlineField, core.ElapsedField:
@@ -381,8 +381,8 @@ func hasDynamicField(fields []core.Field) bool {
 	return false
 }
 
-func omitOnDoneFields(fields []core.Field) []core.Field {
-	var out []core.Field
+func omitOnDoneFields(fields []Field) []Field {
+	var out []Field
 	for i, f := range fields {
 		if !fieldOmitOnDone(f.Value) {
 			if out != nil {
@@ -391,7 +391,7 @@ func omitOnDoneFields(fields []core.Field) []core.Field {
 			continue
 		}
 		if out == nil {
-			out = make([]core.Field, 0, len(fields)-1)
+			out = make([]Field, 0, len(fields)-1)
 			out = append(out, fields[:i]...)
 		}
 	}
@@ -417,7 +417,7 @@ func fieldOmitOnDone(v any) bool {
 // moveFieldLast returns out with the first field matching key moved to the
 // end, preserving the order of the rest. out must be a fresh copy - the shift
 // mutates it in place.
-func moveFieldLast(out []core.Field, key string) []core.Field {
+func moveFieldLast(out []Field, key string) []Field {
 	idx := -1
 	for i := range out {
 		if out[i].Key == key {
@@ -436,7 +436,7 @@ func moveFieldLast(out []core.Field, key string) []core.Field {
 // Path adds a file path field as a clickable terminal hyperlink.
 func (b *Builder) Path(key, path string) *Builder {
 	output := b.ResolveLogger(nil).Output()
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: output.PathLink(path, 0, 0)})
+	b.Fields = append(b.Fields, Field{Key: key, Value: output.PathLink(path, 0, 0)})
 	return b
 }
 
@@ -446,7 +446,7 @@ func (b *Builder) Line(key, path string, line int) *Builder {
 	if line < 1 {
 		line = 1
 	}
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: output.PathLink(path, line, 0)})
+	b.Fields = append(b.Fields, Field{Key: key, Value: output.PathLink(path, line, 0)})
 	return b
 }
 
@@ -459,21 +459,21 @@ func (b *Builder) Column(key, path string, line, column int) *Builder {
 	if column < 1 {
 		column = 1
 	}
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: output.PathLink(path, line, column)})
+	b.Fields = append(b.Fields, Field{Key: key, Value: output.PathLink(path, line, column)})
 	return b
 }
 
 // URL adds a field as a clickable terminal hyperlink.
 func (b *Builder) URL(key, url string) *Builder {
 	output := b.ResolveLogger(nil).Output()
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: output.Hyperlink(url, url)})
+	b.Fields = append(b.Fields, Field{Key: key, Value: output.Hyperlink(url, url)})
 	return b
 }
 
 // Link adds a field as a clickable terminal hyperlink with custom display text.
 func (b *Builder) Link(key, url, text string) *Builder {
 	output := b.ResolveLogger(nil).Output()
-	b.Fields = append(b.Fields, core.Field{Key: key, Value: output.Hyperlink(url, text)})
+	b.Fields = append(b.Fields, Field{Key: key, Value: output.Hyperlink(url, text)})
 	return b
 }
 
@@ -488,9 +488,9 @@ func (b *Builder) Wait(ctx context.Context, task TaskFunc) *WaitResult {
 // the builder's static configuration.
 func newTaskPointers(
 	b *Builder,
-) (*atomic.Pointer[string], *atomic.Pointer[[]core.Field], *atomic.Pointer[string]) {
+) (*atomic.Pointer[string], *atomic.Pointer[[]Field], *atomic.Pointer[string]) {
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msgPtr.Store(&b.cfg.Message)
 	fieldsPtr.Store(&b.Fields)

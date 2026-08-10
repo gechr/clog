@@ -57,7 +57,7 @@ type stubLogger struct {
 
 func (s *stubLogger) Done(DoneEvent) {}
 
-func (s *stubLogger) WithIndent(int, []core.TreePos) Logger { return s }
+func (s *stubLogger) WithIndent(int, []TreePos) Logger { return s }
 
 func (s *stubLogger) Output() Output { return s.out }
 
@@ -78,20 +78,20 @@ func (s *stubLogger) TaskConfig(b *Builder) TaskConfig {
 		TimeFormat:        time.Kitchen,
 		TimeLocation:      time.UTC,
 		FormatFields:      stubFormatFields,
-		StyleLevel:        func(core.Level) string { return "INF" },
-		StyleMessage:      func(msg string, _ core.Level) string { return msg },
-		StyleSymbol:       func(symbol string, _ core.Level) string { return symbol },
+		StyleLevel:        func(level.Level) string { return "INF" },
+		StyleMessage:      func(msg string, _ level.Level) string { return msg },
+		StyleSymbol:       func(symbol string, _ level.Level) string { return symbol },
 		StyleTimestamp:    func(ts string) string { return ts },
 	}
 }
 
-func testParts() []core.Part {
-	return []core.Part{
-		core.PartTimestamp,
-		core.PartLevel,
-		core.PartSymbol,
-		core.PartMessage,
-		core.PartFields,
+func testParts() []Part {
+	return []Part{
+		PartTimestamp,
+		PartLevel,
+		PartSymbol,
+		PartMessage,
+		PartFields,
 	}
 }
 
@@ -100,14 +100,14 @@ const percentScale = 100
 
 // stubFormatFields formats fields as "k=v" pairs with a leading space,
 // mirroring root clog's colorless output for the value types these tests use.
-func stubFormatFields(fields []core.Field) string {
+func stubFormatFields(fields []Field) string {
 	var b strings.Builder
 	for _, f := range fields {
 		b.WriteString(" ")
 		b.WriteString(f.Key)
 		b.WriteByte('=')
 		switch v := f.Value.(type) {
-		case core.Percent:
+		case Percent:
 			fmt.Fprintf(&b, "%.0f%%", v.Value*percentScale)
 		case core.ElapsedField:
 			b.WriteString(v.Value.Truncate(time.Second).String())
@@ -184,10 +184,10 @@ func TestShouldRenderTaskAfterDelay(t *testing.T) {
 	b := testSpinner(log, "delayed").After(time.Second)
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "delayed"
-	fields := []core.Field{{Key: "stage", Value: "running"}}
+	fields := []Field{{Key: "stage", Value: "running"}}
 	symbol := "⏳"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -214,10 +214,10 @@ func TestShouldRenderTaskAfterDelaySkipsTaskDoneBeforeDelay(t *testing.T) {
 	b := testSpinner(log, "delayed").After(time.Second)
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "delayed"
-	fields := []core.Field{{Key: "stage", Value: "running"}}
+	fields := []Field{{Key: "stage", Value: "running"}}
 	symbol := "⏳"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -269,9 +269,9 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 
 		b := testBar(log, "downloading", 100)
 		msgPtr := &atomic.Pointer[string]{}
-		fieldsPtr := &atomic.Pointer[[]core.Field]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "downloading"
-		fields := []core.Field{}
+		fields := []Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
 		s := &renderTask{
@@ -290,9 +290,9 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 			Interval: 17 * time.Millisecond,
 		}))
 		msgPtr := &atomic.Pointer[string]{}
-		fieldsPtr := &atomic.Pointer[[]core.Field]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "loading"
-		fields := []core.Field{}
+		fields := []Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
 		s := &renderTask{
@@ -308,9 +308,9 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 
 		b := testBar(log, "downloading", 100)
 		msgPtr := &atomic.Pointer[string]{}
-		fieldsPtr := &atomic.Pointer[[]core.Field]{}
+		fieldsPtr := &atomic.Pointer[[]Field]{}
 		msg := "downloading"
-		fields := []core.Field{}
+		fields := []Field{}
 		msgPtr.Store(&msg)
 		fieldsPtr.Store(&fields)
 		s := &renderTask{
@@ -783,12 +783,12 @@ func TestGroupBarLayoutMeasuresVisibleIndexesOnly(t *testing.T) {
 
 	visibleMsg := visibleBuilder.cfg.Message
 	hiddenMsg := hiddenBuilder.cfg.Message
-	emptyFields := []core.Field{}
+	emptyFields := []Field{}
 	symbol := "·"
 	visibleMsgPtr := &atomic.Pointer[string]{}
 	hiddenMsgPtr := &atomic.Pointer[string]{}
-	visibleFieldsPtr := &atomic.Pointer[[]core.Field]{}
-	hiddenFieldsPtr := &atomic.Pointer[[]core.Field]{}
+	visibleFieldsPtr := &atomic.Pointer[[]Field]{}
+	hiddenFieldsPtr := &atomic.Pointer[[]Field]{}
 	visibleSymbolPtr := &atomic.Pointer[string]{}
 	hiddenSymbolPtr := &atomic.Pointer[string]{}
 	visibleMsgPtr.Store(&visibleMsg)
@@ -835,10 +835,10 @@ func TestBuildTaskBarPartsPendingHide(t *testing.T) {
 	b := testBar(log, "queued", 1, bar.WithPendingMode(bar.PendingHide))
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "queued"
-	fields := []core.Field{{Key: "stage", Value: "queued"}}
+	fields := []Field{{Key: "stage", Value: "queued"}}
 	symbol := "⏳"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -880,10 +880,10 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	)
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "repo"
-	fields := []core.Field{{Key: "stage", Value: "receiving"}}
+	fields := []Field{{Key: "stage", Value: "receiving"}}
 	symbol := "📡"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -907,7 +907,7 @@ func TestRenderTaskLineCoalescesTimingButKeepsProgressLive(t *testing.T) {
 	first := renderTaskLine(gt, false, firstAt, firstLayout)
 
 	updatedMsg := "repo (updated)"
-	updatedFields := []core.Field{{Key: "stage", Value: "resolving"}}
+	updatedFields := []Field{{Key: "stage", Value: "resolving"}}
 	updatedSymbol := "🧩"
 	msgPtr.Store(&updatedMsg)
 	fieldsPtr.Store(&updatedFields)
@@ -949,12 +949,12 @@ func TestRenderTaskLineCoalescesElapsedFieldButKeepsBarPercentLive(t *testing.T)
 		Elapsed("elapsed")
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "repo"
-	fields := []core.Field{
+	fields := []Field{
 		{Key: "stage", Value: "receiving"},
-		{Key: "progress", Value: core.Percent{}},
+		{Key: "progress", Value: Percent{}},
 		{Key: "elapsed", Value: core.ElapsedField{Value: 0}},
 	}
 	symbol := "📡"
@@ -996,10 +996,10 @@ func TestRenderTaskLineDoneFreezesElapsed(t *testing.T) {
 	b := testSpinner(log, "task").Elapsed("elapsed")
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "task"
-	fields := []core.Field{{Key: "elapsed", Value: core.ElapsedField{Value: 0}}}
+	fields := []Field{{Key: "elapsed", Value: core.ElapsedField{Value: 0}}}
 	symbol := "✓"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -1038,10 +1038,10 @@ func TestRenderTaskLineMonotonic(t *testing.T) {
 	b := testBar(log, "repo", 100, bar.WithConfig(style))
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "repo"
-	fields := []core.Field{{Key: "stage", Value: "receiving"}}
+	fields := []Field{{Key: "stage", Value: "receiving"}}
 	symbol := "📡"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)
@@ -1088,10 +1088,10 @@ func TestRenderTaskLineSmoothEase(t *testing.T) {
 	b := testBar(log, "task", 100, bar.WithConfig(style))
 
 	msgPtr := &atomic.Pointer[string]{}
-	fieldsPtr := &atomic.Pointer[[]core.Field]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
 	symbolPtr := &atomic.Pointer[string]{}
 	msg := "task"
-	fields := []core.Field{}
+	fields := []Field{}
 	symbol := "⏳"
 	msgPtr.Store(&msg)
 	fieldsPtr.Store(&fields)

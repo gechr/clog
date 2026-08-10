@@ -2,28 +2,28 @@ package fx
 
 import (
 	"charm.land/lipgloss/v2"
-	"github.com/gechr/clog/internal/core"
+	"github.com/gechr/clog/level"
 )
 
 // resultBase holds common fields and fluent-config methods shared by
 // WaitResult, TaskResult, and GroupResult.
 type resultBase[T any] struct {
-	core.FieldBuilder[T]
+	FieldBuilder[T]
 
 	ErrorMsg     *string
-	LevelError   core.Level
+	LevelError   level.Level
 	Log          Logger
 	MsgStyle     *lipgloss.Style
-	PartOverride *[]core.Part
-	SuccessLevel core.Level
+	PartOverride *[]Part
+	SuccessLevel level.Level
 	SuccessMsg   string
 	SymbolStr    *string
 }
 
 // send logs a success or error event, drawing the level, style, and part
 // configuration from the base. fields, successMsg, and err vary per caller.
-func (b *resultBase[T]) send(fields []core.Field, successMsg string, err error) {
-	var lvl core.Level
+func (b *resultBase[T]) send(fields []Field, successMsg string, err error) {
+	var lvl level.Level
 	var msg string
 	var errField error
 
@@ -52,7 +52,7 @@ func (b *resultBase[T]) send(fields []core.Field, successMsg string, err error) 
 }
 
 // OnErrorLevel sets the log level for the error case.
-func (b *resultBase[T]) OnErrorLevel(lvl core.Level) *T {
+func (b *resultBase[T]) OnErrorLevel(lvl level.Level) *T {
 	b.LevelError = lvl
 	return b.Self
 }
@@ -64,7 +64,7 @@ func (b *resultBase[T]) OnErrorMessage(msg string) *T {
 }
 
 // OnSuccessLevel sets the log level for the success case.
-func (b *resultBase[T]) OnSuccessLevel(lvl core.Level) *T {
+func (b *resultBase[T]) OnSuccessLevel(lvl level.Level) *T {
 	b.SuccessLevel = lvl
 	return b.Self
 }
@@ -84,7 +84,7 @@ func (b *resultBase[T]) MessageStyle(s *lipgloss.Style) *T {
 }
 
 // Parts overrides the log-line part order for the completion message.
-func (b *resultBase[T]) Parts(parts ...core.Part) *T {
+func (b *resultBase[T]) Parts(parts ...Part) *T {
 	b.PartOverride = new(parts)
 	return b.Self
 }

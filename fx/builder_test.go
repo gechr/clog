@@ -18,13 +18,13 @@ func TestResolveDynamicFieldsTrailing(t *testing.T) {
 
 	// Runtime-added fields land after the builder's base fields.
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "url", Value: "https://example.com"},
-		core.Field{Key: "region", Value: "us-east-1"},
+		Field{Key: "url", Value: "https://example.com"},
+		Field{Key: "region", Value: "us-east-1"},
 	)
 
 	out := b.ResolveDynamicFields(fields, 3*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "url", Value: "https://example.com"},
 		{Key: "region", Value: "us-east-1"},
 		{Key: "elapsed", Value: core.ElapsedField{Value: 3 * time.Second, Trailing: true}},
@@ -36,12 +36,12 @@ func TestResolveDynamicFieldsNoTrailing(t *testing.T) {
 	b.Elapsed("elapsed")
 
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "url", Value: "https://example.com"},
+		Field{Key: "url", Value: "https://example.com"},
 	)
 
 	out := b.ResolveDynamicFields(fields, 3*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "elapsed", Value: core.ElapsedField{Value: 3 * time.Second}},
 		{Key: "url", Value: "https://example.com"},
 	}, out)
@@ -52,12 +52,12 @@ func TestResolveDynamicFieldsDeadline(t *testing.T) {
 	b.Deadline("timeout", 15*time.Second)
 
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "url", Value: "https://example.com"},
+		Field{Key: "url", Value: "https://example.com"},
 	)
 
 	out := b.ResolveDynamicFields(fields, 3*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
@@ -76,7 +76,7 @@ func TestResolveDynamicFieldsDeadlineClampsAtZero(t *testing.T) {
 
 	out := b.ResolveDynamicFields(b.Fields, 20*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
@@ -94,13 +94,13 @@ func TestResolveDynamicFieldsDeadlineTrailing(t *testing.T) {
 
 	// Runtime-added fields land after the builder's base fields.
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "url", Value: "https://example.com"},
-		core.Field{Key: "region", Value: "us-east-1"},
+		Field{Key: "url", Value: "https://example.com"},
+		Field{Key: "region", Value: "us-east-1"},
 	)
 
 	out := b.ResolveDynamicFields(fields, 3*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "url", Value: "https://example.com"},
 		{Key: "region", Value: "us-east-1"},
 		{
@@ -120,12 +120,12 @@ func TestStripDynamicFieldsDeadline(t *testing.T) {
 	b.Deadline("timeout", 15*time.Second)
 
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "url", Value: "https://example.com"},
+		Field{Key: "url", Value: "https://example.com"},
 	)
 
 	out := b.StripDynamicFields(fields)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "url", Value: "https://example.com"},
 	}, out)
 }
@@ -135,11 +135,11 @@ func TestResolveDoneFieldsOmitsDeadlineByDefault(t *testing.T) {
 	b.Deadline("timeout", 15*time.Second)
 
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "visible", Value: "yes"},
+		Field{Key: "visible", Value: "yes"},
 	)
 
 	done := b.ResolveDoneFields(fields, 3*time.Second)
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "visible", Value: "yes"},
 	}, done)
 }
@@ -149,7 +149,7 @@ func TestResolveDoneFieldsKeepsDeadlineWhenRequested(t *testing.T) {
 	b.Deadline("timeout", 15*time.Second, deadline.WithOmitOnDone(false))
 
 	done := b.ResolveDoneFields(b.Fields, 3*time.Second)
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
@@ -167,11 +167,11 @@ func TestResolveDoneFieldsOmitsDefaultDeadlineAndOptInTimers(t *testing.T) {
 	b.Duration("latency", 3*time.Second, duration.WithOmitOnDone(true))
 
 	fields := append(slices.Clone(b.Fields),
-		core.Field{Key: "visible", Value: "yes"},
+		Field{Key: "visible", Value: "yes"},
 	)
 
 	live := b.ResolveDynamicFields(fields, 3*time.Second)
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "elapsed",
 			Value: core.ElapsedField{
@@ -198,7 +198,7 @@ func TestResolveDoneFieldsOmitsDefaultDeadlineAndOptInTimers(t *testing.T) {
 	}, live)
 
 	done := b.ResolveDoneFields(fields, 3*time.Second)
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "visible", Value: "yes"},
 	}, done)
 }
@@ -217,7 +217,7 @@ func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 
 	out := resolveDynamicFields(b.Fields, b, 6*time.Second, 0, 0)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
@@ -231,7 +231,7 @@ func TestGroupRenderResolveDynamicFieldsDeadline(t *testing.T) {
 	// Past the deadline the remaining time clamps at zero.
 	out = resolveDynamicFields(b.Fields, b, time.Minute, 0, 0)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "timeout",
 			Value: core.DeadlineField{
@@ -248,7 +248,7 @@ func TestResolveDynamicFieldsUpdateDeadline(t *testing.T) {
 	// resolve, keyed by nothing but its value type.
 	b := NewBuilder(BuilderConfig{})
 
-	fields := []core.Field{
+	fields := []Field{
 		{Key: "url", Value: "https://example.com"},
 		{
 			Key: "wait",
@@ -262,7 +262,7 @@ func TestResolveDynamicFieldsUpdateDeadline(t *testing.T) {
 
 	out := b.ResolveDynamicFields(fields, 8*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "url", Value: "https://example.com"},
 		{
 			Key: "wait",
@@ -278,7 +278,7 @@ func TestResolveDynamicFieldsUpdateDeadline(t *testing.T) {
 func TestResolveDynamicFieldsUpdateDeadlineClampsAtZero(t *testing.T) {
 	b := NewBuilder(BuilderConfig{})
 
-	fields := []core.Field{
+	fields := []Field{
 		{
 			Key: "wait",
 			Value: core.DeadlineField{
@@ -303,7 +303,7 @@ func TestResolveDynamicFieldsUpdateElapsed(t *testing.T) {
 	// resolve, keyed by nothing but its value type.
 	b := NewBuilder(BuilderConfig{})
 
-	fields := []core.Field{
+	fields := []Field{
 		{Key: "url", Value: "https://example.com"},
 		{
 			Key: "waited",
@@ -317,7 +317,7 @@ func TestResolveDynamicFieldsUpdateElapsed(t *testing.T) {
 
 	out := b.ResolveDynamicFields(fields, 8*time.Second)
 
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{Key: "url", Value: "https://example.com"},
 		{
 			Key: "waited",
@@ -333,7 +333,7 @@ func TestResolveDynamicFieldsUpdateElapsed(t *testing.T) {
 func TestResolveDynamicFieldsUpdateElapsedClampsAtZero(t *testing.T) {
 	b := NewBuilder(BuilderConfig{})
 
-	fields := []core.Field{
+	fields := []Field{
 		{
 			Key: "waited",
 			Value: core.ElapsedField{

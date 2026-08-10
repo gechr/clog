@@ -10,10 +10,17 @@ import (
 // and is safe to pass wherever a Style is accepted.
 type Style = *lipgloss.Style
 
-// fieldBuilder is the package-local alias for [core.FieldBuilder].
-// All fluent builders (Context, fx.Builder, WaitResult, etc.)
-// embed this type.
-type fieldBuilder[T any] = core.FieldBuilder[T]
+// FieldBuilder carries the fluent field methods (Str, Int, Err, Duration,
+// and so on) shared by every builder in clog. All fluent builders embed it
+// and promote its methods, so it is rarely named directly - it is exported so
+// that it can be, for generic constraints and interfaces over the field
+// methods. T is the concrete builder the methods return for chaining.
+type FieldBuilder[T any] = core.FieldBuilder[T]
+
+// fieldBuilder embeds [FieldBuilder] under an unexported name, keeping the
+// embedded field itself private on the builders that use it. The two names
+// denote the same type.
+type fieldBuilder[T any] = FieldBuilder[T]
 
 // LabelMap maps levels to strings (used for labels, symbols, etc.).
 type LabelMap map[Level]string

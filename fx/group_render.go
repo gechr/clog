@@ -36,9 +36,9 @@ type renderTask struct {
 	visible        bool
 
 	// per-tick mutable state
-	cachedFieldsPtr *[]core.Field // dedup: last-formatted fields pointer
-	cachedFieldsStr string        // dedup: last-formatted fields string
-	hexLUT          *shimmer.LUT  // shimmer only, immutable after init
+	cachedFieldsPtr *[]Field     // dedup: last-formatted fields pointer
+	cachedFieldsStr string       // dedup: last-formatted fields string
+	hexLUT          *shimmer.LUT // shimmer only, immutable after init
 	pCache          pulse.Cache
 	styleLUT        *shimmer.StyleLUT // shimmer only, immutable after init
 
@@ -64,7 +64,7 @@ type renderTask struct {
 	// allowed for, which wraps visibly at the right edge.
 	frameBarCurrent    int64
 	frameBarTotal      int64
-	frameFieldsPtr     *[]core.Field
+	frameFieldsPtr     *[]Field
 	frameSnapshotValid bool
 }
 
@@ -80,7 +80,7 @@ func (gt *renderTask) barProgress() (int, int) {
 
 // fieldsSnapshot returns the per-frame snapshot of the fields pointer. Falls
 // back to a direct atomic load when no snapshot is in effect.
-func (gt *renderTask) fieldsSnapshot() *[]core.Field {
+func (gt *renderTask) fieldsSnapshot() *[]Field {
 	if gt.frameSnapshotValid {
 		return gt.frameFieldsPtr
 	}
@@ -106,9 +106,9 @@ func snapshotFrameValues(gts []*renderTask) {
 
 // effectiveLevel returns the level set via [Update.SetLevel] if present,
 // otherwise the builder's original level.
-func (gt *renderTask) effectiveLevel() core.Level {
+func (gt *renderTask) effectiveLevel() level.Level {
 	if gt.levelPtr != nil {
-		if override := core.Level(gt.levelPtr.Load()); override != level.Unset {
+		if override := level.Level(gt.levelPtr.Load()); override != level.Unset {
 			return override
 		}
 	}
@@ -119,7 +119,7 @@ func (gt *renderTask) effectiveLevel() core.Level {
 // task's rendered line, live or completed. If SetLevel was called on the
 // Update, the overridden level is used; otherwise the builder's original
 // level applies.
-func (gt *renderTask) resolveLevel() (core.Level, string) {
+func (gt *renderTask) resolveLevel() (level.Level, string) {
 	lvl := gt.effectiveLevel()
 	if lvl == gt.builder.cfg.Level {
 		return lvl, gt.cfg.LevelSymbol
@@ -695,7 +695,7 @@ func alignMessageForFields(
 // the atomic pointer has not changed.
 func renderTaskFields(
 	gt *renderTask,
-	fieldsPtr *[]core.Field,
+	fieldsPtr *[]Field,
 	dur time.Duration,
 	current, total int,
 ) string {
@@ -712,11 +712,11 @@ func renderTaskFields(
 }
 
 func resolveDynamicFields(
-	fields []core.Field,
+	fields []Field,
 	b *Builder,
 	dur time.Duration,
 	current, total int,
-) []core.Field {
+) []Field {
 	if total <= 0 {
 		total = 1
 	}
@@ -724,8 +724,8 @@ func resolveDynamicFields(
 
 	pctMax := b.percentMaximum()
 	pct := min(float64(current)/float64(total)*pctMax, pctMax)
-	return b.resolveFieldsWith(fields, dur, func() core.Percent {
-		return core.Percent{Value: pct}
+	return b.resolveFieldsWith(fields, dur, func() Percent {
+		return Percent{Value: pct}
 	})
 }
 

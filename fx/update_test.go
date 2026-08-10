@@ -142,7 +142,7 @@ func TestNewUpdateSetSymbolStopsSpinner(t *testing.T) {
 	symbolPtr.Store(&sym)
 	task := &groupTask{builder: b, start: time.Now(), symbolPtr: symbolPtr}
 	gt := &renderTask{groupTask: task}
-	gt.cfg.StyleSymbol = func(s string, _ core.Level) string { return s }
+	gt.cfg.StyleSymbol = func(s string, _ level.Level) string { return s }
 
 	u := task.newUpdate()
 	assert.Equal(t, "a", resolveSymbol(gt, task.start))
@@ -183,7 +183,7 @@ func TestAddTotalNilNoOp(t *testing.T) {
 
 func TestUpdateMessage(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -198,7 +198,7 @@ func TestUpdateMessage(t *testing.T) {
 
 func TestUpdateDeadlineAnchorsAtCall(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -215,7 +215,7 @@ func TestUpdateDeadlineAnchorsAtCall(t *testing.T) {
 
 	// The task is 5s in when the deadline is attached, so the anchor folds
 	// that into From: Remaining = From - taskElapsed counts 10s from now.
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "wait",
 			Value: core.DeadlineField{
@@ -234,7 +234,7 @@ func TestUpdateDeadlineAnchorsAtCall(t *testing.T) {
 
 func TestUpdateDeadlineNilElapsed(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -244,7 +244,7 @@ func TestUpdateDeadlineNilElapsed(t *testing.T) {
 	assert.NotPanics(t, func() {
 		u.Deadline("wait", 10*time.Second).Send()
 	})
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "wait",
 			Value: core.DeadlineField{
@@ -258,7 +258,7 @@ func TestUpdateDeadlineNilElapsed(t *testing.T) {
 
 func TestUpdateDeadlineOptions(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -270,7 +270,7 @@ func TestUpdateDeadlineOptions(t *testing.T) {
 	u.InitSelf(u)
 
 	u.Deadline("wait", 10*time.Second, deadline.WithOmitOnDone(false)).Send()
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "wait",
 			Value: core.DeadlineField{
@@ -283,7 +283,7 @@ func TestUpdateDeadlineOptions(t *testing.T) {
 
 func TestUpdateElapsedAnchorsAtCall(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -300,7 +300,7 @@ func TestUpdateElapsedAnchorsAtCall(t *testing.T) {
 
 	// The task is 5s in when the stopwatch is attached, backdated 2s, so the
 	// anchor lands at 3s: Value = taskElapsed - Start counts from 2s now.
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "waited",
 			Value: core.ElapsedField{
@@ -319,7 +319,7 @@ func TestUpdateElapsedAnchorsAtCall(t *testing.T) {
 
 func TestUpdateElapsedNilElapsed(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -329,7 +329,7 @@ func TestUpdateElapsedNilElapsed(t *testing.T) {
 	assert.NotPanics(t, func() {
 		u.Elapsed("waited", 2*time.Second).Send()
 	})
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key: "waited",
 			Value: core.ElapsedField{
@@ -343,7 +343,7 @@ func TestUpdateElapsedNilElapsed(t *testing.T) {
 
 func TestUpdateElapsedOptions(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	initial := "starting"
 	msgAtom.Store(&initial)
 
@@ -355,7 +355,7 @@ func TestUpdateElapsedOptions(t *testing.T) {
 	u.InitSelf(u)
 
 	u.Elapsed("waited", 0, elapsed.WithOmitOnDone(false)).Send()
-	assert.Equal(t, []core.Field{
+	assert.Equal(t, []Field{
 		{
 			Key:   "waited",
 			Value: core.ElapsedField{},
@@ -365,7 +365,7 @@ func TestUpdateElapsedOptions(t *testing.T) {
 
 func TestUpdateClear(t *testing.T) {
 	var msgAtom atomic.Pointer[string]
-	var fieldsAtom atomic.Pointer[[]core.Field]
+	var fieldsAtom atomic.Pointer[[]Field]
 	var levelAtom atomic.Int64
 	initial := "working"
 	msgAtom.Store(&initial)
@@ -375,7 +375,7 @@ func TestUpdateClear(t *testing.T) {
 		msgPtr:    &msgAtom,
 		fieldsPtr: &fieldsAtom,
 		levelPtr:  &levelAtom,
-		base:      []core.Field{{Key: "app", Value: "one"}},
+		base:      []Field{{Key: "app", Value: "one"}},
 	}
 	u.InitSelf(u)
 	u.Msg("step").Str("k", "v").SetLevel(level.Warn).Send()
