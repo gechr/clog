@@ -88,6 +88,8 @@ clog.Info().Str("state", "active").Msg("other") // key "state" → unaffected
 
 `Values` keys use Go equality, so a typed `true` (bool) is distinct from `"true"` (string) - the same typed-value rules as the top-level `Values` map.
 
+Styling decides a key's colour; [Field Shapes](structured-fields.md#field-shapes) decide its tokens. The two compose, so a key can render as a bare badge and still take a different colour per value.
+
 ## Styles Reference
 
 | Field                    | Type                     | Alias           | Default                      |

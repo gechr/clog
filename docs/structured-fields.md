@@ -71,6 +71,45 @@ Events and contexts support typed field methods. All methods are safe to call on
 | `URLs`       | `URLs(key string, urls []string)`                          | Clickable URL hyperlink slice (URLs as text)                                        |
 | `When`       | `When(condition bool, fn func(*Event))`                    | Conditional field builder; fn called only when condition is true                    |
 
+## Field Shapes
+
+A field normally renders as `key=value`. `SetFieldShapes` changes which tokens a named key renders - dropping the key, or wrapping the value - without touching how it is coloured:
+
+```go
+clog.SetFieldShapes(clog.FieldShapeMap{
+  "region": {OmitKey: true, Prefix: "(", Suffix: ")"},
+  "branch": {OmitKey: true, Prefix: "@"},
+})
+
+clog.Info().Str("region", "emea").Str("queue", "ingest").Msg("draining")
+// INF ℹ️ draining (emea) queue=ingest
+```
+
+`OmitKey` drops the key and its separator; `Prefix` and `Suffix` wrap the value. Keys absent from the map render normally. Like `SetParts`, shapes replace any previously configured ones - pass `nil` to clear them.
+
+Shapes compose with the styling tiers rather than competing with them: shape decides the tokens, [`KeyValues`](styles.md#per-key-value-styles) (or `Keys`, or `Values`) decides the colour, so a key can render as a badge and still colour each value differently.
+
+```go
+clog.SetStyles(&style.Config{
+  KeyValues: style.KeyValueMap{
+    "region": {Values: style.ValueMap{
+      "emea": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+      "apac": new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),
+    }},
+  },
+})
+// "(emea)" renders green, brackets included; "(apac)" blue.
+```
+
+The affixes take the value's resolved style so the whole token reads as one unit. Values styled per segment or by gradient (durations, percentages, quantities, slices, highlighted JSON) have no single colour, so their affixes render plain unless a `KeyValues`, `Keys` or `Values` entry governs the key.
+
+A few details worth knowing:
+
+- Affixes wrap **outside** quoting and slice brackets: a quoted value renders `("emea north")`, a slice renders `⟨[a, b]⟩`.
+- Shapes are structural, so they apply with colour off too - piped output shows the same tokens as a terminal.
+- Sorting still uses the real key, even when it is hidden.
+- Shapes apply to the built-in formatter, including animation task rows. A custom [`Handler`](handlers.md) receives the raw fields.
+
 ## Slice Formatting
 
 Slice fields render as `[a, b, c]` by default. The brackets and separator are configurable:

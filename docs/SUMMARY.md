@@ -14,6 +14,7 @@
 
 - [Formatting]()
   - [Part Order](part-order.md)
+  - [Parts](custom-parts.md)
   - [Labels](custom-labels.md)
   - [Symbols](custom-symbol.md)
   - [Custom Levels](custom-levels.md)

@@ -614,6 +614,40 @@ func main() {
 	clog.SetReportTimestamp(false)
 	clog.Info().Str("mode", "clean").Msg("No timestamp symbol")
 	clog.SetReportTimestamp(true) // reset
+
+	header("Custom Part")
+	const partWorker clog.Part = 100
+	clog.RegisterPart(partWorker, func(e clog.Entry, styles *style.Config, noColor bool) string {
+		if e.Level < clog.LevelWarn {
+			return "worker-3"
+		}
+		return styles.Levels[clog.LevelWarn].Render("worker-3")
+	})
+	clog.SetParts(clog.PartLevel, partWorker, clog.PartMessage, clog.PartFields)
+	clog.Info().Str("queue", "ingest").Msg("Draining queue")
+	clog.Warn().Int("depth", 4200).Msg("Queue is backing up")
+	clog.UnregisterPart(partWorker)       // reset
+	clog.SetParts(clog.DefaultParts()...) // reset
+
+	// --- Field shapes ---
+	header("Field Shapes (badges and affixes)")
+	clog.SetFieldShapes(clog.FieldShapeMap{
+		"region": {OmitKey: true, Prefix: "(", Suffix: ")"},
+		"branch": {OmitKey: true, Prefix: "@"},
+		"build":  {Prefix: "#"},
+	})
+	shapeStyles := clog.DefaultStyles()
+	shapeStyles.KeyValues["region"] = style.KeyValue{
+		Values: style.ValueMap{
+			"emea": new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
+			"apac": new(lipgloss.NewStyle().Foreground(lipgloss.Color("4"))),
+		},
+	}
+	clog.SetStyles(shapeStyles)
+	clog.Info().Str("region", "emea").Str("queue", "ingest").Msg("Draining queue")
+	clog.Info().Str("region", "apac").Str("branch", "topic").Int("build", 412).Msg("Pipeline queued")
+	clog.SetStyles(clog.DefaultStyles()) // reset
+	clog.SetFieldShapes(nil)             // reset
 	// --- Per-level message styles ---
 	header("Per-Level Message Styles")
 	styles := clog.DefaultStyles()

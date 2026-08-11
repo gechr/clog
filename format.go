@@ -20,6 +20,7 @@ import (
 
 // formatFieldsOpts configures field formatting behaviour.
 type formatFieldsOpts struct {
+	fieldShapes     FieldShapeMap
 	fieldSort       Sort
 	fieldStyleLevel Level
 	formats         *FieldFormats // nil means DefaultFieldFormats
@@ -140,21 +141,10 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 
 		buf.WriteString(" ")
 
-		sep := opts.separatorText
-		if sep == "" {
-			sep = "="
-		}
+		shape := opts.fieldShapes[f.Key]
 
-		if !opts.noColor && opts.styles != nil && opts.styles.KeyDefault != nil {
-			buf.WriteString(opts.styles.KeyDefault.Render(f.Key))
-		} else {
-			buf.WriteString(f.Key)
-		}
-
-		if !opts.noColor && opts.styles != nil && opts.styles.Separator != nil {
-			buf.WriteString(opts.styles.Separator.Render(sep))
-		} else {
-			buf.WriteString(sep)
+		if !shape.OmitKey {
+			writeFieldKey(&buf, f.Key, opts)
 		}
 
 		var valStr string
@@ -216,6 +206,11 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			(kind == kindDefault || kind == kindString || kind == kindError || kind == kindTime) &&
 			(opts.quoteMode == QuoteAlways || needsQuoting(valStr))
 
+		// A shape's affixes wrap the whole value token, quotes included, and
+		// take the value's own style so the token reads as one unit.
+		prefix, suffix := shapeAffixes(shape, f, kind, opts)
+		buf.WriteString(prefix)
+
 		// When a quote-delimiter style is configured, style the delimiters
 		// separately from the body. Otherwise wrap first and style the whole
 		// quoted string as one unit (delimiters inherit the
@@ -224,13 +219,14 @@ func formatFields(fields []Field, opts formatFieldsOpts) string {
 			delim := cfg.Resolve(valueBaseStyle(f.Value, f.Key, kind, opts.styles))
 			writeQuoted(&buf, valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart, delim,
 				func(body string) string { return styledFieldValue(f, body, kind, opts) })
-			continue
+		} else {
+			if quoted {
+				valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart)
+			}
+			buf.WriteString(styledFieldValue(f, valStr, kind, opts))
 		}
 
-		if quoted {
-			valStr = quoteString(valStr, opts.quoteOpen, opts.quoteClose, opts.quoteSmart)
-		}
-		buf.WriteString(styledFieldValue(f, valStr, kind, opts))
+		buf.WriteString(suffix)
 	}
 	return buf.String()
 }
@@ -476,8 +472,10 @@ func resolveValueStyle(originalValue any, key string, styles *style.Config) (Sty
 
 // valueBaseStyle returns the style that styleValue would apply to a value of
 // the given kind (key > value > type priority), or nil when none applies. Only
-// the quotable kinds (string, error, time, default) are resolved; other kinds
-// never reach the quote-delimiter path. It is the base for QuoteStyle.Resolve.
+// kinds carrying a single style are resolved: the quotable kinds (string,
+// error, time, default) reaching the quote-delimiter path, plus numbers for
+// [fieldShapeStyle]. Kinds styled per segment or by gradient resolve to nil
+// unless a key or value tier governs them.
 func valueBaseStyle(originalValue any, key string, kind valueKind, styles *style.Config) Style {
 	if styles == nil {
 		return nil
@@ -485,16 +483,80 @@ func valueBaseStyle(originalValue any, key string, kind valueKind, styles *style
 	if st, decided := resolveValueStyle(originalValue, key, styles); decided {
 		return st
 	}
-	switch kind { //nolint:exhaustive // only quotable kinds have a base style here
+	switch kind { //nolint:exhaustive // only single-style kinds have a base style here
 	case kindString:
 		return styles.FieldString
 	case kindError:
 		return styles.FieldError
+	case kindNumber:
+		return styles.FieldNumber
 	case kindTime:
 		return styles.FieldTime
 	default:
 		return nil
 	}
+}
+
+// writeFieldKey writes a field's key and the key/value separator, styled when
+// styling is active.
+func writeFieldKey(buf *strings.Builder, key string, opts formatFieldsOpts) {
+	sep := opts.separatorText
+	if sep == "" {
+		sep = "="
+	}
+
+	styled := !opts.noColor && opts.styles != nil
+
+	if styled && opts.styles.KeyDefault != nil {
+		buf.WriteString(opts.styles.KeyDefault.Render(key))
+	} else {
+		buf.WriteString(key)
+	}
+
+	if styled && opts.styles.Separator != nil {
+		buf.WriteString(opts.styles.Separator.Render(sep))
+	} else {
+		buf.WriteString(sep)
+	}
+}
+
+// shapeAffixes returns shape's Prefix and Suffix rendered in the value's own
+// style, so the affixes and the value they wrap read as one token.
+func shapeAffixes(
+	shape FieldShape,
+	f Field,
+	kind valueKind,
+	opts formatFieldsOpts,
+) (string, string) {
+	prefix, suffix := shape.Prefix, shape.Suffix
+	if prefix == "" && suffix == "" {
+		return prefix, suffix
+	}
+
+	st := fieldShapeStyle(f, kind, opts)
+	if st == nil {
+		return prefix, suffix
+	}
+
+	if prefix != "" {
+		prefix = st.Render(prefix)
+	}
+	if suffix != "" {
+		suffix = st.Render(suffix)
+	}
+	return prefix, suffix
+}
+
+// fieldShapeStyle resolves the style for a [FieldShape]'s Prefix and Suffix so
+// the whole token renders as one unit. Values whose styling is per segment or
+// gradient-derived (durations, percentages, quantities, slices, highlighted
+// JSON) have no single style: unless a key or value tier governs them, their
+// affixes render plain. Returns nil when styling is inactive.
+func fieldShapeStyle(f Field, kind valueKind, opts formatFieldsOpts) Style {
+	if opts.noColor || opts.level < opts.fieldStyleLevel {
+		return nil
+	}
+	return valueBaseStyle(f.Value, f.Key, kind, opts.styles)
 }
 
 // styledFieldValue applies styling to a formatted field value.

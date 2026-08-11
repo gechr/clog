@@ -13,7 +13,7 @@ clog.SetParts(clog.PartLevel, clog.PartMessage, clog.PartFields) // no symbol or
 clog.SetParts(clog.PartLevel, clog.PartFields, clog.PartMessage)
 ```
 
-Available parts: `PartTimestamp`, `PartLevel`, `PartSymbol`, `PartMessage`, `PartFields`.
+Available parts: `PartTimestamp`, `PartLevel`, `PartSymbol`, `PartMessage`, `PartFields`. Any other value can be given a renderer of your own - see [Custom Parts](custom-parts.md).
 
 Use `DefaultParts()` to get the default ordering. Parts omitted from the list are hidden.
 

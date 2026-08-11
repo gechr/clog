@@ -199,6 +199,7 @@ type Logger struct {
 	exitCode           int                           // default exit code for Fatal-level events; 0 means 1
 	exitFunc           func(int)                     // called by Fatal-level events; defaults to os.Exit
 	fields             []Field
+	fieldShapes        FieldShapeMap // per-key token shaping; nil = none
 	fieldSort          Sort
 	fieldStyleLevel    Level
 	fieldTimeFormat    string
@@ -1393,6 +1394,7 @@ func (l *Logger) recomputePaddedLabels() {
 // single render. Callers must hold l.mu.
 func (l *Logger) fieldOpts(level Level, sort Sort, noColor bool) formatFieldsOpts {
 	return formatFieldsOpts{
+		fieldShapes:     l.fieldShapes,
 		fieldSort:       sort,
 		fieldStyleLevel: l.fieldStyleLevel,
 		formats:         l.loadFieldFormats(),
@@ -1409,6 +1411,36 @@ func (l *Logger) fieldOpts(level Level, sort Sort, noColor bool) formatFieldsOpt
 		styles:          l.styles,
 		timeFormat:      l.fieldTimeFormat,
 	}
+}
+
+// buildEntry assembles the completed-entry snapshot handed to a [Handler] or
+// a [PartRenderer]. ts is the line's resolved timestamp, zero when timestamps
+// are off or the event suppressed its own. Callers must hold l.mu.
+func (l *Logger) buildEntry(e *Event, msg, symbol string, fields []Field, ts time.Time) Entry {
+	return Entry{
+		Time:    ts,
+		Level:   e.level,
+		Symbol:  symbol,
+		Indent:  l.indent,
+		Message: msg,
+		Fields:  fields,
+		Tree:    l.tree,
+	}
+}
+
+// lineTime resolves the event's timestamp for a single line, memoising it in
+// ts so every part reporting the time agrees on the instant - a custom part
+// reading [Entry.Time] cannot disagree with the rendered timestamp part.
+// Resolution stays lazy: a line that shows no time never calls [time.Now].
+// Returns the zero time when the line carries no timestamp.
+func (l *Logger) lineTime(e *Event, ts *time.Time) time.Time {
+	if !l.reportTimestamp || e.noTimestamp {
+		return time.Time{}
+	}
+	if ts.IsZero() {
+		*ts = l.eventTime(e)
+	}
+	return *ts
 }
 
 // eventTime resolves the event's timestamp - explicit override or now - in
@@ -1475,22 +1507,13 @@ func (l *Logger) log(e *Event, msg string) {
 
 	symbol := l.resolveSymbol(e)
 
+	// The event's time, resolved at most once per line (see lineTime).
+	var ts time.Time
+
 	// Delegate to custom handler if set.
 	if l.handler != nil {
-		entry := Entry{
-			Level:   e.level,
-			Symbol:  symbol,
-			Indent:  l.indent,
-			Message: msg,
-			Fields:  allFields,
-			Tree:    l.tree,
-		}
-		if l.reportTimestamp && !e.noTimestamp {
-			entry.Time = l.eventTime(e)
-		}
-
 		l.runHooks(HookBeforeWrite)
-		l.handler.Log(entry)
+		l.handler.Log(l.buildEntry(e, msg, symbol, allFields, l.lineTime(e, &ts)))
 		l.runHooks(HookAfterWrite)
 		return
 	}
@@ -1508,16 +1531,20 @@ func (l *Logger) log(e *Event, msg string) {
 	var partsArr [8]string
 	parts := partsArr[:0]
 
+	// Built at most once per line, and only when a custom part needs it.
+	var entry *Entry
+
 	for _, p := range partsOrder {
 		var s string
 
 		switch p {
 		case PartTimestamp:
-			if !l.reportTimestamp || e.noTimestamp {
+			t := l.lineTime(e, &ts)
+			if t.IsZero() {
 				continue
 			}
 
-			s = styledTimestamp(l.eventTime(e).Format(l.timeFormat), l.styles, noColor)
+			s = styledTimestamp(t.Format(l.timeFormat), l.styles, noColor)
 		case PartLevel:
 			s = styledLevel(l.formatLabel(e.level), e.level, l.styles, noColor)
 		case PartSymbol:
@@ -1552,6 +1579,18 @@ func (l *Logger) log(e *Event, msg string) {
 				formatFields(allFields, l.fieldOpts(e.level, fieldSort, noColor)),
 				" ",
 			)
+		default:
+			render := lookupPartRenderer(p)
+			if render == nil {
+				continue
+			}
+
+			if entry == nil {
+				built := l.buildEntry(e, msg, symbol, allFields, l.lineTime(e, &ts))
+				entry = &built
+			}
+
+			s = render(*entry, l.styles, noColor)
 		}
 
 		if s != "" {

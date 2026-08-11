@@ -93,6 +93,9 @@ func SetExitFunc(fn func(int)) { Default().SetExitFunc(fn) }
 // SetFieldFormats replaces the field-format configuration on the [Default] logger.
 func SetFieldFormats(f FieldFormats) { Default().SetFieldFormats(f) }
 
+// SetFieldShapes sets per-key field token shaping on the [Default] logger.
+func SetFieldShapes(shapes FieldShapeMap) { Default().SetFieldShapes(shapes) }
+
 // SetFieldSort sets the field sort order on the [Default] logger.
 func SetFieldSort(sort Sort) { Default().SetFieldSort(sort) }
 

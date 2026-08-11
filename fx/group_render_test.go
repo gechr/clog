@@ -261,6 +261,21 @@ func TestBuildLine(t *testing.T) {
 		line := buildLine(order, false, "", "INF", "ℹ️", "", "k=v")
 		assert.Equal(t, "INF ℹ️ k=v", line)
 	})
+
+	t.Run("custom part", func(t *testing.T) {
+		// Custom parts render on regular log lines, not on task rows.
+		const custom core.Part = 100
+		line := buildLine(
+			append([]core.Part{custom}, order...),
+			false,
+			"",
+			"INF",
+			"ℹ️",
+			"hello",
+			"k=v",
+		)
+		assert.Equal(t, "INF ℹ️ hello k=v", line)
+	})
 }
 
 func TestAnimationIntervalClampsTickRate(t *testing.T) {

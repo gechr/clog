@@ -68,6 +68,7 @@ func defaultWrapperFuncs() map[string]any {
 		"SetQuantityUnitsIgnoreCase":      SetQuantityUnitsIgnoreCase,
 		"SetTimeGradientMax":              SetTimeGradientMax,
 		"SetTimeScale":                    SetTimeScale,
+		"SetFieldShapes":                  SetFieldShapes,
 		"SetFieldSort":                    SetFieldSort,
 		"SetFieldStyleLevel":              SetFieldStyleLevel,
 		"SetFieldTimeFormat":              SetFieldTimeFormat,
