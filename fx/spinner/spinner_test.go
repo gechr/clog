@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/style"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -91,6 +92,63 @@ func TestWithStyleThenWithInterval(t *testing.T) {
 	)
 	assert.Equal(t, custom.Frames, got.Frames)
 	assert.Equal(t, 250*time.Millisecond, got.Interval)
+}
+
+func TestDefaultConfigHasNoGradient(t *testing.T) {
+	assert.Nil(t, spinner.DefaultConfig().Gradient)
+}
+
+func TestWithGradient(t *testing.T) {
+	stops := twoStopGradient()
+	got := spinner.Apply(spinner.WithGradient(stops...))
+	assert.Equal(t, stops, got.Gradient)
+}
+
+func TestWithGradientNoStopsUsesDefault(t *testing.T) {
+	got := spinner.Apply(spinner.WithGradient())
+	assert.Equal(t, spinner.DefaultGradient(), got.Gradient)
+}
+
+func TestWithGradientMode(t *testing.T) {
+	got := spinner.Apply(spinner.WithGradientMode(style.GradientStep))
+	assert.Equal(t, style.GradientStep, got.GradientMode)
+}
+
+func TestWithGradientSpeed(t *testing.T) {
+	got := spinner.Apply(spinner.WithGradientSpeed(2.5))
+	assert.InDelta(t, 2.5, got.GradientSpeed, 1e-9)
+}
+
+func TestWithGradientSpeedZeroIsNoOp(t *testing.T) {
+	got := spinner.Apply(
+		spinner.WithGradientSpeed(1.5),
+		spinner.WithGradientSpeed(0),
+	)
+	assert.InDelta(t, 1.5, got.GradientSpeed, 1e-9, "WithGradientSpeed(0) should be a no-op")
+}
+
+func TestWithGradientSpeedNegativeIsNoOp(t *testing.T) {
+	got := spinner.Apply(
+		spinner.WithGradientSpeed(1.5),
+		spinner.WithGradientSpeed(-1),
+	)
+	assert.InDelta(t, 1.5, got.GradientSpeed, 1e-9, "WithGradientSpeed(<0) should be a no-op")
+}
+
+func TestWithGradientTiming(t *testing.T) {
+	got := spinner.Apply(spinner.WithGradientTiming(spinner.GradientTimeBased))
+	assert.Equal(t, spinner.GradientTimeBased, got.GradientTiming)
+}
+
+func TestWithConfigReplacesGradient(t *testing.T) {
+	got := spinner.Apply(
+		spinner.WithGradient(),
+		spinner.WithConfig(spinner.Config{
+			Frames:   []string{"x", "y"},
+			Interval: 100 * time.Millisecond,
+		}),
+	)
+	assert.Nil(t, got.Gradient, "WithConfig should replace the whole config")
 }
 
 func TestStarsPreset(t *testing.T) {

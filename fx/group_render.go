@@ -41,6 +41,7 @@ type renderTask struct {
 	hexLUT          *shimmer.LUT // shimmer only, immutable after init
 	pCache          pulse.Cache
 	styleLUT        *shimmer.StyleLUT // shimmer only, immutable after init
+	symbolStyles    *spinner.StyleLUT // spinner gradient only; nil = level style
 
 	// gradient cache (bar mode with ProgressGradient only)
 	gradientProgress float64
@@ -602,6 +603,21 @@ func captureTaskConfig(gt *renderTask) {
 	if b.cfg.AnimatedSymbol && b.cfg.SpinnerConfig.Boomerang {
 		b.cfg.SpinnerConfig.Frames = spinner.BoomerangFrames(b.cfg.SpinnerConfig.Frames)
 	}
+	// Pre-compute the gradient style LUT after boomerang expansion so its
+	// size matches the expanded frame count. Skipped entirely when colors
+	// are disabled so resolveSymbol falls back to the level symbol style.
+	if b.cfg.AnimatedSymbol && len(b.cfg.SpinnerConfig.Gradient) > 0 &&
+		gt.cfg.Output != nil && !gt.cfg.Output.ColorsDisabled() {
+		gt.symbolStyles = spinner.BuildStyleLUT(
+			b.cfg.SpinnerConfig, len(b.cfg.SpinnerConfig.Frames),
+		)
+		// Time-based gradients change color between frame advances, so
+		// repaint fast enough for smooth transitions.
+		if b.cfg.SpinnerConfig.GradientTiming == spinner.GradientTimeBased &&
+			gt.tickRate > 0 {
+			gt.tickRate = min(gt.tickRate, spinner.GradientTickRate)
+		}
+	}
 	if gt.tickRate <= 0 {
 		gt.tickRate = spinner.DefaultConfig().Interval
 	}
@@ -867,17 +883,26 @@ func (gt *renderTask) animDuration(now time.Time) time.Duration {
 // so the caller can replace the spinner with a checkmark or other icon.
 // If [Update.SetLevel] was also called, the overridden level is used for
 // styling so the symbol color matches the intended level.
+// When a spinner gradient is configured (and colors are enabled), the frame
+// is styled from the pre-computed gradient LUT instead of the level style.
 func resolveSymbol(gt *renderTask, now time.Time) string {
 	b := gt.builder
 	if b.cfg.AnimatedSymbol && !gt.symbolOverride.Load() &&
 		gt.started() && len(b.cfg.SpinnerConfig.Frames) > 0 &&
 		b.cfg.SpinnerConfig.Interval > 0 {
 		n := len(b.cfg.SpinnerConfig.Frames)
-		i := int(gt.animDuration(now)/b.cfg.SpinnerConfig.Interval) % n
+		dur := gt.animDuration(now)
+		tick := int(dur / b.cfg.SpinnerConfig.Interval)
+		i := tick % n
 		if b.cfg.SpinnerConfig.Reverse {
 			i = n - 1 - i
 		}
-		return gt.cfg.StyleSymbol(b.cfg.SpinnerConfig.Frames[i], gt.effectiveLevel())
+		frame := b.cfg.SpinnerConfig.Frames[i]
+		if gt.symbolStyles != nil {
+			t := spinner.GradientPhase(b.cfg.SpinnerConfig, tick, n, dur)
+			return gt.symbolStyles.At(t).Render(frame)
+		}
+		return gt.cfg.StyleSymbol(frame, gt.effectiveLevel())
 	}
 	return gt.cfg.StyleSymbol(*gt.symbolPtr.Load(), gt.effectiveLevel())
 }

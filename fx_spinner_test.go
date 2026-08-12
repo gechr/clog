@@ -1104,3 +1104,43 @@ func TestSetSpinnerDefaults(t *testing.T) {
 	b = logger.Spinner("test", spinner.WithConfig(spinner.Dot))
 	assert.Equal(t, spinner.Dot.Frames, b.SpinnerStyle().Frames)
 }
+
+func TestSpinnerWithGradient(t *testing.T) {
+	stops := []style.ColorStop{
+		{Position: 0, Color: style.InterpolateGradient(0, spinner.DefaultGradient())},
+		{Position: 1, Color: style.InterpolateGradient(1, spinner.DefaultGradient())},
+	}
+	b := Spinner("test", spinner.WithGradient(stops...))
+
+	assert.Equal(t, stops, b.SpinnerStyle().Gradient)
+}
+
+func TestSpinnerWithGradientDefaultStops(t *testing.T) {
+	b := Spinner("test", spinner.WithGradient())
+
+	assert.Equal(t, spinner.DefaultGradient(), b.SpinnerStyle().Gradient)
+}
+
+func TestSpinnerStyleClonesGradient(t *testing.T) {
+	b := Spinner("test", spinner.WithGradient())
+
+	got := b.SpinnerStyle().Gradient
+	got[0].Position = 0.99
+	assert.Equal(t, spinner.DefaultGradient(), b.SpinnerStyle().Gradient,
+		"SpinnerStyle should return a defensive copy of the gradient")
+}
+
+func TestSetSpinnerDefaultsGradientInherited(t *testing.T) {
+	logger := NewWriter(io.Discard)
+	logger.SetSpinnerDefaults(
+		spinner.WithGradient(),
+		spinner.WithGradientTiming(spinner.GradientTimeBased),
+		spinner.WithGradientSpeed(2),
+	)
+
+	b := logger.Spinner("test")
+	got := b.SpinnerStyle()
+	assert.Equal(t, spinner.DefaultGradient(), got.Gradient)
+	assert.Equal(t, spinner.GradientTimeBased, got.GradientTiming)
+	assert.InDelta(t, 2.0, got.GradientSpeed, 1e-9)
+}

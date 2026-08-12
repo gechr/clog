@@ -1,7 +1,12 @@
 // Package spinner provides spinner animation styles and presets for clog.
 package spinner
 
-import "time"
+import (
+	"time"
+
+	"github.com/gechr/clog/internal/gradient"
+	"github.com/gechr/clog/style"
+)
 
 // Config is a set of frames used in animating the spinner.
 // Set Reverse to true to play the frames in reverse order.
@@ -9,11 +14,24 @@ import "time"
 // animation smoothly reverses at each end instead of jumping from the last
 // frame back to the first. For example, frames [a, b, c] play as
 // [a, b, c, b, a, b, c, ...]. Boomerang and Reverse can be combined.
+// Set Gradient to animate the glyph color; see [GradientTiming] for what
+// drives the color phase.
 type Config struct {
 	Boomerang bool
-	Interval  time.Duration
-	Frames    []string
-	Reverse   bool
+	// Gradient colors the glyph from these stops while animating,
+	// replacing the level symbol style. nil keeps the level symbol style.
+	Gradient []gradient.ColorStop
+	// GradientMode selects smooth fades (default) or discrete steps
+	// between gradient stops.
+	GradientMode style.GradientMode
+	// GradientSpeed is the number of full gradient cycles per second in
+	// [GradientTimeBased] mode. <= 0 uses [DefaultGradientSpeed].
+	GradientSpeed float64
+	// GradientTiming selects what drives the gradient phase.
+	GradientTiming GradientTiming
+	Interval       time.Duration
+	Frames         []string
+	Reverse        bool
 }
 
 // DefaultConfig returns the default spinner [Config].

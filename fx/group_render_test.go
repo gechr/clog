@@ -22,6 +22,7 @@ import (
 
 // stubOutput is a minimal Output implementation for render tests.
 type stubOutput struct {
+	colorsOn  bool
 	cursorOK  bool
 	cursorRow int
 	height    int
@@ -41,7 +42,7 @@ func (o *stubOutput) Writer() io.Writer {
 
 func (o *stubOutput) Width() int                            { return o.width }
 func (o *stubOutput) Height() int                           { return o.height }
-func (o *stubOutput) ColorsDisabled() bool                  { return true }
+func (o *stubOutput) ColorsDisabled() bool                  { return !o.colorsOn }
 func (o *stubOutput) PathLink(path string, _, _ int) string { return path }
 func (o *stubOutput) Hyperlink(_, text string) string       { return text }
 func (o *stubOutput) CursorPosition() (int, bool)           { return o.cursorRow, o.cursorOK }
@@ -334,6 +335,27 @@ func TestAnimationIntervalClampsTickRate(t *testing.T) {
 		captureTaskConfig(s)
 
 		assert.Equal(t, bar.TickRate, s.tickRate)
+	})
+
+	// The gradient tick rate is a target, not an override: the logger's
+	// interval floor is applied last and still wins.
+	t.Run("time-based gradient still clamped to 200ms", func(t *testing.T) {
+		log := &stubLogger{
+			out:               &stubOutput{colorsOn: true},
+			animationInterval: 200 * time.Millisecond,
+		}
+
+		b := testSpinner(log, "loading",
+			spinner.WithConfig(spinner.Config{
+				Frames:   []string{".", "..", "..."},
+				Interval: 17 * time.Millisecond,
+			}),
+			spinner.WithGradient(),
+			spinner.WithGradientTiming(spinner.GradientTimeBased),
+		)
+		s := newSpinnerRenderTask(b)
+
+		assert.Equal(t, 200*time.Millisecond, s.tickRate)
 	})
 }
 
@@ -1184,4 +1206,163 @@ func TestVisibleTaskIndexesSkipsBlankedDoneTasks(t *testing.T) {
 	)
 
 	assert.Equal(t, []int{1, 2}, got)
+}
+
+// newSpinnerRenderTask builds a started renderTask for b with stub pointers,
+// then captures its task config.
+func newSpinnerRenderTask(b *Builder) *renderTask {
+	msgPtr := &atomic.Pointer[string]{}
+	fieldsPtr := &atomic.Pointer[[]Field]{}
+	symbolPtr := &atomic.Pointer[string]{}
+	msg := "msg"
+	fields := []Field{}
+	symbol := "•"
+	msgPtr.Store(&msg)
+	fieldsPtr.Store(&fields)
+	symbolPtr.Store(&symbol)
+	gt := &renderTask{
+		groupTask: &groupTask{
+			builder:   b,
+			fieldsPtr: fieldsPtr,
+			msgPtr:    msgPtr,
+			start:     time.Unix(0, 0),
+			symbolPtr: symbolPtr,
+		},
+	}
+	captureTaskConfig(gt)
+	return gt
+}
+
+// testGradientFrames is a 4-frame spinner config for gradient render tests.
+func testGradientFrames() spinner.Config {
+	return spinner.Config{
+		Frames:   []string{"a", "b", "c", "d"},
+		Interval: 100 * time.Millisecond,
+	}
+}
+
+func TestResolveSymbolGradientFrameSynced(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(testGradientFrames()),
+		spinner.WithGradient(),
+	)
+	gt := newSpinnerRenderTask(b)
+	require.NotNil(t, gt.symbolStyles)
+	assert.Equal(t, 4, gt.symbolStyles.Len(), "LUT should have one style per frame")
+
+	epoch := time.Unix(0, 0)
+	frames := []string{"a", "b", "c", "d"}
+	rendered := make([]string, len(frames))
+	for i, want := range frames {
+		got := resolveSymbol(gt, epoch.Add(time.Duration(i)*100*time.Millisecond))
+		assert.Equal(t, want, xansi.Strip(got), "tick %d glyph", i)
+		rendered[i] = got
+	}
+	assert.NotEqual(t, rendered[0], rendered[1], "color should change on every tick")
+	assert.NotEqual(t, rendered[1], rendered[2], "color should change on every tick")
+	// One full revolution wraps back to the first color.
+	wrap := resolveSymbol(gt, epoch.Add(4*100*time.Millisecond))
+	assert.Equal(t, rendered[0], wrap)
+}
+
+func TestResolveSymbolNoGradientUnchanged(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	b := testSpinner(log, "plain", spinner.WithConfig(testGradientFrames()))
+	gt := newSpinnerRenderTask(b)
+	assert.Nil(t, gt.symbolStyles)
+
+	got := resolveSymbol(gt, time.Unix(0, 0))
+	assert.Equal(t, "a", got, "no gradient should use the level symbol style unchanged")
+}
+
+func TestResolveSymbolGradientSkippedWhenColorsDisabled(t *testing.T) {
+	log := newStubLogger() // stubOutput zero value: colors disabled
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(testGradientFrames()),
+		spinner.WithGradient(),
+	)
+	gt := newSpinnerRenderTask(b)
+	assert.Nil(t, gt.symbolStyles, "LUT should not be built when colors are disabled")
+
+	got := resolveSymbol(gt, time.Unix(0, 0))
+	assert.Equal(t, "a", got)
+}
+
+func TestResolveSymbolGradientBypassedAfterSetSymbol(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(testGradientFrames()),
+		spinner.WithGradient(),
+	)
+	gt := newSpinnerRenderTask(b)
+	require.NotNil(t, gt.symbolStyles)
+
+	done := "✔"
+	gt.symbolPtr.Store(&done)
+	gt.symbolOverride.Store(true)
+
+	got := resolveSymbol(gt, time.Unix(0, 0))
+	assert.Equal(t, "✔", got, "symbol override should bypass the gradient")
+}
+
+func TestResolveSymbolGradientTimeBasedChangesWithinFrame(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	cfg := testGradientFrames()
+	cfg.Interval = 10 * time.Second // glyph frozen on frame 0 for this test
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(cfg),
+		spinner.WithGradient(),
+		spinner.WithGradientTiming(spinner.GradientTimeBased),
+		spinner.WithGradientSpeed(1.0),
+	)
+	gt := newSpinnerRenderTask(b)
+	require.NotNil(t, gt.symbolStyles)
+
+	epoch := time.Unix(0, 0)
+	s0 := resolveSymbol(gt, epoch)
+	s1 := resolveSymbol(gt, epoch.Add(250*time.Millisecond))
+	assert.Equal(t, "a", xansi.Strip(s0))
+	assert.Equal(t, "a", xansi.Strip(s1), "glyph should not advance within one interval")
+	assert.NotEqual(t, s0, s1, "time-based gradient should recolor within one frame interval")
+}
+
+func TestGradientTickRateTimeBased(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(testGradientFrames()),
+		spinner.WithGradient(),
+		spinner.WithGradientTiming(spinner.GradientTimeBased),
+	)
+	gt := newSpinnerRenderTask(b)
+	assert.Equal(t, spinner.GradientTickRate, gt.tickRate,
+		"time-based gradient should repaint at the gradient tick rate")
+}
+
+func TestGradientTickRateFrameSyncedUnchanged(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(testGradientFrames()),
+		spinner.WithGradient(),
+	)
+	gt := newSpinnerRenderTask(b)
+	assert.Equal(t, 100*time.Millisecond, gt.tickRate,
+		"frame-synced gradient should keep the spinner interval tick rate")
+}
+
+func TestGradientLUTSizedToBoomerangExpandedFrames(t *testing.T) {
+	log := &stubLogger{out: &stubOutput{colorsOn: true}}
+	cfg := spinner.Config{
+		Boomerang: true,
+		Frames:    []string{"a", "b", "c"},
+		Interval:  100 * time.Millisecond,
+	}
+	b := testSpinner(log, "grad",
+		spinner.WithConfig(cfg),
+		spinner.WithGradient(),
+	)
+	gt := newSpinnerRenderTask(b)
+	require.NotNil(t, gt.symbolStyles)
+	// [a, b, c] expands to [a, b, c, b].
+	assert.Equal(t, 4, gt.symbolStyles.Len())
 }

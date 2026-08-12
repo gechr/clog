@@ -10,6 +10,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog"
 	"github.com/gechr/clog/fx/spinner"
+	"github.com/gechr/clog/style"
+	"github.com/lucasb-eyer/go-colorful"
 )
 
 func main() {
@@ -19,6 +21,7 @@ func main() {
 		0,
 		"show a specific page of spinner presets (1-indexed, 10 per page)",
 	)
+	gradientFlag := flag.Bool("gradient", false, "show gradient spinner demos")
 	flag.Parse()
 
 	clog.SetLevel(clog.LevelTrace)
@@ -26,6 +29,10 @@ func main() {
 
 	if *stylesFlag || *stylesPage > 0 {
 		showStyles(*stylesPage)
+		return
+	}
+	if *gradientFlag {
+		showGradients()
 		return
 	}
 
@@ -69,6 +76,52 @@ func main() {
 			return nil
 		}).Symbol("🚀").
 		Msg("Deployed")
+}
+
+func showGradients() {
+	clog.SetReportTimestamp(false)
+
+	sunset := []style.ColorStop{
+		{Position: 0, Color: colorful.Color{R: 1, G: 0.4, B: 0.3}},
+		{Position: 0.5, Color: colorful.Color{R: 1, G: 0.8, B: 0.3}},
+		{Position: 1, Color: colorful.Color{R: 1, G: 0.4, B: 0.3}},
+	}
+
+	ctx := context.Background()
+	g := clog.Group(ctx)
+	task := func(_ context.Context) error {
+		time.Sleep(10 * time.Second)
+		return nil
+	}
+
+	// Frame-synced (default): one full gradient sweep per spinner revolution.
+	g.Add(clog.Spinner("Frame-synced rainbow",
+		spinner.WithConfig(spinner.Dots),
+		spinner.WithGradient(),
+	)).Run(task)
+
+	// Custom stops, still frame-synced.
+	g.Add(clog.Spinner("Frame-synced sunset",
+		spinner.WithConfig(spinner.Dots),
+		spinner.WithGradient(sunset...),
+	)).Run(task)
+
+	// Time-based: color cycles smoothly even between slow frame changes.
+	g.Add(clog.Spinner("Time-based rainbow",
+		spinner.WithConfig(spinner.Moon),
+		spinner.WithGradient(),
+		spinner.WithGradientTiming(spinner.GradientTimeBased),
+		spinner.WithGradientSpeed(1),
+	)).Run(task)
+
+	// Discrete jumps between stops instead of smooth fades.
+	g.Add(clog.Spinner("Stepped sunset",
+		spinner.WithConfig(spinner.Dots),
+		spinner.WithGradient(sunset...),
+		spinner.WithGradientMode(style.GradientStep),
+	)).Run(task)
+
+	g.Wait()
 }
 
 func showStyles(page int) {

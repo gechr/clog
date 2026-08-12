@@ -129,6 +129,7 @@ func (b *Builder) AnimationSpeed() float64 { return b.cfg.Speed }
 func (b *Builder) SpinnerStyle() spinner.Config {
 	cfg := b.cfg.SpinnerConfig
 	cfg.Frames = slices.Clone(cfg.Frames)
+	cfg.Gradient = slices.Clone(cfg.Gradient)
 	return cfg
 }
 

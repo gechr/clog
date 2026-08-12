@@ -100,13 +100,17 @@ clog.Bar("Downloading", total).
 
 `.Spinner()` with no arguments uses the default spinner style (moon phases). Pass `spinner.Option` values to customise:
 
-| Option                     | Description                                                  |
-| -------------------------- | ------------------------------------------------------------ |
-| `spinner.WithConfig(s)`    | Replace the entire spinner style                             |
-| `spinner.WithFrames(f...)` | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                 |
-| `spinner.WithInterval(d)`  | Duration per frame (values ≤ 0 keep existing)                |
-| `spinner.WithBoomerang()`  | Ping-pong playback - reverses at each end instead of jumping |
-| `spinner.WithReverse()`    | Play frames in reverse order                                 |
+| Option                            | Description                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `spinner.WithConfig(s)`           | Replace the entire spinner style                                                     |
+| `spinner.WithFrames(f...)`        | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                                         |
+| `spinner.WithInterval(d)`         | Duration per frame (values ≤ 0 keep existing)                                        |
+| `spinner.WithBoomerang()`         | Ping-pong playback - reverses at each end instead of jumping                         |
+| `spinner.WithReverse()`           | Play frames in reverse order                                                         |
+| `spinner.WithGradient(stops...)`  | Animate the glyph color through gradient stops (no stops = default rainbow)          |
+| `spinner.WithGradientTiming(t)`   | What drives the color: `GradientFrameSynced` (default) or `GradientTimeBased`        |
+| `spinner.WithGradientSpeed(s)`    | Gradient cycles per second in `GradientTimeBased` mode (values ≤ 0 keep existing)    |
+| `spinner.WithGradientMode(m)`     | Color transitions: `style.GradientFade` (smooth) or `style.GradientStep` (discrete)  |
 
 The spinner animation is driven by wall-clock time, so it continues to animate even when the bar progress is stalled or the pulse/shimmer effect is slow.
 
@@ -134,12 +138,16 @@ See [`fx/spinner/presets.go`](https://github.com/gechr/clog/blob/main/fx/spinner
 
 Individual style properties can be overridden without replacing the entire style:
 
-| Option                     | Description                                                  |
-| -------------------------- | ------------------------------------------------------------ |
-| `spinner.WithFrames(f...)` | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                 |
-| `spinner.WithInterval(d)`  | Duration per frame (values ≤ 0 keep existing)                |
-| `spinner.WithBoomerang()`  | Ping-pong playback - reverses at each end instead of jumping |
-| `spinner.WithReverse()`    | Play frames in reverse order                                 |
+| Option                            | Description                                                                          |
+| --------------------------------- | ------------------------------------------------------------------------------------ |
+| `spinner.WithFrames(f...)`        | Animation frames (e.g. `"⠋", "⠙", "⠹", "⠸"`)                                         |
+| `spinner.WithInterval(d)`         | Duration per frame (values ≤ 0 keep existing)                                        |
+| `spinner.WithBoomerang()`         | Ping-pong playback - reverses at each end instead of jumping                         |
+| `spinner.WithReverse()`           | Play frames in reverse order                                                         |
+| `spinner.WithGradient(stops...)`  | Animate the glyph color through gradient stops (no stops = default rainbow)          |
+| `spinner.WithGradientTiming(t)`   | What drives the color: `GradientFrameSynced` (default) or `GradientTimeBased`        |
+| `spinner.WithGradientSpeed(s)`    | Gradient cycles per second in `GradientTimeBased` mode (values ≤ 0 keep existing)    |
+| `spinner.WithGradientMode(m)`     | Color transitions: `style.GradientFade` (smooth) or `style.GradientStep` (discrete)  |
 
 ```go
 // Custom frames with a slower tick
@@ -162,6 +170,49 @@ clog.Spinner("Loading",
   <img src="assets/spinner-styles-8.gif" alt="Spinner styles 8" style="width: calc(50% - 4px);" />
   <img src="assets/spinner-styles-9.gif" alt="Spinner styles 9" style="width: calc(50% - 4px);" />
 </div>
+
+## Gradient Spinners
+
+`spinner.WithGradient` animates the spinner glyph color through a gradient, changing color as the spinner runs instead of using the level's static symbol color:
+
+```go
+// Default rainbow gradient, one full sweep per spinner revolution
+clog.Spinner("Loading", spinner.WithGradient()).
+  Wait(ctx, action).
+  Msg("Done")
+
+// Custom stops
+clog.Spinner("Loading",
+  spinner.WithGradient(
+    style.ColorStop{Position: 0, Color: colorful.Color{R: 1, G: 0.4, B: 0.4}},
+    style.ColorStop{Position: 0.5, Color: colorful.Color{R: 0.4, G: 0.6, B: 1}},
+    style.ColorStop{Position: 1, Color: colorful.Color{R: 1, G: 0.4, B: 0.4}},
+  ),
+).
+  Wait(ctx, action).
+  Msg("Done")
+```
+
+Two timing modes control what drives the color phase:
+
+- **`spinner.GradientFrameSynced`** (default) - the color advances one gradient step per frame, completing exactly one sweep per spinner revolution. The color changes on every tick and stays deterministic per frame.
+- **`spinner.GradientTimeBased`** - the color phase is driven by elapsed time multiplied by `spinner.WithGradientSpeed` (cycles per second, default 0.5), independent of the frame count or interval. The color keeps cycling smoothly even between frame advances, like the pulse and shimmer effects.
+
+```go
+// Slow spinner whose color still cycles smoothly between frame changes
+clog.Spinner("Waiting",
+  spinner.WithConfig(spinner.Moon),
+  spinner.WithGradient(),
+  spinner.WithGradientTiming(spinner.GradientTimeBased),
+  spinner.WithGradientSpeed(1),
+).
+  Wait(ctx, action).
+  Msg("Done")
+```
+
+For a seamless wrap in either mode, repeat the first stop's color at `Position: 1` (the default gradient does this). While the gradient is active it replaces the level symbol style; the done-line symbol and any `SetSymbol` override keep the level styling. Gradients are inert when colors are disabled (`NO_COLOR`, non-TTY writers).
+
+`spinner.WithGradientMode(style.GradientStep)` switches from smooth interpolation to discrete color jumps at each stop boundary.
 
 ## Hyperlink Fields on Animations
 
