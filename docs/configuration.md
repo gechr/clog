@@ -4,6 +4,8 @@
 
 The package-level functions (`Info()`, `Warn()`, etc.) use the `Default` logger which writes to `os.Stdout` at `LevelInfo`.
 
+To configure part order, symbols, styles, and spinner defaults together in one call, see [Presets](presets.md).
+
 ```go
 // Full configuration
 clog.Configure(&clog.Config{

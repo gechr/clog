@@ -48,6 +48,9 @@ func Configure(cfg *Config) {
 	SetVerbose(cfg.Verbose)
 }
 
+// ApplyPreset applies p to the [Default] logger. See [Logger.ApplyPreset].
+func ApplyPreset(p *Preset) { Default().ApplyPreset(p) }
+
 // SetVerbose enables or disables verbose mode on the [Default] logger.
 // When verbose is true, it always enables debug logging. When false, it
 // respects the log level environment variable if set.
@@ -246,14 +249,16 @@ func DefaultParts() []Part {
 
 // Default emoji symbols for each level.
 var defaultSymbols = LabelMap{
-	LevelTrace: "🔍",
-	LevelDebug: "🐞",
-	LevelInfo:  "ℹ️",
-	LevelHint:  "💡",
-	LevelDry:   "🚧",
-	LevelWarn:  "⚠️",
-	LevelError: "❌",
-	LevelFatal: "💥",
+	LevelTrace:   "🔍",
+	LevelDebug:   "🐞",
+	LevelInfo:    "ℹ️",
+	LevelHint:    "💡",
+	LevelDry:     "🚧",
+	LevelSuccess: "✅",
+	LevelNotice:  "🔔",
+	LevelWarn:    "⚠️",
+	LevelError:   "❌",
+	LevelFatal:   "💥",
 }
 
 // defaultMaxLabelLen is the maximum length of an auto-generated level label.

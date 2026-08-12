@@ -1,17 +1,19 @@
 # Levels
 
-| Level   | Value | Label | Symbol | Description                                                   |
-| ------- | ----: | ----- | ------ | ------------------------------------------------------------- |
-| `Trace` |   -10 | `TRC` | 🔍     | Finest-grained output, hidden by default                      |
-| `Debug` |    -5 | `DBG` | 🐞     | Verbose output, hidden by default                             |
-| `Info`  |     0 | `INF` | ℹ️     | General operational messages (default minimum level)          |
-| `Hint`  |     1 | `HNT` | 💡     | Tips or suggestions                                           |
-| `Dry`   |     2 | `DRY` | 🚧     | Dry-run indicators                                            |
-| `Warn`  |     5 | `WRN` | ⚠️     | Warnings that don't prevent operation                         |
-| `Error` |    10 | `ERR` | ❌     | Errors that need attention                                    |
-| `Fatal` |    15 | `FTL` | 💥     | Fatal errors - calls `os.Exit` after logging                  |
+| Level     | Value | Label | Symbol | Description                                                   |
+| --------- | ----: | ----- | ------ | ------------------------------------------------------------- |
+| `Trace`   |   -20 | `TRC` | 🔍     | Finest-grained output, hidden by default                      |
+| `Debug`   |   -10 | `DBG` | 🐞     | Verbose output, hidden by default                             |
+| `Info`    |     0 | `INF` | ℹ️     | General operational messages (default minimum level)          |
+| `Hint`    |    10 | `HNT` | 💡     | Tips or suggestions                                           |
+| `Dry`     |    20 | `DRY` | 🚧     | Dry-run indicators                                            |
+| `Success` |    30 | `OK`  | ✅     | Successful completion of an operation                         |
+| `Notice`  |    35 | `NTC` | 🔔     | Noteworthy events that aren't warnings                        |
+| `Warn`    |    40 | `WRN` | ⚠️     | Warnings that don't prevent operation                         |
+| `Error`   |    50 | `ERR` | ❌     | Errors that need attention                                    |
+| `Fatal`   |    60 | `FTL` | 💥     | Fatal errors - calls `os.Exit` after logging                  |
 
-Built-in levels use gaps of 5 between them (except around `Hint` and `Dry`, which sit at 1 and 2), leaving room for custom levels at any position (see [Custom Levels](#custom-levels)).
+Built-in levels use uniform gaps of 10 between them, leaving room for custom levels between every pair (see [Custom Levels](#custom-levels)).
 
 ## Setting the Level
 
@@ -23,7 +25,7 @@ clog.SetLevel(clog.LevelDebug)
 // export CLOG_LOG_LEVEL=debug
 ```
 
-Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `hint`, `dry`, `warn`, `warning`, `error`, `fatal`, `critical`.
+Recognised `CLOG_LOG_LEVEL` values: `trace`, `debug`, `info`, `hint`, `dry`, `success`, `notice`, `warn`, `warning`, `error`, `fatal`, `critical`.
 
 Setting `trace` or `debug` also enables timestamps.
 
@@ -58,14 +60,14 @@ clog.SetNonTTYLevel(clog.UnsetLevel)
 Define custom levels at any numeric value between the built-in levels. Use `RegisterLevel` to configure the label, symbol, style, and canonical name.
 
 ```go
-const SuccessLevel clog.Level = clog.LevelDry + 1
+const AuditLevel clog.Level = clog.LevelDry + 5
 
 func init() {
-    clog.RegisterLevel(SuccessLevel, clog.LevelConfig{
-        Name:   "success",
-        Label:  "SCS",
-        Symbol: "✅",
-        Style:  new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("2"))),
+    clog.RegisterLevel(AuditLevel, clog.LevelConfig{
+        Name:   "audit",
+        Label:  "AUD",
+        Symbol: "📋",
+        Style:  new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("4"))),
     })
 }
 ```
@@ -73,8 +75,8 @@ func init() {
 Log with `clog.Log(level)`:
 
 ```go
-clog.Log(SuccessLevel).Msg("Build completed")
-// SCS ✅ Build completed
+clog.Log(AuditLevel).Msg("Config changed")
+// AUD 📋 Config changed
 ```
 
 Custom levels respect level filtering based on their numeric value. `ParseLevel`, `MarshalText`, and `UnmarshalText` all work with registered custom levels.

@@ -53,6 +53,12 @@ func Default() *Config {
 			level.Dry: new(lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("5"))), // magenta
+			level.Success: new(lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("2"))), // green
+			level.Notice: new(lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("6"))), // cyan
 			level.Warn: new(lipgloss.NewStyle().
 				Bold(true).
 				Foreground(lipgloss.Color("3"))), // yellow

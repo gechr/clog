@@ -22,14 +22,16 @@ var ErrUnknownLevel = errors.New("unknown level")
 type Level int
 
 const (
-	Trace Level = -10
-	Debug Level = -5
-	Info  Level = 0
-	Hint  Level = 1
-	Dry   Level = 2
-	Warn  Level = 5
-	Error Level = 10
-	Fatal Level = 15
+	Trace   Level = -20
+	Debug   Level = -10
+	Info    Level = 0
+	Hint    Level = 10
+	Dry     Level = 20
+	Success Level = 30
+	Notice  Level = 35
+	Warn    Level = 40
+	Error   Level = 50
+	Fatal   Level = 60
 
 	// Unset is passed to [clog.SetNonTTYLevel] to disable the non-TTY level
 	// filter. Its value is intentionally below all real log levels so the
@@ -39,29 +41,39 @@ const (
 
 // Level name strings.
 const (
-	TraceValue = "trace"
-	DebugValue = "debug"
-	InfoValue  = "info"
-	HintValue  = "hint"
-	DryValue   = "dry"
-	WarnValue  = "warn"
-	ErrorValue = "error"
-	FatalValue = "fatal"
+	TraceValue   = "trace"
+	DebugValue   = "debug"
+	InfoValue    = "info"
+	HintValue    = "hint"
+	DryValue     = "dry"
+	SuccessValue = "success"
+	NoticeValue  = "notice"
+	WarnValue    = "warn"
+	ErrorValue   = "error"
+	FatalValue   = "fatal"
 )
 
 var builtins = map[Level]bool{
 	Trace: true, Debug: true, Info: true, Hint: true, Dry: true,
-	Warn: true, Error: true, Fatal: true,
+	Success: true, Notice: true, Warn: true, Error: true, Fatal: true,
 }
 
 var labels = map[Level]string{
 	Trace: "TRC", Debug: "DBG", Info: "INF", Hint: "HNT", Dry: "DRY",
-	Warn: "WRN", Error: "ERR", Fatal: "FTL",
+	Success: "OK", Notice: "NTC", Warn: "WRN", Error: "ERR", Fatal: "FTL",
 }
 
 var names = map[Level]string{
-	Trace: TraceValue, Debug: DebugValue, Info: InfoValue, Hint: HintValue, Dry: DryValue,
-	Warn: WarnValue, Error: ErrorValue, Fatal: FatalValue,
+	Trace:   TraceValue,
+	Debug:   DebugValue,
+	Info:    InfoValue,
+	Hint:    HintValue,
+	Dry:     DryValue,
+	Success: SuccessValue,
+	Notice:  NoticeValue,
+	Warn:    WarnValue,
+	Error:   ErrorValue,
+	Fatal:   FatalValue,
 }
 
 var mu sync.RWMutex
@@ -131,22 +143,24 @@ func (l *Level) UnmarshalText(text []byte) error {
 // parseNames maps accepted built-in name strings to their levels: the
 // canonical names plus the aliases "warning" and "critical".
 var parseNames = map[string]Level{
-	TraceValue: Trace,
-	DebugValue: Debug,
-	InfoValue:  Info,
-	HintValue:  Hint,
-	DryValue:   Dry,
-	WarnValue:  Warn,
-	"warning":  Warn,
-	ErrorValue: Error,
-	FatalValue: Fatal,
-	"critical": Fatal,
+	TraceValue:   Trace,
+	DebugValue:   Debug,
+	InfoValue:    Info,
+	HintValue:    Hint,
+	DryValue:     Dry,
+	SuccessValue: Success,
+	NoticeValue:  Notice,
+	WarnValue:    Warn,
+	"warning":    Warn,
+	ErrorValue:   Error,
+	FatalValue:   Fatal,
+	"critical":   Fatal,
 }
 
 // Parse maps a level name string to a [Level] value.
-// It accepts the canonical names ("trace", "debug", "info", "hint", "dry", "warn",
-// "error", "fatal") plus aliases ("warning" → Warn, "critical" → Fatal).
-// Matching is case-insensitive.
+// It accepts the canonical names ("trace", "debug", "info", "hint", "dry",
+// "success", "notice", "warn", "error", "fatal") plus aliases
+// ("warning" → Warn, "critical" → Fatal). Matching is case-insensitive.
 func Parse(s string) (Level, error) {
 	lower := strings.ToLower(s)
 	if lvl, ok := parseNames[lower]; ok {

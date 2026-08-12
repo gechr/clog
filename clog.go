@@ -57,14 +57,16 @@ import (
 type Level = level.Level
 
 const (
-	LevelTrace = level.Trace
-	LevelDebug = level.Debug
-	LevelInfo  = level.Info
-	LevelHint  = level.Hint
-	LevelDry   = level.Dry
-	LevelWarn  = level.Warn
-	LevelError = level.Error
-	LevelFatal = level.Fatal
+	LevelTrace   = level.Trace
+	LevelDebug   = level.Debug
+	LevelInfo    = level.Info
+	LevelHint    = level.Hint
+	LevelDry     = level.Dry
+	LevelSuccess = level.Success
+	LevelNotice  = level.Notice
+	LevelWarn    = level.Warn
+	LevelError   = level.Error
+	LevelFatal   = level.Fatal
 
 	// UnsetLevel is passed to [SetNonTTYLevel] to disable the non-TTY level
 	// filter. Its value is intentionally below all real log levels so the
@@ -73,14 +75,16 @@ const (
 )
 
 const (
-	LevelTraceValue = level.TraceValue
-	LevelDebugValue = level.DebugValue
-	LevelInfoValue  = level.InfoValue
-	LevelHintValue  = level.HintValue
-	LevelDryValue   = level.DryValue
-	LevelWarnValue  = level.WarnValue
-	LevelErrorValue = level.ErrorValue
-	LevelFatalValue = level.FatalValue
+	LevelTraceValue   = level.TraceValue
+	LevelDebugValue   = level.DebugValue
+	LevelInfoValue    = level.InfoValue
+	LevelHintValue    = level.HintValue
+	LevelDryValue     = level.DryValue
+	LevelSuccessValue = level.SuccessValue
+	LevelNoticeValue  = level.NoticeValue
+	LevelWarnValue    = level.WarnValue
+	LevelErrorValue   = level.ErrorValue
+	LevelFatalValue   = level.FatalValue
 )
 
 // nl is the newline terminator used throughout the package.
@@ -312,6 +316,12 @@ func (l *Logger) Hint() *Event { return l.newEvent(LevelHint) }
 // Dry returns a new [Event] at dry level, or nil if dry is disabled.
 func (l *Logger) Dry() *Event { return l.newEvent(LevelDry) }
 
+// Success returns a new [Event] at success level, or nil if success is disabled.
+func (l *Logger) Success() *Event { return l.newEvent(LevelSuccess) }
+
+// Notice returns a new [Event] at notice level, or nil if notice is disabled.
+func (l *Logger) Notice() *Event { return l.newEvent(LevelNotice) }
+
 // Warn returns a new [Event] at warn level, or nil if warn is disabled.
 func (l *Logger) Warn() *Event { return l.newEvent(LevelWarn) }
 
@@ -416,6 +426,12 @@ func Hint() *Event { return Default().Hint() }
 
 // Dry returns a new dry-level [Event] from the [Default] logger.
 func Dry() *Event { return Default().Dry() }
+
+// Success returns a new success-level [Event] from the [Default] logger.
+func Success() *Event { return Default().Success() }
+
+// Notice returns a new notice-level [Event] from the [Default] logger.
+func Notice() *Event { return Default().Notice() }
 
 // Warn returns a new warn-level [Event] from the [Default] logger.
 func Warn() *Event { return Default().Warn() }
@@ -1237,7 +1253,7 @@ func (l *Logger) SetWrap(wrap Wrap) {
 
 // LevelConfig configures a custom log level for use with [RegisterLevel].
 type LevelConfig struct {
-	Label  string // short display label (e.g. "SCS") [default: uppercase Name, max 3 chars]
+	Label  string // short display label (e.g. "AUD") [default: uppercase Name, max 3 chars]
 	Name   string // canonical name for ParseLevel/MarshalText (e.g. "success") [required]
 	Style  Style  // lipgloss style for the level label [default: nil]
 	Symbol string // emoji symbol (e.g. "✅") [default: ""]

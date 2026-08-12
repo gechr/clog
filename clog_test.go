@@ -70,7 +70,10 @@ func TestLevelString(t *testing.T) {
 		{LevelTrace, "TRC"},
 		{LevelDebug, "DBG"},
 		{LevelInfo, "INF"},
+		{LevelHint, "HNT"},
 		{LevelDry, "DRY"},
+		{LevelSuccess, "OK"},
+		{LevelNotice, "NTC"},
 		{LevelWarn, "WRN"},
 		{LevelError, "ERR"},
 		{LevelFatal, "FTL"},
@@ -97,6 +100,8 @@ func TestLevelFiltering(t *testing.T) {
 		{"debug_at_info", LevelInfo, (*Logger).Debug, true},
 		{"info_at_info", LevelInfo, (*Logger).Info, false},
 		{"dry_at_info", LevelInfo, (*Logger).Dry, false},
+		{"success_at_info", LevelInfo, (*Logger).Success, false},
+		{"notice_at_info", LevelInfo, (*Logger).Notice, false},
 		{"warn_at_info", LevelInfo, (*Logger).Warn, false},
 		{"error_at_info", LevelInfo, (*Logger).Error, false},
 		{"fatal_at_info", LevelInfo, (*Logger).Fatal, false},
@@ -104,6 +109,8 @@ func TestLevelFiltering(t *testing.T) {
 		{"debug_at_debug", LevelDebug, (*Logger).Debug, false},
 		{"info_at_warn", LevelWarn, (*Logger).Info, true},
 		{"dry_at_warn", LevelWarn, (*Logger).Dry, true},
+		{"success_at_warn", LevelWarn, (*Logger).Success, true},
+		{"notice_at_warn", LevelWarn, (*Logger).Notice, true},
 		{"warn_at_warn", LevelWarn, (*Logger).Warn, false},
 		{"error_at_error", LevelError, (*Logger).Error, false},
 		{"warn_at_error", LevelError, (*Logger).Warn, true},
@@ -124,6 +131,46 @@ func TestLevelFiltering(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSuccess(t *testing.T) {
+	l, buf := newTestLogger()
+
+	l.Success().Msg("Build complete")
+
+	assert.Equal(t, " OK ✅ Build complete\n", buf.String())
+}
+
+func TestPackageLevelSuccess(t *testing.T) {
+	originalLogger := Default()
+	defer SetDefault(originalLogger)
+
+	var buf bytes.Buffer
+	SetDefault(New(TestOutput(&buf)))
+
+	Success().Msg("Build complete")
+
+	assert.Equal(t, " OK ✅ Build complete\n", buf.String())
+}
+
+func TestNotice(t *testing.T) {
+	l, buf := newTestLogger()
+
+	l.Notice().Msg("Cache refreshed")
+
+	assert.Equal(t, "NTC 🔔 Cache refreshed\n", buf.String())
+}
+
+func TestPackageLevelNotice(t *testing.T) {
+	originalLogger := Default()
+	defer SetDefault(originalLogger)
+
+	var buf bytes.Buffer
+	SetDefault(New(TestOutput(&buf)))
+
+	Notice().Msg("Cache refreshed")
+
+	assert.Equal(t, "NTC 🔔 Cache refreshed\n", buf.String())
 }
 
 func TestSetLevel(t *testing.T) {
@@ -833,6 +880,8 @@ func TestDefaultSymbols(t *testing.T) {
 	assert.Equal(t, "ℹ️", p[LevelInfo])
 	assert.Equal(t, "🔍", p[LevelTrace])
 	assert.Equal(t, "🐞", p[LevelDebug])
+	assert.Equal(t, "✅", p[LevelSuccess])
+	assert.Equal(t, "🔔", p[LevelNotice])
 
 	// Modifying the returned map should not affect defaults.
 	p[LevelInfo] = "CHANGED"
@@ -2006,6 +2055,8 @@ func TestParseLevel(t *testing.T) {
 		{"debug", LevelDebug},
 		{"info", LevelInfo},
 		{"dry", LevelDry},
+		{"success", LevelSuccess},
+		{"notice", LevelNotice},
 		{"warn", LevelWarn},
 		{"warning", LevelWarn},
 		{"error", LevelError},
@@ -2014,6 +2065,8 @@ func TestParseLevel(t *testing.T) {
 		{"TRACE", LevelTrace},
 		{"Debug", LevelDebug},
 		{"INFO", LevelInfo},
+		{"SUCCESS", LevelSuccess},
+		{"NOTICE", LevelNotice},
 		{"WARNING", LevelWarn},
 		{"CRITICAL", LevelFatal},
 	}
@@ -2042,6 +2095,8 @@ func TestLevelMarshalText(t *testing.T) {
 		{LevelDebug, LevelDebugValue},
 		{LevelInfo, LevelInfoValue},
 		{LevelDry, LevelDryValue},
+		{LevelSuccess, LevelSuccessValue},
+		{LevelNotice, LevelNoticeValue},
 		{LevelWarn, LevelWarnValue},
 		{LevelError, LevelErrorValue},
 		{LevelFatal, LevelFatalValue},
@@ -2457,35 +2512,35 @@ func TestWithContextAndCtx(t *testing.T) {
 }
 
 func TestRegisterLevel(t *testing.T) {
-	const testLevel Level = 3 // between Dry (2) and Warn (5)
+	const testLevel Level = 25 // between Dry (20) and Warn (40)
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name:  "success",
-		Label: "SCS", Symbol: "✅",
+		Name:  "audit",
+		Label: "AUD", Symbol: "✅",
 	})
 	defer cleanup()
 
-	assert.Equal(t, "SCS", testLevel.String())
+	assert.Equal(t, "AUD", testLevel.String())
 
 	text, err := testLevel.MarshalText()
 	require.NoError(t, err)
-	assert.Equal(t, "success", string(text))
+	assert.Equal(t, "audit", string(text))
 
-	parsed, err := ParseLevel("success")
+	parsed, err := ParseLevel("audit")
 	require.NoError(t, err)
 	assert.Equal(t, testLevel, parsed)
 
-	parsed, err = ParseLevel("SUCCESS")
+	parsed, err = ParseLevel("AUDIT")
 	require.NoError(t, err)
 	assert.Equal(t, testLevel, parsed)
 }
 
 func TestLogCustomLevel(t *testing.T) {
-	const testLevel Level = 3
+	const testLevel Level = 25
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name:  "success",
-		Label: "SCS", Symbol: "✅",
+		Name:  "audit",
+		Label: "AUD", Symbol: "✅",
 	})
 	defer cleanup()
 
@@ -2494,22 +2549,22 @@ func TestLogCustomLevel(t *testing.T) {
 
 	// Register label/symbol on the test logger.
 	l.mu.Lock()
-	l.labels[testLevel] = "SCS"
+	l.labels[testLevel] = "AUD"
 	l.symbols[testLevel] = "✅"
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	l.mu.Unlock()
 
 	l.Log(testLevel).Msg("Build completed")
-	assert.Equal(t, "SCS ✅ Build completed\n", buf.String())
+	assert.Equal(t, "AUD ✅ Build completed\n", buf.String())
 }
 
 func TestRegisterLevelFiltering(t *testing.T) {
-	const testLevel Level = 3
+	const testLevel Level = 25
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name:  "success",
-		Label: "SCS",
+		Name:  "audit",
+		Label: "AUD",
 	})
 	defer cleanup()
 
@@ -2517,17 +2572,17 @@ func TestRegisterLevelFiltering(t *testing.T) {
 
 	// Register label on the test logger.
 	l.mu.Lock()
-	l.labels[testLevel] = "SCS"
+	l.labels[testLevel] = "AUD"
 	l.labelWidth = computeLabelWidth(l.labels)
 	l.recomputePaddedLabels()
 	l.mu.Unlock()
 
-	// Custom level (3) should be visible at LevelInfo (0).
+	// Custom level (25) should be visible at LevelInfo (0).
 	l.SetLevel(LevelInfo)
 	l.Log(testLevel).Msg("visible")
-	assert.Equal(t, "SCS visible\n", buf.String())
+	assert.Equal(t, "AUD visible\n", buf.String())
 
-	// Custom level (3) should be hidden at LevelWarn (5).
+	// Custom level (25) should be hidden at LevelWarn (40).
 	buf.Reset()
 	l.SetLevel(LevelWarn)
 	e := l.Log(testLevel)
@@ -2546,19 +2601,25 @@ func TestRegisterLevelPanics(t *testing.T) {
 			RegisterLevel(LevelInfo, LevelConfig{Name: "custom"})
 		})
 	})
+
+	t.Run("builtin_conflict_success", func(t *testing.T) {
+		assert.PanicsWithValue(t, "level: cannot override built-in level 30", func() {
+			RegisterLevel(LevelSuccess, LevelConfig{Name: "custom"})
+		})
+	})
 }
 
 func TestRegisterLevelDefaultLabel(t *testing.T) {
-	const testLevel Level = 3
+	const testLevel Level = 25
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name: "success",
+		Name: "audit",
 	})
 	defer cleanup()
 
 	assert.Equal(
 		t,
-		"SUC",
+		"AUD",
 		testLevel.String(),
 		"default label should be uppercase name truncated to 3 chars",
 	)
@@ -2568,7 +2629,7 @@ func TestLevelsIncludesCustom(t *testing.T) {
 	const testLevel Level = 7
 
 	cleanup := registerTestLevel(t, testLevel, LevelConfig{
-		Name: "success",
+		Name: "audit",
 	})
 	defer cleanup()
 

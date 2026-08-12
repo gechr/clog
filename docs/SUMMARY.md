@@ -43,4 +43,5 @@
   - [TOML](toml.md)
   - [HCL](hcl.md)
 
+- [Presets](presets.md)
 - [Configuration](configuration.md)

@@ -40,6 +40,7 @@ func TestLoggerDefaultWrapperSync(t *testing.T) {
 func defaultWrapperFuncs() map[string]any {
 	return map[string]any{
 		"AddHook":                         AddHook,
+		"ApplyPreset":                     ApplyPreset,
 		"ClearAllHooks":                   ClearAllHooks,
 		"ClearHooks":                      ClearHooks,
 		"SetAnimationInterval":            SetAnimationInterval,
