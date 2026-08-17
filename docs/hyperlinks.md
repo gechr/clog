@@ -124,6 +124,36 @@ clog.SetFieldFormats(f)
 | `vscode-insiders` | `vscode-insiders://`   |
 | `vscodium`        | `vscodium://`          |
 
+## Non-terminal output
+
+Piped output, `NO_COLOR` and `ColorNever` all rule out OSC 8, which would otherwise leave a label with no way to reach its target. `HyperlinkFallback` decides what replaces the escape sequence:
+
+```go
+f := clog.DefaultFieldFormats()
+f.HyperlinkFallback = hyperlink.FallbackExpanded
+clog.SetFieldFormats(f)
+
+// Or on the Default logger directly.
+clog.SetHyperlinkFallback(hyperlink.FallbackExpanded)
+```
+
+| Mode                | Renders                        |
+| ------------------- | ------------------------------ |
+| `FallbackURL`       | `https://example.com`          |
+| `FallbackExpanded`  | `docs (https://example.com)`   |
+| `FallbackMarkdown`  | `[docs](https://example.com)`  |
+| `FallbackText`      | `docs`                         |
+
+`FallbackURL` is the default: a label usually abbreviates its URL, so the URL is what a piped log line needs to stay actionable. Choose `FallbackText` for the pre-fallback behaviour of emitting the label alone.
+
+The mode applies to links whose target is independent of their label - `Hyperlink`, `Link`, `Links`, `URL` and `URLs`. Path fields (`Path`, `PathText`, `Line`, `Column` and the slice variants) always render their label alone, since that label already carries the path.
+
+Set the mode from the environment with a mode name:
+
+```sh
+export CLOG_HYPERLINK_FALLBACK=expanded
+```
+
 ## Enabling / Disabling
 
 Hyperlinks are enabled by default (when colors are active). Disable them programmatically:
@@ -134,4 +164,4 @@ f.HyperlinkEnabled = false // disable all hyperlink rendering
 clog.SetFieldFormats(f)
 ```
 
-Hyperlinks are automatically disabled when colors are disabled.
+OSC 8 sequences are automatically dropped when colors are disabled; see [Non-terminal output](#non-terminal-output) for what is emitted instead.

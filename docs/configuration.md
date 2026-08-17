@@ -120,6 +120,7 @@ logger.SetFieldFormats(f)
 | `ElapsedScale`            | `TimeScale`                  | whole seconds    | Elapsed/deadline-specific scale; nil inherits `TimeScale`, empty disables rounding           |
 | `TimeScale`               | `TimeScale`                  | three brackets   | Shared magnitude-keyed rounding and precision scale                                          |
 | `HyperlinkEnabled`        | `bool`                       | `true`           | Enable/disable all hyperlink rendering                                                       |
+| `HyperlinkFallback`       | `hyperlink.Fallback`         | `FallbackURL`    | How links render without OSC 8 (`url`, `expanded`, `markdown`, `text`)                       |
 | `HyperlinkColumnFormat`   | `string`                     | `""`             | URL format for file+line+column hyperlinks                                                   |
 | `HyperlinkDirFormat`      | `string`                     | `""`             | URL format for directory hyperlinks                                                          |
 | `HyperlinkFileFormat`     | `string`                     | `""`             | URL format for file-only hyperlinks                                                          |
@@ -194,6 +195,7 @@ All env vars follow the pattern `{PREFIX}_{SUFFIX}`. The default prefix is `CLOG
 | Suffix                    | Default env var                |
 | ------------------------- | ------------------------------ |
 | `LOG_LEVEL`               | `CLOG_LOG_LEVEL`               |
+| `HYPERLINK_FALLBACK`      | `CLOG_HYPERLINK_FALLBACK`      |
 | `HYPERLINK_FORMAT`        | `CLOG_HYPERLINK_FORMAT`        |
 | `HYPERLINK_PATH_FORMAT`   | `CLOG_HYPERLINK_PATH_FORMAT`   |
 | `HYPERLINK_FILE_FORMAT`   | `CLOG_HYPERLINK_FILE_FORMAT`   |

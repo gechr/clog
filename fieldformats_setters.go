@@ -86,6 +86,12 @@ func (l *Logger) SetHyperlinkEnabled(enabled bool) {
 	l.mutateHyperlinks(func(f *FieldFormats) { f.HyperlinkEnabled = enabled })
 }
 
+// SetHyperlinkFallback sets how links render where OSC 8 sequences cannot be
+// emitted - piped output, NO_COLOR, or [ColorNever]. Path fields are unaffected.
+func (l *Logger) SetHyperlinkFallback(fallback hyperlink.Fallback) {
+	l.mutateHyperlinks(func(f *FieldFormats) { f.HyperlinkFallback = fallback })
+}
+
 // SetHyperlinkColumnFormat sets the URL format for file+line+column links.
 // Accepts a full format string or a preset name (e.g. "vscode").
 func (l *Logger) SetHyperlinkColumnFormat(format string) {

@@ -20,6 +20,11 @@ type Config struct {
 	// hyperlink helpers return plain text without OSC 8 sequences.
 	Enabled bool
 
+	// Fallback selects how a link renders where OSC 8 sequences cannot be
+	// emitted. The zero value is [FallbackURL]. It has no effect when Enabled
+	// is false, which suppresses links outright.
+	Fallback Fallback
+
 	// ColumnFormat is the URL format for file+line+column hyperlinks.
 	// Falls back to LineFormat when empty.
 	ColumnFormat string
@@ -38,7 +43,8 @@ type Config struct {
 }
 
 // DefaultConfig returns the default hyperlink configuration: enabled, with
-// all format slots empty (plain file:// URLs).
+// all format slots empty (plain file:// URLs) and [FallbackURL] where OSC 8
+// is unavailable.
 func DefaultConfig() Config {
 	return Config{Enabled: true}
 }

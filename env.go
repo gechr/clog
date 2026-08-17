@@ -14,6 +14,7 @@ import (
 // Env var suffixes (appended to prefix + "_").
 const (
 	envLogLevel              = "LOG_LEVEL"
+	envHyperlinkFallback     = "HYPERLINK_FALLBACK"
 	envHyperlinkFormat       = "HYPERLINK_FORMAT"
 	envHyperlinkPathFormat   = "HYPERLINK_PATH_FORMAT"
 	envHyperlinkFileFormat   = "HYPERLINK_FILE_FORMAT"
@@ -60,7 +61,7 @@ func loadLogLevelFromEnv() {
 
 	parsed, err := level.Parse(lvl)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "clog: unrecognised log level %q in %s\n", lvl, envVar)
+		fmt.Fprintf(os.Stderr, "clog: invalid log level %q in %s\n", lvl, envVar)
 		return
 	}
 
@@ -77,13 +78,22 @@ func loadHyperlinkFormatsFromEnv() {
 	// HYPERLINK_FORMAT (preset) is applied first; individual format vars override it.
 	if v, envVar := env.Lookup(envHyperlinkFormat); v != "" {
 		if cfg, err := hyperlink.Preset(v); err != nil {
-			fmt.Fprintf(os.Stderr, "clog: unrecognised hyperlink preset %q in %s\n", v, envVar)
+			fmt.Fprintf(os.Stderr, "clog: invalid hyperlink preset %q in %s\n", v, envVar)
 		} else {
 			f.HyperlinkPathFormat = cfg.PathFormat
 			f.HyperlinkFileFormat = cfg.FileFormat
 			f.HyperlinkDirFormat = cfg.DirFormat
 			f.HyperlinkLineFormat = cfg.LineFormat
 			f.HyperlinkColumnFormat = cfg.ColumnFormat
+			changed = true
+		}
+	}
+
+	if v, envVar := env.Lookup(envHyperlinkFallback); v != "" {
+		if fallback, err := hyperlink.ParseFallback(v); err != nil {
+			fmt.Fprintf(os.Stderr, "clog: invalid hyperlink fallback %q in %s\n", v, envVar)
+		} else {
+			f.HyperlinkFallback = fallback
 			changed = true
 		}
 	}

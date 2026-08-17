@@ -138,6 +138,16 @@ f.ElapsedGradientMax = maximum`,
 		hyperlink: true,
 	},
 	{
+		name:   "HyperlinkFallback",
+		params: "fallback hyperlink.Fallback",
+		args:   "fallback",
+		doc: `sets how links render where OSC 8 sequences cannot be
+emitted - piped output, NO_COLOR, or [ColorNever]. Path fields are unaffected.`,
+		mirrorDoc: "sets the hyperlink fallback mode on the [Default] logger.",
+		body:      "f.HyperlinkFallback = fallback",
+		hyperlink: true,
+	},
+	{
 		name:   "HyperlinkColumnFormat",
 		params: "format string",
 		args:   "format",
@@ -331,7 +341,7 @@ func genSetters() []byte {
 func genMirrors() []byte {
 	var b bytes.Buffer
 	b.WriteString(header)
-	b.WriteString("import \"time\"\n")
+	b.WriteString("import (\n\t\"time\"\n\n\t\"github.com/gechr/clog/field/hyperlink\"\n)\n")
 
 	for _, s := range setters {
 		b.WriteString("\n")

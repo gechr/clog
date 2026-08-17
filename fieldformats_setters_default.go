@@ -2,7 +2,11 @@
 
 package clog
 
-import "time"
+import (
+	"time"
+
+	"github.com/gechr/clog/field/hyperlink"
+)
 
 // SetDurationFormat sets a custom duration formatter on the [Default] logger.
 func SetDurationFormat(format func(time.Duration) string) { Default().SetDurationFormat(format) }
@@ -36,6 +40,9 @@ func SetTimeGradientMax(maximum time.Duration) { Default().SetTimeGradientMax(ma
 
 // SetHyperlinkEnabled enables or disables hyperlink rendering on the [Default] logger.
 func SetHyperlinkEnabled(enabled bool) { Default().SetHyperlinkEnabled(enabled) }
+
+// SetHyperlinkFallback sets the hyperlink fallback mode on the [Default] logger.
+func SetHyperlinkFallback(fallback hyperlink.Fallback) { Default().SetHyperlinkFallback(fallback) }
 
 // SetHyperlinkColumnFormat sets the file+line+column hyperlink format on the [Default] logger.
 func SetHyperlinkColumnFormat(format string) { Default().SetHyperlinkColumnFormat(format) }

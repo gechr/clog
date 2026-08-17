@@ -125,8 +125,8 @@ func TestEventLink(t *testing.T) {
 
 	require.Len(t, e.fields, 1)
 	assert.Equal(t, "docs", e.fields[0].Key)
-	// Colors disabled in tests (no TTY), so returns plain text.
-	assert.Equal(t, "docs", e.fields[0].Value)
+	// Colors disabled in tests (no TTY), so the fallback renders the URL.
+	assert.Equal(t, "https://example.com", e.fields[0].Value)
 }
 
 func TestEventLinkColorAlways(t *testing.T) {
@@ -176,8 +176,12 @@ func TestEventLinks(t *testing.T) {
 
 	require.Len(t, e.fields, 1)
 	assert.Equal(t, "repos", e.fields[0].Key)
-	// Colors disabled in tests (no TTY), so returns plain text.
-	assert.Equal(t, []string{"foo/bar", "baz/qux"}, e.fields[0].Value)
+	// Colors disabled in tests (no TTY), so the fallback renders the URLs.
+	assert.Equal(
+		t,
+		[]string{"https://github.com/foo/bar", "https://github.com/baz/qux"},
+		e.fields[0].Value,
+	)
 }
 
 func TestEventLinksColorAlways(t *testing.T) {

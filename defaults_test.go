@@ -59,6 +59,7 @@ func defaultWrapperFuncs() map[string]any {
 		"SetHyperlinkColumnFormat":        SetHyperlinkColumnFormat,
 		"SetHyperlinkDirFormat":           SetHyperlinkDirFormat,
 		"SetHyperlinkEnabled":             SetHyperlinkEnabled,
+		"SetHyperlinkFallback":            SetHyperlinkFallback,
 		"SetHyperlinkFileFormat":          SetHyperlinkFileFormat,
 		"SetHyperlinkLineFormat":          SetHyperlinkLineFormat,
 		"SetHyperlinkPathFormat":          SetHyperlinkPathFormat,

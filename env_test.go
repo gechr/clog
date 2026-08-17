@@ -165,6 +165,37 @@ func TestEnvHyperlinkPresetApplied(t *testing.T) {
 	assert.Equal(t, "vscode://file{path}:{line}:{column}", formats.HyperlinkColumnFormat)
 }
 
+func TestEnvHyperlinkFallbackApplied(t *testing.T) {
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
+
+	saveEnvPrefix(t)
+
+	SetDefault(NewWriter(io.Discard))
+	t.Setenv("CLOG_HYPERLINK_FALLBACK", "markdown")
+	env.SetPrefix("")
+
+	loadHyperlinkFormatsFromEnv()
+
+	assert.Equal(t, hyperlink.FallbackMarkdown, Default().FieldFormats().HyperlinkFallback)
+}
+
+func TestEnvHyperlinkFallbackInvalid(t *testing.T) {
+	origDefault := Default()
+	defer func() { SetDefault(origDefault) }()
+
+	saveEnvPrefix(t)
+
+	SetDefault(NewWriter(io.Discard))
+	t.Setenv("CLOG_HYPERLINK_FALLBACK", "plain")
+	env.SetPrefix("")
+
+	loadHyperlinkFormatsFromEnv()
+
+	// An invalid mode leaves the default in place.
+	assert.Equal(t, hyperlink.FallbackURL, Default().FieldFormats().HyperlinkFallback)
+}
+
 func TestSetEnvPrefixHyperlinkFormats(t *testing.T) {
 	origDefault := Default()
 	defer func() { SetDefault(origDefault) }()

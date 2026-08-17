@@ -74,7 +74,58 @@ func TestOutputHyperlinkNever(t *testing.T) {
 	output := NewOutput(io.Discard, ColorNever)
 	got := output.Hyperlink("https://example.com", "text")
 
-	assert.Equal(t, "text", got)
+	// Without OSC 8 the default fallback keeps the URL, not the label.
+	assert.Equal(t, "https://example.com", got)
+}
+
+func TestOutputHyperlinkFallback(t *testing.T) {
+	tests := []struct {
+		name     string
+		fallback hyperlink.Fallback
+		want     string
+	}{
+		{name: "url", fallback: hyperlink.FallbackURL, want: "https://example.com"},
+		{
+			name:     "expanded",
+			fallback: hyperlink.FallbackExpanded,
+			want:     "text (https://example.com)",
+		},
+		{
+			name:     "markdown",
+			fallback: hyperlink.FallbackMarkdown,
+			want:     "[text](https://example.com)",
+		},
+		{name: "text", fallback: hyperlink.FallbackText, want: "text"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := NewOutput(io.Discard, ColorNever)
+			output.setHyperlinks(hyperlink.Config{Enabled: true, Fallback: tt.fallback})
+
+			assert.Equal(t, tt.want, output.Hyperlink("https://example.com", "text"))
+		})
+	}
+}
+
+func TestOutputHyperlinkFallbackIgnoredOnTerminal(t *testing.T) {
+	output := NewOutput(io.Discard, ColorAlways)
+	output.setHyperlinks(hyperlink.Config{Enabled: true, Fallback: hyperlink.FallbackMarkdown})
+
+	got := output.Hyperlink("https://example.com", "text")
+	want := "\x1b]8;;https://example.com\x1b\\text\x1b]8;;\x1b\\"
+
+	assert.Equal(t, want, got)
+}
+
+func TestOutputPathLinkFallbackNotApplied(t *testing.T) {
+	// A path label already carries the path, so it stands alone rather than
+	// expanding to the resolved file:// URL.
+	output := NewOutput(io.Discard, ColorNever)
+	output.setHyperlinks(hyperlink.Config{Enabled: true, Fallback: hyperlink.FallbackExpanded})
+
+	assert.Equal(t, "/tmp/test.go:42", output.PathLink("/tmp/test.go", 42, 0))
+	assert.Equal(t, "~/bin/foo", output.PathLinkText("~/bin/foo", "/home/user/bin/foo", 0, 0))
 }
 
 func TestOutputHyperlinkDisabled(t *testing.T) {
@@ -82,6 +133,15 @@ func TestOutputHyperlinkDisabled(t *testing.T) {
 	got := output.Hyperlink("https://example.com", "text")
 
 	assert.Equal(t, "text", got)
+}
+
+func TestOutputHyperlinkDisabledSkipsFallback(t *testing.T) {
+	// Disabling hyperlinks suppresses the link outright, so no URL is
+	// substituted even where OSC 8 is unavailable.
+	output := NewOutput(io.Discard, ColorNever)
+	output.setHyperlinks(hyperlink.Config{Enabled: false, Fallback: hyperlink.FallbackURL})
+
+	assert.Equal(t, "text", output.Hyperlink("https://example.com", "text"))
 }
 
 func TestOutputHyperlinkEmptyURL(t *testing.T) {
@@ -244,6 +304,18 @@ func TestSetFieldFormatsHyperlinkPreset(t *testing.T) {
 
 	// Preset names are expanded per slot on store.
 	assert.Equal(t, "vscode://file{path}:{line}", logger.FieldFormats().HyperlinkLineFormat)
+}
+
+func TestSetHyperlinkFallback(t *testing.T) {
+	logger := New(NewOutput(io.Discard, ColorNever))
+	logger.SetHyperlinkFallback(hyperlink.FallbackMarkdown)
+
+	assert.Equal(t, hyperlink.FallbackMarkdown, logger.FieldFormats().HyperlinkFallback)
+	assert.Equal(
+		t,
+		"[docs](https://example.com)",
+		logger.Output().Hyperlink("https://example.com", "docs"),
+	)
 }
 
 func TestSetFieldFormatsHyperlinkDisabled(t *testing.T) {

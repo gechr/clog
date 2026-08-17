@@ -229,8 +229,8 @@ func TestSpinnerBuilderLink(t *testing.T) {
 
 	require.Len(t, b.Fields, 1)
 	assert.Equal(t, "docs", b.Fields[0].Key)
-	// In test env, colors are disabled so hyperlink returns plain text.
-	assert.Equal(t, "docs", b.Fields[0].Value)
+	// In test env, colors are disabled so the fallback renders the URL.
+	assert.Equal(t, "https://example.com", b.Fields[0].Value)
 }
 
 func TestSpinnerBuilderURL(t *testing.T) {

@@ -48,6 +48,10 @@ type FieldFormats struct {
 
 	// HyperlinkEnabled controls whether hyperlinks are rendered at all.
 	HyperlinkEnabled bool
+	// HyperlinkFallback selects how links render where OSC 8 sequences cannot
+	// be emitted - piped output, NO_COLOR, or [ColorNever]. The default is
+	// [hyperlink.FallbackURL]; path fields always render their label alone.
+	HyperlinkFallback hyperlink.Fallback
 	// HyperlinkColumnFormat is the URL format for file+line+column links.
 	// Accepts a full format string or a preset name (e.g. "vscode").
 	HyperlinkColumnFormat string
@@ -311,6 +315,7 @@ func (l *Logger) loadFieldFormats() *FieldFormats {
 func (f *FieldFormats) hyperlinkConfig() hyperlink.Config {
 	return hyperlink.Config{
 		Enabled:      f.HyperlinkEnabled,
+		Fallback:     f.HyperlinkFallback,
 		PathFormat:   f.HyperlinkPathFormat,
 		FileFormat:   f.HyperlinkFileFormat,
 		DirFormat:    f.HyperlinkDirFormat,

@@ -65,7 +65,8 @@ func TestContextLink(t *testing.T) {
 
 	require.Len(t, ctx.Fields, 1)
 	assert.Equal(t, "docs", ctx.Fields[0].Key)
-	assert.Equal(t, "docs", ctx.Fields[0].Value)
+	// Colors disabled in tests (no TTY), so the fallback renders the URL.
+	assert.Equal(t, "https://example.com", ctx.Fields[0].Value)
 }
 
 func TestContextURL(t *testing.T) {
@@ -84,7 +85,11 @@ func TestContextLinks(t *testing.T) {
 
 	require.Len(t, ctx.Fields, 1)
 	assert.Equal(t, "repos", ctx.Fields[0].Key)
-	assert.Equal(t, []string{"foo/bar", "baz/qux"}, ctx.Fields[0].Value)
+	assert.Equal(
+		t,
+		[]string{"https://github.com/foo/bar", "https://github.com/baz/qux"},
+		ctx.Fields[0].Value,
+	)
 }
 
 func TestContextURLs(t *testing.T) {

@@ -61,10 +61,16 @@ func (o *Output) hyperlinkSettings() hyperlink.Config {
 
 // hyperlink is like [Hyperlink] but uses the Output's color settings. An empty
 // url has no link target, so the text is returned plain - callers can pass an
-// optional url without guarding it.
+// optional url without guarding it. Where OSC 8 cannot be emitted the
+// configured [hyperlink.Fallback] keeps the URL in the output rather than
+// dropping it with the escape sequence.
 func (o *Output) hyperlink(url, text string) string {
-	if url == "" || !o.hyperlinkSettings().Enabled || o.ColorsDisabled() {
+	cfg := o.hyperlinkSettings()
+	if url == "" || !cfg.Enabled {
 		return text
+	}
+	if o.ColorsDisabled() {
+		return cfg.Fallback.Render(url, text)
 	}
 	return hyperlink.OSC8(url, text)
 }
@@ -75,7 +81,9 @@ func (o *Output) pathLink(path string, line, column int) string {
 }
 
 // pathLinkText is like [pathLink] but uses text as the visible label rather
-// than deriving it from path.
+// than deriving it from path. Path labels already carry the path, so where
+// OSC 8 cannot be emitted the label stands alone - [hyperlink.Fallback] does
+// not apply here.
 func (o *Output) pathLinkText(text, path string, line, column int) string {
 	cfg := o.hyperlinkSettings()
 	if !cfg.Enabled || o.ColorsDisabled() {
