@@ -169,12 +169,12 @@ func headerEnd(rest string) int {
 
 // endsWithLineNumber reports whether s ends in ":" followed by digits.
 func endsWithLineNumber(s string) bool {
-	i := strings.LastIndex(s, ":")
-	if i < 0 || i == len(s)-1 {
+	_, digits, found := strings.CutLast(s, ":")
+	if !found || digits == "" {
 		return false
 	}
 
-	for _, r := range s[i+1:] {
+	for _, r := range digits {
 		if r < '0' || r > '9' {
 			return false
 		}

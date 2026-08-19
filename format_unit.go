@@ -350,13 +350,13 @@ func fractionSeparatorStyle(styles *style.Config, base lipgloss.Style) lipgloss.
 // sepStyle on the single "/". When no separator is present it falls back to
 // styling the whole string.
 func renderFraction(valStr string, valueStyle, sepStyle lipgloss.Style) string {
-	idx := strings.LastIndex(valStr, "/")
-	if idx < 0 {
+	before, after, found := strings.CutLast(valStr, "/")
+	if !found {
 		return valueStyle.Render(valStr)
 	}
-	return valueStyle.Render(valStr[:idx]) +
+	return valueStyle.Render(before) +
 		sepStyle.Render("/") +
-		valueStyle.Render(valStr[idx+1:])
+		valueStyle.Render(after)
 }
 
 // styleQuantity renders a quantity string with separate styles for the numeric

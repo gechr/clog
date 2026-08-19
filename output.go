@@ -330,17 +330,17 @@ func queryCursorPosition(out io.Writer) (cursorPosition, bool) {
 }
 
 func parseCursorPositionReport(report string) (cursorPosition, bool) {
-	start := strings.LastIndex(report, xansi.CSI)
-	if start < 0 {
+	_, params, found := strings.CutLast(report, xansi.CSI)
+	if !found {
 		return cursorPosition{}, false
 	}
 
-	end := strings.IndexByte(report[start:], 'R')
-	if end < 0 {
+	body, _, found := strings.Cut(params, "R")
+	if !found {
 		return cursorPosition{}, false
 	}
 
-	parts := strings.Split(report[start+2:start+end], ";")
+	parts := strings.Split(body, ";")
 	if len(parts) != cursorPositionFieldCount {
 		return cursorPosition{}, false
 	}
