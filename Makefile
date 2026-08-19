@@ -1,5 +1,5 @@
 GO                      ?= go
-GO_TOOLS                ?= $(shell $(GO) tool | grep /)
+GO_TOOLS                ?= $(shell $(GO) list tool)
 
 DOCS_DIR                ?= ./docs
 EXAMPLES_DIR            ?= ./examples
