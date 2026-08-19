@@ -25,14 +25,12 @@ func NewWaitResult(
 	msg string,
 ) *WaitResult {
 	w := &WaitResult{
-		resultBase: resultBase[WaitResult]{
-			Log:          logger,
-			PartOverride: parts,
-			SuccessLevel: lvl,
-			SuccessMsg:   msg,
-			LevelError:   level.Error,
-		},
-		TaskErr: err,
+		Log:          logger,
+		PartOverride: parts,
+		SuccessLevel: lvl,
+		SuccessMsg:   msg,
+		LevelError:   level.Error,
+		TaskErr:      err,
 	}
 	w.InitSelf(w)
 	return w

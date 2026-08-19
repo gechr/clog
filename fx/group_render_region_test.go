@@ -67,14 +67,12 @@ func (s *regionStubLogger) TaskConfig(b *Builder) TaskConfig {
 // exposes a live region writing to w.
 func newRegionStubLogger(w io.Writer) (*regionStubLogger, *regionStubOutput) {
 	o := &regionStubOutput{
-		stubOutput: stubOutput{
-			cursorOK:  true,
-			cursorRow: 1,
-			height:    24,
-			tty:       true,
-			w:         w,
-			width:     80,
-		},
+		cursorOK:  true,
+		cursorRow: 1,
+		height:    24,
+		tty:       true,
+		w:         w,
+		width:     80,
 	}
 	o.region = core.NewLiveRegion(w, func() int { return o.width })
 	return &regionStubLogger{

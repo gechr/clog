@@ -186,12 +186,10 @@ func (g *Group) Wait() *GroupResult {
 	g.mu.Unlock()
 
 	result := &GroupResult{
-		resultBase: resultBase[GroupResult]{
-			Log:          g.log,
-			SuccessLevel: level.Info,
-			LevelError:   level.Error,
-		},
-		group: g,
+		Log:          g.log,
+		SuccessLevel: level.Info,
+		LevelError:   level.Error,
+		group:        g,
 	}
 	result.InitSelf(result)
 
@@ -423,13 +421,11 @@ func (ge *GroupEntry) Progress(task UpdateFunc) *TaskResult {
 	}
 
 	r := &TaskResult{
-		resultBase: resultBase[TaskResult]{
-			Log:          b.IndentedLogger(l),
-			PartOverride: b.partOverrides,
-			SuccessLevel: b.cfg.Level,
-			LevelError:   level.Error,
-		},
-		task: t,
+		Log:          b.IndentedLogger(l),
+		PartOverride: b.partOverrides,
+		SuccessLevel: b.cfg.Level,
+		LevelError:   level.Error,
+		task:         t,
 	}
 	r.InitSelf(r)
 	return r
