@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -919,6 +920,17 @@ func TestPackageLevelSetLevelAlign(t *testing.T) {
 }
 
 func TestColorsDisabledPerOutput(t *testing.T) {
+	// Keep this test independent of the environment running the suite. In
+	// particular, NO_COLOR takes precedence over CLICOLOR_FORCE, but this test
+	// exercises CLICOLOR_FORCE itself.
+	// t.Setenv restores the original value (or absence) on cleanup.
+	t.Setenv("NO_COLOR", "")
+	if err := os.Unsetenv("NO_COLOR"); err != nil {
+		t.Fatal(err)
+	}
+	wasSet := noColorEnvSet.Swap(false)
+	t.Cleanup(func() { noColorEnvSet.Store(wasSet) })
+
 	always := New(NewOutput(io.Discard, ColorAlways))
 	assert.False(t, always.colorsDisabled())
 
