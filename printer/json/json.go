@@ -199,7 +199,7 @@ func Highlight(s string, styles *style.JSON) string {
 				return buf.String()
 			}
 
-		case c == tokenMinus || (printer.IsDigit(c)):
+		case c == tokenMinus || printer.IsDigit(c):
 			j := i
 			if data[j] == '-' {
 				j++

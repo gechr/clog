@@ -1072,7 +1072,7 @@ func TestSpinnerSymbolStyleApplied(t *testing.T) {
 	Default().SetParts(PartSymbol, PartMessage)
 	Default().SetLevelAlign(AlignNone)
 	Default().SetStyles(&style.Config{
-		Symbols: style.LevelMap{
+		Symbols: style.LevelMap{ //nolint:exhaustive // partial override
 			LevelInfo: new(lipgloss.NewStyle().Foreground(lipgloss.Color("2"))),
 		},
 	})

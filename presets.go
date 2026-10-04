@@ -78,7 +78,7 @@ func TersePreset() *Preset {
 		Parts:      []Part{PartSymbol, PartMessage, PartFields},
 		LevelAlign: new(AlignNone),
 		Wrap:       new(WrapSoft),
-		Symbols: LabelMap{
+		Symbols: LabelMap{ //nolint:exhaustive // partial override
 			LevelInfo:    "·",
 			LevelSuccess: "✔︎",
 			LevelNotice:  "›",
@@ -89,7 +89,7 @@ func TersePreset() *Preset {
 		},
 		Styles: &style.Config{
 			Message: new(lipgloss.NewStyle().Bold(true)),
-			Messages: style.LevelMap{
+			Messages: style.LevelMap{ //nolint:exhaustive // partial override
 				LevelInfo:    green,
 				LevelSuccess: green,
 				LevelNotice:  yellow,
@@ -100,7 +100,7 @@ func TersePreset() *Preset {
 				), // deliberately plain: overrides the default fatal style
 				LevelDry: yellow,
 			},
-			Symbols: style.LevelMap{
+			Symbols: style.LevelMap{ //nolint:exhaustive // partial override
 				LevelInfo:    yellow,
 				LevelSuccess: green,
 				LevelNotice:  yellow,

@@ -762,7 +762,7 @@ func TestLoadLogLevelFromEnvUnrecognised(t *testing.T) {
 
 func TestSetLabels(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLabels(LabelMap{LevelWarn: "WARN"})
+	l.SetLabels(LabelMap{LevelWarn: "WARN"}) //nolint:exhaustive // partial override
 
 	assert.Equal(t, "WARN", l.labels[LevelWarn])
 	// Other labels should retain defaults.
@@ -785,7 +785,7 @@ func TestFormatLabelAlignNone(t *testing.T) {
 
 func TestFormatLabelAlignLeft(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLabels(LabelMap{
+	l.SetLabels(LabelMap{ //nolint:exhaustive // partial override
 		LevelInfo:  "INF",
 		LevelWarn:  "WARN",
 		LevelError: "ERROR",
@@ -798,7 +798,7 @@ func TestFormatLabelAlignLeft(t *testing.T) {
 
 func TestFormatLabelAlignRight(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLabels(LabelMap{
+	l.SetLabels(LabelMap{ //nolint:exhaustive // partial override
 		LevelInfo:  "INF",
 		LevelWarn:  "WARN",
 		LevelError: "ERROR",
@@ -811,7 +811,7 @@ func TestFormatLabelAlignRight(t *testing.T) {
 
 func TestFormatLabelAlignCenter(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetLabels(LabelMap{
+	l.SetLabels(LabelMap{ //nolint:exhaustive // partial override
 		LevelInfo:  "INF",
 		LevelWarn:  "WARN",
 		LevelError: "ERROR",
@@ -835,7 +835,7 @@ func TestFormatLabelUnknownAlign(t *testing.T) {
 
 func TestSetSymbols(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetSymbols(LabelMap{LevelInfo: ">>>"})
+	l.SetSymbols(LabelMap{LevelInfo: ">>>"}) //nolint:exhaustive // partial override
 
 	assert.Equal(t, ">>>", l.symbols[LevelInfo])
 	// Other symbols should retain defaults.
@@ -847,7 +847,7 @@ func TestPackageLevelSetSymbols(t *testing.T) {
 	defer func() { SetDefault(origDefault) }()
 
 	SetDefault(NewWriter(io.Discard))
-	SetSymbols(LabelMap{LevelInfo: ">>>"})
+	SetSymbols(LabelMap{LevelInfo: ">>>"}) //nolint:exhaustive // partial override
 
 	assert.Equal(t, ">>>", Default().symbols[LevelInfo])
 }
@@ -893,7 +893,7 @@ func TestDefaultSymbols(t *testing.T) {
 
 func TestResolveSymbolUsesCustomSymbols(t *testing.T) {
 	l := NewWriter(io.Discard)
-	l.SetSymbols(LabelMap{LevelInfo: "CUSTOM"})
+	l.SetSymbols(LabelMap{LevelInfo: "CUSTOM"}) //nolint:exhaustive // partial override
 
 	e := &Event{logger: l, level: LevelInfo}
 	assert.Equal(t, "CUSTOM", l.resolveSymbol(e))
@@ -904,7 +904,7 @@ func TestPackageLevelSetLabels(t *testing.T) {
 	defer func() { SetDefault(origDefault) }()
 
 	SetDefault(NewWriter(io.Discard))
-	SetLabels(LabelMap{LevelWarn: "WARN"})
+	SetLabels(LabelMap{LevelWarn: "WARN"}) //nolint:exhaustive // partial override
 
 	assert.Equal(t, "WARN", Default().labels[LevelWarn])
 }
