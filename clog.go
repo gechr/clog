@@ -1326,7 +1326,7 @@ func Levels() []Level {
 var customLevelsMu sync.RWMutex
 
 // customLevels holds custom level registrations.
-var customLevels = map[Level]LevelConfig{}
+var customLevels = make(map[Level]LevelConfig)
 
 // ctxKey is the private context key used by [Logger.WithContext] and [Ctx].
 type ctxKey struct{}

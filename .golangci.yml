@@ -58,10 +58,10 @@ linters:
     errcheck:
       check-type-assertions: true
     exhaustive:
-      ignore-enum-members: Unset
+      ignore-constants: Unset
       check:
         - switch
-        - map
+        - mapliteral
     gocritic:
       enabled-checks:
         - ruleguard

@@ -169,7 +169,7 @@ func hex(s string) colorful.Color {
 // DefaultMessages returns the default per-level message styles (empty map;
 // falls back to the global [Config.Message] style when entries are nil).
 func DefaultMessages() LevelMap {
-	return LevelMap{}
+	return make(LevelMap)
 }
 
 // DefaultValues returns sensible default styles for common value strings.

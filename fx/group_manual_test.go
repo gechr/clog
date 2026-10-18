@@ -55,12 +55,12 @@ func TestManualFinishIsIdempotent(t *testing.T) {
 
 	_, finish := entry.Manual()
 	finish(nil)
-	<-entry.task.doneErr // drain the single buffered result
+	require.NoError(t, <-entry.task.doneErr) // drain the single buffered result
 
 	finish(errors.New("second")) // must not send again
 	select {
-	case <-entry.task.doneErr:
-		t.Fatal("finish sent twice")
+	case err := <-entry.task.doneErr:
+		t.Fatalf("finish sent twice: %v", err)
 	default:
 	}
 }

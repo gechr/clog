@@ -25,7 +25,7 @@ var builtinParts = map[Part]bool{
 
 var (
 	partsMu       sync.RWMutex
-	partRenderers = map[Part]PartRenderer{}
+	partRenderers = make(map[Part]PartRenderer)
 )
 
 // RegisterPart registers a renderer for a custom [Part], making it available
