@@ -13,7 +13,7 @@ require (
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/gechr/gorules v0.0.4
-	github.com/gechr/x v0.6.4
+	github.com/gechr/x v0.6.5
 	github.com/go-logr/logr v1.4.4
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.25.0

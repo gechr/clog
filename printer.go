@@ -111,6 +111,7 @@ func (p *Printer) RawJSON(data []byte) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.resolvePrintThemeLocked()
 	indent := p.resolveJSONIndent()
 	preserve := p.effectiveMode() == JSONPreserve
 
@@ -159,6 +160,7 @@ func (p *Printer) rawHighlight[T any](
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
+	l.resolvePrintThemeLocked()
 	var styles *T
 	if !l.colorsDisabled() {
 		styles = styleFor(l.styles)
