@@ -110,6 +110,7 @@ func defaultWrapperFuncs() map[string]any {
 		"SetSpinnerDefaults":              SetSpinnerDefaults,
 		"SetStyles":                       SetStyles,
 		"SetSuppressEchoDuringAnimations": SetSuppressEchoDuringAnimations,
+		"SetSymbolSet":                    SetSymbolSet,
 		"SetSymbols":                      SetSymbols,
 		"SetTheme":                        SetTheme,
 		"SetTimeFormat":                   SetTimeFormat,

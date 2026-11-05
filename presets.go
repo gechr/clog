@@ -7,7 +7,7 @@ import (
 )
 
 // Preset is a declarative bundle of logger configuration - part order,
-// alignment, wrapping, labels, symbols, styles, and spinner defaults -
+// alignment, wrapping, labels, symbols, symbol set, styles, and spinner defaults -
 // applied in one call with [Logger.ApplyPreset]. Nil or empty fields leave
 // the corresponding setting unchanged, so sparse presets layer over the
 // logger's current configuration. Fields are listed in application order.
@@ -22,6 +22,9 @@ type Preset struct {
 	Labels LabelMap
 	// Symbols merges level symbols over the defaults via [Logger.SetSymbols] [nil = leave unchanged].
 	Symbols LabelMap
+	// SymbolSet declares the symbol family via [Logger.SetSymbolSet], so libraries
+	// that stamp their own glyphs match the preset's [nil = leave unchanged].
+	SymbolSet *SymbolSet
 	// Styles merges into the current styles via [Logger.SetStyles] [nil = leave unchanged].
 	Styles *style.Config
 	// SpinnerDefaults builds the default spinner configuration over
@@ -30,8 +33,8 @@ type Preset struct {
 }
 
 // ApplyPreset applies p by calling the corresponding setters in a fixed
-// order: parts, level alignment, wrap, labels, symbols, styles, spinner
-// defaults. Each field keeps its setter's semantics: labels, symbols, and
+// order: parts, level alignment, wrap, labels, symbols, symbol set, styles,
+// spinner defaults. Each field keeps its setter's semantics: labels, symbols, and
 // styles merge over the current configuration; parts and spinner defaults
 // replace. Nil or empty fields are skipped, and applying the same preset
 // twice is harmless. A nil p is a no-op.
@@ -58,6 +61,9 @@ func (l *Logger) ApplyPreset(p *Preset) {
 	if p.Symbols != nil {
 		l.SetSymbols(p.Symbols)
 	}
+	if p.SymbolSet != nil {
+		l.SetSymbolSet(*p.SymbolSet)
+	}
 	if p.Styles != nil {
 		l.SetStyles(p.Styles)
 	}
@@ -67,9 +73,10 @@ func (l *Logger) ApplyPreset(p *Preset) {
 }
 
 // TersePreset returns the built-in terse preset: symbol-first lines with no
-// level labels or timestamps, minimal single-character glyphs, ANSI colors,
-// soft wrapping, and a bouncing-dots spinner. It suits compact CLI tools.
-// Each call returns a fresh value, safe to modify before applying.
+// level labels or timestamps, minimal single-character glyphs (declared as
+// [SymbolSetText]), ANSI colors, soft wrapping, and a bouncing-dots spinner.
+// It suits compact CLI tools. Each call returns a fresh value, safe to modify
+// before applying.
 func TersePreset() *Preset {
 	green := new(lipgloss.NewStyle().Foreground(lipgloss.Color("2")))
 	yellow := new(lipgloss.NewStyle().Foreground(lipgloss.Color("3")))
@@ -87,6 +94,7 @@ func TersePreset() *Preset {
 			LevelFatal:   "✘",
 			LevelDry:     "$",
 		},
+		SymbolSet: new(SymbolSetText),
 		Styles: &style.Config{
 			Message: new(lipgloss.NewStyle().Bold(true)),
 			Messages: style.LevelMap{ //nolint:exhaustive // partial override

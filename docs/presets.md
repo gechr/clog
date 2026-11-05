@@ -1,6 +1,6 @@
 # Presets
 
-A `Preset` bundles logger configuration - part order, alignment, wrapping, labels, symbols, styles, and spinner defaults - into one declarative value applied in a single call, replacing dozens of imperative `Set*` calls at startup.
+A `Preset` bundles logger configuration - part order, alignment, wrapping, labels, symbols, symbol set, styles, and spinner defaults - into one declarative value applied in a single call, replacing dozens of imperative `Set*` calls at startup.
 
 ```go
 clog.ApplyPreset(clog.TersePreset())
@@ -22,6 +22,7 @@ Fields are applied in the order listed. Nil or empty fields are skipped, so spar
 | `Wrap`            | `*Wrap`            | `SetWrap`            | Replaces the wrap mode                |
 | `Labels`          | `LabelMap`         | `SetLabels`          | Merges over the default labels        |
 | `Symbols`         | `LabelMap`         | `SetSymbols`         | Merges over the default symbols       |
+| `SymbolSet`       | `*SymbolSet`       | `SetSymbolSet`       | Replaces the declared symbol family   |
 | `Styles`          | `*style.Config`    | `SetStyles`          | Merges into the current styles        |
 | `SpinnerDefaults` | `[]spinner.Option` | `SetSpinnerDefaults` | Replaces the spinner defaults         |
 
@@ -55,6 +56,8 @@ clog.Dry().Msg("rm -rf ./cache")
 clog.Warn().Str("region", "emea").Msg("Degraded upstream")
 // ! Degraded upstream region=emea
 ```
+
+Terse also declares `SymbolSetText`, so libraries that stamp their own glyphs (such as clive's updater) switch from emoji to matching text glyphs. See [Custom Symbol](custom-symbol.md#symbol-sets).
 
 Terse leaves the printer and gradient styles untouched, so background-adaptive theming (see [Styles](styles.md)) keeps working.
 

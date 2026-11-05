@@ -85,6 +85,40 @@ func TestApplyPresetMergesSymbols(t *testing.T) {
 		"levels absent from the preset should keep their default symbols")
 }
 
+func TestApplyPresetSymbolSet(t *testing.T) {
+	l, _ := newTestLogger()
+
+	assert.Equal(t, SymbolSetEmoji, l.SymbolSet())
+
+	l.ApplyPreset(&Preset{Wrap: new(WrapSoft)})
+	assert.Equal(t, SymbolSetEmoji, l.SymbolSet(),
+		"a preset without a symbol set should leave it unchanged")
+
+	l.ApplyPreset(TersePreset())
+	assert.Equal(t, SymbolSetText, l.SymbolSet())
+}
+
+func TestSymbolSetNilLogger(t *testing.T) {
+	var l *Logger
+
+	assert.NotPanics(t, func() { l.SetSymbolSet(SymbolSetText) })
+	assert.Equal(t, SymbolSetEmoji, l.SymbolSet())
+}
+
+func TestPackageLevelSymbolSet(t *testing.T) {
+	origDefault := Default()
+	defer SetDefault(origDefault)
+
+	SetDefault(NewWriter(io.Discard))
+	assert.Equal(t, SymbolSetEmoji, GetSymbolSet())
+
+	ApplyPreset(TersePreset())
+	assert.Equal(t, SymbolSetText, GetSymbolSet())
+
+	SetSymbolSet(SymbolSetEmoji)
+	assert.Equal(t, SymbolSetEmoji, GetSymbolSet())
+}
+
 func TestApplyPresetSpinnerDefaults(t *testing.T) {
 	l, _ := newTestLogger()
 

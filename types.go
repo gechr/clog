@@ -69,6 +69,18 @@ const (
 	WrapSoft
 )
 
+// SymbolSet names the family a logger's level symbols are drawn from, so a
+// library that stamps its own glyphs on log lines (e.g. an updater's
+// "Upgraded" line) can match the host's choice instead of clashing with it.
+type SymbolSet int
+
+const (
+	// SymbolSetEmoji is the colour-emoji family of [DefaultSymbols] (default).
+	SymbolSetEmoji SymbolSet = iota
+	// SymbolSetText is a family of single-width text glyphs such as ✔︎ and ✘.
+	SymbolSetText
+)
+
 // Sort controls how fields are sorted in output.
 type Sort = core.Sort
 

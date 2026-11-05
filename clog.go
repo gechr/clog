@@ -244,6 +244,7 @@ type Logger struct {
 	styleOverride      styleOverride // theme-derived styles the user supplied explicitly
 	suppressEcho       bool          // suppress terminal echo while animations are live
 	symbol             *string       // nil = use default emoji for level
+	symbolSet          SymbolSet
 	symbols            LabelMap
 	timeFormat         string
 	timeLocation       *time.Location
@@ -487,6 +488,11 @@ func Print() *Printer { return Default().Print() }
 // GetLevel returns the current log level of the [Default] logger.
 func GetLevel() Level {
 	return Default().Level()
+}
+
+// GetSymbolSet returns the symbol family declared on the [Default] logger.
+func GetSymbolSet() SymbolSet {
+	return Default().SymbolSet()
 }
 
 // IsVerbose returns true if verbose/debug mode is enabled on the [Default] logger.
@@ -945,6 +951,29 @@ func (l *Logger) SetSymbols(symbols LabelMap) {
 	maps.Copy(merged, symbols)
 
 	l.symbols = merged
+}
+
+// SetSymbolSet declares the family the logger's symbols are drawn from. It
+// changes no symbol itself: it tells libraries that stamp their own glyphs
+// (read back via [Logger.SymbolSet]) which family to match.
+func (l *Logger) SetSymbolSet(set SymbolSet) {
+	if l == nil {
+		return
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.symbolSet = set
+}
+
+// SymbolSet returns the family declared by [Logger.SetSymbolSet]. A nil
+// [Logger] reports [SymbolSetEmoji], the default.
+func (l *Logger) SymbolSet() SymbolSet {
+	if l == nil {
+		return SymbolSetEmoji
+	}
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.symbolSet
 }
 
 // SetQuoteChars sets the opening and closing characters used to quote field

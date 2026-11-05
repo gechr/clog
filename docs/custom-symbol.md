@@ -45,3 +45,21 @@ clog.SetStyles(&style.Config{
 Symbol styles also apply to spinner animation frames, so spinners inherit the color of their level.
 
 `Styles.Symbols` is a `LevelMap`. Entries for levels not in the map render unstyled (the default).
+
+## Symbol Sets
+
+Some libraries stamp their own glyphs on log lines, such as an updater's "Upgraded" line. `SetSymbolSet` tells them which family your symbols come from, so their glyphs match yours. It changes no symbol itself.
+
+```go
+clog.SetSymbols(clog.LabelMap{clog.LevelSuccess: "✔︎", clog.LevelError: "✘"})
+clog.SetSymbolSet(clog.SymbolSetText)
+
+clog.GetSymbolSet() // SymbolSetText
+```
+
+| Set              | Meaning                                        |
+| ---------------- | ---------------------------------------------- |
+| `SymbolSetEmoji` | Colour emoji, as in `DefaultSymbols` (default) |
+| `SymbolSetText`  | Single-width text glyphs such as `✔︎` and `✘`   |
+
+`TersePreset` declares `SymbolSetText`. A custom preset sets its family with the `SymbolSet` field.

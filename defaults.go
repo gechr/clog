@@ -191,6 +191,9 @@ func SetYAMLIndentSequence(indent bool) { Default().SetYAMLIndentSequence(indent
 // SetSymbols sets the level symbols on the [Default] logger.
 func SetSymbols(symbols LabelMap) { Default().SetSymbols(symbols) }
 
+// SetSymbolSet declares the symbol family on the [Default] logger.
+func SetSymbolSet(set SymbolSet) { Default().SetSymbolSet(set) }
+
 // SetQuoteChars sets the opening and closing quote characters on the [Default] logger.
 func SetQuoteChars(openChar, closeChar rune) { Default().SetQuoteChars(openChar, closeChar) }
 
