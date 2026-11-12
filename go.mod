@@ -1,7 +1,7 @@
 module github.com/gechr/clog
 
 // @clover
-go 1.27.3
+go 1.27.4
 
 tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
@@ -9,11 +9,11 @@ tool (
 )
 
 require (
-	charm.land/lipgloss/v2 v2.0.6
+	charm.land/lipgloss/v2 v2.1.0
 	github.com/charmbracelet/colorprofile v0.4.3
 	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/gechr/gorules v0.0.4
-	github.com/gechr/x v0.6.5
+	github.com/gechr/x v0.6.6
 	github.com/go-logr/logr v1.4.4
 	github.com/goccy/go-yaml v1.19.2
 	github.com/hashicorp/hcl/v2 v2.25.0
@@ -21,8 +21,8 @@ require (
 	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/quasilyte/go-ruleguard/dsl v0.3.23
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/sys v0.49.0
-	golang.org/x/term v0.47.0
+	golang.org/x/sys v0.50.0
+	golang.org/x/term v0.48.0
 	k8s.io/klog/v2 v2.140.0
 )
 
