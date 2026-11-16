@@ -7,6 +7,7 @@
   - [Hyperlinks](hyperlinks.md)
   - [Sub-loggers](sub-loggers.md)
   - [Input](input.md)
+  - [Program Status](program-status.md)
   - [Hooks](hooks.md)
   - [Handlers](handlers.md)
   - [`log/slog`](slog.md)

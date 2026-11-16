@@ -45,6 +45,7 @@ func defaultWrapperFuncs() map[string]any {
 		"ClearHooks":                      ClearHooks,
 		"SetAnimationInterval":            SetAnimationInterval,
 		"SetColorMode":                    SetColorMode,
+		"SetProgramStatus":                SetProgramStatus,
 		"SetDurationFormat":               SetDurationFormat,
 		"SetDurationGradientMax":          SetDurationGradientMax,
 		"SetDurationMinimum":              SetDurationMinimum,

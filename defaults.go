@@ -161,6 +161,12 @@ func SetInput(r io.Reader) { Default().SetInput(r) }
 // [Logger.SetPromptMarker].
 func SetPromptMarker(marker string) { Default().SetPromptMarker(marker) }
 
+// SetProgramStatus reports status using the default logger's terminal output.
+// See [Logger.SetProgramStatus].
+func SetProgramStatus(status ProgramStatus) {
+	Default().SetProgramStatus(status)
+}
+
 // SetOutput sets the output on the [Default] logger.
 func SetOutput(out *Output) { Default().SetOutput(out) }
 

@@ -279,6 +279,15 @@ func (r *LiveRegion) Resume() {
 	r.wakeLocked()
 }
 
+// WriteControl serializes a non-printing terminal control sequence with live
+// rendering. It does not repaint, append a newline, or change row accounting.
+// Callers must supply only sequences that do not move the cursor or draw text.
+func (r *LiveRegion) WriteControl(sequence string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	writeString(r.out, sequence)
+}
+
 // WriteLines writes s (one or more fully formatted log lines) to the output.
 // With no block on screen it is a plain write. While the block is live, the
 // write displaces it: one synchronized frame erases the block, writes s
