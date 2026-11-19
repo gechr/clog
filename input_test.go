@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"github.com/gechr/clog/style"
@@ -401,4 +404,75 @@ func TestInputRequireHiddenIgnoredWhenNotSensitive(t *testing.T) {
 
 	require.NoError(t, err)
 	assert.Equal(t, "hello", got)
+}
+
+func TestInputContextRegionOwnership(t *testing.T) {
+	for _, tc := range []struct {
+		name             string
+		alreadySuspended bool
+	}{{"active", false}, {"already suspended", true}} {
+		t.Run(tc.name, func(t *testing.T) {
+			var out bytes.Buffer
+			log := New(TestOutput(&out))
+			region := log.Output().LiveRegion()
+			var renders atomic.Int32
+			slot := region.Register(
+				func(time.Time) string { renders.Add(1); return "progress" },
+				time.Hour,
+			)
+			defer region.Unregister(slot)
+			if tc.alreadySuspended {
+				region.Suspend(true)
+			}
+			log.SetInput(promptReadFunc(func(p []byte) (int, error) {
+				before := renders.Load()
+				region.RenderFrame(time.Now())
+				if renders.Load() != before {
+					return 0, errors.New("region rendered during input")
+				}
+				return copy(p, "book\n"), io.EOF
+			}))
+			before := renders.Load()
+			result, err := log.InputContext(t.Context(), "Item? ")
+			require.NoError(t, err)
+			require.Equal(t, "book", result)
+			if tc.alreadySuspended {
+				region.RenderFrame(time.Now())
+				require.Equal(t, before, renders.Load())
+			} else {
+				require.Greater(t, renders.Load(), before)
+			}
+		})
+	}
+}
+
+type promptReadFunc func([]byte) (int, error)
+
+func (f promptReadFunc) Read(p []byte) (int, error) { return f(p) }
+
+func TestPromptKeepsRegionSuspended(t *testing.T) {
+	for _, turnover := range []bool{false, true} {
+		var out bytes.Buffer
+		log := New(TestOutput(&out))
+		region := log.Output().LiveRegion()
+		render := func(time.Time) string { return "working" }
+		slot := region.Register(render, time.Hour)
+		log.SetInput(promptReadFunc(func(p []byte) (int, error) {
+			n := out.Len()
+			if turnover {
+				region.Unregister(slot)
+				slot = region.Register(render, time.Hour)
+			} else {
+				region.Resume()
+			}
+			region.RenderFrame(time.Now())
+			if out.Len() != n {
+				return 0, errors.New("live slot wrote over the prompt")
+			}
+			return copy(p, "done\n"), io.EOF
+		}))
+		_, err := log.InputContext(t.Context(), "Item? ")
+		region.Unregister(slot)
+		require.NoError(t, err)
+	}
 }

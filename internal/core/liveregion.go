@@ -1,6 +1,8 @@
 package core
 
 import (
+	"cmp"
+	"fmt"
 	"io"
 	"slices"
 	"strings"
@@ -49,9 +51,10 @@ type EchoController interface {
 // must go through this mutex - the render loop, slot registration, and log
 // displacement all serialize here.
 type LiveRegion struct {
-	mu    sync.Mutex
-	out   io.Writer
-	width func() int
+	mu     sync.Mutex
+	out    io.Writer
+	width  func() int
+	height func() int
 
 	slots  []liveSlot
 	nextID uint64
@@ -60,6 +63,7 @@ type LiveRegion struct {
 	lastLines []string // last painted slot lines, for skip-identical dedup
 	lastWidth int      // terminal width at last paint
 	suspended bool
+	inputHold bool
 
 	// echo, when non-nil, has the terminal's local echo suppressed while the
 	// block is live and restored whenever the terminal is released (last
@@ -83,6 +87,13 @@ func NewLiveRegion(out io.Writer, width func() int) *LiveRegion {
 		width: width,
 		wake:  make(chan struct{}, 1),
 	}
+}
+
+// NewViewportRegion fits all registered slots inside a shared terminal viewport.
+func NewViewportRegion(out io.Writer, width, height func() int) *LiveRegion {
+	r := NewLiveRegion(out, width)
+	r.height = height
+	return r
 }
 
 // SetEchoController installs (or, with nil, removes) the controller that
@@ -180,6 +191,9 @@ func (r *LiveRegion) UnregisterWithCursor(id uint64, showCursor bool) {
 	r.slots = slices.Delete(r.slots, idx, idx+1)
 
 	if r.suspended {
+		if r.inputHold {
+			return
+		}
 		if len(r.slots) == 0 {
 			r.suspended = false
 			r.lastLines = nil
@@ -232,7 +246,33 @@ func (r *LiveRegion) Suspend(showCursor bool) {
 	if r.suspended || len(r.slots) == 0 {
 		return
 	}
+	r.suspendLocked(showCursor)
+}
 
+// SuspendForInput holds the terminal until the prompt finishes, including
+// when the last slot finishes or the first one starts during the read.
+// A nil release means an existing suspension already owns the terminal.
+func SuspendForInput(r *LiveRegion) func() {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if r.suspended {
+		return nil
+	}
+	if len(r.slots) > 0 {
+		r.suspendLocked(true)
+	} else {
+		r.suspended = true
+	}
+	r.inputHold = true
+	return sync.OnceFunc(func() {
+		r.mu.Lock()
+		defer r.mu.Unlock()
+		r.inputHold = false
+		r.resumeLocked()
+	})
+}
+
+func (r *LiveRegion) suspendLocked(showCursor bool) {
 	if r.stop != nil {
 		close(r.stop)
 		r.stop = nil
@@ -260,7 +300,12 @@ func (r *LiveRegion) Suspend(showCursor bool) {
 func (r *LiveRegion) Resume() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	if !r.inputHold {
+		r.resumeLocked()
+	}
+}
 
+func (r *LiveRegion) resumeLocked() {
 	if !r.suspended {
 		return
 	}
@@ -357,15 +402,23 @@ func (r *LiveRegion) paintLocked(now time.Time) {
 	// Flatten every slot's output into one list of physical lines. A slot
 	// may render a multi-row block (newline-separated) or nothing at all for
 	// this tick; either way the block stacks in registration order.
-	lines := make([]string, 0, len(r.slots))
+	blocks := make([][]string, 0, len(r.slots))
 	for _, s := range r.slots {
 		block := s.render(now)
 		if block == "" {
 			continue
 		}
-		lines = append(lines, strings.Split(block, nl)...)
+		blocks = append(blocks, strings.Split(block, nl))
 	}
 	width := r.width()
+	if r.height != nil {
+		if height := r.height(); height > 0 {
+			budget := height - 1
+			fitLiveBlocks(blocks, width, budget)
+			r.rows = min(r.rows, budget)
+		}
+	}
+	lines := slices.Concat(blocks...)
 
 	// Nothing on screen and nothing to draw: record the frame so later
 	// dedup checks compare against it, but write no bytes (not even sync
@@ -440,4 +493,50 @@ func (r *LiveRegion) wakeLocked() {
 // writeString writes s to w, discarding the return values.
 func writeString(w io.Writer, s string) {
 	_, _ = io.WriteString(w, s)
+}
+
+// Give small blocks their full height before distributing the remaining
+// rows among taller blocks. Display order stays in registration order.
+func fitLiveBlocks(blocks [][]string, width, budget int) {
+	if len(blocks) == 1 {
+		blocks[0] = fitLiveLines(blocks[0], width, budget)
+		return
+	}
+	type slotHeight struct{ index, rows int }
+	heights := make([]slotHeight, len(blocks))
+	total := 0
+	for i, lines := range blocks {
+		height := BlockRows(lines, width)
+		heights[i] = slotHeight{i, height}
+		total += height
+	}
+	if total <= budget {
+		return
+	}
+	slices.SortStableFunc(heights, func(a, b slotHeight) int { return cmp.Compare(a.rows, b.rows) })
+	for i, s := range heights {
+		allocation := min(budget, max(1, budget/(len(heights)-i)))
+		lines := fitLiveLines(blocks[s.index], width, allocation)
+		blocks[s.index] = lines
+		budget -= BlockRows(lines, width)
+	}
+}
+
+// Count wrapped lines against the slot's physical row budget.
+func fitLiveLines(lines []string, width, budget int) []string {
+	if budget <= 0 {
+		return nil
+	}
+	used := 0
+	for i, line := range lines {
+		used += FrameRows(line, width)
+		if used > budget || (used == budget && i+1 < len(lines)) {
+			label := fmt.Sprintf("+%d more lines", len(lines)-i)
+			if width > 0 {
+				label = xansi.Truncate(label, width, "")
+			}
+			return append(lines[:i], label)
+		}
+	}
+	return lines
 }

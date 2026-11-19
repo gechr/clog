@@ -8,6 +8,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gechr/clog/internal/core"
 	xansi "github.com/gechr/x/ansi"
 	"golang.org/x/term"
 )
@@ -193,6 +194,9 @@ func (l *Logger) InputContext(
 	}
 	prompt = nl + "  " + l.styledPromptMarker() + prompt
 
+	if release := core.SuspendForInput(out.LiveRegion()); release != nil {
+		defer release()
+	}
 	return readInput(ctx, src, w, prompt, cfg, out.IsTTY())
 }
 

@@ -947,7 +947,7 @@ func lookupValueStyle(v any, values style.ValueMap) *lipgloss.Style {
 		return nil
 	}
 
-	if t := reflect.TypeOf(v); t != nil && !t.Comparable() {
+	if rv := reflect.ValueOf(v); rv.IsValid() && !rv.Comparable() {
 		return nil
 	}
 	return values[v]

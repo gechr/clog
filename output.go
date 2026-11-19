@@ -115,7 +115,7 @@ func (o *Output) LiveRegion() *LiveRegion {
 	if r := o.region.Load(); r != nil {
 		return r
 	}
-	r := core.NewLiveRegion(o.w, o.Width)
+	r := core.NewViewportRegion(o.w, o.Width, o.Height)
 	if o.region.CompareAndSwap(nil, r) {
 		return r
 	}

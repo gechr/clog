@@ -23,8 +23,9 @@ import (
 // must be inert on a nil receiver, per the nil-receiver contract in the package
 // documentation. TestNilReceiverInert exercises every method of each.
 var nilInertTypes = map[string]reflect.Type{
-	"Event":  reflect.TypeFor[*Event](),
-	"Logger": reflect.TypeFor[*Logger](),
+	"LiveTable": reflect.TypeFor[*LiveTable](),
+	"Event":     reflect.TypeFor[*Event](),
+	"Logger":    reflect.TypeFor[*Logger](),
 }
 
 // nilPanicTypes are the exported pointer types deliberately left to panic on a

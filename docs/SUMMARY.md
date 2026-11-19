@@ -28,6 +28,7 @@
 - [Layout]()
   - [Indentation](indent.md)
   - [Tree](tree.md)
+  - [Live Tables](tables.md)
   - [Dividers](dividers.md)
   - [Wrapping](wrap.md)
 
