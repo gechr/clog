@@ -27,6 +27,7 @@ type TableColumn struct {
 	Key       string
 	Label     string
 	Optional  bool
+	MinWidth  int    // minimum width in terminal cells; zero uses the measured width
 	Separator string // joins independently styled values in one cell
 }
 
@@ -36,11 +37,26 @@ type TablePadding struct {
 	Top, Right, Bottom, Left int
 }
 
+// TableCloseMode selects what remains in the output when a live table closes.
+type TableCloseMode int
+
+const (
+	// TableCloseKeep leaves the full final snapshot.
+	TableCloseKeep TableCloseMode = iota
+	// TableCloseSummary leaves the final summary and footer, if present.
+	TableCloseSummary
+	// TableCloseClear erases the table and its padding. When the live region is empty,
+	// the next line starts at the top of the cleared block. Redirected output receives no snapshot.
+	TableCloseClear
+)
+
 // TableConfig controls the layout and value colors of a LiveTable.
 // Treat the configuration, including its style maps, as immutable after construction.
 type TableConfig struct {
 	Columns        []TableColumn
 	Headers        bool
+	CloseMode      TableCloseMode  // defaults to TableCloseKeep
+	RetainWidths   bool            // keep each column at its widest measured size across updates
 	ColumnGap      *int            // spaces between visible columns; nil uses two
 	FooterAlign    Align           // alignment within the visible columns; defaults to left
 	SummaryStyle   *lipgloss.Style // nil renders the summary as plain text
@@ -74,9 +90,14 @@ type LiveTable struct {
 	slot       uint64
 	stopResize func()
 	closed     bool
+	widths     []int // retained natural widths before fitting to the terminal
 
-	current atomic.Pointer[func(int) string]
+	current atomic.Pointer[tableFrame]
 }
+
+type tableFrame func(int, TableCloseMode) string
+
+func (frame tableFrame) full(width int) string { return frame(width, TableCloseKeep) }
 
 // NewLiveTable creates a table. Update starts its display on the first snapshot.
 func NewLiveTable(out *Output, cfg TableConfig) *LiveTable {
@@ -94,7 +115,7 @@ func (t *LiveTable) Update(snapshot TableSnapshot) {
 	if t.closed {
 		return
 	}
-	frame := t.cfg.snapshot(snapshot, !t.out.ColorsDisabled())
+	frame := t.snapshot(snapshot, !t.out.ColorsDisabled())
 	t.current.Store(&frame)
 	if !t.out.IsTTY() {
 		return
@@ -102,15 +123,15 @@ func (t *LiveTable) Update(snapshot TableSnapshot) {
 	if t.slot == 0 {
 		t.stopResize = t.out.ListenResize()
 		t.slot = t.out.LiveRegion().Register(func(time.Time) string {
-			return (*t.current.Load())(t.out.Width())
+			return t.current.Load().full(t.out.Width())
 		}, time.Second)
 	} else {
 		t.out.LiveRegion().RenderFrame(time.Now())
 	}
 }
 
-// Close leaves the final snapshot in scrollback. Redirected output receives
-// just this snapshot. Close can be called repeatedly.
+// Close finishes the table according to its configured close mode. Redirected output receives
+// only the selected final content. Close can be called repeatedly.
 func (t *LiveTable) Close() {
 	if t == nil {
 		return
@@ -125,14 +146,15 @@ func (t *LiveTable) Close() {
 		t.out.LiveRegion().Unregister(t.slot)
 		t.stopResize()
 	}
-	if frame := t.current.Load(); frame != nil {
-		if s := (*frame)(t.out.Width()); s != "" {
+	if frame := t.current.Load(); frame != nil && t.cfg.CloseMode != TableCloseClear {
+		if s := (*frame)(t.out.Width(), t.cfg.CloseMode); s != "" {
 			t.out.WriteLine(s + nl)
 		}
 	}
 }
 
-func (cfg TableConfig) snapshot(snapshot TableSnapshot, color bool) func(int) string {
+func (t *LiveTable) snapshot(snapshot TableSnapshot, color bool) tableFrame {
+	cfg := t.cfg
 	columnGap := DefaultTableColumnGap
 	if cfg.ColumnGap != nil {
 		columnGap = max(0, *cfg.ColumnGap)
@@ -180,6 +202,13 @@ func (cfg TableConfig) snapshot(snapshot TableSnapshot, color bool) func(int) st
 		cells = append(cells, line)
 	}
 	widths := make([]int, len(cfg.Columns))
+	if cfg.RetainWidths {
+		copy(widths, t.widths)
+		t.widths = widths
+	}
+	for i, col := range cfg.Columns {
+		widths[i] = max(widths[i], col.MinWidth)
+	}
 	for _, line := range cells {
 		for i, s := range line {
 			widths[i] = max(widths[i], ansi.StringWidth(s))
@@ -194,12 +223,17 @@ func (cfg TableConfig) snapshot(snapshot TableSnapshot, color bool) func(int) st
 
 	var last string
 	lastWidth := -1
-	return func(width int) string {
-		if width == lastWidth {
+	var lastMode TableCloseMode
+	return func(width int, mode TableCloseMode) string {
+		if width == lastWidth && mode == lastMode {
 			return last
 		}
 		pad, bodyWidth := bodyPad.fit(width)
-		rows, columnsWidth := cfg.renderRows(cells, widths, bodyWidth, columnGap)
+		var rows []string
+		var columnsWidth int
+		if mode != TableCloseSummary {
+			rows, columnsWidth = cfg.renderRows(cells, widths, bodyWidth, columnGap)
+		}
 		var sections []string
 		if len(summary) > 0 {
 			p, w := summaryPad.fit(width)
@@ -217,13 +251,13 @@ func (cfg TableConfig) snapshot(snapshot TableSnapshot, color bool) func(int) st
 			p, w := cfg.sectionPadding(cfg.FooterPadding, blankAbove).fit(width)
 			// Align inside the body's visible footprint using the footer's own insets.
 			alignWidth := 0
-			if columnsWidth > 0 {
+			if len(rows) > 0 {
 				alignWidth = pad.Left + columnsWidth + pad.Right - p.Left - p.Right
 			}
 			sections = append(sections, p.render(footer, w, cfg.FooterAlign, alignWidth))
 		}
 		last = strings.Join(sections, nl)
-		lastWidth = width
+		lastWidth, lastMode = width, mode
 		return last
 	}
 }

@@ -8,7 +8,9 @@ import (
 	"time"
 
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/gechr/clog/style"
+	xansi "github.com/gechr/x/ansi"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,19 +46,19 @@ func TestTableSnapshot(t *testing.T) {
 		KeyValues: style.KeyValueMap{"state": {Values: style.ValueMap{"done": &green}}},
 	}
 	rows := []TableRow{{"item": "A", "state": TableValues{"new", "done"}, "detail": "sample"}}
-	frame := cfg.snapshot(TableSnapshot{Summary: "Orders", Rows: rows}, false)
+	frame := NewLiveTable(nil, cfg).snapshot(TableSnapshot{Summary: "Orders", Rows: rows}, false)
 	bold := lipgloss.NewStyle().Bold(true)
 	header := bold.Render("Item") + "  " + bold.Render("State") + "       " + bold.Render("Detail")
 	require.Equal(
 		t,
 		"\n  Orders\n\n  Item  State       Detail\n  A     new / done  sample",
-		frame(80),
+		frame.full(80),
 	)
-	require.Equal(t, "\n  Orders\n\n  Item  State\n  A     new / done", frame(18))
+	require.Equal(t, "\n  Orders\n\n  Item  State\n  A     new / done", frame.full(18))
 	require.Equal(
 		t,
 		"\n  "+header+"\n  A     new / "+green.Render("done")+"  sample",
-		cfg.snapshot(TableSnapshot{Rows: rows}, true)(80),
+		NewLiveTable(nil, cfg).snapshot(TableSnapshot{Rows: rows}, true).full(80),
 	)
 }
 
@@ -90,7 +92,7 @@ func TestTableTypedStyles(t *testing.T) {
 	require.Equal(
 		t,
 		"\n  "+green.Render("ready")+"  "+green.Render("true")+"/"+bold.Render("ready")+"  {[1]}",
-		cfg.snapshot(TableSnapshot{Rows: []TableRow{row}}, true)(80),
+		NewLiveTable(nil, cfg).snapshot(TableSnapshot{Rows: []TableRow{row}}, true).full(80),
 	)
 }
 
@@ -103,7 +105,12 @@ func TestTableControls(t *testing.T) {
 	require.Equal(
 		t,
 		"first\nsecond\nx y  m n\nx y  z",
-		cfg.snapshot(TableSnapshot{Summary: "first\nsecond", Rows: rows}, false)(8),
+		NewLiveTable(
+			nil,
+			cfg,
+		).snapshot(TableSnapshot{Summary: "first\nsecond", Rows: rows}, false).full(
+			8,
+		),
 	)
 }
 
@@ -139,11 +146,14 @@ func TestTableCustomPadding(t *testing.T) {
 		Columns: []TableColumn{{Key: "id"}, {Key: "detail", Optional: true}},
 		Padding: &TablePadding{Top: 2, Left: 3, Right: 1, Bottom: 1},
 	}
-	frame := cfg.snapshot(TableSnapshot{Rows: []TableRow{{"id": "a", "detail": "more"}}}, false)
-	require.Equal(t, "\n\n   a  more \n", frame(11))
-	require.Equal(t, "\n\n   a \n", frame(10))
-	require.Equal(t, "\n\na\n", frame(1))
-	require.Empty(t, cfg.snapshot(TableSnapshot{}, false)(20))
+	frame := NewLiveTable(
+		nil,
+		cfg,
+	).snapshot(TableSnapshot{Rows: []TableRow{{"id": "a", "detail": "more"}}}, false)
+	require.Equal(t, "\n\n   a  more \n", frame.full(11))
+	require.Equal(t, "\n\n   a \n", frame.full(10))
+	require.Equal(t, "\n\na\n", frame.full(1))
+	require.Empty(t, NewLiveTable(nil, cfg).snapshot(TableSnapshot{}, false).full(20))
 }
 
 func TestTableFooterAlignment(t *testing.T) {
@@ -161,12 +171,16 @@ func TestTableFooterAlignment(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg.FooterAlign = tc.align
-			frame := cfg.snapshot(snapshot, false)
-			require.Equal(t, "\n  123456  xx\n\n"+tc.wide, frame(80))
-			require.Equal(t, "\n  123456\n\n"+tc.narrow, frame(8))
+			frame := NewLiveTable(nil, cfg).snapshot(snapshot, false)
+			require.Equal(t, "\n  123456  xx\n\n"+tc.wide, frame.full(80))
+			require.Equal(t, "\n  123456\n\n"+tc.narrow, frame.full(8))
 		})
 	}
-	require.Equal(t, "\n  done", cfg.snapshot(TableSnapshot{Footer: "done"}, false)(80))
+	require.Equal(
+		t,
+		"\n  done",
+		NewLiveTable(nil, cfg).snapshot(TableSnapshot{Footer: "done"}, false).full(80),
+	)
 }
 
 func TestTableSummaryAndFooterStyles(t *testing.T) {
@@ -192,12 +206,12 @@ func TestTableSummaryAndFooterStyles(t *testing.T) {
 		)+"\n        "+footer.Render(
 			"界",
 		),
-		cfg.snapshot(snapshot, true)(20),
+		NewLiveTable(nil, cfg).snapshot(snapshot, true).full(20),
 	)
 	require.Equal(
 		t,
 		"\n  Orders\n  Notebook\n\n      sent\n        界",
-		cfg.snapshot(snapshot, false)(20),
+		NewLiveTable(nil, cfg).snapshot(snapshot, false).full(20),
 	)
 }
 
@@ -208,19 +222,31 @@ func TestTableSectionPadding(t *testing.T) {
 		Padding: &TablePadding{Top: 1, Right: 1, Left: 2},
 	}
 	snapshot := TableSnapshot{Summary: "Title", Rows: []TableRow{{"item": "book"}}, Footer: "end"}
-	require.Equal(t, "\n  Title \n\n  Item \n  book \n\n  end ", cfg.snapshot(snapshot, false)(30))
+	require.Equal(
+		t,
+		"\n  Title \n\n  Item \n  book \n\n  end ",
+		NewLiveTable(nil, cfg).snapshot(snapshot, false).full(30),
+	)
 
 	cfg.SummaryPadding = &TablePadding{}
 	cfg.BodyPadding = &TablePadding{Left: 5}
 	cfg.FooterPadding = &TablePadding{Top: 2, Bottom: 1, Left: 1, Right: 2}
 	cfg.FooterAlign = AlignRight
-	frame := cfg.snapshot(snapshot, false)
-	require.Equal(t, "Title\n     Item\n     book\n\n\n    end  \n", frame(30))
-	require.Equal(t, "Tit…\n   …\n   …\n\n\n …  \n", frame(4))
+	frame := NewLiveTable(nil, cfg).snapshot(snapshot, false)
+	require.Equal(t, "Title\n     Item\n     book\n\n\n    end  \n", frame.full(30))
+	require.Equal(t, "Tit…\n   …\n   …\n\n\n …  \n", frame.full(4))
 
 	cfg.Headers = false
-	require.Equal(t, "Title", cfg.snapshot(TableSnapshot{Summary: "Title"}, false)(30))
-	require.Equal(t, "\n\n end  \n", cfg.snapshot(TableSnapshot{Footer: "end"}, false)(30))
+	require.Equal(
+		t,
+		"Title",
+		NewLiveTable(nil, cfg).snapshot(TableSnapshot{Summary: "Title"}, false).full(30),
+	)
+	require.Equal(
+		t,
+		"\n\n end  \n",
+		NewLiveTable(nil, cfg).snapshot(TableSnapshot{Footer: "end"}, false).full(30),
+	)
 }
 
 func TestTableColumnGap(t *testing.T) {
@@ -242,9 +268,125 @@ func TestTableColumnGap(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			cfg.ColumnGap = tc.gap
-			frame := cfg.snapshot(snapshot, false)
-			require.Equal(t, tc.want, frame(7))
-			require.Equal(t, "界\n x", frame(2))
+			frame := NewLiveTable(nil, cfg).snapshot(snapshot, false)
+			require.Equal(t, tc.want, frame.full(7))
+			require.Equal(t, "界\n x", frame.full(2))
 		})
 	}
+}
+
+func TestTableWidthsAcrossUpdates(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		minWidth    int
+		retain      bool
+		first, last string
+	}{
+		{"default", 0, false, "a  x", "b  x"},
+		{"minimum", 3, false, "a    x", "b    x"},
+		{"retain", 0, true, "a  x", "b     x"},
+		{"both", 3, true, "a    x", "b     x"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			table := NewLiveTable(TestOutput(&buf), TableConfig{
+				Columns: []TableColumn{
+					{Key: "a", MinWidth: tc.minWidth},
+					{Key: "b", Optional: true},
+				},
+				RetainWidths: tc.retain,
+				Padding:      &TablePadding{},
+			})
+			update := func(s string) func(int) string {
+				table.Update(TableSnapshot{Rows: []TableRow{{"a": s, "b": "x"}}})
+				return table.current.Load().full
+			}
+			first := update("a")
+			require.Equal(t, tc.first, first(20))
+			wide := update("界界")
+			require.Equal(t, "界界  x", wide(20))
+			require.Equal(t, "界界", wide(5))
+			last := update("b")
+			require.Equal(t, tc.last, last(20))
+			require.Equal(t, tc.first, first(21))
+			table.Close()
+			require.Equal(t, tc.last+nl, buf.String())
+		})
+	}
+}
+
+func TestLiveTableCloseModes(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		mode  TableCloseMode
+		final string
+	}{
+		{"keep", TableCloseKeep, "Orders\nItem\nBook\nDone\n"},
+		{"summary", TableCloseSummary, "Orders\nDone\n"},
+		{"clear", TableCloseClear, ""},
+	} {
+		for _, tty := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/tty=%t", tc.name, tty), func(t *testing.T) {
+				var buf bytes.Buffer
+				out := TestOutput(&buf)
+				out.isTTY = tty
+				table := NewLiveTable(out, TableConfig{
+					CloseMode: tc.mode,
+					Columns:   []TableColumn{{Key: "item", Label: "Item"}},
+					Headers:   true,
+					Padding:   &TablePadding{},
+				})
+				table.Update(
+					TableSnapshot{
+						Summary: "Orders",
+						Rows:    []TableRow{{"item": "Book"}},
+						Footer:  "Done",
+					},
+				)
+				// Inspect terminal output after stopping the live render loop.
+				if tty {
+					out.LiveRegion().Suspend(true)
+					require.NotEmpty(t, buf.Bytes())
+					buf.Reset()
+				} else {
+					require.Empty(t, buf.String())
+				}
+				table.Close()
+				table.Close()
+				require.Equal(t, tc.final, ansi.Strip(buf.String()))
+			})
+		}
+	}
+}
+
+func TestLiveTableClearErasesPadding(t *testing.T) {
+	var buf bytes.Buffer
+	out := TestOutput(&buf)
+	out.isTTY = true
+	out.width, out.height, out.sizeDone = 40, 25, true
+	table := NewLiveTable(out, TableConfig{
+		CloseMode: TableCloseClear,
+		Headers:   true,
+		Columns:   []TableColumn{{Key: "item", Label: "Item"}},
+		Padding:   &TablePadding{Top: 1, Bottom: 1, Left: 2, Right: 3},
+	})
+	out.WriteLine("before" + nl)
+	table.Update(TableSnapshot{
+		Summary: "Orders",
+		Rows:    []TableRow{{"item": "Book"}, {"item": "Map"}},
+		Footer:  "Done",
+	})
+	table.Close()
+	out.WriteLine("after" + nl)
+
+	// Three summary lines, five body lines, and three footer lines, including padding.
+	erase := xansi.EnableSyncOutput + xansi.CursorUp(11) + xansi.CursorHorizontalAbsolute(1) +
+		xansi.CursorHorizontalAbsolute(
+			1,
+		) + xansi.EraseScreenBelow + xansi.DisableSyncOutput + xansi.ShowCursor
+	require.True(
+		t,
+		strings.HasSuffix(buf.String(), erase+"after"+nl),
+		"close must erase back to the first padding line",
+	)
 }

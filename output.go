@@ -1,6 +1,7 @@
 package clog
 
 import (
+	"image/color"
 	"io"
 	"os"
 	"os/signal"
@@ -161,6 +162,17 @@ func (o *Output) IsTTY() bool { return o.isTTY }
 // ColorsDisabled returns true if this output should suppress colors.
 func (o *Output) ColorsDisabled() bool {
 	return o.profile == colorprofile.NoTTY
+}
+
+// LightDark selects a color for this output's terminal background. It returns dark
+// when the background is unknown or colors are disabled. Detection is cached per output.
+func (o *Output) LightDark(light, dark color.Color) color.Color {
+	if !o.ColorsDisabled() {
+		if bg, ok := o.background(); ok && bg == theme.BackgroundLight {
+			return light
+		}
+	}
+	return dark
 }
 
 // background lazily detects and caches the terminal background for this

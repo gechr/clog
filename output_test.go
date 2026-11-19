@@ -2,10 +2,12 @@ package clog
 
 import (
 	"bytes"
+	"image/color"
 	"io"
 	"os"
 	"testing"
 
+	"github.com/gechr/clog/theme"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -153,4 +155,18 @@ func TestParseCursorPositionReport(t *testing.T) {
 
 		assert.False(t, ok)
 	})
+}
+
+func TestOutputLightDark(t *testing.T) {
+	light, dark := color.Black, color.White
+	out := NewOutput(io.Discard, ColorAlways)
+	require.Equal(t, dark, out.LightDark(light, dark))
+	out.bg, out.bgOK, out.bgDone = theme.BackgroundLight, true, true
+	require.Equal(t, light, out.LightDark(light, dark))
+	out.bg = theme.BackgroundDark
+	require.Equal(t, dark, out.LightDark(light, dark))
+
+	plain := TestOutput(io.Discard)
+	require.Equal(t, dark, plain.LightDark(light, dark))
+	require.False(t, plain.bgDone)
 }
