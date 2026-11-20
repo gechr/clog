@@ -141,6 +141,80 @@ func TestTableViewport(t *testing.T) {
 	)
 }
 
+func TestTableBordered(t *testing.T) {
+	cfg := TableConfig{
+		Border: &TableBorder{}, Headers: true, Padding: &TablePadding{},
+		Columns: []TableColumn{
+			{Key: "item", Label: "ID"},
+			{Key: "note", Label: "Note", Optional: true},
+		},
+		FooterAlign: AlignRight,
+	}
+	snapshot := TableSnapshot{
+		Summary: "Items",
+		Rows:    []TableRow{{"item": "界界", "note": "a"}, {"item": "x"}},
+		Footer:  "end",
+	}
+	frame := NewLiveTable(nil, cfg).snapshot(snapshot, false)
+	wide := "Items\n┌──────┬──────┐\n│  ID  │ Note │\n├──────┼──────┤\n" +
+		"│ 界界 │ a    │\n│ x    │      │\n└──────┴──────┘\n            end"
+	require.Equal(t, wide, frame.full(15))
+	require.Equal(t, wide, frame.full(0))
+	require.Equal(
+		t,
+		"Items\n┌──────┐\n│  ID  │\n├──────┤\n│ 界界 │\n│ x    │\n└──────┘\n     end",
+		frame.full(14),
+	)
+	require.Equal(t, "It…\n┌─┐\n│…│\n├─┤\n│…│\n│x│\n└─┘\nend", frame.full(3))
+	require.Equal(t, "…\n…\n…\nx\n…", frame.full(1))
+	require.Equal(t, "Items\nend", frame(15, TableCloseSummary))
+
+	cfg.Headers = false
+	cfg.ColumnGap = new(0)
+	cfg.Values = style.ValueMap{"界界": new(lipgloss.NewStyle().Bold(true))}
+	frame = NewLiveTable(nil, cfg).snapshot(TableSnapshot{Rows: snapshot.Rows[:1]}, true)
+	require.Equal(t, "┌────┬─┐\n│"+cfg.Values["界界"].Render("界界")+"│a│\n└────┴─┘", frame.full(8))
+	require.Empty(t, NewLiveTable(nil, cfg).snapshot(TableSnapshot{}, false).full(8))
+}
+
+func TestTableBorderColor(t *testing.T) {
+	cfg := TableConfig{
+		Columns: []TableColumn{{Key: "a", Label: "A"}, {Key: "b", Label: "B"}},
+		Border:  &TableBorder{Color: lipgloss.Cyan}, Headers: true,
+		ColumnGap: new(0), Padding: &TablePadding{},
+		Values: style.ValueMap{1: new(lipgloss.NewStyle().Foreground(lipgloss.Green))},
+	}
+	snapshot := TableSnapshot{Rows: []TableRow{{"a": 1, "b": 2}}}
+	border := lipgloss.NewStyle().Foreground(lipgloss.Cyan)
+	header := lipgloss.NewStyle().Bold(true)
+	edge := border.Render("│")
+	want := strings.Join([]string{
+		border.Render("┌─┬─┐"),
+		edge + header.Render("A") + edge + header.Render("B") + edge,
+		border.Render("├─┼─┤"),
+		edge + cfg.Values[1].Render("1") + edge + "2" + edge,
+		border.Render("└─┴─┘"),
+	}, nl)
+	table := NewLiveTable(nil, cfg)
+	require.Equal(t, want, table.snapshot(snapshot, true).full(5))
+	require.Equal(t, ansi.Strip(want), table.snapshot(snapshot, false).full(5))
+}
+
+func TestTableBorderedUnicode(t *testing.T) {
+	cfg := TableConfig{
+		Border: &TableBorder{}, Padding: &TablePadding{}, ColumnGap: new(0),
+		Columns: []TableColumn{{Key: "icon"}, {Key: "count"}},
+	}
+	for _, icon := range []string{"📚", "👍🏽", "👩🏽‍💻", "🇯🇵", "界"} {
+		t.Run(icon, func(t *testing.T) {
+			rows := []TableRow{{"icon": icon, "count": 1}, {"icon": "e\u0301", "count": 2}}
+			frame := NewLiveTable(nil, cfg).snapshot(TableSnapshot{Rows: rows}, false)
+			require.Equal(t, "┌──┬─┐\n│"+icon+"│1│\n│e\u0301 │2│\n└──┴─┘", frame.full(6))
+			require.Equal(t, "┌─┬─┐\n│…│1│\n│e\u0301│2│\n└─┴─┘", frame.full(5))
+		})
+	}
+}
+
 func TestTableCustomPadding(t *testing.T) {
 	cfg := TableConfig{
 		Columns: []TableColumn{{Key: "id"}, {Key: "detail", Optional: true}},

@@ -32,6 +32,18 @@ table.Update(clog.TableSnapshot{
 
 Headers are optional and appear in bold when terminal styling is enabled. Columns marked `Optional` drop from right to left as available width shrinks. Cells accept scalar values or a `TableValues` sequence. Styling uses the original Go value as the lookup key. The renderer formats it as single-line text and preserves line breaks in the summary.
 
+Set `Border: &clog.TableBorder{}` to frame the body, center the headers, and draw a rule below them. The summary and text footer sit outside the frame. The border counts toward the available width, and `ColumnGap` sets the total horizontal padding inside each cell. The default of two gives one space on each side.
+
+```text
+┌──────┬─────────────────┐
+│ Item │      Steps      │
+├──────┼─────────────────┤
+│ Book │ queued → packed │
+└──────┴─────────────────┘
+```
+
+Use `Border: &clog.TableBorder{Color: lipgloss.Cyan}` to color the frame and dividers. The default is the terminal foreground. Border color follows the output's color mode.
+
 Set a column's `MinWidth` to reserve terminal cells before the first update, for example `TableColumn{Key: "format", MinWidth: 12}`. Set `TableConfig.RetainWidths` to keep each column at its widest observed value for the life of that table. Wider values can still expand it, and optional columns can still disappear when the terminal is narrow. With both options unset, each update sizes columns to the current snapshot.
 
 By default the table starts with one blank line, indents each section by two spaces, and leaves two spaces between visible columns. Set `ColumnGap: new(4)` for a wider gap or `ColumnGap: new(0)` for touching columns. The gap also counts toward the width used to fit optional columns.
@@ -50,6 +62,8 @@ Run the book-order example from the repository root. Three orders move from queu
 
 ```sh
 go run ./examples/table
+go run ./examples/table -border
+go run ./examples/table -border-color='#5f87ff'
 go run ./examples/table -footer-align=right -column-gap=4
 go run ./examples/table -headers=false -prompt
 go run ./examples/table | cat

@@ -26,6 +26,16 @@ type order struct {
 }
 
 func main() {
+	bordered := flag.Bool("border", false, "draw a border around the table columns")
+	var border *clog.TableBorder
+	flag.Func("border-color", "draw the border in a hex or ANSI palette color", func(value string) error {
+		c := lipgloss.Color(value)
+		if _, invalid := c.(lipgloss.NoColor); invalid {
+			return fmt.Errorf("invalid border color %q", value)
+		}
+		border = &clog.TableBorder{Color: c}
+		return nil
+	})
 	columnGap := flag.Int("column-gap", clog.DefaultTableColumnGap, "spaces between adjacent columns")
 	headers := flag.Bool("headers", true, "show column headers")
 	prompt := flag.Bool("prompt", false, "pause for Enter before the first shipment")
@@ -47,8 +57,12 @@ func main() {
 	flag.Parse()
 
 	out := clog.Default().Output()
+	if *bordered && border == nil {
+		border = &clog.TableBorder{}
+	}
 	table := clog.NewLiveTable(out, clog.TableConfig{
 		Headers:      *headers,
+		Border:       border,
 		ColumnGap:    columnGap,
 		FooterAlign:  footerAlign,
 		SummaryStyle: new(lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Magenta)),

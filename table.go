@@ -2,6 +2,7 @@ package clog
 
 import (
 	"fmt"
+	"image/color"
 	"slices"
 	"strings"
 	"sync"
@@ -37,6 +38,11 @@ type TablePadding struct {
 	Top, Right, Bottom, Left int
 }
 
+// TableBorder frames the visible columns, centers their headers, and draws a header divider.
+type TableBorder struct {
+	Color color.Color // foreground for the frame and dividers; nil uses the terminal default
+}
+
 // TableCloseMode selects what remains in the output when a live table closes.
 type TableCloseMode int
 
@@ -55,6 +61,7 @@ const (
 type TableConfig struct {
 	Columns        []TableColumn
 	Headers        bool
+	Border         *TableBorder    // nil separates columns with whitespace
 	CloseMode      TableCloseMode  // defaults to TableCloseKeep
 	RetainWidths   bool            // keep each column at its widest measured size across updates
 	ColumnGap      *int            // spaces between visible columns; nil uses two
@@ -232,7 +239,7 @@ func (t *LiveTable) snapshot(snapshot TableSnapshot, color bool) tableFrame {
 		var rows []string
 		var columnsWidth int
 		if mode != TableCloseSummary {
-			rows, columnsWidth = cfg.renderRows(cells, widths, bodyWidth, columnGap)
+			rows, columnsWidth = cfg.renderRows(cells, widths, bodyWidth, columnGap, color)
 		}
 		var sections []string
 		if len(summary) > 0 {
@@ -262,10 +269,21 @@ func (t *LiveTable) snapshot(snapshot TableSnapshot, color bool) tableFrame {
 	}
 }
 
-func (cfg TableConfig) renderRows(cells [][]string, widths []int, width, gap int) ([]string, int) {
+func (cfg TableConfig) renderRows(
+	cells [][]string,
+	widths []int,
+	width, gap int,
+	color bool,
+) ([]string, int) {
+	if len(cells) == 0 {
+		return nil, 0
+	}
 	if width > 0 {
 		gap = min(gap, width)
 	}
+	const edges = 2 // left and right borders
+	bordered := cfg.Border != nil && (width <= 0 || width > edges)
+	between := gap
 	sizes := slices.Clone(widths)
 	total, visible := 0, 0
 	for _, size := range sizes {
@@ -274,19 +292,27 @@ func (cfg TableConfig) renderRows(cells [][]string, widths []int, width, gap int
 			visible++
 		}
 	}
-	total += max(0, visible-1) * gap
+	if bordered {
+		// Each cell has gap spaces of padding and a divider on its right.
+		between++
+		total += edges + gap
+	}
+	total += max(0, visible-1) * between
 	for i := len(sizes) - 1; i >= 0 && width > 0 && total > width; i-- {
 		if sizes[i] > 0 && cfg.Columns[i].Optional {
 			total -= sizes[i]
 			visible--
 			if visible > 0 {
-				total -= gap
+				total -= between
 			}
 			sizes[i] = 0
 		}
 	}
 	if visible == 0 {
 		return nil, 0
+	}
+	if bordered {
+		return cfg.borderedRows(cells, sizes, visible, width, gap, color)
 	}
 	var rows []string
 	separator := ""
@@ -306,6 +332,68 @@ func (cfg TableConfig) renderRows(cells [][]string, widths []int, width, gap int
 		total = min(total, width)
 	}
 	return rows, total
+}
+
+func (cfg TableConfig) borderedRows(
+	cells [][]string,
+	sizes []int,
+	visible, width, gap int,
+	color bool,
+) ([]string, int) {
+	// Reserve the frame and one character per column before allocating spare cells.
+	spare := 0
+	if width > 0 {
+		visible = min(visible, (width-1)/2) //nolint:mnd // one cell and one divider
+		spare = width - 1 - 2*visible       //nolint:mnd // reserve both per column
+		gap = min(gap, spare/visible)
+		spare -= gap * visible
+	}
+	left := gap / 2 //nolint:mnd // split the gap across both sides of the cell
+	var columns []int
+	var rules []string
+	for i, size := range sizes {
+		if size == 0 {
+			continue
+		}
+		if width > 0 {
+			sizes[i] = 1 + min(size-1, spare)
+			spare -= sizes[i] - 1
+		}
+		columns = append(columns, i)
+		rules = append(rules, strings.Repeat("─", sizes[i]+gap))
+		if len(columns) == visible {
+			break
+		}
+	}
+	top := "┌" + strings.Join(rules, "┬") + "┐"
+	border := lipgloss.NewStyle()
+	if color && cfg.Border.Color != nil {
+		border = border.Foreground(cfg.Border.Color)
+	}
+	vertical := border.Render("│")
+	rows := []string{border.Render(top)}
+	for i, line := range cells {
+		var row strings.Builder
+		row.WriteString(vertical)
+		for _, col := range columns {
+			value := ansi.Truncate(line[col], sizes[col], "…")
+			padding := sizes[col] - ansi.StringWidth(value)
+			before := 0
+			if cfg.Headers && i == 0 {
+				before = padding / 2 //nolint:mnd // center the header
+			}
+			row.WriteString(strings.Repeat(" ", left+before))
+			row.WriteString(value)
+			row.WriteString(strings.Repeat(" ", gap-left+padding-before))
+			row.WriteString(vertical)
+		}
+		rows = append(rows, row.String())
+		if cfg.Headers && i == 0 && len(cells) > 1 {
+			rows = append(rows, border.Render("├"+strings.Join(rules, "┼")+"┤"))
+		}
+	}
+	rows = append(rows, border.Render("└"+strings.Join(rules, "┴")+"┘"))
+	return rows, ansi.StringWidth(top)
 }
 
 func (cfg TableConfig) sectionPadding(override *TablePadding, blankAbove bool) TablePadding {
