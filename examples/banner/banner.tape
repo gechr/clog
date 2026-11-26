@@ -1,14 +1,14 @@
-Set Width 1420
-Set Height 300
+Set Columns 90
+Set Rows 6
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/banner"
 Enter
-Sleep 200ms
-Type "go run ./examples/banner"
+Wait+Screen "Initializing environment"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Wait+Screen "connection refused"
+Wait
+ScrollUp 1
+Sleep 80ms

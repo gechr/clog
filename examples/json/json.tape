@@ -1,15 +1,10 @@
-Set Width 2050
-Set Height 250
+Set Columns 141
+Set Rows 5
 Source examples/base.tape
 
-Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/json"
 Enter
-Sleep 200ms
-Type "go run ./examples/json"
-Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Screenshot json.png
-Sleep 1s
+Wait+Screen "Flat mode"
+Wait
+ScrollUp 1
+Sleep 80ms

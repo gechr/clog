@@ -1,15 +1,10 @@
-Set Width 1420
-Set Height 220
+Set Columns 96
+Set Rows 6
 Source examples/base.tape
 
-Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/styles"
 Enter
-Sleep 200ms
-Type "go run ./examples/styles"
-Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Screenshot styles.png
-Sleep 1s
+Wait+Screen "Connection failed"
+Wait
+ScrollUp 1
+Sleep 80ms

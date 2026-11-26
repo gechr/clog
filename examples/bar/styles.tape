@@ -1,14 +1,11 @@
-Set Width 1420
-Set Height 270
+Set Columns 69
+Set Rows 8
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/bar -styles"
 Enter
-Sleep 200ms
-Type "go run ./examples/bar -styles"
+Wait+Screen "BarSmooth"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Wait+Screen /9[0-9]%/

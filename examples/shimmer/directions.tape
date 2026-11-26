@@ -1,14 +1,11 @@
-Set Width 1420
-Set Height 350
+Set Columns 74
+Set Rows 7
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/shimmer -directions"
 Enter
-Sleep 200ms
-Type "go run ./examples/shimmer -directions"
+Wait+Screen "Bounce out:"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Sleep 9s

@@ -1,12 +1,11 @@
-Set Width 630
-Set Height 390
-Set LineHeight 1.3
+Set Columns 37
+Set Rows 11
 Source examples/base.tape
-Set FontSize 14
 
 Hide
-Type "tput civis && clear && go run ./examples/spinner -styles-page PAGE"
+Type@0 'clear && exec ./.demo-bin/spinner -styles-page "$DEMO_PAGE"'
 Enter
-Sleep 500ms
+Wait+Screen /(?m)^[A-Z][A-Za-z0-9]+ {2,}\S/
+Sleep 80ms
 Show
 Sleep 9s

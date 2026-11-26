@@ -48,7 +48,7 @@ func main() {
 		Str("db", "postgres").
 		Progress(context.Background(), func(_ context.Context, update *clog.Update) error {
 			for i := range 100 {
-				update.Msg("Applying migrations").Percent("progress", float64(i+1)).Send()
+				update.Msg("Applying migrations").Percent("progress", float64(i+1)/100).Send()
 				time.Sleep(20 * time.Millisecond)
 			}
 			return nil

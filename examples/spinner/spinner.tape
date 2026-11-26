@@ -1,14 +1,14 @@
-Set Width 1420
-Set Height 250
+Set Columns 78
+Set Rows 4
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/spinner"
 Enter
-Sleep 200ms
-Type "go run ./examples/spinner"
+Wait+Screen "Loading configuration"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Wait+Screen "Deployed"
+Wait
+ScrollUp 1
+Sleep 80ms

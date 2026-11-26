@@ -1,15 +1,12 @@
-Set Width 1420
-Set Height 270
-Set LineHeight 1.2
+Set Columns 94
+Set Rows 6
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/group"
 Enter
-Sleep 200ms
-Type "go run ./examples/group"
+Wait+Screen "Indexing search catalogue"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Wait+Screen "5 more"
+Sleep 2s

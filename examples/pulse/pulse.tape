@@ -1,14 +1,14 @@
-Set Width 1420
-Set Height 180
+Set Columns 53
+Set Rows 2
 Source examples/base.tape
 
 Hide
-Type "tput civis && clear"
+Type@0 "clear && ./.demo-bin/pulse"
 Enter
-Sleep 200ms
-Type "go run ./examples/pulse"
+Wait+Screen "Warming up inference engine"
+Sleep 80ms
 Show
-Sleep 100ms
-Enter
-Wait /^\$$/
-Sleep 3s
+Wait+Screen "Data replicated"
+Wait
+ScrollUp 1
+Sleep 80ms
